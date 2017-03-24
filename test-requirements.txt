@@ -1,0 +1,4 @@
+copr
+mock
+nose
+vcrpy

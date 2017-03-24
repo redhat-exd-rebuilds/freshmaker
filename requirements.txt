@@ -1,0 +1,18 @@
+fedmsg
+moksha.hub
+psutil
+funcsigs # Python2 only
+httplib2
+kobo
+m2crypto
+m2ext
+mock
+modulemd>=1.1.0,<2.0.0
+munch
+pdc-client
+pyOpenSSL
+python-fedora
+qpid-python
+six
+sqlalchemy
+futures # Python 2 only
