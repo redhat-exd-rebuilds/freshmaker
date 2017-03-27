@@ -55,7 +55,7 @@ def init_config():
     if 'COCO_CONFIG_SECTION' in os.environ:
         config_section = os.environ['COCO_CONFIG_SECTION']
     # TestConfiguration shall only be used for running tests, otherwise...
-    if any(['nosetests' in arg or 'noserunner.py' in arg for arg in sys.argv]):
+    if any(['py.test' in arg for arg in sys.argv]):
         config_section = 'TestConfiguration'
         from conf import config
         config_module = config

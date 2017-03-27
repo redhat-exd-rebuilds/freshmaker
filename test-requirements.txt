@@ -1,4 +1,4 @@
 copr
 mock
-nose
+pytest
 vcrpy

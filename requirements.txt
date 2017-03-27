@@ -1,7 +1,7 @@
 fedmsg
 moksha.hub
 psutil
-funcsigs # Python2 only
+funcsigs  # Python2 only
 httplib2
 kobo
 m2crypto
@@ -12,7 +12,7 @@ munch
 pdc-client
 pyOpenSSL
 python-fedora
-qpid-python
+# qpid-python  # Python2 only; not necessary; just to hide warning messages
 six
 sqlalchemy
-futures # Python 2 only
+futures  # Python 2 only

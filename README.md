@@ -14,15 +14,8 @@ The example flow for the modulemd yaml change in dist-git is following:
 
 Handlers can be turned on/off in config file.
 
-## Starting unit-tests
+## Testing
 
 ```
-$ nosetests .
-```
-
-## Testing locally
-
-```
-$ python setup.py build
-$ ./start_from_here
+$ tox
 ```

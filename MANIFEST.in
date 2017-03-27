@@ -1,0 +1,10 @@
+global-exclude *.pyc *.pyo
+include LICENSE
+include README.md
+include requirements.txt
+include test-requirements.txt
+recursive-include conf config.py
+recursive-include docs *.txt *.rst *.md
+recursive-include coco *
+recursive-include fedmsg.d *
+recursive-include tests *
