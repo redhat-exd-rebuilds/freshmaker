@@ -17,5 +17,5 @@ Handlers can be turned on/off in config file.
 ## Testing
 
 ```
-$ tox
+$ tox -e py27,py35
 ```
