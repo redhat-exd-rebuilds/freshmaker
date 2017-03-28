@@ -5,7 +5,7 @@ from os import path
 confdir = path.abspath(path.dirname(__file__))
 # use parent dir as dbdir else fallback to current dir
 dbdir = path.abspath(path.join(confdir, '..')) if confdir.endswith('conf') \
-        else confdir
+    else confdir
 
 
 class BaseConfiguration(object):

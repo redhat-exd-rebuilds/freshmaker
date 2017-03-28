@@ -26,14 +26,18 @@
 class ValidationError(ValueError):
     pass
 
+
 class UnprocessableEntity(ValueError):
     pass
+
 
 class Conflict(ValueError):
     pass
 
+
 class NotFound(ValueError):
     pass
+
 
 class ProgrammingError(ValueError):
     pass

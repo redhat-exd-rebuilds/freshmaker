@@ -19,13 +19,12 @@
 # SOFTWARE.
 
 import unittest
-from mock import patch, PropertyMock
 import mock
-import six.moves.queue as queue
-
-from coco.consumer import CoCoConsumer
-from coco import conf
 import fedmsg.config
+
+from mock import patch
+from coco.consumer import CoCoConsumer
+
 
 @patch("coco.consumer.get_global_consumer")
 class TestPoller(unittest.TestCase):
@@ -48,12 +47,12 @@ class TestPoller(unittest.TestCase):
         global_consumer.return_value = consumer
 
         msg = {'body': {
-        "msg_id": "2017-7afcb214-cf82-4130-92d2-22f45cf59cf7", 
-        "topic": "org.fedoraproject.prod.mbs.module.state.change", 
-        "signature": "qRZ6oXBpKD/q8BTjBNa4MREkAPxT+KzI8Oret+TSKazGq/6gk0uuprdFpkfBXLR5dd4XDoh3NQWp\nyC74VYTDVqJR7IsEaqHtrv01x1qoguU/IRWnzrkGwqXm+Es4W0QZjHisBIRRZ4ywYBG+DtWuskvy\n6/5Mc3dXaUBcm5TnT0c=\n", 
+            "msg_id": "2017-7afcb214-cf82-4130-92d2-22f45cf59cf7",
+            "topic": "org.fedoraproject.prod.mbs.module.state.change",
+            "signature": "qRZ6oXBpKD/q8BTjBNa4MREkAPxT+KzI8Oret+TSKazGq/6gk0uuprdFpkfBXLR5dd4XDoh3NQWp\nyC74VYTDVqJR7IsEaqHtrv01x1qoguU/IRWnzrkGwqXm+Es4W0QZjHisBIRRZ4ywYBG+DtWuskvy\n6/5Mc3dXaUBcm5TnT0c=\n",
             "msg": {
-                "state": 5, 
-                "id": 70, 
+                "state": 5,
+                "id": 70,
                 "state_name": "ready"
             }
         }}

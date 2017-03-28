@@ -22,7 +22,7 @@
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
 import abc
-from coco import log, conf, messaging
+
 
 class BaseParser(object):
     """

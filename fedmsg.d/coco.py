@@ -13,7 +13,7 @@ config = {
     "endpoints": {
         "fedora-infrastructure": [
             # Just listen to staging for now, not to production (spam!)
-            #"tcp://hub.fedoraproject.org:9940",
+            # "tcp://hub.fedoraproject.org:9940",
             "tcp://stg.fedoraproject.org:9940",
         ],
     },

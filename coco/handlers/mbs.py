@@ -21,9 +21,10 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
-from coco import log, conf, messaging
+from coco import log
 from coco.handlers import BaseHandler
 from coco.triggers import ModuleBuilt, TestingTrigger
+
 
 class MBS(BaseHandler):
     name = "MBS"
@@ -32,11 +33,10 @@ class MBS(BaseHandler):
         # Handle only "ready" state of ModuleBuilt.
         # TODO: Handle only when something depends on
         # this module.
-        if (isinstance(trigger, ModuleBuilt)
-            and trigger.module_build_state == 5):
+        if (isinstance(trigger, ModuleBuilt) and
+                trigger.module_build_state == 5):
             return True
 
-            
         return False
 
     def handle(self, trigger):

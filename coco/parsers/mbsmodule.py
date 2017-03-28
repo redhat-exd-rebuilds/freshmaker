@@ -21,9 +21,10 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
-from coco import log, conf, messaging
+from coco import log
 from coco.parsers import BaseParser
 from coco.triggers import ModuleBuilt
+
 
 class MBSModuleParser(BaseParser):
     """
@@ -40,15 +41,14 @@ class MBSModuleParser(BaseParser):
         return True
 
     def parse(self, topic, msg):
-        state = msg['msg']['state_name']
         msg_id = msg.get('msg_id')
         msg_inner_msg = msg.get('msg')
 
         # If there isn't a msg dict in msg then this message can be skipped
         if not msg_inner_msg:
             log.debug(('Skipping message without any content with the '
-                        'topic "{0}"').format(topic))
+                      'topic "{0}"').format(topic))
             return None
 
         return ModuleBuilt(msg_id, msg_inner_msg.get('id'),
-                        msg_inner_msg.get('state'))
+                           msg_inner_msg.get('state'))

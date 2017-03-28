@@ -28,7 +28,6 @@ import imp
 import os
 
 from os import sys
-
 from coco import logger
 
 

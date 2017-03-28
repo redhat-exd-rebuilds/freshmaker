@@ -27,11 +27,10 @@ to use.
 
 import fedmsg.consumers
 import moksha.hub
-
-from coco.errors import ValidationError
-from coco import log, conf, messaging, triggers
 import coco.handlers
 import coco.parsers.mbsmodule
+
+from coco import log, conf, messaging, triggers
 
 
 class CoCoConsumer(fedmsg.consumers.FedmsgConsumer):
@@ -128,7 +127,7 @@ class CoCoConsumer(fedmsg.consumers.FedmsgConsumer):
             further_work = []
             try:
                 further_work = handler.handle(msg) or []
-            except Exception as e:
+            except Exception:
                 msg = 'Could not process message handler. See the traceback.'
                 log.exception(msg)
 

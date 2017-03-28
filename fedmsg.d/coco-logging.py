@@ -7,11 +7,11 @@ config = dict(
                 "propagate": True,
                 "handlers": ["console"],
             },
-#            coco={
-#                "level": "INFO",
-#                "propagate": True,
-#                "handlers": ["console"],
-#            },
+            # coco={
+            #     "level": "INFO",
+            #     "propagate": True,
+            #     "handlers": ["console"],
+            # },
         ),
     ),
 )

@@ -25,7 +25,9 @@
 
 """Generic messaging functions."""
 
-from coco import log, conf
+from coco import log
+from coco.triggers import BaseTrigger
+
 
 def publish(topic, msg, conf, service):
     """
@@ -80,6 +82,7 @@ def _in_memory_publish(topic, msg, conf, service):
         # As a last-ditch effort, try to hang initial messages in the config.
         log.warn("Hub not initialized.  Queueing on the side.")
         _initial_messages.append(wrapped_msg)
+
 
 _messaging_backends = {
     'fedmsg': {

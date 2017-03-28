@@ -22,9 +22,10 @@
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
 import abc
-
 import fedmsg.utils
-from coco import log, conf
+
+from coco import conf
+
 
 def load_handlers():
     """ Import and instantiate all handlers listed in the given config. """
@@ -54,4 +55,3 @@ class BaseHandler(object):
         generate another triggers to be used by other local handlers.
         """
         raise NotImplementedError()
-

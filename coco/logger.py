@@ -49,6 +49,7 @@ levels["error"] = logging.ERROR
 levels["warning"] = logging.WARNING
 levels["info"] = logging.INFO
 
+
 def str_to_log_level(level):
     """
     Returns internal representation of logging level defined
@@ -56,13 +57,15 @@ def str_to_log_level(level):
 
     Available levels are: debug, info, warning, error
     """
-    if not level in levels:
+    if level not in levels:
         return logging.NOTSET
 
     return levels[level]
 
+
 def supported_log_backends():
     return ("console", "journal", "file")
+
 
 def init_logging(conf):
     """
@@ -72,11 +75,11 @@ def init_logging(conf):
     log_backend = conf.log_backend
 
     if not log_backend or len(log_backend) == 0 or log_backend == "console":
-        logging.basicConfig(level = conf.log_level, format = log_format)
+        logging.basicConfig(level=conf.log_level, format=log_format)
         log = logging.getLogger()
         log.setLevel(conf.log_level)
     elif log_backend == "journal":
-        logging.basicConfig(level = conf.log_level, format = log_format)
+        logging.basicConfig(level=conf.log_level, format=log_format)
         try:
             from systemd import journal
         except:
@@ -86,6 +89,6 @@ def init_logging(conf):
         log.propagate = False
         log.addHandler(journal.JournalHandler())
     else:
-        logging.basicConfig(filename = conf.log_file, level = conf.log_level,
-                            format = log_format)
+        logging.basicConfig(filename=conf.log_file, level=conf.log_level,
+                            format=log_format)
         log = logging.getLogger()

@@ -24,7 +24,6 @@
 #            Jan Kaluza <jkaluza@redhat.com>
 
 from logging import getLogger
-
 from coco.logger import init_logging
 from coco.config import init_config
 
