@@ -23,12 +23,10 @@ import mock
 import fedmsg.config
 
 from mock import patch
-from coco.consumer import CoCoConsumer
-from coco import conf
-from tests import get_fedmsg
-import fedmsg.config
+from freshmaker.consumer import FreshmakerConsumer
 
-@patch("coco.consumer.get_global_consumer")
+
+@patch("freshmaker.consumer.get_global_consumer")
 class TestPoller(unittest.TestCase):
 
     def setUp(self):
@@ -45,7 +43,7 @@ class TestPoller(unittest.TestCase):
         """
         hub = mock.MagicMock()
         hub.config = fedmsg.config.load_config()
-        consumer = CoCoConsumer(hub)
+        consumer = FreshmakerConsumer(hub)
         global_consumer.return_value = consumer
 
         msg = {'body': {

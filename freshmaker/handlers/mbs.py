@@ -21,10 +21,11 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
-from coco import log, conf
-from coco.handlers import BaseHandler
-from coco.triggers import ModuleBuilt, TestingTrigger, ModuleMetadataUpdated
 import requests
+
+from freshmaker import log, conf
+from freshmaker.handlers import BaseHandler
+from freshmaker.triggers import ModuleBuilt, TestingTrigger, ModuleMetadataUpdated
 
 
 class MBS(BaseHandler):

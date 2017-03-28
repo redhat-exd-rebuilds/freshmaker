@@ -27,30 +27,30 @@ to use.
 
 import fedmsg.consumers
 import moksha.hub
-import coco.handlers
-import coco.parsers.mbsmodule
-import coco.parsers.gitreceive
+import freshmaker.handlers
+import freshmaker.parsers.mbsmodule
+import freshmaker.parsers.gitreceive
 
-from coco import log, conf, messaging, triggers
+from freshmaker import log, conf, messaging, triggers
 
 
-class CoCoConsumer(fedmsg.consumers.FedmsgConsumer):
+class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
     """
     This is triggered by running fedmsg-hub. This class is responsible for
     ingesting and processing messages from the message bus.
     """
-    config_key = 'cococonsumer'
+    config_key = 'freshmakerconsumer'
 
     def __init__(self, hub):
-        super(CoCoConsumer, self).__init__(hub)
+        super(FreshmakerConsumer, self).__init__(hub)
 
-        self.handlers = list(coco.handlers.load_handlers())
+        self.handlers = list(freshmaker.handlers.load_handlers())
         self.register_parsers()
 
         # These two values are typically provided either by the unit tests or
         # by the local build command.  They are empty in the production environ
-        self.stop_condition = hub.config.get('coco.stop_condition')
-        initial_messages = hub.config.get('coco.initial_messages', [])
+        self.stop_condition = hub.config.get('freshmaker.stop_condition')
+        initial_messages = hub.config.get('freshmaker.initial_messages', [])
         for msg in initial_messages:
             self.incoming.put(msg)
 
@@ -61,8 +61,8 @@ class CoCoConsumer(fedmsg.consumers.FedmsgConsumer):
             self.incoming.put(msg)
 
     def register_parsers(self):
-        triggers.BaseTrigger.register_parser(coco.parsers.mbsmodule.MBSModuleParser)
-        triggers.BaseTrigger.register_parser(coco.parsers.gitreceive.GitReceiveParser)
+        triggers.BaseTrigger.register_parser(freshmaker.parsers.mbsmodule.MBSModuleParser)
+        triggers.BaseTrigger.register_parser(freshmaker.parsers.gitreceive.GitReceiveParser)
         log.debug("Parser classes: %r", triggers.BaseTrigger._parsers)
 
         self.topic = triggers.BaseTrigger.get_parsing_topics()
@@ -82,7 +82,7 @@ class CoCoConsumer(fedmsg.consumers.FedmsgConsumer):
                 return
             # Otherwise, if it is a real message from the network, pass it
             # through crypto validation.
-            super(CoCoConsumer, self).validate(message)
+            super(FreshmakerConsumer, self).validate(message)
 
     def consume(self, message):
         log.debug("Received %r" % message)
@@ -153,10 +153,10 @@ def get_global_consumer():
         raise ValueError("No global moksha-hub obj found.")
 
     for consumer in hub.consumers:
-        if isinstance(consumer, CoCoConsumer):
+        if isinstance(consumer, FreshmakerConsumer):
             return consumer
 
-    raise ValueError("No CoCoConsumer found among %r." % len(hub.consumers))
+    raise ValueError("No FreshmakerConsumer found among %r." % len(hub.consumers))
 
 
 def work_queue_put(msg):

@@ -5,6 +5,6 @@ include requirements.txt
 include test-requirements.txt
 recursive-include conf config.py
 recursive-include docs *.txt *.rst *.md
-recursive-include coco *
+recursive-include freshmaker *
 recursive-include fedmsg.d *
 recursive-include tests *

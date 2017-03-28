@@ -28,15 +28,15 @@ import imp
 import os
 
 from os import sys
-from coco import logger
+from freshmaker import logger
 
 
 def init_config():
     """
-    Configure CoCo
+    Configure Freshmaker
     """
     config_module = None
-    config_file = '/etc/coco/config.py'
+    config_file = '/etc/freshmaker/config.py'
     config_section = 'DevConfiguration'
 
     # automagically detect production environment:
@@ -48,23 +48,23 @@ def init_config():
         pass
 
     # try getting config_file from os.environ
-    if 'COCO_CONFIG_FILE' in os.environ:
-        config_file = os.environ['COCO_CONFIG_FILE']
+    if 'FRESHMAKER_CONFIG_FILE' in os.environ:
+        config_file = os.environ['FRESHMAKER_CONFIG_FILE']
     # try getting config_section from os.environ
-    if 'COCO_CONFIG_SECTION' in os.environ:
-        config_section = os.environ['COCO_CONFIG_SECTION']
+    if 'FRESHMAKER_CONFIG_SECTION' in os.environ:
+        config_section = os.environ['FRESHMAKER_CONFIG_SECTION']
     # TestConfiguration shall only be used for running tests, otherwise...
     if any(['py.test' in arg or 'pytest.py' in arg for arg in sys.argv]):
         config_section = 'TestConfiguration'
         from conf import config
         config_module = config
-    # ...COCO_BUILD_SERVICE_DEVELOPER_ENV has always the last word
+    # ...FRESHMAKER_DEVELOPER_ENV has always the last word
     # and overrides anything previously set before!
-    # In any of the following cases, use configuration directly from CoCo
+    # In any of the following cases, use configuration directly from Freshmaker
     # package -> /conf/config.py.
 
-    elif ('COCO_DEVELOPER_ENV' in os.environ and
-          os.environ['COCO_DEVELOPER_ENV'].lower() in (
+    elif ('FRESHMAKER_DEVELOPER_ENV' in os.environ and
+          os.environ['FRESHMAKER_DEVELOPER_ENV'].lower() in (
             '1', 'on', 'true', 'y', 'yes')):
         config_section = 'DevConfiguration'
         from conf import config
@@ -72,13 +72,13 @@ def init_config():
     # try loading configuration from file
     if not config_module:
         try:
-            config_module = imp.load_source('coco_runtime_config',
+            config_module = imp.load_source('freshmaker_runtime_config',
                                             config_file)
         except:
             raise SystemError("Configuration file {} was not found."
                               .format(config_file))
 
-    # finally configure CoCo
+    # finally configure Freshmaker
     config_section_obj = getattr(config_module, config_section)
     conf = Config(config_section_obj)
     return conf
@@ -133,7 +133,7 @@ class Config(object):
             'desc': 'Global network retry interval for read/write operations, in seconds.'},
         'handlers': {
             'type': list,
-            'default': ["coco.handlers.mbs:MBS"],
+            'default': ["freshmaker.handlers.mbs:MBS"],
             'desc': 'List of enabled handlers.'},
         'git_base_url': {
             'type': str,

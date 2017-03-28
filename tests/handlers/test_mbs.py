@@ -23,12 +23,11 @@ import mock
 import fedmsg.config
 
 from mock import patch
-from coco.consumer import CoCoConsumer
-from coco import conf
+from freshmaker.consumer import FreshmakerConsumer
 from tests import get_fedmsg
-import fedmsg.config
 
-@patch("coco.consumer.get_global_consumer")
+
+@patch("freshmaker.consumer.get_global_consumer")
 class TestMBS(unittest.TestCase):
 
     def setUp(self):
@@ -45,7 +44,7 @@ class TestMBS(unittest.TestCase):
         """
         hub = mock.MagicMock()
         hub.config = fedmsg.config.load_config()
-        consumer = CoCoConsumer(hub)
+        consumer = FreshmakerConsumer(hub)
         global_consumer.return_value = consumer
 
         consumer.consume(get_fedmsg("git_receive_module"))
@@ -55,4 +54,3 @@ class TestMBS(unittest.TestCase):
             headers={'Authorization': 'Bearer testingtoken'},
             json={'scmurl': u'git://pkgs.fedoraproject.org/modules/testmodule.git?#e1f39d43471fc37ec82616f76a119da4eddec787',
                   'branch': u'master'})
-

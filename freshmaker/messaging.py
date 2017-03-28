@@ -25,8 +25,8 @@
 
 """Generic messaging functions."""
 
-from coco import log
-from coco.triggers import BaseTrigger
+from freshmaker import log
+from freshmaker.triggers import BaseTrigger
 
 
 def publish(topic, msg, conf, service):
@@ -71,11 +71,11 @@ def _in_memory_publish(topic, msg, conf, service):
     )
 
     # Put the message to queue.
-    from coco.scheduler.consumer import work_queue_put
+    from freshmaker.scheduler.consumer import work_queue_put
     try:
         work_queue_put(wrapped_msg)
     except ValueError as e:
-        log.warn("No CoCoConsumer found.  Shutting down?  %r" % e)
+        log.warn("No FreshmakerConsumer found.  Shutting down?  %r" % e)
     except AttributeError as e:
         # In the event that `moksha.hub._hub` hasn't yet been initialized, we
         # need to store messages on the side until it becomes available.

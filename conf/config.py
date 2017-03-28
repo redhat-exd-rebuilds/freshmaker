@@ -25,14 +25,14 @@ class BaseConfiguration(object):
     LOG_BACKEND = 'journal'
 
     # Path to log file when LOG_BACKEND is set to "file".
-    LOG_FILE = 'coco.log'
+    LOG_FILE = 'freshmaker.log'
 
     # Available log levels are: debug, info, warn, error.
     LOG_LEVEL = 'info'
 
     # List of enabled composing handlers.
     HANDLERS = [
-        "coco.handlers.mbs:MBS",  # Module Build Service
+        "freshmaker.handlers.mbs:MBS",  # Module Build Service
         ]
 
     # Base URL of git repository with source artifacts.

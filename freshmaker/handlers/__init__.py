@@ -21,34 +21,37 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
-from coco import log
-from coco.parsers import BaseParser
-from coco.triggers import ModuleBuilt
+import abc
+import fedmsg.utils
+
+from freshmaker import conf
 
 
-class MBSModuleParser(BaseParser):
+def load_handlers():
+    """ Import and instantiate all handlers listed in the given config. """
+    for import_path in conf.handlers:
+        cls = fedmsg.utils.load_class(import_path)
+        handler = cls()
+        yield handler
+
+
+class BaseHandler(object):
     """
-    Parser parsing message from module-build-service, generating
-    ModuleBuilt trigger.
+    Abstract base class for trigger handlers.
     """
-    name = "MBSModuleParser"
-    topic_suffixes = ["mbs.module.state.change"]
+    __metaclass__ = abc.ABCMeta
 
-    def can_parse(self, topic, msg):
-        log.debug(topic)
-        if not any([topic.endswith(s) for s in self.topic_suffixes]):
-            return False
-        return True
+    @abc.abstractmethod
+    def can_handle(self, trigger):
+        """
+        Returns true if this class can handle this type of trigger.
+        """
+        raise NotImplementedError()
 
-    def parse(self, topic, msg):
-        msg_id = msg.get('msg_id')
-        msg_inner_msg = msg.get('msg')
-
-        # If there isn't a msg dict in msg then this message can be skipped
-        if not msg_inner_msg:
-            log.debug(('Skipping message without any content with the '
-                      'topic "{0}"').format(topic))
-            return None
-
-        return ModuleBuilt(msg_id, msg_inner_msg.get('id'),
-                           msg_inner_msg.get('state'))
+    @abc.abstractmethod
+    def handle(self, trigger):
+        """
+        Handles the trigger. Can return another BaseTrigger instances to
+        generate another triggers to be used by other local handlers.
+        """
+        raise NotImplementedError()

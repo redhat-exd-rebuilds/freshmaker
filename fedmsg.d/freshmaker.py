@@ -23,7 +23,7 @@ config = {
     # 'validate_signatures': True,
     # 'crypto_backend': 'x509',
     # 'crypto_validate_backends': ['x509'],
-    # 'ssldir': '/opt/module_build_service/pki',
+    # 'ssldir': '/opt/freshmaker/pki',
     # 'crl_location': 'http://localhost/crl/ca.crl',
     # 'crl_cache': '/etc/pki/fedmsg/crl.pem',
     # 'crl_cache_expiry': 10,
@@ -31,14 +31,14 @@ config = {
     # 'ca_cert_cache': '/etc/pki/fedmsg/ca.crt',
     # 'ca_cert_cache_expiry': 0,  # Never expires
     # 'certnames': {
-    #     'module_build_service.localhost': 'localhost'
+    #     'freshmaker.localhost': 'localhost'
     # }
     # End of code signing configuration
 }
 
 # developer's instance (docker/vagrant/...)
-if 'COCO_DEVELOPER_ENV' in os.environ and \
-   os.environ['COCO_DEVELOPER_ENV'].lower() in (
+if 'FRESHMAKER_DEVELOPER_ENV' in os.environ and \
+   os.environ['FRESHMAKER_DEVELOPER_ENV'].lower() in (
        '1', 'on', 'true', 'y', 'yes'):
     config['endpoints']['relay_outbound'] = ["tcp://fedmsg-relay:2001"]
     config['relay_inbound'] = ["tcp://fedmsg-relay:2003"]

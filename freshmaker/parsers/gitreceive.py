@@ -21,9 +21,9 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
-from coco import log, conf, messaging
-from coco.parsers import BaseParser
-from coco.triggers import ModuleMetadataUpdated
+from freshmaker import log, conf, messaging
+from freshmaker.parsers import BaseParser
+from freshmaker.triggers import ModuleMetadataUpdated
 
 class GitReceiveParser(BaseParser):
     """

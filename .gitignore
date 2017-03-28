@@ -3,5 +3,5 @@
 /.coverage*
 /.tox/
 /build/
-/coco.egg-info/
 /dist/
+/freshmaker.egg-info/

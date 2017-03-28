@@ -24,8 +24,8 @@
 #            Jan Kaluza <jkaluza@redhat.com>
 
 from logging import getLogger
-from coco.logger import init_logging
-from coco.config import init_config
+from freshmaker.logger import init_logging
+from freshmaker.config import init_config
 
 conf = init_config()
 init_logging(conf)

@@ -7,7 +7,7 @@ config = dict(
                 "propagate": True,
                 "handlers": ["console"],
             },
-            # coco={
+            # freshmaker={
             #     "level": "INFO",
             #     "propagate": True,
             #     "handlers": ["console"],
