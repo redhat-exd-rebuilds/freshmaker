@@ -21,9 +21,10 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
-from coco import log
+from coco import log, conf
 from coco.handlers import BaseHandler
-from coco.triggers import ModuleBuilt, TestingTrigger
+from coco.triggers import ModuleBuilt, TestingTrigger, ModuleMetadataUpdated
+import requests
 
 
 class MBS(BaseHandler):
@@ -37,11 +38,48 @@ class MBS(BaseHandler):
                 trigger.module_build_state == 5):
             return True
 
+        if isinstance(trigger, ModuleMetadataUpdated):
+            return True
+
         return False
 
-    def handle(self, trigger):
+    def rebuild_module(self, scm_url, branch):
+        """
+        Rebuilds the module defined by scm_url and branch in MBS.
+        Returns build id or None in case of error.
+        """
+        headers = {}
+        headers["Authorization"] = "Bearer %s" % conf.mbs_auth_token
+
+        body = {'scmurl': scm_url, 'branch': branch}
+        url = "%s/module-build-service/1/module-builds/" % conf.mbs_base_url
+
+        resp = requests.request("POST", url, headers=headers, json=body)
+        data = resp.json()
+        if 'id' in data:
+            log.info("Triggered reubild of %s, MBS build_id=%s", scm_url, data['id'])
+            return data['id']
+        else:
+            log.error("Error when triggering rebuild of %s: %s", scm_url, data)
+            return None
+
+    def handle_metadata_update(self, trigger):
+        log.info("Triggering rebuild of %s, metadata updated", trigger.scm_url)
+        self.rebuild_module(trigger.scm_url, trigger.branch)
+
+        return []
+
+    def handle_module_built(self, trigger):
         log.info("Triggering rebuild of modules depending on %r "
                  "in MBS" % trigger)
 
         # TODO: Just for initial testing of consumer
         return [TestingTrigger("ModuleBuilt handled")]
+
+    def handle(self, trigger):
+        if isinstance(trigger, ModuleMetadataUpdated):
+            return self.handle_metadata_update(trigger)
+        elif isinstance(trigger, ModuleBuilt):
+            return self.handle_module_built(trigger)
+
+        return []

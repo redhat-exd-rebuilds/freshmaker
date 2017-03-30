@@ -29,7 +29,7 @@ from tests import get_fedmsg
 import fedmsg.config
 
 @patch("coco.consumer.get_global_consumer")
-class TestPoller(unittest.TestCase):
+class TestMBS(unittest.TestCase):
 
     def setUp(self):
         pass
@@ -37,29 +37,22 @@ class TestPoller(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def test_consumer_processing_message(self, global_consumer):
+    @patch("requests.request")
+    def test_consumer_git_receive_module_updated(self, request, global_consumer):
         """
-        Tests that consumer parses the message, forwards the trigger
-        to proper handler and is able to get the further work from
-        the handler.
+        Tests that MBS triggers the rebuild of module as a result of GitReceive
+        fedmsg message.
         """
         hub = mock.MagicMock()
         hub.config = fedmsg.config.load_config()
         consumer = CoCoConsumer(hub)
         global_consumer.return_value = consumer
 
-        msg = {'body': {
-            "msg_id": "2017-7afcb214-cf82-4130-92d2-22f45cf59cf7",
-            "topic": "org.fedoraproject.prod.mbs.module.state.change",
-            "signature": "qRZ6oXBpKD/q8BTjBNa4MREkAPxT+KzI8Oret+TSKazGq/6gk0uuprdFpkfBXLR5dd4XDoh3NQWp\nyC74VYTDVqJR7IsEaqHtrv01x1qoguU/IRWnzrkGwqXm+Es4W0QZjHisBIRRZ4ywYBG+DtWuskvy\n6/5Mc3dXaUBcm5TnT0c=\n",
-            "msg": {
-                "state": 5,
-                "id": 70,
-                "state_name": "ready"
-            }
-        }}
+        consumer.consume(get_fedmsg("git_receive_module"))
 
-        consumer.consume(msg)
+        request.assert_called_once_with(
+            'POST', 'https://mbs.fedoraproject.org/module-build-service/1/module-builds/',
+            headers={'Authorization': 'Bearer testingtoken'},
+            json={'scmurl': u'git://pkgs.fedoraproject.org/modules/testmodule.git?#e1f39d43471fc37ec82616f76a119da4eddec787',
+                  'branch': u'master'})
 
-        trigger = consumer.incoming.get()
-        self.assertEqual(trigger.msg_id, "ModuleBuilt handled")

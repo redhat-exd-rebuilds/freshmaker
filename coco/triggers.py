@@ -134,6 +134,16 @@ class ModuleBuilt(BaseTrigger):
         self.module_build_id = module_build_id
         self.module_build_state = module_build_state
 
+class ModuleMetadataUpdated(BaseTrigger):
+    """
+    Provides a trigger object for "Module metadata in dist-git updated".
+    :param scm_url: SCM URL of a updated module.
+    :param branch: Branch of updated module.
+    """
+    def __init__(self, msg_id, scm_url, branch):
+        super(ModuleMetadataUpdated, self).__init__(msg_id)
+        self.scm_url = scm_url
+        self.branch = branch
 
 class TestingTrigger(BaseTrigger):
     """

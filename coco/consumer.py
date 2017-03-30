@@ -29,6 +29,7 @@ import fedmsg.consumers
 import moksha.hub
 import coco.handlers
 import coco.parsers.mbsmodule
+import coco.parsers.gitreceive
 
 from coco import log, conf, messaging, triggers
 
@@ -61,6 +62,7 @@ class CoCoConsumer(fedmsg.consumers.FedmsgConsumer):
 
     def register_parsers(self):
         triggers.BaseTrigger.register_parser(coco.parsers.mbsmodule.MBSModuleParser)
+        triggers.BaseTrigger.register_parser(coco.parsers.gitreceive.GitReceiveParser)
         log.debug("Parser classes: %r", triggers.BaseTrigger._parsers)
 
         self.topic = triggers.BaseTrigger.get_parsing_topics()

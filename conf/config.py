@@ -53,6 +53,7 @@ class TestConfiguration(BaseConfiguration):
     # Global network-related values, in seconds
     NET_TIMEOUT = 3
     NET_RETRY_INTERVAL = 1
+    MBS_AUTH_TOKEN = "testingtoken"
 
 
 class ProdConfiguration(BaseConfiguration):
