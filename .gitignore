@@ -1,6 +1,7 @@
 *.pyc
 /.cache/
-/.coverage
+/.coverage*
 /.tox/
+/build/
 /coco.egg-info/
 /dist/
