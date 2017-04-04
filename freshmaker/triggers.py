@@ -134,6 +134,7 @@ class ModuleBuilt(BaseTrigger):
         self.module_build_id = module_build_id
         self.module_build_state = module_build_state
 
+
 class ModuleMetadataUpdated(BaseTrigger):
     """
     Provides a trigger object for "Module metadata in dist-git updated".
@@ -144,6 +145,7 @@ class ModuleMetadataUpdated(BaseTrigger):
         super(ModuleMetadataUpdated, self).__init__(msg_id)
         self.scm_url = scm_url
         self.branch = branch
+
 
 class TestingTrigger(BaseTrigger):
     """

@@ -24,6 +24,7 @@
 from os import path
 import json
 
+
 def get_fedmsg(name):
     this_path = path.abspath(path.dirname(__file__))
     fedmsg_path = path.join(this_path, "fedmsgs", name)

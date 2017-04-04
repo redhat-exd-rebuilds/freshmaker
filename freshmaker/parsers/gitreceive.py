@@ -21,9 +21,10 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
-from freshmaker import log, conf, messaging
+from freshmaker import log, conf
 from freshmaker.parsers import BaseParser
 from freshmaker.triggers import ModuleMetadataUpdated
+
 
 class GitReceiveParser(BaseParser):
     """
@@ -31,7 +32,6 @@ class GitReceiveParser(BaseParser):
     """
     name = "GitReceiveParser"
     topic_suffixes = ["git.receive"]
-    
 
     def can_parse(self, topic, msg):
         if not any([topic.endswith(s) for s in self.topic_suffixes]):
@@ -45,13 +45,13 @@ class GitReceiveParser(BaseParser):
         # If there isn't a msg dict in msg then this message can be skipped
         if not msg_inner_msg:
             log.debug(('Skipping message without any content with the '
-                        'topic "{0}"').format(topic))
+                       'topic "{0}"').format(topic))
             return None
 
         commit = msg_inner_msg.get('commit')
         if not commit:
             log.debug(('Skipping message without commit with the '
-                        'topic "{0}"').format(topic))
+                       'topic "{0}"').format(topic))
             return None
 
         namespace = commit.get("namespace")

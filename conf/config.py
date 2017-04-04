@@ -33,7 +33,7 @@ class BaseConfiguration(object):
     # List of enabled composing handlers.
     HANDLERS = [
         "freshmaker.handlers.mbs:MBS",  # Module Build Service
-        ]
+    ]
 
     # Base URL of git repository with source artifacts.
     GIT_BASE_URL = "git://pkgs.fedoraproject.org"
