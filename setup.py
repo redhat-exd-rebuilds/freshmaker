@@ -8,7 +8,7 @@ with open('test-requirements.txt') as f:
 
 setup(name='freshmaker',
       description='Continuous Compose Service',
-      version='0.0.2',
+      version='0.0.3',
       classifiers=[
           "Programming Language :: Python",
           "Topic :: Software Development :: Build Tools"
