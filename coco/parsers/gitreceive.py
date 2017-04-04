@@ -62,6 +62,8 @@ class GitReceiveParser(BaseParser):
         log.debug(namespace)
         if namespace == "modules":
             scm_url = "%s/%s/%s.git?#%s" % (conf.git_base_url, namespace, repo, rev)
+            log.debug("Parsed ModuleMetadataUpdated fedmsg, scm_url=%s, "
+                      "branch=%s", scm_url, branch)
             return ModuleMetadataUpdated(msg_id, scm_url, branch)
 
         return None
