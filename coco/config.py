@@ -135,6 +135,18 @@ class Config(object):
             'type': list,
             'default': ["coco.handlers.mbs:MBS"],
             'desc': 'List of enabled handlers.'},
+        'git_base_url': {
+            'type': str,
+            'default': "git://pkgs.fedoraproject.org",
+            'desc': 'Dist-git base URL.'},
+        'mbs_base_url': {
+            'type': str,
+            'default': "https://mbs.fedoraproject.org",
+            'desc': 'MBS Base URL'},
+        'mbs_auth_token': {
+            'type': str,
+            'default': '',
+            'desc': "OpenIDC token to use when communicating with MBS."},
     }
 
     def __init__(self, conf_section_obj):

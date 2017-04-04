@@ -30,6 +30,20 @@ class BaseConfiguration(object):
     # Available log levels are: debug, info, warn, error.
     LOG_LEVEL = 'info'
 
+    # List of enabled composing handlers.
+    HANDLERS = [
+        "coco.handlers.mbs:MBS",  # Module Build Service
+        ]
+
+    # Base URL of git repository with source artifacts.
+    GIT_BASE_URL = "git://pkgs.fedoraproject.org"
+
+    # Base URL of Module Build Service.
+    MBS_BASE_URL = "https://mbs.fedoraproject.org"
+
+    # Authorization token to use when communicating with MBS.
+    MBS_AUTH_TOKEN = ""
+
 
 class DevConfiguration(BaseConfiguration):
     DEBUG = True
@@ -53,6 +67,7 @@ class TestConfiguration(BaseConfiguration):
     # Global network-related values, in seconds
     NET_TIMEOUT = 3
     NET_RETRY_INTERVAL = 1
+    MBS_AUTH_TOKEN = "testingtoken"
 
 
 class ProdConfiguration(BaseConfiguration):
