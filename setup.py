@@ -18,7 +18,7 @@ setup(name='freshmaker',
       # TODO: Not sure which name would be used for mail alias,
       # but let's set this proactively to the new name.
       author_email='freshmaker-owner@fedoraproject.org',
-      url='https://pagure.io/coco/',
+      url='https://pagure.io/freshmaker/',
       license='GPLv2+',
       packages=find_packages(),
       include_package_data=True,
