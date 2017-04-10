@@ -26,7 +26,7 @@ import abc
 
 class BaseParser(object):
     """
-    Abstract parser class parsing fedmsg messages and generating triggers.
+    Abstract parser class parsing fedmsg messages and generating events.
     """
     __metaclass__ = abc.ABCMeta
     name = "abstract_parser"
@@ -42,6 +42,6 @@ class BaseParser(object):
     @abc.abstractmethod
     def parse(self, topic, msg):
         """
-        Parses the message and returns BaseTrigger object.
+        Parses the message and returns BaseEvent object.
         """
         raise NotImplementedError()

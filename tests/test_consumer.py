@@ -37,7 +37,7 @@ class TestPoller(unittest.TestCase):
 
     def test_consumer_processing_message(self, global_consumer):
         """
-        Tests that consumer parses the message, forwards the trigger
+        Tests that consumer parses the message, forwards the event
         to proper handler and is able to get the further work from
         the handler.
         """
@@ -59,5 +59,5 @@ class TestPoller(unittest.TestCase):
 
         consumer.consume(msg)
 
-        trigger = consumer.incoming.get()
-        self.assertEqual(trigger.msg_id, "ModuleBuilt handled")
+        event = consumer.incoming.get()
+        self.assertEqual(event.msg_id, "ModuleBuilt handled")
