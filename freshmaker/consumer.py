@@ -31,7 +31,7 @@ import freshmaker.handlers
 import freshmaker.parsers.mbsmodule
 import freshmaker.parsers.gitreceive
 
-from freshmaker import log, conf, messaging, triggers
+from freshmaker import log, conf, messaging, events
 
 
 class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
@@ -61,11 +61,11 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
             self.incoming.put(msg)
 
     def register_parsers(self):
-        triggers.BaseTrigger.register_parser(freshmaker.parsers.mbsmodule.MBSModuleParser)
-        triggers.BaseTrigger.register_parser(freshmaker.parsers.gitreceive.GitReceiveParser)
-        log.debug("Parser classes: %r", triggers.BaseTrigger._parsers)
+        events.BaseEvent.register_parser(freshmaker.parsers.mbsmodule.MBSModuleParser)
+        events.BaseEvent.register_parser(freshmaker.parsers.gitreceive.GitReceiveParser)
+        log.debug("Parser classes: %r", events.BaseEvent._parsers)
 
-        self.topic = triggers.BaseTrigger.get_parsing_topics()
+        self.topic = events.BaseEvent.get_parsed_topics()
         log.debug('Setting topics: {}'.format(', '.join(self.topic)))
 
     def shutdown(self):
@@ -77,7 +77,7 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
     def validate(self, message):
         if conf.messaging == 'fedmsg':
             # If this is a faked internal message, don't bother.
-            if isinstance(message, triggers.BaseTrigger):
+            if isinstance(message, events.BaseEvent):
                 log.info("Skipping crypto validation for %r" % message)
                 return
             # Otherwise, if it is a real message from the network, pass it
@@ -92,14 +92,14 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
         # messages, then just use them as-is.  If they are not already
         # instances of our message abstraction base class, then first transform
         # them before proceeding.
-        if isinstance(message, triggers.BaseTrigger):
+        if isinstance(message, events.BaseEvent):
             msg = message
         else:
             msg = self.get_abstracted_msg(message['body'])
 
         # Primary work is done here.
         try:
-            self.process_trigger(msg)
+            self.process_event(msg)
         except Exception:
             log.exception('Failed while handling {0!r}'.format(msg))
 
@@ -109,14 +109,14 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
     def get_abstracted_msg(self, message):
         # Convert the message to an abstracted message
         if conf.messaging == 'fedmsg' or conf.messaging == 'in_memory':
-            msg = triggers.BaseTrigger.from_fedmsg(
+            msg = events.BaseEvent.from_fedmsg(
                 message['topic'], message)
         else:
             raise ValueError('The messaging format "{0}" is not supported'
                              .format(conf.messaging))
         return msg
 
-    def process_trigger(self, msg):
+    def process_event(self, msg):
         log.debug('Received a message with an ID of "{0}" and of type "{1}"'
                   .format(getattr(msg, 'msg_id', None), type(msg).__name__))
 

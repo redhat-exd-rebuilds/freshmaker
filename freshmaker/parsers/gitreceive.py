@@ -23,7 +23,7 @@
 
 from freshmaker import log, conf
 from freshmaker.parsers import BaseParser
-from freshmaker.triggers import ModuleMetadataUpdated
+from freshmaker.events import ModuleMetadataUpdated
 
 
 class GitReceiveParser(BaseParser):

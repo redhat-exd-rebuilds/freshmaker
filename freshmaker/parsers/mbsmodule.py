@@ -23,13 +23,13 @@
 
 from freshmaker import log
 from freshmaker.parsers import BaseParser
-from freshmaker.triggers import ModuleBuilt
+from freshmaker.events import ModuleBuilt
 
 
 class MBSModuleParser(BaseParser):
     """
     Parser parsing message from module-build-service, generating
-    ModuleBuilt trigger.
+    ModuleBuilt event.
     """
     name = "MBSModuleParser"
     topic_suffixes = ["mbs.module.state.change"]

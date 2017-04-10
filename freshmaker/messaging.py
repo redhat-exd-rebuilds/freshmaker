@@ -26,7 +26,7 @@
 """Generic messaging functions."""
 
 from freshmaker import log
-from freshmaker.triggers import BaseTrigger
+from freshmaker.events import BaseEvent
 
 
 def publish(topic, msg, conf, service):
@@ -63,9 +63,9 @@ def _in_memory_publish(topic, msg, conf, service):
     _in_memory_msg_id += 1
 
     # Create fake fedmsg from the message so we can reuse
-    # the BaseTrigger.from_fedmsg code to get the particular BaseTrigger
+    # the BaseEvent.from_fedmsg code to get the particular BaseEvent
     # class instance.
-    wrapped_msg = BaseTrigger.from_fedmsg(
+    wrapped_msg = BaseEvent.from_fedmsg(
         service + "." + topic,
         {"msg_id": str(_in_memory_msg_id), "msg": msg},
     )

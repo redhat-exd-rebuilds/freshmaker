@@ -37,21 +37,21 @@ def load_handlers():
 
 class BaseHandler(object):
     """
-    Abstract base class for trigger handlers.
+    Abstract base class for event handlers.
     """
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
-    def can_handle(self, trigger):
+    def can_handle(self, event):
         """
-        Returns true if this class can handle this type of trigger.
+        Returns true if this class can handle this type of event.
         """
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def handle(self, trigger):
+    def handle(self, event):
         """
-        Handles the trigger. Can return another BaseTrigger instances to
-        generate another triggers to be used by other local handlers.
+        Handles the event. Can return another BaseEvent instances to
+        generate another events to be used by other local handlers.
         """
         raise NotImplementedError()

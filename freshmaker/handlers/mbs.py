@@ -25,21 +25,21 @@ import requests
 
 from freshmaker import log, conf
 from freshmaker.handlers import BaseHandler
-from freshmaker.triggers import ModuleBuilt, TestingTrigger, ModuleMetadataUpdated
+from freshmaker.events import ModuleBuilt, TestingEvent, ModuleMetadataUpdated
 
 
 class MBS(BaseHandler):
     name = "MBS"
 
-    def can_handle(self, trigger):
+    def can_handle(self, event):
         # Handle only "ready" state of ModuleBuilt.
         # TODO: Handle only when something depends on
         # this module.
-        if (isinstance(trigger, ModuleBuilt) and
-                trigger.module_build_state == 5):
+        if (isinstance(event, ModuleBuilt) and
+                event.module_build_state == 5):
             return True
 
-        if isinstance(trigger, ModuleMetadataUpdated):
+        if isinstance(event, ModuleMetadataUpdated):
             return True
 
         return False
@@ -64,23 +64,23 @@ class MBS(BaseHandler):
             log.error("Error when triggering rebuild of %s: %s", scm_url, data)
             return None
 
-    def handle_metadata_update(self, trigger):
-        log.info("Triggering rebuild of %s, metadata updated", trigger.scm_url)
-        self.rebuild_module(trigger.scm_url, trigger.branch)
+    def handle_metadata_update(self, event):
+        log.info("Triggering rebuild of %s, metadata updated", event.scm_url)
+        self.rebuild_module(event.scm_url, event.branch)
 
         return []
 
-    def handle_module_built(self, trigger):
+    def handle_module_built(self, event):
         log.info("Triggering rebuild of modules depending on %r "
-                 "in MBS" % trigger)
+                 "in MBS" % event)
 
         # TODO: Just for initial testing of consumer
-        return [TestingTrigger("ModuleBuilt handled")]
+        return [TestingEvent("ModuleBuilt handled")]
 
-    def handle(self, trigger):
-        if isinstance(trigger, ModuleMetadataUpdated):
-            return self.handle_metadata_update(trigger)
-        elif isinstance(trigger, ModuleBuilt):
-            return self.handle_module_built(trigger)
+    def handle(self, event):
+        if isinstance(event, ModuleMetadataUpdated):
+            return self.handle_metadata_update(event)
+        elif isinstance(event, ModuleBuilt):
+            return self.handle_module_built(event)
 
         return []
