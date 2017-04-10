@@ -53,5 +53,9 @@ class BaseHandler(object):
         """
         Handles the event. Can return another BaseEvent instances to
         generate another events to be used by other local handlers.
+
+        :return: List of BaseEvent objects which will be handled by other
+        handlers after this handler handles the event. This can be used to
+        generate internal events for other handlers in Freshmaker.
         """
         raise NotImplementedError()

@@ -1,0 +1,12 @@
+#!/bin/python
+__requires__ = 'fedmsg'
+import sys, os
+from pkg_resources import load_entry_point
+
+sys.path.append(os.path.join(os.path.dirname(__file__)))
+os.environ["FRESHMAKER_DEVELOPER_ENV"] = "1"
+
+if __name__ == '__main__':
+    sys.exit(
+        load_entry_point('fedmsg', 'console_scripts', 'fedmsg-hub')()
+    )
