@@ -85,7 +85,7 @@ def init_config():
 
 
 class Config(object):
-    """Class representing the orchestrator configuration."""
+    """Class representing the freshmaker configuration."""
     _defaults = {
         'debug': {
             'type': bool,
