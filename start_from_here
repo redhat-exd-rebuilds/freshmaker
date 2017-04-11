@@ -1,4 +1,4 @@
-#!/bin/python
+#!/usr/bin/env python
 __requires__ = 'fedmsg'
 import sys, os
 from pkg_resources import load_entry_point
