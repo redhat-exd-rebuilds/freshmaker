@@ -22,19 +22,17 @@ import unittest
 import mock
 import fedmsg.config
 
-from mock import patch
-from freshmaker.consumer import FreshmakerConsumer
+import freshmaker
 
 
-@patch("freshmaker.consumer.get_global_consumer")
-class TestPoller(unittest.TestCase):
-
+class ConsumerTest(unittest.TestCase):
     def setUp(self):
         pass
 
     def tearDown(self):
         pass
 
+    @mock.patch("freshmaker.consumer.get_global_consumer")
     def test_consumer_processing_message(self, global_consumer):
         """
         Tests that consumer parses the message, forwards the event
@@ -43,7 +41,7 @@ class TestPoller(unittest.TestCase):
         """
         hub = mock.MagicMock()
         hub.config = fedmsg.config.load_config()
-        consumer = FreshmakerConsumer(hub)
+        consumer = freshmaker.consumer.FreshmakerConsumer(hub)
         global_consumer.return_value = consumer
 
         msg = {'body': {
@@ -61,3 +59,21 @@ class TestPoller(unittest.TestCase):
 
         event = consumer.incoming.get()
         self.assertEqual(event.msg_id, "ModuleBuilt handled")
+
+    @mock.patch("freshmaker.consumer.get_global_consumer")
+    def test_consumer_subscribe_to_specified_topics(self, global_consumer):
+        """
+        Tests consumer will try to subscribe specified topics.
+        """
+        hub = mock.MagicMock()
+        hub.config = fedmsg.config.load_config()
+        consumer = freshmaker.consumer.FreshmakerConsumer(hub)
+        global_consumer.return_value = consumer
+        topics = freshmaker.events.BaseEvent.get_parsed_topics()
+        callback = consumer._consume_json if consumer.jsonify else consumer.consume
+        for topic in topics:
+            self.assertIn(mock.call(topic, callback), hub.subscribe.call_args_list)
+
+
+if __name__ == '__main__':
+    unittest.main()

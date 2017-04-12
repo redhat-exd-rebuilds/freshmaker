@@ -42,10 +42,10 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
     config_key = 'freshmakerconsumer'
 
     def __init__(self, hub):
-        super(FreshmakerConsumer, self).__init__(hub)
-
+        # set topic before super, otherwise topic will not be subscribed
         self.handlers = list(freshmaker.handlers.load_handlers())
         self.register_parsers()
+        super(FreshmakerConsumer, self).__init__(hub)
 
         # These two values are typically provided either by the unit tests or
         # by the local build command.  They are empty in the production environ
