@@ -71,7 +71,7 @@ class BaseEvent(object):
         topic_suffixes = []
         for parser in BaseEvent._parsers.values():
             topic_suffixes.extend(parser.topic_suffixes)
-        return ['{}.{}.'.format(pref.rstrip('.'), cat)
+        return ['{}.{}'.format(pref.rstrip('.'), cat)
                 for pref, cat
                 in itertools.product(
                     conf.messaging_topic_prefix,
