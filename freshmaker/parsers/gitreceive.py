@@ -24,6 +24,7 @@
 from freshmaker import log, conf
 from freshmaker.parsers import BaseParser
 from freshmaker.events import ModuleMetadataUpdated
+from freshmaker.events import DockerfileChanged
 
 
 class GitReceiveParser(BaseParser):
@@ -60,10 +61,22 @@ class GitReceiveParser(BaseParser):
         branch = commit.get("branch")
 
         log.debug(namespace)
+
         if namespace == "modules":
             scm_url = "%s/%s/%s.git?#%s" % (conf.git_base_url, namespace, repo, rev)
             log.debug("Parsed ModuleMetadataUpdated fedmsg, scm_url=%s, "
                       "branch=%s", scm_url, branch)
             return ModuleMetadataUpdated(msg_id, scm_url, branch)
+
+        elif namespace == 'container':
+            changed_files = msg['msg']['commit']['stats']['files']
+            if 'Dockerfile' not in changed_files:
+                log.debug('Dockerfile is not changed in repo {}'.format(repo))
+                return None
+
+            log.debug('Parsed DockerfileChanged fedmsg')
+            repo_url = '{}/{}/{}.git'.format(conf.git_base_url, namespace, repo)
+            return DockerfileChanged(msg_id, repo_url=repo_url, branch=branch,
+                                     namespace=namespace, repo=repo, rev=rev)
 
         return None

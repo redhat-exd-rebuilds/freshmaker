@@ -5,3 +5,4 @@
 /build/
 /dist/
 /freshmaker.egg-info/
+*swp

@@ -1,0 +1,46 @@
+{
+  "source_name": "datanommer", 
+  "certificate": "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUVTRENDQTdHZ0F3SUJBZ0lDQWVBd0RRWUpL\nb1pJaHZjTkFRRUZCUUF3Z2FBeEN6QUpCZ05WQkFZVEFsVlQKTVFzd0NRWURWUVFJRXdKT1F6RVFN\nQTRHQTFVRUJ4TUhVbUZzWldsbmFERVhNQlVHQTFVRUNoTU9SbVZrYjNKaApJRkJ5YjJwbFkzUXhE\nekFOQmdOVkJBc1RCbVpsWkcxelp6RVBNQTBHQTFVRUF4TUdabVZrYlhObk1ROHdEUVlEClZRUXBF\nd1ptWldSdGMyY3hKakFrQmdrcWhraUc5dzBCQ1FFV0YyRmtiV2x1UUdabFpHOXlZWEJ5YjJwbFkz\nUXUKYjNKbk1CNFhEVEUxTURJeE5qRXpOREkxTmxvWERUSTFNREl4TXpFek5ESTFObG93Z2RZeEN6\nQUpCZ05WQkFZVApBbFZUTVFzd0NRWURWUVFJRXdKT1F6RVFNQTRHQTFVRUJ4TUhVbUZzWldsbmFE\nRVhNQlVHQTFVRUNoTU9SbVZrCmIzSmhJRkJ5YjJwbFkzUXhEekFOQmdOVkJBc1RCbVpsWkcxelp6\nRXFNQ2dHQTFVRUF4TWhjMk50TFhCclozTXcKTWk1d2FIZ3lMbVpsWkc5eVlYQnliMnBsWTNRdWIz\nSm5NU293S0FZRFZRUXBFeUZ6WTIwdGNHdG5jekF5TG5CbwplREl1Wm1Wa2IzSmhjSEp2YW1WamRD\nNXZjbWN4SmpBa0Jna3Foa2lHOXcwQkNRRVdGMkZrYldsdVFHWmxaRzl5CllYQnliMnBsWTNRdWIz\nSm5NSUdmTUEwR0NTcUdTSWIzRFFFQkFRVUFBNEdOQURDQmlRS0JnUURFVGdMSDFGRkQKRnRHdDNE\nVjdzTFJVRFluaVJnaW1HRTZ4eWRLNWhaUGlIUEJPMk5pUVNUcVVjbVdLVVV2Y1NKV25XR1gvRUdJ\nQQpDMFA5MDJCd1VWSk9sZVdkWXI4dGUrZW4wYVdUbVh5QTJPRVMyOUhOL0tPNEFNRnM3RUk1aEdZ\nYUFpbitNUWI5CjhpSnh3Z0JvR1JkZ1BvNVNrdW1NRWVyUjVXR2paM2U3aVFJREFRQUJvNElCVnpD\nQ0FWTXdDUVlEVlIwVEJBSXcKQURBdEJnbGdoa2dCaHZoQ0FRMEVJQlllUldGemVTMVNVMEVnUjJW\ndVpYSmhkR1ZrSUVObGNuUnBabWxqWVhSbApNQjBHQTFVZERnUVdCQlI0eDUvSDJxWXlZaTNIa1k4\nNmEyL2hHcWlBUGpDQjFRWURWUjBqQklITk1JSEtnQlJyClFGcjVFZ2lKV2VkWjVRWDFBaDBLVG44\nVUFLR0JwcVNCb3pDQm9ERUxNQWtHQTFVRUJoTUNWVk14Q3pBSkJnTlYKQkFnVEFrNURNUkF3RGdZ\nRFZRUUhFd2RTWVd4bGFXZG9NUmN3RlFZRFZRUUtFdzVHWldSdmNtRWdVSEp2YW1WagpkREVQTUEw\nR0ExVUVDeE1HWm1Wa2JYTm5NUTh3RFFZRFZRUURFd1ptWldSdGMyY3hEekFOQmdOVkJDa1RCbVps\nClpHMXpaekVtTUNRR0NTcUdTSWIzRFFFSkFSWVhZV1J0YVc1QVptVmtiM0poY0hKdmFtVmpkQzV2\nY21lQ0NRRGoKVUI1SFR4Y2VSVEFUQmdOVkhTVUVEREFLQmdnckJnRUZCUWNEQWpBTEJnTlZIUThF\nQkFNQ0I0QXdEUVlKS29aSQpodmNOQVFFRkJRQURnWUVBbVFBOGxXQW1DMi9lUVpNeFpWTnVNZ1I4\ndlV6cnZBVndOOVh0NUh6KzloMTRNV2hSCm12SldSYlZwYUtGaE1OME0xV3U0YjMvWkJOMS9nT2w2\nK2dnelpxdXVYYmQxZHBGcHo5OUNuQWg2QVYyVUpPZ2wKaTRVaU5lbTB4cndRRXZqU29CZTUrVG1L\nM0srSjZnV2laQVVPQWR0dXNYT0JRKzY2RHY5NkxuVTlMSzg9Ci0tLS0tRU5EIENFUlRJRklDQVRF\nLS0tLS0K\n", 
+  "i": 1, 
+  "timestamp": 1490703272.0, 
+  "msg_id": "2017-9fef6790-55df-4bbc-aa25-275e0e3ef892", 
+  "topic": "org.fedoraproject.prod.git.receive", 
+  "source_version": "0.6.5", 
+  "signature": "uHM2uRSrm9Pwbpyv2xxs/V4tBkmYTE8njqVzGFojib6ekmJBEHrX+SLoMC/F3VMd5S8ob8vCTvBM\nfBHL5BEsns+tACYwdGAvyqCVwiXw41mP3bOiOfusb3agIr8g/4WzMAePSEqu1mOnu97kf3Z+eex6\nin5k3anbeH71Pp599Nc=\n", 
+  "msg": {
+    "commit": {
+      "username": "jkaluza", 
+      "stats": {
+        "files": {
+          "Dockerfile": {
+            "deletions": 1, 
+            "additions": 5, 
+            "lines": 6
+          },
+          "httpd.conf": {
+            "deletions": 4, 
+            "additions": 0, 
+            "lines": 4
+          }
+        }, 
+        "total": {
+          "deletions": 4, 
+          "files": 1, 
+          "additions": 0, 
+          "lines": 4
+        }
+      }, 
+      "name": "Jan Kaluza", 
+      "rev": "e1f39d43471fc37ec82616f76a119da4eddec787", 
+      "namespace": "container",
+      "agent": "jkaluza", 
+      "summary": "bump", 
+      "repo": "testimage", 
+      "branch": "master", 
+      "seen": false, 
+      "path": "/srv/git/repositories/dockers/testimage.git", 
+      "message": "bump\n", 
+      "email": "jkaluza@redhat.com"
+    }
+  }
+}
