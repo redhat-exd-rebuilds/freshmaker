@@ -50,5 +50,8 @@ class MBSModuleParser(BaseParser):
                       'topic "{0}"').format(topic))
             return None
 
-        return ModuleBuilt(msg_id, msg_inner_msg.get('id'),
-                           msg_inner_msg.get('state'))
+        return ModuleBuilt(msg_id,
+                           msg_inner_msg.get('id'),
+                           msg_inner_msg.get('state'),
+                           msg_inner_msg.get('name'),
+                           msg_inner_msg.get('stream'))

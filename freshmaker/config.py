@@ -139,6 +139,18 @@ class Config(object):
             'type': str,
             'default': "git://pkgs.fedoraproject.org",
             'desc': 'Dist-git base URL.'},
+        'git_ssh_base_url': {
+            'type': str,
+            'default': "ssh://%s@pkgs.fedoraproject.org/",
+            'desc': 'Dist-git ssh base URL.'},
+        'git_user': {
+            'type': str,
+            'default': '',
+            'desc': 'User for git operations.'},
+        'git_author': {
+            'type': str,
+            'default': 'Freshmaker <freshmaker-owner@fedoraproject.org>',
+            'desc': 'Author for git commit.'},
         'mbs_base_url': {
             'type': str,
             'default': "https://mbs.fedoraproject.org",

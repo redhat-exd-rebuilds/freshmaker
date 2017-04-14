@@ -23,9 +23,9 @@
 
 import requests
 
-from freshmaker import log, conf
+from freshmaker import log, conf, pdc, utils
 from freshmaker.handlers import BaseHandler
-from freshmaker.events import ModuleBuilt, TestingEvent, ModuleMetadataUpdated
+from freshmaker.events import ModuleBuilt, ModuleMetadataUpdated
 
 
 class MBS(BaseHandler):
@@ -71,11 +71,49 @@ class MBS(BaseHandler):
         return []
 
     def handle_module_built(self, event):
-        log.info("Triggering rebuild of modules depending on %r "
-                 "in MBS" % event)
+        """
+        When there is any module built and state is 'ready', query PDC to get
+        all modules that depends on this module, rebuild all these depending
+        modules.
+        """
+        module_name = event.module_name
+        module_stream = event.module_stream
 
-        # TODO: Just for initial testing of consumer
-        return [TestingEvent("ModuleBuilt handled")]
+        log.info("Triggering rebuild of modules depending on %s:%s "
+                 "in MBS", module_name, module_stream)
+
+        pdc_session = pdc.get_client_session(conf)
+        depending_modules = pdc.get_modules(pdc_session,
+                                            build_dep_name=module_name,
+                                            build_dep_stream=module_stream,
+                                            active=True)
+
+        # only rebuild the latest (by cmp variant_release) modules of
+        # (variant_name, variant_version)
+        latest_modules = []
+        for (name, version) in set([(m.get('variant_name'), m.get('variant_version')) for m in depending_modules]):
+            mods = pdc.get_modules(pdc_session, name=name, version=version, active=True)
+            latest_modules.append(sorted(mods, key=lambda x: x['variant_release']).pop())
+
+        rebuild_modules = list(filter(lambda x: x in latest_modules, depending_modules))
+        for mod in rebuild_modules:
+            module_name = mod['variant_name']
+            module_stream = mod['variant_version']
+            commitid = None
+            with utils.temp_dir(prefix='freshmaker-%s-' % module_name) as repodir:
+                try:
+                    utils.clone_module_repo(module_name, repodir, branch=module_stream, user=conf.git_user, logger=log)
+                    utils.add_empty_commit(repodir, msg="Bumped to rebuild because of %s update" % module_name, logger=log)
+                    commitid = utils.get_commit_hash(repodir)
+                    utils.push_repo(repodir)
+                except Exception:
+                    log.exception("Failed to update module repo for '%s-%s'.", module_name, module_stream)
+
+            if commitid is not None:
+                scm_url = conf.git_base_url + '/modules/%s.git?#%s' % (module_name, commitid)
+                self.rebuild_module(scm_url, module_stream)
+
+        return []
 
     def handle(self, event):
         if isinstance(event, ModuleMetadataUpdated):

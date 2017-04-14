@@ -32,8 +32,9 @@ class ConsumerTest(unittest.TestCase):
     def tearDown(self):
         pass
 
+    @mock.patch("freshmaker.handlers.mbs.MBS.handle_module_built")
     @mock.patch("freshmaker.consumer.get_global_consumer")
-    def test_consumer_processing_message(self, global_consumer):
+    def test_consumer_processing_message(self, global_consumer, handle_module_built):
         """
         Tests that consumer parses the message, forwards the event
         to proper handler and is able to get the further work from
@@ -41,6 +42,7 @@ class ConsumerTest(unittest.TestCase):
         """
         hub = mock.MagicMock()
         hub.config = fedmsg.config.load_config()
+        hub.config['freshmakerconsumer'] = True
         consumer = freshmaker.consumer.FreshmakerConsumer(hub)
         global_consumer.return_value = consumer
 
@@ -55,6 +57,7 @@ class ConsumerTest(unittest.TestCase):
             }
         }}
 
+        handle_module_built.return_value = [freshmaker.events.TestingEvent("ModuleBuilt handled")]
         consumer.consume(msg)
 
         event = consumer.incoming.get()

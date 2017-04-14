@@ -129,10 +129,12 @@ class ModuleBuilt(BaseEvent):
     :param module_build_id: the id of the module build
     :param module_build_state: the state of the module build
     """
-    def __init__(self, msg_id, module_build_id, module_build_state):
+    def __init__(self, msg_id, module_build_id, module_build_state, name, stream):
         super(ModuleBuilt, self).__init__(msg_id)
         self.module_build_id = module_build_id
         self.module_build_state = module_build_state
+        self.module_name = name
+        self.module_stream = stream
 
 
 class ModuleMetadataUpdated(BaseEvent):

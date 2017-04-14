@@ -39,11 +39,20 @@ class BaseConfiguration(object):
     # Base URL of git repository with source artifacts.
     GIT_BASE_URL = "git://pkgs.fedoraproject.org"
 
+    # SSH base URL of git repository
+    GIT_SSH_BASE_URL = "ssh://%s@pkgs.fedoraproject.org/"
+
+    # GIT user for cloning and pushing repo
+    GIT_USER = ""
+
     # Base URL of Module Build Service.
     MBS_BASE_URL = "https://mbs.fedoraproject.org"
 
     # Authorization token to use when communicating with MBS.
     MBS_AUTH_TOKEN = ""
+
+    # PDC API URL
+    PDC_URL = 'http://pdc.fedoraproject.org/rest_api/v1'
 
     # Read Koji configuration from profile instead of reading them from
     # configuration file directly. For staging Koji, it is stg.
