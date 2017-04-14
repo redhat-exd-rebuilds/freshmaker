@@ -71,7 +71,7 @@ def _in_memory_publish(topic, msg, conf, service):
     )
 
     # Put the message to queue.
-    from freshmaker.scheduler.consumer import work_queue_put
+    from freshmaker.consumer import work_queue_put
     try:
         work_queue_put(wrapped_msg)
     except ValueError as e:
