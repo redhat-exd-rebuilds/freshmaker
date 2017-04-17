@@ -33,6 +33,7 @@ class BaseConfiguration(object):
     # List of enabled composing handlers.
     HANDLERS = [
         "freshmaker.handlers.mbs:MBS",  # Module Build Service
+        "freshmaker.handlers.image_builder:DockerImageRebuildHandler",
     ]
 
     # Base URL of git repository with source artifacts.
@@ -43,6 +44,15 @@ class BaseConfiguration(object):
 
     # Authorization token to use when communicating with MBS.
     MBS_AUTH_TOKEN = ""
+
+    # Read Koji configuration from profile instead of reading them from
+    # configuration file directly. For staging Koji, it is stg.
+    KOJI_PROFILE = 'koji'
+    KOJI_PROXYUSER = False
+    KOJI_BUILD_OWNER = 'freshmaker'
+
+    # Settings for docker image rebuild handler
+    KOJI_CONTAINER_SCRATCH_BUILD = False
 
 
 class DevConfiguration(BaseConfiguration):
@@ -56,6 +66,8 @@ class DevConfiguration(BaseConfiguration):
     NET_TIMEOUT = 5
     NET_RETRY_INTERVAL = 1
 
+    KOJI_CONTAINER_SCRATCH_BUILD = True
+
 
 class TestConfiguration(BaseConfiguration):
     LOG_BACKEND = 'console'
@@ -68,6 +80,8 @@ class TestConfiguration(BaseConfiguration):
     NET_TIMEOUT = 3
     NET_RETRY_INTERVAL = 1
     MBS_AUTH_TOKEN = "testingtoken"
+
+    KOJI_CONTAINER_SCRATCH_BUILD = True
 
 
 class ProdConfiguration(BaseConfiguration):

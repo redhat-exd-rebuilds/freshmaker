@@ -153,3 +153,15 @@ class TestingEvent(BaseEvent):
     """
     def __init__(self, msg_id):
         super(TestingEvent, self).__init__(msg_id)
+
+
+class DockerfileChanged(BaseEvent):
+    """Represent the message omitted when Dockerfile is changed in a push"""
+
+    def __init__(self, msg_id, repo_url, namespace, repo, branch, rev):
+        super(DockerfileChanged, self).__init__(msg_id)
+        self.repo_url = repo_url
+        self.branch = branch
+        self.namespace = namespace
+        self.repo = repo
+        self.rev = rev
