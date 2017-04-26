@@ -43,10 +43,13 @@ class FedMsgFactory(object):
         self.source_name = 'unittest',
         self.source_version = '0.1.1',
         self.timestamp = time.time()
-        self.topic = 'org.fedoraproject.prod.mbs.module.state.change'
+        self.topic = ''
         self.username = 'freshmaker'
         self.i = random.randint(0, 100)
-        self.inner_msg = {}
+
+    @property
+    def inner_msg(self):
+        return {}
 
     def produce(self):
         message_body = {
@@ -69,24 +72,27 @@ class FedMsgFactory(object):
 class ModuleBuiltMessage(FedMsgFactory):
     def __init__(self, name, stream, state='ready', build_id=None, *args, **kwargs):
         super(ModuleBuiltMessage, self).__init__(*args, **kwargs)
-        states_dict = {}
+        self.topic = 'org.fedoraproject.prod.mbs.module.state.change'
         self.name = name
         self.stream = stream
         self.state = state
         self.build_id = build_id if build_id else random.randint(0, 1000)
         self.scmurl = "git://pkgs.fedoraproject.org/modules/%s?#%s" % (self.name, '123')
 
+        self._states_dict = {}
         for state, code in six.iteritems(BUILD_STATES):
-            states_dict[state] = {'state_name': state, 'state': code}
+            self._states_dict[state] = {'state_name': state, 'state': code}
 
-        inner_msg = {
+    @property
+    def inner_msg(self):
+        return {
             'component_builds': [],
             'id': self.build_id,
             'modulemd': '',
             'name': self.name,
             'owner': 'freshmaker',
             'scmurl': self.scmurl,
-            'state': states_dict[self.state]['state'],
+            'state': self._states_dict[self.state]['state'],
             'state_name': self.state,
             'state_reason': None,
             'state_trace': [],
@@ -98,7 +104,6 @@ class ModuleBuiltMessage(FedMsgFactory):
             'time_submitted': time.time(),
             'version': time.strftime("%Y%m%d%H%M%S"),
         }
-        self.inner_msg = inner_msg
 
 
 class PDCModuleInfoFactory(object):

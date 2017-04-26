@@ -62,10 +62,10 @@ class MBSHandlerTest(unittest.TestCase):
             handler = MBS()
             self.assertFalse(handler.can_handle(event))
 
+    @mock.patch('freshmaker.pdc.get_modules')
     @mock.patch('freshmaker.handlers.mbs.utils')
-    @mock.patch('freshmaker.handlers.mbs.pdc')
     @mock.patch('freshmaker.handlers.mbs.conf')
-    def test_rebuild_depending_modules_on_module_built_event(self, conf, pdc, utils):
+    def test_rebuild_depending_modules_on_module_built_event(self, conf, utils, get_modules):
         """
         Tests MBS handler can rebuild all modules which depend on the module
         in module built event.
@@ -83,7 +83,9 @@ class MBSHandlerTest(unittest.TestCase):
         mod3_r1_info.add_build_dep('testmodule', 'master')
         mod3_r1 = mod3_r1_info.produce()
 
-        def get_modules(pdc_session, name=None, version=None, build_dep_name=None, build_dep_stream=None, active=True):
+        def mock_get_modules(pdc_session, **kwargs):
+            name = kwargs.get('variant_name', None)
+            version = kwargs.get('variant_version', None)
 
             if name == 'testmodule2' and version == 'master':
                 return [mod2_r1]
@@ -92,7 +94,7 @@ class MBSHandlerTest(unittest.TestCase):
             else:
                 return [mod2_r1, mod3_r1]
 
-        pdc.get_modules.side_effect = get_modules
+        get_modules.side_effect = mock_get_modules
         conf.git_base_url = "git://pkgs.fedoraproject.org"
         utils.get_commit_hash.side_effect = [
             "fae7848fa47a854f25b782aa64441040a6d86544",
@@ -105,10 +107,10 @@ class MBSHandlerTest(unittest.TestCase):
                          [mock.call(u'git://pkgs.fedoraproject.org/modules/testmodule2.git?#fae7848fa47a854f25b782aa64441040a6d86544', u'master'),
                           mock.call(u'git://pkgs.fedoraproject.org/modules/testmodule3.git?#43ec03000d249231bc7135b11b810afc96e90efb', u'master')])
 
+    @mock.patch('freshmaker.pdc.get_modules')
     @mock.patch('freshmaker.handlers.mbs.utils')
-    @mock.patch('freshmaker.handlers.mbs.pdc')
     @mock.patch('freshmaker.handlers.mbs.conf')
-    def test_only_rebuild_latest_depending_modules_on_module_built_event(self, conf, pdc, utils):
+    def test_only_rebuild_latest_depending_modules_on_module_built_event(self, conf, utils, get_modules):
         """
         Tests MBS handler only rebuild latest depending modules. If there is a
         module only has old release depends on the module, it won't be rebuilt.
@@ -130,7 +132,9 @@ class MBSHandlerTest(unittest.TestCase):
         mod3_r2_info.add_build_dep('testmodule', 'master')
         mod3_r2 = mod3_r2_info.produce()
 
-        def get_modules(pdc_session, name=None, version=None, build_dep_name=None, build_dep_stream=None, active=True):
+        def mock_get_modules(pdc_session, **kwargs):
+            name = kwargs.get('variant_name', None)
+            version = kwargs.get('variant_version', None)
 
             if name == 'testmodule2' and version == 'master':
                 return [mod2_r1]
@@ -141,7 +145,7 @@ class MBSHandlerTest(unittest.TestCase):
 
         # query for testmodule3 releases, get mod3_r1 and mod3_r2,
         # only mod3_r1 depends on testmodule, and r1 < r2.
-        pdc.get_modules.side_effect = get_modules
+        get_modules.side_effect = mock_get_modules
         conf.git_base_url = "git://pkgs.fedoraproject.org"
         utils.get_commit_hash.side_effect = [
             "fae7848fa47a854f25b782aa64441040a6d86544",

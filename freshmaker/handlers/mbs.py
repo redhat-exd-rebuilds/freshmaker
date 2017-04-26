@@ -83,20 +83,11 @@ class MBS(BaseHandler):
                  "in MBS", module_name, module_stream)
 
         pdc_session = pdc.get_client_session(conf)
-        depending_modules = pdc.get_modules(pdc_session,
-                                            build_dep_name=module_name,
-                                            build_dep_stream=module_stream,
-                                            active=True)
-
-        # only rebuild the latest (by cmp variant_release) modules of
-        # (variant_name, variant_version)
-        latest_modules = []
-        for (name, version) in set([(m.get('variant_name'), m.get('variant_version')) for m in depending_modules]):
-            mods = pdc.get_modules(pdc_session, name=name, version=version, active=True)
-            latest_modules.append(sorted(mods, key=lambda x: x['variant_release']).pop())
-
-        rebuild_modules = list(filter(lambda x: x in latest_modules, depending_modules))
-        for mod in rebuild_modules:
+        modules = pdc.get_latest_modules(pdc_session,
+                                         build_dep_name=module_name,
+                                         build_dep_stream=module_stream,
+                                         active='true')
+        for mod in modules:
             module_name = mod['variant_name']
             module_stream = mod['variant_version']
             commitid = None

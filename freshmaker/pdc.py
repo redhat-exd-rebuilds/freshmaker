@@ -50,22 +50,32 @@ def get_client_session(config):
 
 
 @freshmaker.utils.retry(wait_on=(requests.ConnectTimeout, requests.ConnectionError), logger=freshmaker.log)
-def get_modules(pdc_session, name=None, version=None, build_dep_name=None, build_dep_stream=None, active=True):
+def get_modules(pdc_session, **kwargs):
     """
-    :param pdc_session: PDCClient instance
-    :return: list of modules
-    """
-    query = {}
-    if name is not None:
-        query['variant_name'] = name
-    if version is not None:
-        query['variant_version'] = version
-    if build_dep_name is not None:
-        query['build_dep_name'] = build_dep_name
-    if build_dep_stream is not None:
-        query['build_dep_stream'] = build_dep_stream
-    if active:
-        query['active'] = 'true'
+    Query PDC with specified query parameters and return a list of modules.
 
-    modules = pdc_session['unreleasedvariants'](page_size=-1, **query)
+    :param pdc_session: PDCClient instance
+    :param kwargs: query parameters in keyword arguments
+    :return: a list of modules
+    """
+    modules = pdc_session['unreleasedvariants'](page_size=-1, **kwargs)
     return modules
+
+
+def get_latest_modules(pdc_session, **kwargs):
+    """
+    Query PDC with query parameters in kwargs and return a list of modules
+    which contains latest modules of each (module_name, module_version).
+
+    :param pdc_session: PDCClient instance
+    :param kwargs: query parameters in keyword arguments, should only provide
+                   valid query parameters supported by PDC's module query API.
+    :return: a list of modules
+    """
+    modules = get_modules(pdc_session, **kwargs)
+    active = kwargs.get('active', 'true')
+    latest_modules = []
+    for (name, version) in set([(m.get('variant_name'), m.get('variant_version')) for m in modules]):
+        mods = get_modules(pdc_session, variant_name=name, variant_version=version, active=active)
+        latest_modules.append(sorted(mods, key=lambda x: x['variant_release']).pop())
+    return list(filter(lambda x: x in latest_modules, modules))
