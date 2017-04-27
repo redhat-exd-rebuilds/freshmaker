@@ -29,11 +29,13 @@ from tests import helpers
 from freshmaker import events
 from freshmaker.handlers.mbs import MBS
 from freshmaker.parsers.mbsmodule import MBSModuleParser
+from freshmaker.parsers.gitreceive import GitReceiveParser
 
 
 class MBSHandlerTest(unittest.TestCase):
     def setUp(self):
         events.BaseEvent.register_parser(MBSModuleParser)
+        events.BaseEvent.register_parser(GitReceiveParser)
 
     def _get_event(self, message):
         event = events.BaseEvent.from_fedmsg(message['body']['topic'], message['body'])
@@ -156,6 +158,64 @@ class MBSHandlerTest(unittest.TestCase):
 
         self.assertEqual(handler.rebuild_module.call_args_list,
                          [mock.call(u'git://pkgs.fedoraproject.org/modules/testmodule2.git?#fae7848fa47a854f25b782aa64441040a6d86544', u'master')])
+
+    def test_can_handle_rpm_spec_updated_event(self):
+        """
+        Tests MBS handler can handle rpm spec updated event
+        """
+        m = helpers.DistGitMessage('rpms', 'bash', 'master', '123')
+        m.add_changed_file('bash.spec', 1, 1)
+        msg = m.produce()
+
+        event = self._get_event(msg)
+
+        handler = MBS()
+        self.assertTrue(handler.can_handle(event))
+
+    def test_can_not_handle_no_spec_updated_dist_git_event(self):
+        """
+        Tests RPMSpechandler can not handle dist git message that
+        spec file is not updated.
+        """
+
+        m = helpers.DistGitMessage('rpms', 'bash', 'master', '123')
+        m.add_changed_file('test.c', 1, 1)
+        msg = m.produce()
+
+        event = self._get_event(msg)
+
+        handler = MBS()
+        self.assertFalse(handler.can_handle(event))
+
+    @mock.patch('freshmaker.handlers.mbs.utils')
+    @mock.patch('freshmaker.handlers.mbs.pdc')
+    @mock.patch('freshmaker.handlers.mbs.conf')
+    def test_trigger_module_rebuild_when_rpm_spec_updated(self, conf, pdc, utils):
+        """
+        Test RPMSpecHandler can trigger module rebuild when spec
+        file of rpm in module updated.
+        """
+        conf.git_base_url = "git://pkgs.fedoraproject.org"
+
+        m = helpers.DistGitMessage('rpms', 'bash', 'master', '123')
+        m.add_changed_file('bash.spec', 1, 1)
+        msg = m.produce()
+
+        event = self._get_event(msg)
+
+        mod_info = helpers.PDCModuleInfo('testmodule', 'master', '20170412010101')
+        mod_info.add_rpm("bash-1.2.3-4.f26.rpm")
+        mod = mod_info.produce()
+        pdc.get_latest_modules.return_value = [mod]
+
+        commitid = '9287eb8eb4c4c60f73b4a59f228a673846d940c6'
+        utils.get_commit_hash.return_value = commitid
+
+        handler = MBS()
+        handler.rebuild_module = mock.Mock()
+        handler.handle(event)
+        self.assertEqual(handler.rebuild_module.call_args_list,
+                         [mock.call('git://pkgs.fedoraproject.org/modules/testmodule.git?#%s' % commitid, 'master')])
 
 
 if __name__ == '__main__':

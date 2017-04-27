@@ -25,6 +25,7 @@ from freshmaker import log, conf
 from freshmaker.parsers import BaseParser
 from freshmaker.events import ModuleMetadataUpdated
 from freshmaker.events import DockerfileChanged
+from freshmaker.events import RPMSpecUpdated
 
 
 class GitReceiveParser(BaseParser):
@@ -78,5 +79,13 @@ class GitReceiveParser(BaseParser):
             repo_url = '{}/{}/{}.git'.format(conf.git_base_url, namespace, repo)
             return DockerfileChanged(msg_id, repo_url=repo_url, branch=branch,
                                      namespace=namespace, repo=repo, rev=rev)
+        elif namespace == 'rpms':
+            component = commit.get('repo')
+            branch = commit.get('branch')
+            rev = commit.get('rev')
+            changed_files = commit.get('stats', {}).get('files', {}).keys()
+            has_spec = any([i.endswith('.spec') for i in changed_files])
+            if has_spec:
+                return RPMSpecUpdated(msg_id, component, branch, rev=rev)
 
         return None

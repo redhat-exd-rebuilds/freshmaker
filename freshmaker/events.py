@@ -149,6 +149,21 @@ class ModuleMetadataUpdated(BaseEvent):
         self.branch = branch
 
 
+class RPMSpecUpdated(BaseEvent):
+    """
+    Provides an event object for "RPM spec file in dist-git updated".
+
+    :param rpm: RPM name, also known as the name of component or source package.
+    :param branch: Branch of updated RPM spec.
+    :param rev: revision.
+    """
+    def __init__(self, msg_id, rpm, branch, rev):
+        super(RPMSpecUpdated, self).__init__(msg_id)
+        self.rpm = rpm
+        self.branch = branch
+        self.rev = rev
+
+
 class TestingEvent(BaseEvent):
     """
     Event useds in unit-tests.

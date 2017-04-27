@@ -106,6 +106,52 @@ class ModuleBuiltMessage(FedMsgFactory):
         }
 
 
+class DistGitMessage(FedMsgFactory):
+    def __init__(self, namespace, repo, branch, rev, *args, **kwargs):
+        super(DistGitMessage, self).__init__(*args, **kwargs)
+        self.topic = 'org.fedoraproject.prod.git.receive'
+        self.namespace = namespace
+        self.repo = repo
+        self.branch = branch
+        self.rev = rev
+        self.stats = {'files': {},
+                      'total': {
+                          'additions': 0,
+                          'deletions': 0,
+                          'files': 0,
+                          'lines': 0,
+                      }}
+
+    @property
+    def inner_msg(self):
+        return {
+            'commit': {
+                'repo': self.repo,
+                'namespace': self.namespace,
+                'branch': self.branch,
+                'rev': self.rev,
+                'agent': 'freshmaker',
+                'name': 'freshmaker',
+                'username': 'freshmaker',
+                'email': 'freshmaker@example.com',
+                'message': 'test message',
+                'summary': 'test',
+                'path': "/srv/git/repositories/%s/%s.git" % (self.namespace, self.repo),
+                'seen': False,
+                'stats': self.stats,
+            }
+        }
+
+    def add_changed_file(self, filename, additions, deletions):
+        self.stats['files'].setdefault(filename, {})['additions'] = additions
+        self.stats['files'][filename]['deletions'] = deletions
+        self.stats['files'][filename]['lines'] = additions + deletions
+        self.stats['total']['additions'] += additions
+        self.stats['total']['deletions'] += deletions
+        self.stats['total']['files'] += 1
+        self.stats['total']['lines'] += self.stats['files'][filename]['lines']
+
+
 class PDCModuleInfoFactory(object):
     def __init__(self, name, version, release, active=True):
         self.variant_name = name
@@ -119,6 +165,7 @@ class PDCModuleInfoFactory(object):
         self.build_deps = []
         self.runtime_deps = []
         self.koji_tag = 'module-%s' % ''.join([random.choice(string.ascii_letters[:6] + string.digits) for n in range(16)])
+        self.rpms = []
 
     def produce(self):
         module = {
@@ -133,6 +180,7 @@ class PDCModuleInfoFactory(object):
             'koji_tag': self.koji_tag,
             'build_deps': self.build_deps,
             'runtime_deps': self.runtime_deps,
+            'rpms': self.rpms,
         }
         return module
 
@@ -140,3 +188,6 @@ class PDCModuleInfoFactory(object):
 class PDCModuleInfo(PDCModuleInfoFactory):
     def add_build_dep(self, name, stream):
         self.build_deps.append({'dependency': name, 'stream': stream})
+
+    def add_rpm(self, rpm):
+        self.rpms.append(rpm)

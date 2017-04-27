@@ -23,9 +23,9 @@
 
 import requests
 
-from freshmaker import log, conf, pdc, utils
+from freshmaker import log, conf, utils, pdc
 from freshmaker.handlers import BaseHandler
-from freshmaker.events import ModuleBuilt, ModuleMetadataUpdated
+from freshmaker.events import ModuleBuilt, ModuleMetadataUpdated, RPMSpecUpdated
 
 
 class MBS(BaseHandler):
@@ -40,6 +40,9 @@ class MBS(BaseHandler):
             return True
 
         if isinstance(event, ModuleMetadataUpdated):
+            return True
+
+        if isinstance(event, RPMSpecUpdated):
             return True
 
         return False
@@ -63,6 +66,23 @@ class MBS(BaseHandler):
         else:
             log.error("Error when triggering rebuild of %s: %s", scm_url, data)
             return None
+
+    def bump_and_rebuild_module(self, name, branch, commit_msg=None):
+        """Bump module repo with an empty commit and submit a module build request to MBS"""
+        commitid = None
+        with utils.temp_dir(prefix='freshmaker-%s-' % name) as repodir:
+            try:
+                utils.clone_module_repo(name, repodir, branch=branch, user=conf.git_user, logger=log)
+                msg = commit_msg or "Bump"
+                utils.add_empty_commit(repodir, msg=msg, logger=log)
+                commitid = utils.get_commit_hash(repodir)
+                utils.push_repo(repodir)
+            except Exception:
+                log.exception("Failed to update module repo of '%s-%s'.", name, branch)
+
+        if commitid is not None:
+            scm_url = conf.git_base_url + '/modules/%s.git?#%s' % (name, commitid)
+            self.rebuild_module(scm_url, branch)
 
     def handle_metadata_update(self, event):
         log.info("Triggering rebuild of %s, metadata updated", event.scm_url)
@@ -88,21 +108,30 @@ class MBS(BaseHandler):
                                          build_dep_stream=module_stream,
                                          active='true')
         for mod in modules:
-            module_name = mod['variant_name']
-            module_stream = mod['variant_version']
-            commitid = None
-            with utils.temp_dir(prefix='freshmaker-%s-' % module_name) as repodir:
-                try:
-                    utils.clone_module_repo(module_name, repodir, branch=module_stream, user=conf.git_user, logger=log)
-                    utils.add_empty_commit(repodir, msg="Bumped to rebuild because of %s update" % module_name, logger=log)
-                    commitid = utils.get_commit_hash(repodir)
-                    utils.push_repo(repodir)
-                except Exception:
-                    log.exception("Failed to update module repo for '%s-%s'.", module_name, module_stream)
+            commit_msg = "Bump to rebuild because of %s update" % module_name
+            self.bump_and_rebuild_module(mod['variant_name'],
+                                         mod['variant_version'],
+                                         commit_msg=commit_msg)
+        return []
 
-            if commitid is not None:
-                scm_url = conf.git_base_url + '/modules/%s.git?#%s' % (module_name, commitid)
-                self.rebuild_module(scm_url, module_stream)
+    def handle_rpm_spec_updated(self, event):
+        """
+        Rebuild module when spec file of rpm in module is updated.
+        """
+        rpm = event.rpm
+        branch = event.branch
+        rev = event.rev
+        pdc_session = pdc.get_client_session(conf)
+        modules = pdc.get_latest_modules(pdc_session,
+                                         component_name=rpm,
+                                         component_branch=branch,
+                                         active='true')
+        for mod in modules:
+            module_name = mod['variant_name']
+            module_branch = mod['variant_version']
+            log.info("Going to rebuild module '%s:%s'.", module_name, module_branch)
+            commit_msg = "Bump to rebuild because of %s rpm spec update (%s)." % (rpm, rev)
+            self.bump_and_rebuild_module(module_name, module_branch, commit_msg=commit_msg)
 
         return []
 
@@ -111,5 +140,7 @@ class MBS(BaseHandler):
             return self.handle_metadata_update(event)
         elif isinstance(event, ModuleBuilt):
             return self.handle_module_built(event)
+        elif isinstance(event, RPMSpecUpdated):
+            return self.handle_rpm_spec_updated(event)
 
         return []
