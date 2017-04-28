@@ -16,3 +16,7 @@ python-fedora
 six
 sqlalchemy
 futures  # Python 2 only
+Flask
+Flask-Migrate
+Flask-SQLAlchemy
+Flask-Script
