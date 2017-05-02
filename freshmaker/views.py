@@ -19,26 +19,38 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
-# Written by Petr Šabata <contyk@redhat.com>
-#            Matt Prahl <mprahl@redhat.com>
-#            Jan Kaluza <jkaluza@redhat.com>
+# Written by Jan Kaluza <jkaluza@redhat.com>
 
-from logging import getLogger
+import json
+from flask import request, jsonify
+from flask.views import MethodView
 
-from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
+from freshmaker import app, conf, log
+from freshmaker import models, db
 
-from freshmaker.logger import init_logging
-from freshmaker.config import init_config
-from freshmaker.proxy import ReverseProxy
+api_v1 = {
+    'freshmaker': {
+        'url': '/freshmaker/1/events/',
+        'options': {
+            'defaults': {'id': None},
+            'methods': ['GET'],
+        }
+    },
+}
 
-app = Flask(__name__)
-app.wsgi_app = ReverseProxy(app.wsgi_app)
 
-db = SQLAlchemy(app)
+class FreshmakerAPI(MethodView):
 
-conf = init_config(app)
-init_logging(conf)
-log = getLogger(__name__)
+    def get(self, id):
+        return "Done", 200
 
-from freshmaker import views
+def register_api_v1():
+    """ Registers version 1 of MBS API. """
+    module_view = FreshmakerAPI.as_view('freshmaker')
+    for key, val in api_v1.items():
+        app.add_url_rule(val['url'],
+                         endpoint=key,
+                         view_func=module_view,
+                         **val['options'])
+
+register_api_v1()

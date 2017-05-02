@@ -9,6 +9,15 @@ dbdir = path.abspath(path.join(confdir, '..')) if confdir.endswith('conf') \
 
 
 class BaseConfiguration(object):
+    # Make this random (used to generate session keys)
+    SECRET_KEY = '74d9e9f9cd40e66fc6c4c2e9987dce48df3ce98542529fd0'
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///{0}'.format(path.join(
+        dbdir, 'freshmaker.db'))
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    HOST = '0.0.0.0'
+    PORT = 5001
+
     DEBUG = False
     # Global network-related values, in seconds
     NET_TIMEOUT = 120
@@ -63,6 +72,7 @@ class BaseConfiguration(object):
     # Settings for docker image rebuild handler
     KOJI_CONTAINER_SCRATCH_BUILD = False
 
+    SSL_ENABLED = False
 
 class DevConfiguration(BaseConfiguration):
     DEBUG = True
@@ -82,6 +92,10 @@ class TestConfiguration(BaseConfiguration):
     LOG_BACKEND = 'console'
     LOG_LEVEL = 'debug'
     DEBUG = True
+
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///{0}'.format(
+        path.join(dbdir, 'tests', 'test_freshmaker.db'))
+
     MESSAGING = 'in_memory'
     PDC_URL = 'http://pdc.fedoraproject.org/rest_api/v1'
 

@@ -31,7 +31,7 @@ from os import sys
 from freshmaker import logger
 
 
-def init_config():
+def init_config(app):
     """
     Configure Freshmaker
     """
@@ -54,7 +54,7 @@ def init_config():
     if 'FRESHMAKER_CONFIG_SECTION' in os.environ:
         config_section = os.environ['FRESHMAKER_CONFIG_SECTION']
     # TestConfiguration shall only be used for running tests, otherwise...
-    if any(['py.test' in arg or 'pytest.py' in arg for arg in sys.argv]):
+    if any(['nosetests' in arg or 'noserunner.py' in arg or 'py.test' in arg or 'pytest.py' in arg for arg in sys.argv]):
         config_section = 'TestConfiguration'
         from conf import config
         config_module = config
@@ -81,6 +81,7 @@ def init_config():
     # finally configure Freshmaker
     config_section_obj = getattr(config_module, config_section)
     conf = Config(config_section_obj)
+    app.config.from_object(config_section_obj)
     return conf
 
 
