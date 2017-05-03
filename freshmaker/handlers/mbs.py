@@ -61,7 +61,7 @@ class MBS(BaseHandler):
         resp = requests.request("POST", url, headers=headers, json=body)
         data = resp.json()
         if 'id' in data:
-            log.info("Triggered reubild of %s, MBS build_id=%s", scm_url, data['id'])
+            log.info("Triggered rebuild of %s, MBS build_id=%s", scm_url, data['id'])
             return data['id']
         else:
             log.error("Error when triggering rebuild of %s: %s", scm_url, data)
