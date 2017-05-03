@@ -76,7 +76,7 @@ class MBS(BaseHandler):
                 msg = commit_msg or "Bump"
                 utils.add_empty_commit(repodir, msg=msg, logger=log)
                 commitid = utils.get_commit_hash(repodir)
-                utils.push_repo(repodir)
+                utils.push_repo(repodir, logger=log)
             except Exception:
                 log.exception("Failed to update module repo of '%s-%s'.", name, branch)
 
@@ -121,6 +121,10 @@ class MBS(BaseHandler):
         rpm = event.rpm
         branch = event.branch
         rev = event.rev
+
+        log.info("Triggering rebuild of modules on event of rpm (%s:%s) spec updated, rev: %s.",
+                 rpm, branch, rev)
+
         pdc_session = pdc.get_client_session(conf)
         modules = pdc.get_latest_modules(pdc_session,
                                          component_name=rpm,
