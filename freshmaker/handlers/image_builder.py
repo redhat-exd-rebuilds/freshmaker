@@ -24,6 +24,7 @@
 from freshmaker import log, conf
 from freshmaker.handlers import BaseHandler
 from freshmaker.events import DockerfileChanged
+from freshmaker.kojiservice import koji_service
 
 
 class DockerImageRebuildHandler(BaseHandler):
@@ -33,52 +34,31 @@ class DockerImageRebuildHandler(BaseHandler):
 
     def handle(self, event):
         """Rebuild docker image"""
-        self.build_image(event)
-
-    def build_image(self, event):
         import koji
 
-        config = koji.read_config(conf.koji_profile)
-        koji_server = config['server']
-
-        session = koji.ClientSession(koji_server, {'krb_rdns': config['krb_rdns']})
-
-        log.debug('Logging into {0} with Kerberos authentication.'.format(koji_server))
-        proxyuser = conf.koji_build_owner if conf.koji_proxyuser else None
-
         try:
-            session.krb_login(proxyuser=proxyuser)
-        except Exception as e:
-            log.error('Failed to login Koji via Kerberos using GSSAPI')
-            log.error('Error message from Koji: %s', e)
-            return
+            self.build_image(event)
+        except koji.krbV.Krb5Error as e:
+            log.exception('Failed to login Koji via Kerberos using GSSAPI. %s', e.args[1])
+        except:
+            log.exception('Could not create task to build docker image %s', event.repo)
 
-        if not session.logged_in:
-            log.error('Could not login server %s', koji_server)
-            return
+    def build_image(self, event):
+        with koji_service(profile=conf.koji_profile, logger=log) as service:
+            log.debug('Logging into {0} with Kerberos authentication.'.format(service.server))
+            proxyuser = conf.koji_build_owner if conf.koji_proxyuser else None
 
-        build_opts = {
-            'scratch': conf.koji_container_scratch_build,
-            'git_branch': event.branch,
-        }
+            service.krb_login(proxyuser=proxyuser)
 
-        try:
-            build_target = '{}-{}-candidate'.format(
-                'rawhide' if event.branch == 'master' else event.branch,
-                event.namespace)
+            if not service.logged_in:
+                log.error('Could not login server %s', service.server)
+                return
+
             build_source = '{}#{}'.format(event.repo_url, event.rev)
 
             log.info('Start to build docker image %s', event.repo)
             log.debug('Build from source: %s', build_source)
-            log.debug('Build in target: %s', build_target)
-            log.debug('Build options: %s', build_opts)
 
-            task_id = session.buildContainer(build_source, build_target, build_opts)
-        except Exception as e:
-            log.exception('Could not create task to build docker image %s', event.repo)
-        else:
-            log.info('Task %s is created to build docker image for repo %s', task_id, event.repo)
-            log.info('Task info: %s/taskinfo?taskID=%s', config['weburl'], task_id)
-        finally:
-            log.debug('Logout Koji session')
-            session.logout()
+            return service.build_container(build_source, event.branch,
+                                           namespace=event.namespace,
+                                           scratch=conf.koji_container_scratch_build)
