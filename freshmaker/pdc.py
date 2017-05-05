@@ -24,7 +24,6 @@ import inspect
 import requests
 from pdc_client import PDCClient
 
-import freshmaker
 import freshmaker.utils
 
 
@@ -79,3 +78,14 @@ def get_latest_modules(pdc_session, **kwargs):
         mods = get_modules(pdc_session, variant_name=name, variant_version=version, active=active)
         latest_modules.append(sorted(mods, key=lambda x: x['variant_release']).pop())
     return list(filter(lambda x: x in latest_modules, modules))
+
+
+@freshmaker.utils.retry(wait_on=(requests.ConnectTimeout, requests.ConnectionError), logger=freshmaker.log)
+def find_containers_by_rpm_name(pdc_session, rpm_name):
+    rels = pdc_session['release-component-relationships'](type='ContainerIncludesRPM',
+                                                          to_component_name=rpm_name)
+    return [rel['from_component'] for rel in rels['results']]
+
+
+def get_release_component(pdc_session, id):
+    return pdc_session['release-components/{}/'.format(id)]()

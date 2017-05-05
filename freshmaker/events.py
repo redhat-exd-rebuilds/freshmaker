@@ -182,3 +182,31 @@ class DockerfileChanged(BaseEvent):
         self.namespace = namespace
         self.repo = repo
         self.rev = rev
+
+
+class BodhiUpdateCompleteStable(BaseEvent):
+    """Event when RPMs are available in Fedora master mirrors
+
+    Refer to an example in datagrepper:
+
+    https://apps.fedoraproject.org/datagrepper/raw?delta=572800& \
+        topic=org.fedoraproject.prod.bodhi.update.complete.stable
+    """
+
+    def __init__(self, msg_id, update_id, builds, release):
+        """Initiate event with data from message got from fedmsg
+
+        Not complete data is required, only part of attributes that are useful
+        for rebuild are stored in this event.
+
+        :param str update_id: the Bodhi update ID got from message.
+        :param list builds: a list of maps, each of them contains build NVRs
+            that are useful for getting RPMs for the rebuild.
+        :param dist release: a map contains release information, e.g. name and
+            branch. Refer to the example given above to see all available
+            attributes in a message.
+        """
+        super(BodhiUpdateCompleteStable, self).__init__(msg_id)
+        self.update_id = update_id
+        self.builds = builds
+        self.release = release

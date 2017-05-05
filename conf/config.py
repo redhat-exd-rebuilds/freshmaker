@@ -1,5 +1,6 @@
 from os import path
 
+
 # FIXME: workaround for this moment till confdir, dbdir (installdir etc.) are
 # declared properly somewhere/somehow
 confdir = path.abspath(path.dirname(__file__))
@@ -43,6 +44,7 @@ class BaseConfiguration(object):
     HANDLERS = [
         "freshmaker.handlers.mbs:MBS",  # Module Build Service
         "freshmaker.handlers.image_builder:DockerImageRebuildHandler",
+        "freshmaker.handlers.image_builder:DockerImageRebuildHandlerForBodhi",
     ]
 
     # Base URL of git repository with source artifacts.

@@ -1,0 +1,129 @@
+{
+  "source_name": "datanommer",
+  "certificate": "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUVYakNDQThlZ0F3SUJBZ0lDQWhRd0RRWUpL\nb1pJaHZjTkFRRUZCUUF3Z2FBeEN6QUpCZ05WQkFZVEFsVlQKTVFzd0NRWURWUVFJRXdKT1F6RVFN\nQTRHQTFVRUJ4TUhVbUZzWldsbmFERVhNQlVHQTFVRUNoTU9SbVZrYjNKaApJRkJ5YjJwbFkzUXhE\nekFOQmdOVkJBc1RCbVpsWkcxelp6RVBNQTBHQTFVRUF4TUdabVZrYlhObk1ROHdEUVlEClZRUXBF\nd1ptWldSdGMyY3hKakFrQmdrcWhraUc5dzBCQ1FFV0YyRmtiV2x1UUdabFpHOXlZWEJ5YjJwbFkz\nUXUKYjNKbk1CNFhEVEUxTURneE9ESXhNakUwT0ZvWERUSTFNRGd4TlRJeE1qRTBPRm93Z2V3eEN6\nQUpCZ05WQkFZVApBbFZUTVFzd0NRWURWUVFJRXdKT1F6RVFNQTRHQTFVRUJ4TUhVbUZzWldsbmFE\nRVhNQlVHQTFVRUNoTU9SbVZrCmIzSmhJRkJ5YjJwbFkzUXhEekFOQmdOVkJBc1RCbVpsWkcxelp6\nRTFNRE1HQTFVRUF4TXNZbTlrYUdrdFltOWsKYUdrdFltRmphMlZ1WkRBeExuQm9lREl1Wm1Wa2Iz\nSmhjSEp2YW1WamRDNXZjbWN4TlRBekJnTlZCQ2tUTEdKdgpaR2hwTFdKdlpHaHBMV0poWTJ0bGJt\nUXdNUzV3YUhneUxtWmxaRzl5WVhCeWIycGxZM1F1YjNKbk1TWXdKQVlKCktvWklodmNOQVFrQkZo\nZGhaRzFwYmtCbVpXUnZjbUZ3Y205cVpXTjBMbTl5WnpDQm56QU5CZ2txaGtpRzl3MEIKQVFFRkFB\nT0JqUUF3Z1lrQ2dZRUF1b3NVcXpXM010RlpkRTdEelFCT0VzVzY3ZThsZnQ5S3QzMFVJbGZSVUhS\nVwpVMGpWSEoyaWtic1oxQmZMckh3Ly8yd1lUa2E3cE1Xblh2KzZnRVhhYTNFZDRqbk8zTDNVallj\nQ1pBUzBDYW93CmZad1VVTWwwNFN6N1ZSZnVRdElJbG5ocjFxSjhKTTJqZXZNQkpyaTQyZDZZKzdF\nTEFNZjgvTkVjQ2p6NERuY0MKQXdFQUFhT0NBVmN3Z2dGVE1Ba0dBMVVkRXdRQ01BQXdMUVlKWUla\nSUFZYjRRZ0VOQkNBV0hrVmhjM2t0VWxOQgpJRWRsYm1WeVlYUmxaQ0JEWlhKMGFXWnBZMkYwWlRB\nZEJnTlZIUTRFRmdRVXVBb1E0T05pRlFERXpvSmE1ZG9CCnA4NTJoeEV3Z2RVR0ExVWRJd1NCelRD\nQnlvQVVhMEJhK1JJSWlWbm5XZVVGOVFJZENrNS9GQUNoZ2Fha2dhTXcKZ2FBeEN6QUpCZ05WQkFZ\nVEFsVlRNUXN3Q1FZRFZRUUlFd0pPUXpFUU1BNEdBMVVFQnhNSFVtRnNaV2xuYURFWApNQlVHQTFV\nRUNoTU9SbVZrYjNKaElGQnliMnBsWTNReER6QU5CZ05WQkFzVEJtWmxaRzF6WnpFUE1BMEdBMVVF\nCkF4TUdabVZrYlhObk1ROHdEUVlEVlFRcEV3Wm1aV1J0YzJjeEpqQWtCZ2txaGtpRzl3MEJDUUVX\nRjJGa2JXbHUKUUdabFpHOXlZWEJ5YjJwbFkzUXViM0puZ2drQTQxQWVSMDhYSGtVd0V3WURWUjBs\nQkF3d0NnWUlLd1lCQlFVSApBd0l3Q3dZRFZSMFBCQVFEQWdlQU1BMEdDU3FHU0liM0RRRUJCUVVB\nQTRHQkFHazBJVGhUT2xzV29RdncxQzdCCjNINnh6cEp0Znd4NHNVdnk4cXVXN2FHOE9VNXdscmNF\ndmZzZENJbmdKdEwxZndWTGgwT3M3SmhyaGxkdzZBUkoKRWdIS2NtSnVjbkJEZW9tck1DdTVaM3U1\nNWp4SWlHcG5wMThRcUhlSHVmZUEzLysvWlhTL3F6bGRxdjNrMG9kMQpIbFNweFZxWUQ5OGs2eHRD\nQXo5YWh0Q20KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=\n",
+  "i": 12,
+  "timestamp": 1493430570.0,
+  "msg_id": "2017-0c7f37f3-d0b5-474f-b600-198d9b3be748",
+  "topic": "org.fedoraproject.prod.bodhi.update.complete.stable",
+  "source_version": "0.6.5",
+  "signature": "n3DUWAJMCMF3ipgcxUnb7EaCNQydfKvjr+AQA4S3nuTqUT/0wpuOAqTnOOXhW6wL6LVmzleOQdo7\nWH/tR5qPkemPTs6wWTNIlon1QJWaMWpNHzYn3O1yzcFiTizX98Fi+p5oBKzyafHHqAiTN5Nj+RjR\nT+xz/rkmRy+Ql+96m04=\n",
+  "msg": {
+    "update": {
+      "date_testing": "2017-04-20 17:22:23",
+      "old_updateid": null,
+      "pushed": true,
+      "require_testcases": false,
+      "date_stable": "2017-04-28 19:59:31",
+      "critpath": false,
+      "date_approved": null,
+      "stable_karma": 3,
+      "date_pushed": "2017-04-28 19:59:31",
+      "requirements": "",
+      "severity": "medium",
+      "autokarma": true,
+      "title": "community-mysql-5.7.18-2.fc25",
+      "suggest": "unspecified",
+      "require_bugs": false,
+      "comments": [
+        {
+          "bug_feedback": [],
+          "user_id": 91,
+          "timestamp": "2017-04-19 23:31:30",
+          "text": "This update has been submitted for testing by mschorm. ",
+          "karma_critpath": 0,
+          "update_id": 85679,
+          "karma": 0,
+          "anonymous": false,
+          "testcase_feedback": [],
+          "id": 596151,
+          "user": {
+            "openid": null,
+            "name": "bodhi",
+            "show_popups": true,
+            "email": null,
+            "avatar": null,
+            "groups": [],
+            "id": 91
+          }
+        }
+      ],
+      "updateid": "FEDORA-2017-fe6e14dcf9",
+      "test_cases": [],
+      "close_bugs": false,
+      "meets_testing_requirements": true,
+      "date_locked": "2017-04-28 19:59:21",
+      "date_submitted": "2017-04-19 23:31:30",
+      "unstable_karma": -2,
+      "submitter": "mschorm",
+      "user": {
+        "openid": null,
+        "name": "mschorm",
+        "show_popups": true,
+        "email": "mschorm@redhat.com",
+        "avatar": null,
+        "groups": [
+          {
+            "name": "packager"
+          }
+        ],
+        "id": 3283
+      },
+      "locked": true,
+      "builds": [
+        {
+          "epoch": 0,
+          "nvr": "community-mysql-5.7.18-2.fc25",
+          "signed": true
+        }
+      ],
+      "date_modified": null,
+      "url": "https://bodhi.fedoraproject.org/updates/FEDORA-2017-fe6e14dcf9",
+      "type": "security",
+      "notes": "Update to 5.7.18\n\nCVEs fixed by this update can be found here:\nhttp://www.oracle.com/technetwork/security-advisory/cpuapr2017-3236618.html\n\n",
+      "request": null,
+      "bugs": [
+        {
+          "bug_id": 1414386,
+          "security": true,
+          "feedback": [],
+          "parent": false,
+          "title": "CVE-2017-3265 community-mysql: various flaws [fedora-all]"
+        },
+        {
+          "bug_id": 1443407,
+          "security": true,
+          "feedback": [],
+          "parent": false,
+          "title": "CVE-2017-3308 CVE-2017-3309 CVE-2017-3450 CVE-2017-3453 CVE-2017-3456 CVE-2017-3461 CVE-2017-3462 CVE-2017-3463 CVE-2017-3464 CVE-2017-3599 community-mysql: various flaws [fedora-all]"
+        },
+        {
+          "bug_id": 1441001,
+          "security": false,
+          "feedback": [],
+          "parent": false,
+          "title": "community-mysql-5.7.18 is available"
+        }
+      ],
+      "alias": "FEDORA-2017-fe6e14dcf9",
+      "status": "stable",
+      "karma": 0,
+      "release": {
+        "dist_tag": "f25",
+        "name": "F25",
+        "testing_tag": "f25-updates-testing",
+        "pending_stable_tag": "f25-updates-pending",
+        "pending_signing_tag": "f25-signing-pending",
+        "long_name": "Fedora 25",
+        "state": "current",
+        "version": "25",
+        "override_tag": "f25-override",
+        "branch": "f25",
+        "id_prefix": "FEDORA",
+        "pending_testing_tag": "f25-updates-testing-pending",
+        "stable_tag": "f25-updates",
+        "candidate_tag": "f25-updates-candidate"
+      }
+    },
+    "agent": "masher"
+  }
+}

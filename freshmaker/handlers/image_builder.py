@@ -21,9 +21,19 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
+import os
+
+from itertools import chain
+
+import freshmaker.pdc as pdc
+
 from freshmaker import log, conf
 from freshmaker.handlers import BaseHandler
 from freshmaker.events import DockerfileChanged
+from freshmaker.events import BodhiUpdateCompleteStable
+from freshmaker.utils import temp_dir
+from freshmaker.utils import _run_command
+from freshmaker.utils import get_commit_hash
 from freshmaker.kojiservice import koji_service
 
 
@@ -36,29 +46,102 @@ class DockerImageRebuildHandler(BaseHandler):
         """Rebuild docker image"""
         import koji
 
+        log.info('Start to rebuild docker image %s', event.repo)
+
         try:
-            self.build_image(event)
+            self.build_image(repo_url=event.repo_url,
+                             rev=event.rev,
+                             branch=event.branch,
+                             namespace=event.namespace)
         except koji.krbV.Krb5Error as e:
             log.exception('Failed to login Koji via Kerberos using GSSAPI. %s', e.args[1])
         except:
             log.exception('Could not create task to build docker image %s', event.repo)
 
-    def build_image(self, event):
+    def build_image(self, repo_url, rev, branch, namespace=None):
         with koji_service(profile=conf.koji_profile, logger=log) as service:
             log.debug('Logging into {0} with Kerberos authentication.'.format(service.server))
             proxyuser = conf.koji_build_owner if conf.koji_proxyuser else None
-
             service.krb_login(proxyuser=proxyuser)
 
             if not service.logged_in:
                 log.error('Could not login server %s', service.server)
                 return
 
-            build_source = '{}#{}'.format(event.repo_url, event.rev)
+            build_source = '{}?#{}'.format(repo_url, rev)
 
-            log.info('Start to build docker image %s', event.repo)
             log.debug('Build from source: %s', build_source)
 
-            return service.build_container(build_source, event.branch,
-                                           namespace=event.namespace,
+            return service.build_container(build_source,
+                                           branch,
+                                           namespace=namespace,
                                            scratch=conf.koji_container_scratch_build)
+
+
+class DockerImageRebuildHandlerForBodhi(DockerImageRebuildHandler):
+    """Rebuild docker images when RPMs are synced by Bodhi"""
+
+    def __init__(self):
+        self.pdc_session = pdc.get_client_session(conf)
+
+    def can_handle(self, event):
+        return isinstance(event, BodhiUpdateCompleteStable)
+
+    def handle(self, event):
+        log.info('Rebuild docker images for event %s, msgid: %s',
+                 BodhiUpdateCompleteStable.__name__, event.msg_id)
+
+        rpms = self.get_rpms_included_in_bodhi_update(event.builds)
+        containers = self.get_containers_including_rpms(rpms)
+
+        log.info('Found docker images to rebuild: %s', containers)
+
+        for container in containers:
+            try:
+                self.handle_image_build(container)
+            except:
+                log.exception('Error when rebuild %s', container)
+
+    def handle_image_build(self, container_info):
+        container_detail = pdc.get_release_component(self.pdc_session,
+                                                     container_info['id'])
+
+        branch = container_detail['dist_git_branch']
+        image_name = container_detail['name']
+        repo_url = '{}/{}/{}'.format(conf.git_base_url,
+                                     'container',
+                                     image_name)
+
+        log.info('Start to rebuild docker image %s from branch %s',
+                 image_name, branch)
+
+        with temp_dir(suffix='-rebuild-docker-image') as working_dir:
+            self.clone_repository(repo_url, branch, working_dir)
+
+            last_commit_hash = get_commit_hash(
+                os.path.join(working_dir, image_name))
+
+            return self.build_image(repo_url=repo_url,
+                                    branch=branch,
+                                    rev=last_commit_hash)
+
+    def clone_repository(self, url, branch, working_dir):
+        cmd = ['git', 'clone', '-b', branch, url]
+        log.debug('Clone repository: %s', cmd)
+        _run_command(cmd, rundir=working_dir)
+
+    def get_rpms_included_in_bodhi_update(self, builds):
+        build_nvrs = (build['nvr'] for build in builds)
+        with koji_service(profile=conf.koji_profile, logger=log) as service:
+            return chain(*[service.get_build_rpms(nvr) for nvr in build_nvrs])
+
+    def get_containers_including_rpms(self, rpms):
+        containers = {}
+        for rpm in rpms:
+            found = pdc.find_containers_by_rpm_name(self.pdc_session, rpm['name'])
+            for container in found:
+                id = container['id']
+                if id not in containers:
+                    containers[id] = container
+
+        return containers.values()

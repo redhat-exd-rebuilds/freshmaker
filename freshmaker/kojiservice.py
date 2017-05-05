@@ -95,6 +95,10 @@ class KojiService(object):
 
         return task_id
 
+    def get_build_rpms(self, build_nvr):
+        build_info = self.session.getBuild(build_nvr)
+        return self.session.listRPMs(buildID=build_info['id'])
+
 
 @contextlib.contextmanager
 def koji_service(profile=None, logger=None):
