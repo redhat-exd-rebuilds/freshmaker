@@ -82,11 +82,13 @@ class MBS(BaseHandler):
 
         if commitid is not None:
             scm_url = conf.git_base_url + '/modules/%s.git?#%s' % (name, commitid)
-            self.rebuild_module(scm_url, branch)
+            return self.rebuild_module(scm_url, branch)
 
     def handle_metadata_update(self, event):
         log.info("Triggering rebuild of %s, metadata updated", event.scm_url)
-        self.rebuild_module(event.scm_url, event.branch)
+        build_id = self.rebuild_module(event.scm_url, event.branch)
+        if build_id is not None:
+            self.record_build(event, event.name, 'module', build_id)
 
         return []
 
@@ -108,11 +110,12 @@ class MBS(BaseHandler):
                                          build_dep_stream=module_stream,
                                          active='true')
         for mod in modules:
+            name = mod['variant_name']
+            version = mod['variant_version']
             commit_msg = "Bump to rebuild because of %s update" % module_name
-            self.bump_and_rebuild_module(mod['variant_name'],
-                                         mod['variant_version'],
-                                         commit_msg=commit_msg)
-        return []
+            build_id = self.bump_and_rebuild_module(name, version, commit_msg=commit_msg)
+            if build_id is not None:
+                self.record_build(event, name, 'module', build_id)
 
     def handle_rpm_spec_updated(self, event):
         """
@@ -135,7 +138,9 @@ class MBS(BaseHandler):
             module_branch = mod['variant_version']
             log.info("Going to rebuild module '%s:%s'.", module_name, module_branch)
             commit_msg = "Bump to rebuild because of %s rpm spec update (%s)." % (rpm, rev)
-            self.bump_and_rebuild_module(module_name, module_branch, commit_msg=commit_msg)
+            build_id = self.bump_and_rebuild_module(module_name, module_branch, commit_msg=commit_msg)
+            if build_id is not None:
+                self.record_build(event, module_name, 'module', build_id)
 
         return []
 

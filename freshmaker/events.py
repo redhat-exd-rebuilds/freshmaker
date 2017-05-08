@@ -143,9 +143,10 @@ class ModuleMetadataUpdated(BaseEvent):
     :param scm_url: SCM URL of a updated module.
     :param branch: Branch of updated module.
     """
-    def __init__(self, msg_id, scm_url, branch):
+    def __init__(self, msg_id, scm_url, name, branch):
         super(ModuleMetadataUpdated, self).__init__(msg_id)
         self.scm_url = scm_url
+        self.name = name
         self.branch = branch
 
 

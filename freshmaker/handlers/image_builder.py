@@ -49,10 +49,13 @@ class DockerImageRebuildHandler(BaseHandler):
         log.info('Start to rebuild docker image %s', event.repo)
 
         try:
-            self.build_image(repo_url=event.repo_url,
-                             rev=event.rev,
-                             branch=event.branch,
-                             namespace=event.namespace)
+            task_id = self.build_image(repo_url=event.repo_url,
+                                       rev=event.rev,
+                                       branch=event.branch,
+                                       namespace=event.namespace)
+
+            self.record_build(event, event.repo, 'image', task_id)
+
         except koji.krbV.Krb5Error as e:
             log.exception('Failed to login Koji via Kerberos using GSSAPI. %s', e.args[1])
         except:
@@ -98,7 +101,8 @@ class DockerImageRebuildHandlerForBodhi(DockerImageRebuildHandler):
 
         for container in containers:
             try:
-                self.handle_image_build(container)
+                task_id = self.handle_image_build(container)
+                self.record_build(event, container['name'], 'image', task_id)
             except:
                 log.exception('Error when rebuild %s', container)
 

@@ -26,7 +26,7 @@ import mock
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from tests import helpers
 
-from freshmaker import events
+from freshmaker import events, db, models
 from freshmaker.handlers.mbs import MBS
 from freshmaker.parsers.mbsmodule import MBSModuleParser
 from freshmaker.parsers.gitreceive import GitReceiveParser
@@ -34,8 +34,18 @@ from freshmaker.parsers.gitreceive import GitReceiveParser
 
 class MBSHandlerTest(unittest.TestCase):
     def setUp(self):
+        db.session.remove()
+        db.drop_all()
+        db.create_all()
+        db.session.commit()
+
         events.BaseEvent.register_parser(MBSModuleParser)
         events.BaseEvent.register_parser(GitReceiveParser)
+
+    def tearDown(self):
+        db.session.remove()
+        db.drop_all()
+        db.session.commit()
 
     def _get_event(self, message):
         event = events.BaseEvent.from_fedmsg(message['body']['topic'], message['body'])
@@ -103,11 +113,24 @@ class MBSHandlerTest(unittest.TestCase):
             "43ec03000d249231bc7135b11b810afc96e90efb",
         ]
         handler.rebuild_module = mock.Mock()
+        handler.rebuild_module.side_effect = [123, 456]
         handler.handle_module_built(event)
 
         self.assertEqual(handler.rebuild_module.call_args_list,
                          [mock.call(u'git://pkgs.fedoraproject.org/modules/testmodule2.git?#fae7848fa47a854f25b782aa64441040a6d86544', u'master'),
                           mock.call(u'git://pkgs.fedoraproject.org/modules/testmodule3.git?#43ec03000d249231bc7135b11b810afc96e90efb', u'master')])
+
+        event_list = models.Event.query.all()
+        self.assertEquals(len(event_list), 1)
+        self.assertEquals(event_list[0].message_id, event.msg_id)
+        builds = models.ArtifactBuild.query.all()
+        self.assertEquals(len(builds), 2)
+        self.assertEquals(builds[0].name, mod2_r1['variant_name'])
+        self.assertEquals(builds[0].type, models.ARTIFACT_TYPES['module'])
+        self.assertEquals(builds[0].build_id, 123)
+        self.assertEquals(builds[1].name, mod3_r1['variant_name'])
+        self.assertEquals(builds[1].build_id, 456)
+        self.assertEquals(builds[1].type, models.ARTIFACT_TYPES['module'])
 
     @mock.patch('freshmaker.pdc.get_modules')
     @mock.patch('freshmaker.handlers.mbs.utils')
@@ -154,10 +177,20 @@ class MBSHandlerTest(unittest.TestCase):
             "43ec03000d249231bc7135b11b810afc96e90efb",
         ]
         handler.rebuild_module = mock.Mock()
+        handler.rebuild_module.return_value = 123
         handler.handle_module_built(event)
 
         self.assertEqual(handler.rebuild_module.call_args_list,
                          [mock.call(u'git://pkgs.fedoraproject.org/modules/testmodule2.git?#fae7848fa47a854f25b782aa64441040a6d86544', u'master')])
+
+        event_list = models.Event.query.all()
+        self.assertEquals(len(event_list), 1)
+        self.assertEquals(event_list[0].message_id, event.msg_id)
+        builds = models.ArtifactBuild.query.all()
+        self.assertEquals(len(builds), 1)
+        self.assertEquals(builds[0].name, mod2_r1['variant_name'])
+        self.assertEquals(builds[0].type, models.ARTIFACT_TYPES['module'])
+        self.assertEquals(builds[0].build_id, 123)
 
     def test_can_handle_rpm_spec_updated_event(self):
         """
@@ -213,10 +246,19 @@ class MBSHandlerTest(unittest.TestCase):
 
         handler = MBS()
         handler.rebuild_module = mock.Mock()
+        handler.rebuild_module.return_value = 123
         handler.handle(event)
         self.assertEqual(handler.rebuild_module.call_args_list,
                          [mock.call('git://pkgs.fedoraproject.org/modules/testmodule.git?#%s' % commitid, 'master')])
 
+        event_list = models.Event.query.all()
+        self.assertEquals(len(event_list), 1)
+        self.assertEquals(event_list[0].message_id, event.msg_id)
+        builds = models.ArtifactBuild.query.all()
+        self.assertEquals(len(builds), 1)
+        self.assertEquals(builds[0].name, 'testmodule')
+        self.assertEquals(builds[0].type, models.ARTIFACT_TYPES['module'])
+        self.assertEquals(builds[0].build_id, 123)
 
 if __name__ == '__main__':
     unittest.main()

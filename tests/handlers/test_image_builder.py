@@ -20,7 +20,6 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
-import shutil
 import tempfile
 import unittest
 
@@ -32,13 +31,23 @@ from mock import patch
 from mock import MagicMock
 from mock import call
 
-from freshmaker import conf
+from freshmaker import conf, db, models
 from freshmaker.consumer import FreshmakerConsumer
 from freshmaker.handlers.image_builder import DockerImageRebuildHandlerForBodhi
 from tests import get_fedmsg
 
 
 class BaseTestCase(unittest.TestCase):
+    def setUp(self):
+        db.session.remove()
+        db.drop_all()
+        db.create_all()
+        db.session.commit()
+
+    def tearDown(self):
+        db.session.remove()
+        db.drop_all()
+        db.session.commit()
 
     def create_consumer(self):
         hub = MagicMock()
@@ -65,15 +74,26 @@ class TestImageBuilderHandler(BaseTestCase):
             'weburl': 'https://localhost/koji',
         }
 
-        self.consume_fedmsg(get_fedmsg('git_receive_dockerfile_changed'))
-
         mock_session = ClientSession.return_value
+        mock_session.buildContainer.return_value = 123
+        msg = get_fedmsg('git_receive_dockerfile_changed')
+        self.consume_fedmsg(msg)
+
         mock_session.krb_login.assert_called_once_with(proxyuser=None)
         mock_session.buildContainer.assert_called_once_with(
             'git://pkgs.fedoraproject.org/container/testimage.git?#e1f39d43471fc37ec82616f76a119da4eddec787',
             'rawhide-container-candidate',
             {'scratch': True, 'git_branch': 'master'})
         mock_session.logout.assert_called_once()
+
+        events = models.Event.query.all()
+        self.assertEquals(len(events), 1)
+        self.assertEquals(events[0].message_id, msg['body']['msg_id'])
+        builds = models.ArtifactBuild.query.all()
+        self.assertEquals(len(builds), 1)
+        self.assertEquals(builds[0].name, 'testimage')
+        self.assertEquals(builds[0].type, models.ARTIFACT_TYPES['image'])
+        self.assertEquals(builds[0].build_id, 123)
 
     @patch('freshmaker.handlers.image_builder.DockerImageRebuildHandler.build_image')
     def test_not_rebuild_if_Dockerfile_not_changed(self, build_image):
@@ -157,6 +177,7 @@ mock_release_components = {
     }
 }
 
+
 def mock_get_release_component(pdc_session, id):
     return mock_release_components[id]
 
@@ -165,6 +186,7 @@ def mock_get_release_component(pdc_session, id):
 class TestRebuildWhenBodhiUpdateStable(BaseTestCase):
 
     def setUp(self):
+        super(TestRebuildWhenBodhiUpdateStable, self).setUp()
         # Use to return a temporary directory from temp_dir method. So, no need
         # to delete this directory, since temp_dir ensures to do that.
         self.working_dir = tempfile.mkdtemp(prefix='test-image-rebuild-')
@@ -199,7 +221,11 @@ class TestRebuildWhenBodhiUpdateStable(BaseTestCase):
 
         get_containers_including_rpms.return_value = mock_found_containers
 
-        self.consume_fedmsg(get_fedmsg('bodhi_update_stable'))
+        session = ClientSession.return_value
+        session.buildContainer.side_effect = [123, 456]
+
+        msg = get_fedmsg('bodhi_update_stable')
+        self.consume_fedmsg(msg)
 
         self.assertEqual(2, _run_command.call_count)
 
@@ -211,8 +237,6 @@ class TestRebuildWhenBodhiUpdateStable(BaseTestCase):
                   '{}/container/{}'.format(conf.git_base_url, 'testimage2')],
                  rundir=self.working_dir)
         ])
-
-        session = ClientSession.return_value
 
         self.assertEqual(2, session.krb_login.call_count)
 
@@ -231,6 +255,18 @@ class TestRebuildWhenBodhiUpdateStable(BaseTestCase):
                      {'scratch': True, 'git_branch': 'f25'}),
             ],
             any_order=True)
+
+        events = models.Event.query.all()
+        self.assertEquals(len(events), 1)
+        self.assertEquals(events[0].message_id, msg['body']['msg_id'])
+        builds = models.ArtifactBuild.query.all()
+        self.assertEquals(len(builds), 2)
+        self.assertEquals(builds[0].name, 'testimage1')
+        self.assertEquals(builds[0].type, models.ARTIFACT_TYPES['image'])
+        self.assertEquals(builds[0].build_id, 123)
+        self.assertEquals(builds[1].name, 'testimage2')
+        self.assertEquals(builds[1].type, models.ARTIFACT_TYPES['image'])
+        self.assertEquals(builds[1].build_id, 456)
 
 
 class TestContainersIncludingRPMs(unittest.TestCase):

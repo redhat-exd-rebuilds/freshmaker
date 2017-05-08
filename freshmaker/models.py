@@ -24,15 +24,10 @@
 """ SQLAlchemy Database models for the Flask app
 """
 
-import contextlib
-
 from datetime import datetime
-from sqlalchemy import engine_from_config
-from sqlalchemy.orm import (validates, scoped_session, sessionmaker,
-                            relationship)
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import (validates, relationship)
 
-from freshmaker import db, log
+from freshmaker import db
 
 # BUILD_STATES for the builds submitted by Freshmaker
 BUILD_STATES = {
@@ -56,8 +51,10 @@ ARTIFACT_TYPES = {
 
 INVERSE_ARTIFACT_TYPES = {v: k for k, v in ARTIFACT_TYPES.items()}
 
+
 class FreshmakerBase(db.Model):
     __abstract__ = True
+
 
 class Event(FreshmakerBase):
     __tablename__ = "events"
@@ -74,6 +71,17 @@ class Event(FreshmakerBase):
         )
         session.add(event)
         return event
+
+    @classmethod
+    def get_or_create(cls, session, message_id):
+        instance = session.query(cls).filter_by(message_id=message_id).first()
+        if instance:
+            return instance
+        return cls.create(session, message_id)
+
+    def __repr__(self):
+        return "<Event %s>" % (self.message_id)
+
 
 class ArtifactBuild(FreshmakerBase):
     __tablename__ = "artifact_builds"
@@ -131,4 +139,3 @@ class ArtifactBuild(FreshmakerBase):
         return "<ArtifactBuild %s, type %s, state %s, event %s>" % (
             self.name, INVERSE_ARTIFACT_TYPES[self.type],
             INVERSE_BUILD_STATES[self.state], self.event.message_id)
-

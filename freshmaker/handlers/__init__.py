@@ -24,7 +24,7 @@
 import abc
 import fedmsg.utils
 
-from freshmaker import conf
+from freshmaker import conf, db, models
 
 
 def load_handlers():
@@ -59,3 +59,17 @@ class BaseHandler(object):
         generate internal events for other handlers in Freshmaker.
         """
         raise NotImplementedError()
+
+    def record_build(self, event, name, type, build_id, dep_of=None):
+        """
+        Record build in db.
+
+        :param event: instance of an event.
+        :param name: name of the artifact.
+        :param type: type of the artifact, can be 'rpm', 'image' or module.
+        :param build_id: id of the build in build system.
+        :param def_of: the artifact which this one depends on.
+        """
+        ev = models.Event.get_or_create(db.session, event.msg_id)
+        models.ArtifactBuild.create(db.session, ev, name, type, build_id, dep_of)
+        db.session.commit()
