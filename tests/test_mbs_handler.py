@@ -51,28 +51,16 @@ class MBSHandlerTest(unittest.TestCase):
         event = events.BaseEvent.from_fedmsg(message['body']['topic'], message['body'])
         return event
 
-    def test_can_handle_module_built_ready_event(self):
+    def test_can_handle_module_built_event(self):
         """
-        Tests MBS handler can handle modult build ready message
+        Tests MBS handler can handle module built message
         """
-
-        msg = helpers.ModuleBuiltMessage('testmodule', 'master', state='ready').produce()
-        event = self._get_event(msg)
-
-        handler = MBS()
-        self.assertTrue(handler.can_handle(event))
-
-    def test_can_not_handle_module_built_non_ready_event(self):
-        """
-        Tests MBS handler cannot handle modult build message which is not with
-        'ready' state.
-        """
-        for s in ['init', 'wait', 'build', 'done', 'failed']:
-            msg = helpers.ModuleBuiltMessage('testmodule', 'master', state=s).produce()
+        for state in ['init', 'wait', 'build', 'done', 'failed', 'ready']:
+            msg = helpers.ModuleBuiltMessage('testmodule', 'master', state=state).produce()
             event = self._get_event(msg)
 
             handler = MBS()
-            self.assertFalse(handler.can_handle(event))
+            self.assertTrue(handler.can_handle(event))
 
     @mock.patch('freshmaker.pdc.get_modules')
     @mock.patch('freshmaker.handlers.mbs.utils')
@@ -259,6 +247,69 @@ class MBSHandlerTest(unittest.TestCase):
         self.assertEquals(builds[0].name, 'testmodule')
         self.assertEquals(builds[0].type, models.ARTIFACT_TYPES['module'])
         self.assertEquals(builds[0].build_id, 123)
+
+    @mock.patch('freshmaker.handlers.mbs.utils')
+    @mock.patch('freshmaker.handlers.mbs.pdc')
+    @mock.patch('freshmaker.handlers.mbs.conf')
+    def test_update_build_state_in_db(self, conf, pdc, utils):
+        """
+        Test build state in db will be updated when receives module build
+        state change message.
+        """
+
+        # trigger a build on rpm spec updated event first
+        conf.git_base_url = "git://pkgs.fedoraproject.org"
+
+        m = helpers.DistGitMessage('rpms', 'bash', 'master', '123')
+        m.add_changed_file('bash.spec', 1, 1)
+        msg = m.produce()
+
+        event = self._get_event(msg)
+
+        mod_info = helpers.PDCModuleInfo('testmodule', 'master', '20170412010101')
+        mod_info.add_rpm("bash-1.2.3-4.f26.rpm")
+        mod = mod_info.produce()
+        pdc.get_latest_modules.return_value = [mod]
+
+        commitid = '9287eb8eb4c4c60f73b4a59f228a673846d940c6'
+        utils.get_commit_hash.return_value = commitid
+
+        handler = MBS()
+        handler.rebuild_module = mock.Mock()
+        handler.rebuild_module.return_value = 123
+        handler.handle(event)
+        self.assertEqual(handler.rebuild_module.call_args_list,
+                         [mock.call('git://pkgs.fedoraproject.org/modules/testmodule.git?#%s' % commitid, 'master')])
+
+        event_list = models.Event.query.all()
+        self.assertEquals(len(event_list), 1)
+        self.assertEquals(event_list[0].message_id, event.msg_id)
+        builds = models.ArtifactBuild.query.all()
+        self.assertEquals(len(builds), 1)
+        self.assertEquals(builds[0].name, 'testmodule')
+        self.assertEquals(builds[0].type, models.ARTIFACT_TYPES['module'])
+        self.assertEquals(builds[0].build_id, 123)
+        self.assertEquals(builds[0].state, models.BUILD_STATES['build'])
+
+        # update build state when receive module built messages
+        # build is failed
+        msg = helpers.ModuleBuiltMessage('testmodule', 'master', state='failed', build_id=123).produce()
+        event = self._get_event(msg)
+        handler.handle(event)
+        builds = models.ArtifactBuild.query.all()
+        self.assertEquals(len(builds), 1)
+        # build state updated to 'failed'
+        self.assertEquals(builds[0].state, models.BUILD_STATES['failed'])
+
+        # build is ready
+        pdc.get_latest_modules.return_value = []
+        msg = helpers.ModuleBuiltMessage('testmodule', 'master', state='ready', build_id=123).produce()
+        event = self._get_event(msg)
+        handler.handle(event)
+        builds = models.ArtifactBuild.query.all()
+        self.assertEquals(len(builds), 1)
+        # build state updated to 'done'
+        self.assertEquals(builds[0].state, models.BUILD_STATES['done'])
 
 if __name__ == '__main__':
     unittest.main()

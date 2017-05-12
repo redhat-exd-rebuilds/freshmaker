@@ -23,20 +23,28 @@
 
 import requests
 
-from freshmaker import log, conf, utils, pdc
+from freshmaker import log, conf, utils, pdc, db, models
 from freshmaker.handlers import BaseHandler
 from freshmaker.events import ModuleBuilt, ModuleMetadataUpdated, RPMSpecUpdated
+
+
+MBS_BUILD_STATES = {
+    "init": 0,
+    "wait": 1,
+    "build": 2,
+    "done": 3,
+    "failed": 4,
+    "ready": 5,
+}
 
 
 class MBS(BaseHandler):
     name = "MBS"
 
     def can_handle(self, event):
-        # Handle only "ready" state of ModuleBuilt.
         # TODO: Handle only when something depends on
         # this module.
-        if (isinstance(event, ModuleBuilt) and
-                event.module_build_state == 5):
+        if isinstance(event, ModuleBuilt):
             return True
 
         if isinstance(event, ModuleMetadataUpdated):
@@ -100,22 +108,41 @@ class MBS(BaseHandler):
         """
         module_name = event.module_name
         module_stream = event.module_stream
+        build_id = event.module_build_id
+        build_state = event.module_build_state
 
-        log.info("Triggering rebuild of modules depending on %s:%s "
-                 "in MBS", module_name, module_stream)
+        # update build state if the build is submitted by Freshmaker
+        builds = db.session.query(models.ArtifactBuild).filter_by(build_id=build_id,
+                                                                  type=models.ARTIFACT_TYPES['module']).all()
+        if len(builds) > 1:
+            raise RuntimeError("Found duplicate module build '%s' in db" % build_id)
+        if len(builds) == 1:
+            build = builds[0]
+            if build_state in [MBS_BUILD_STATES['ready'], MBS_BUILD_STATES['failed']]:
+                log.info("Module build '%s' state changed in MBS, updating it in db.", build_id)
+            if build_state == MBS_BUILD_STATES['ready']:
+                build.state = models.BUILD_STATES['done']
+            if build_state == MBS_BUILD_STATES['failed']:
+                build.state = models.BUILD_STATES['failed']
+            db.session.commit()
 
-        pdc_session = pdc.get_client_session(conf)
-        modules = pdc.get_latest_modules(pdc_session,
-                                         build_dep_name=module_name,
-                                         build_dep_stream=module_stream,
-                                         active='true')
-        for mod in modules:
-            name = mod['variant_name']
-            version = mod['variant_version']
-            commit_msg = "Bump to rebuild because of %s update" % module_name
-            build_id = self.bump_and_rebuild_module(name, version, commit_msg=commit_msg)
-            if build_id is not None:
-                self.record_build(event, name, 'module', build_id)
+        # Rebuild depending modules when state of ModuleBuilt is 'ready'
+        if build_state == MBS_BUILD_STATES['ready']:
+            log.info("Triggering rebuild of modules depending on %s:%s "
+                     "in MBS", module_name, module_stream)
+
+            pdc_session = pdc.get_client_session(conf)
+            modules = pdc.get_latest_modules(pdc_session,
+                                             build_dep_name=module_name,
+                                             build_dep_stream=module_stream,
+                                             active='true')
+            for mod in modules:
+                name = mod['variant_name']
+                version = mod['variant_version']
+                commit_msg = "Bump to rebuild because of %s update" % module_name
+                build_id = self.bump_and_rebuild_module(name, version, commit_msg=commit_msg)
+                if build_id is not None:
+                    self.record_build(event, name, 'module', build_id)
 
     def handle_rpm_spec_updated(self, event):
         """
