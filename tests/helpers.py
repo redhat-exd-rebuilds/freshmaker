@@ -23,6 +23,9 @@ import six
 import string
 import time
 import uuid
+import unittest
+
+from freshmaker import events
 
 
 BUILD_STATES = {
@@ -35,13 +38,19 @@ BUILD_STATES = {
 }
 
 
+class FreshmakerTestCase(unittest.TestCase):
+    def get_event_from_msg(self, message):
+        event = events.BaseEvent.from_fedmsg(message['body']['topic'], message['body'])
+        return event
+
+
 class FedMsgFactory(object):
     def __init__(self, *args, **kwargs):
         self.msg_id = "%s-%s" % (time.strftime("%Y"), uuid.uuid4())
         self.msg = {}
         self.signature = '123'
-        self.source_name = 'unittest',
-        self.source_version = '0.1.1',
+        self.source_name = 'unittest'
+        self.source_version = '0.1.1'
         self.timestamp = time.time()
         self.topic = ''
         self.username = 'freshmaker'
@@ -150,6 +159,29 @@ class DistGitMessage(FedMsgFactory):
         self.stats['total']['deletions'] += deletions
         self.stats['total']['files'] += 1
         self.stats['total']['lines'] += self.stats['files'][filename]['lines']
+
+
+class BuildsysTaskStateChangeMessage(FedMsgFactory):
+    def __init__(self, task_id, old_state, new_state, *args, **kwargs):
+        super(BuildsysTaskStateChangeMessage, self).__init__(*args, **kwargs)
+        self.topic = 'org.fedoraproject.prod.buildsys.task.state.change'
+        self.attribute = 'state'
+        self.task_id = task_id
+        self.old_state = old_state
+        self.new_state = new_state
+        self.owner = 'freshmaker'
+        self.method = 'build'
+
+    @property
+    def inner_msg(self):
+        return {
+            'attribute': self.attribute,
+            'id': self.task_id,
+            'method': self.method,
+            'new': self.new_state,
+            'old': self.old_state,
+            'owner': self.owner,
+        }
 
 
 class PDCModuleInfoFactory(object):

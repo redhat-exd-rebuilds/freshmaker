@@ -32,7 +32,7 @@ from freshmaker.parsers.mbsmodule import MBSModuleParser
 from freshmaker.parsers.gitreceive import GitReceiveParser
 
 
-class MBSHandlerTest(unittest.TestCase):
+class MBSHandlerTest(helpers.FreshmakerTestCase):
     def setUp(self):
         db.session.remove()
         db.drop_all()
@@ -47,17 +47,13 @@ class MBSHandlerTest(unittest.TestCase):
         db.drop_all()
         db.session.commit()
 
-    def _get_event(self, message):
-        event = events.BaseEvent.from_fedmsg(message['body']['topic'], message['body'])
-        return event
-
     def test_can_handle_module_built_event(self):
         """
         Tests MBS handler can handle module built message
         """
         for state in ['init', 'wait', 'build', 'done', 'failed', 'ready']:
             msg = helpers.ModuleBuiltMessage('testmodule', 'master', state=state).produce()
-            event = self._get_event(msg)
+            event = self.get_event_from_msg(msg)
 
             handler = MBS()
             self.assertTrue(handler.can_handle(event))
@@ -71,7 +67,7 @@ class MBSHandlerTest(unittest.TestCase):
         in module built event.
         """
         msg = helpers.ModuleBuiltMessage('testmodule', 'master', state='ready').produce()
-        event = self._get_event(msg)
+        event = self.get_event_from_msg(msg)
 
         handler = MBS()
 
@@ -129,7 +125,7 @@ class MBSHandlerTest(unittest.TestCase):
         module only has old release depends on the module, it won't be rebuilt.
         """
         msg = helpers.ModuleBuiltMessage('testmodule', 'master', state='ready').produce()
-        event = self._get_event(msg)
+        event = self.get_event_from_msg(msg)
 
         handler = MBS()
 
@@ -188,7 +184,7 @@ class MBSHandlerTest(unittest.TestCase):
         m.add_changed_file('bash.spec', 1, 1)
         msg = m.produce()
 
-        event = self._get_event(msg)
+        event = self.get_event_from_msg(msg)
 
         handler = MBS()
         self.assertTrue(handler.can_handle(event))
@@ -203,7 +199,7 @@ class MBSHandlerTest(unittest.TestCase):
         m.add_changed_file('test.c', 1, 1)
         msg = m.produce()
 
-        event = self._get_event(msg)
+        event = self.get_event_from_msg(msg)
 
         handler = MBS()
         self.assertFalse(handler.can_handle(event))
@@ -222,7 +218,7 @@ class MBSHandlerTest(unittest.TestCase):
         m.add_changed_file('bash.spec', 1, 1)
         msg = m.produce()
 
-        event = self._get_event(msg)
+        event = self.get_event_from_msg(msg)
 
         mod_info = helpers.PDCModuleInfo('testmodule', 'master', '20170412010101')
         mod_info.add_rpm("bash-1.2.3-4.f26.rpm")
@@ -264,7 +260,7 @@ class MBSHandlerTest(unittest.TestCase):
         m.add_changed_file('bash.spec', 1, 1)
         msg = m.produce()
 
-        event = self._get_event(msg)
+        event = self.get_event_from_msg(msg)
 
         mod_info = helpers.PDCModuleInfo('testmodule', 'master', '20170412010101')
         mod_info.add_rpm("bash-1.2.3-4.f26.rpm")
@@ -294,7 +290,7 @@ class MBSHandlerTest(unittest.TestCase):
         # update build state when receive module built messages
         # build is failed
         msg = helpers.ModuleBuiltMessage('testmodule', 'master', state='failed', build_id=123).produce()
-        event = self._get_event(msg)
+        event = self.get_event_from_msg(msg)
         handler.handle(event)
         builds = models.ArtifactBuild.query.all()
         self.assertEquals(len(builds), 1)
@@ -304,7 +300,7 @@ class MBSHandlerTest(unittest.TestCase):
         # build is ready
         pdc.get_latest_modules.return_value = []
         msg = helpers.ModuleBuiltMessage('testmodule', 'master', state='ready', build_id=123).produce()
-        event = self._get_event(msg)
+        event = self.get_event_from_msg(msg)
         handler.handle(event)
         builds = models.ArtifactBuild.query.all()
         self.assertEquals(len(builds), 1)

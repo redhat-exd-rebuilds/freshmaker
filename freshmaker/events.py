@@ -211,3 +211,13 @@ class BodhiUpdateCompleteStable(BaseEvent):
         self.update_id = update_id
         self.builds = builds
         self.release = release
+
+
+class KojiTaskStateChanged(BaseEvent):
+    """
+    Provides an event object for "the state of task changed in koji"
+    """
+    def __init__(self, msg_id, task_id, task_state):
+        super(KojiTaskStateChanged, self).__init__(msg_id)
+        self.task_id = task_id
+        self.task_state = task_state

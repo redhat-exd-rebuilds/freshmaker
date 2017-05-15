@@ -31,6 +31,7 @@ import freshmaker.handlers
 import freshmaker.parsers.mbsmodule
 import freshmaker.parsers.gitreceive
 import freshmaker.parsers.bodhiupdate
+import freshmaker.parsers.buildsys
 
 from freshmaker import log, conf, messaging, events
 
@@ -65,6 +66,7 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
         events.BaseEvent.register_parser(freshmaker.parsers.mbsmodule.MBSModuleParser)
         events.BaseEvent.register_parser(freshmaker.parsers.gitreceive.GitReceiveParser)
         events.BaseEvent.register_parser(freshmaker.parsers.bodhiupdate.UpdateCompleteStableParser)
+        events.BaseEvent.register_parser(freshmaker.parsers.buildsys.BuildsysParser)
         log.debug("Parser classes: %r", events.BaseEvent._parsers)
 
         self.topic = events.BaseEvent.get_parsed_topics()

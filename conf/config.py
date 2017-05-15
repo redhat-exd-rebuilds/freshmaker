@@ -45,6 +45,7 @@ class BaseConfiguration(object):
         "freshmaker.handlers.mbs:MBS",  # Module Build Service
         "freshmaker.handlers.image_builder:DockerImageRebuildHandler",
         "freshmaker.handlers.image_builder:DockerImageRebuildHandlerForBodhi",
+        "freshmaker.handlers.buildsys:BuildsysHandler",
     ]
 
     # Base URL of git repository with source artifacts.
@@ -75,6 +76,7 @@ class BaseConfiguration(object):
     KOJI_CONTAINER_SCRATCH_BUILD = False
 
     SSL_ENABLED = False
+
 
 class DevConfiguration(BaseConfiguration):
     DEBUG = True
