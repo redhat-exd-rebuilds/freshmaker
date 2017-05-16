@@ -120,6 +120,9 @@ class BaseConfiguration(object):
     #     },
     # }
 
+    LIGHTBLUE_SERVER_URL = ''  # replace with default server url
+    LIGHTBLUE_VERIFY_SSL = True
+
 
 class DevConfiguration(BaseConfiguration):
     DEBUG = True
@@ -133,6 +136,8 @@ class DevConfiguration(BaseConfiguration):
     NET_RETRY_INTERVAL = 1
 
     KOJI_CONTAINER_SCRATCH_BUILD = True
+
+    LIGHTBLUE_VERIFY_SSL = False
 
 
 class TestConfiguration(BaseConfiguration):
@@ -152,6 +157,9 @@ class TestConfiguration(BaseConfiguration):
     MBS_AUTH_TOKEN = "testingtoken"
 
     KOJI_CONTAINER_SCRATCH_BUILD = True
+
+    LIGHTBLUE_SERVER_URL = ''  # replace with real dev server url
+    LIGHTBLUE_VERIFY_SSL = False
 
 
 class ProdConfiguration(BaseConfiguration):
