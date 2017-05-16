@@ -307,5 +307,71 @@ class MBSHandlerTest(helpers.FreshmakerTestCase):
         # build state updated to 'done'
         self.assertEquals(builds[0].state, models.BUILD_STATES['done'])
 
+    @mock.patch('freshmaker.handlers.mbs.utils')
+    @mock.patch('freshmaker.handlers.mbs.pdc')
+    @mock.patch('freshmaker.handlers.conf')
+    def test_module_is_not_allowed_to_be_built_in_whitelist(self, conf, pdc, utils):
+        conf.handler_build_whitelist = {
+            "MBS": {
+                "RPMSpecUpdated": {
+                    "module": [
+                        {
+                            'name': 'test-.*',
+                        },
+                    ],
+                },
+            },
+        }
+        conf.handler_build_blacklist = {}
+        m = helpers.DistGitMessage('rpms', 'bash', 'master', '123')
+        m.add_changed_file('bash.spec', 1, 1)
+        msg = m.produce()
+
+        event = self.get_event_from_msg(msg)
+
+        mod_info = helpers.PDCModuleInfo('testmodule', 'master', '20170412010101')
+        mod_info.add_rpm("bash-1.2.3-4.f26.rpm")
+        mod = mod_info.produce()
+        pdc.get_latest_modules.return_value = [mod]
+        event = self.get_event_from_msg(msg)
+        handler = MBS()
+        handler.rebuild_module = mock.Mock()
+        handler.rebuild_module.return_value = None
+        handler.handle(event)
+        handler.rebuild_module.assert_not_called()
+
+    @mock.patch('freshmaker.handlers.mbs.utils')
+    @mock.patch('freshmaker.handlers.mbs.pdc')
+    @mock.patch('freshmaker.handlers.conf')
+    def test_module_is_not_allowed_to_be_built_in_blacklist(self, conf, pdc, utils):
+        conf.handler_build_whitelist = {}
+        conf.handler_build_blacklist = {
+            "MBS": {
+                "RPMSpecUpdated": {
+                    "module": [
+                        {
+                            'name': 'testmodule',
+                        },
+                    ],
+                },
+            },
+        }
+        m = helpers.DistGitMessage('rpms', 'bash', 'master', '123')
+        m.add_changed_file('bash.spec', 1, 1)
+        msg = m.produce()
+
+        event = self.get_event_from_msg(msg)
+
+        mod_info = helpers.PDCModuleInfo('testmodule', 'master', '20170412010101')
+        mod_info.add_rpm("bash-1.2.3-4.f26.rpm")
+        mod = mod_info.produce()
+        pdc.get_latest_modules.return_value = [mod]
+        event = self.get_event_from_msg(msg)
+        handler = MBS()
+        handler.rebuild_module = mock.Mock()
+        handler.rebuild_module.return_value = None
+        handler.handle(event)
+        handler.rebuild_module.assert_not_called()
+
 if __name__ == '__main__':
     unittest.main()

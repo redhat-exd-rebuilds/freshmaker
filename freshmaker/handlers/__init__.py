@@ -22,9 +22,10 @@
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
 import abc
+import re
 import fedmsg.utils
 
-from freshmaker import conf, db, models
+from freshmaker import conf, log, db, models
 
 
 def load_handlers():
@@ -73,3 +74,55 @@ class BaseHandler(object):
         ev = models.Event.get_or_create(db.session, event.msg_id)
         models.ArtifactBuild.create(db.session, ev, name, type, build_id, dep_of)
         db.session.commit()
+
+    def allow_build(self, event, artifact_type, name, branch):
+        """
+        Check whether the artifact is allowed to be built by checking
+        HANDLER_BUILD_WHITELIST and HANDLER_BUILD_BLACKLIST in config.
+
+        :param event: event instance.
+        :param artifact_type: 'module' or 'image'.
+        :param name: name of the artifact.
+        :param branch: branch name of the artifact.
+        :return: True or False.
+        """
+        # If there is a whitelist specified for the (handler, event, artifact_type),
+        # the build target of (name, branch) need to be in that whitelist first.
+        # After that (if the build target is in whitelist), check the build target
+        # is not in the specified blacklist.
+
+        # by default we assume the artifact is in whitelist and not in blacklist
+        in_whitelist = True
+        in_blacklist = False
+
+        handler_name = self.name
+        event_name = type(event).__name__
+        whitelist_rules = conf.handler_build_whitelist.get(handler_name, {}).get(event_name, {})
+        blacklist_rules = conf.handler_build_blacklist.get(handler_name, {}).get(event_name, {})
+
+        def match_rule(name, branch, rule):
+            name_rule = rule.get('name', None)
+            branch_rule = rule.get('branch', None)
+            if name_rule and not re.compile(name_rule).match(name):
+                    return False
+            if branch_rule and not re.compile(branch_rule).match(branch):
+                    return False
+            return True
+
+        try:
+            whitelist = whitelist_rules.get(artifact_type, [])
+            if whitelist and not any([match_rule(name, branch, rule) for rule in whitelist]):
+                in_whitelist = False
+
+            # only need to check blacklist when it is in whitelist first
+            if in_whitelist:
+                blacklist = blacklist_rules.get(artifact_type, [])
+                if blacklist and any([match_rule(name, branch, rule) for rule in blacklist]):
+                    in_blacklist = True
+
+        except re.error as exc:
+            log.error("Error while compiling blacklist/whilelist rule for <handler(%s) event(%s) artifact(%s)>:\n"
+                      "Incorrect regular expression: %s\nBlacklist and Whitelist will not take effect",
+                      handler_name, event_name, artifact_type, str(exc))
+            return True
+        return in_whitelist and not in_blacklist

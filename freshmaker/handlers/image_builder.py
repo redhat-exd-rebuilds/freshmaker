@@ -38,6 +38,7 @@ from freshmaker.kojiservice import koji_service
 
 
 class DockerImageRebuildHandler(BaseHandler):
+    name = 'DockerImageRebuildHandler'
 
     def can_handle(self, event):
         return isinstance(event, DockerfileChanged)
@@ -48,11 +49,16 @@ class DockerImageRebuildHandler(BaseHandler):
 
         log.info('Start to rebuild docker image %s', event.repo)
 
+        if not self.allow_build(event, 'image', event.repo, event.branch):
+            log.info("Skip rebuild of %s:%s as it's not allowed by configured whitelist/blacklist",
+                     event.repo, event.branch)
+            return []
+
         try:
             task_id = self.build_image(repo_url=event.repo_url,
-                                       rev=event.rev,
-                                       branch=event.branch,
-                                       namespace=event.namespace)
+                                        rev=event.rev,
+                                        branch=event.branch,
+                                        namespace=event.namespace)
 
             self.record_build(event, event.repo, 'image', task_id)
 
@@ -60,6 +66,8 @@ class DockerImageRebuildHandler(BaseHandler):
             log.exception('Failed to login Koji via Kerberos using GSSAPI. %s', e.args[1])
         except:
             log.exception('Could not create task to build docker image %s', event.repo)
+
+        return []
 
     def build_image(self, repo_url, rev, branch, namespace=None):
         with koji_service(profile=conf.koji_profile, logger=log) as service:
@@ -83,6 +91,7 @@ class DockerImageRebuildHandler(BaseHandler):
 
 class DockerImageRebuildHandlerForBodhi(DockerImageRebuildHandler):
     """Rebuild docker images when RPMs are synced by Bodhi"""
+    name = 'DockerImageRebuildForBodhiHandler'
 
     def __init__(self):
         self.pdc_session = pdc.get_client_session(conf)
@@ -100,6 +109,10 @@ class DockerImageRebuildHandlerForBodhi(DockerImageRebuildHandler):
         log.info('Found docker images to rebuild: %s', containers)
 
         for container in containers:
+            if not self.allow_build(event, 'image', container['name'], container['branch']):
+                log.info("Skip rebuild of image %s:%s as it's not allowed by configured whitelist/blacklist",
+                         container['name'], container['branch'])
+                continue
             try:
                 task_id = self.handle_image_build(container)
                 self.record_build(event, container['name'], 'image', task_id)
@@ -107,23 +120,17 @@ class DockerImageRebuildHandlerForBodhi(DockerImageRebuildHandler):
                 log.exception('Error when rebuild %s', container)
 
     def handle_image_build(self, container_info):
-        container_detail = pdc.get_release_component(self.pdc_session,
-                                                     container_info['id'])
+        name = container_info['name']
+        branch = container_info['branch']
+        repo_url = '{}/{}/{}'.format(conf.git_base_url, 'container', name)
 
-        branch = container_detail['dist_git_branch']
-        image_name = container_detail['name']
-        repo_url = '{}/{}/{}'.format(conf.git_base_url,
-                                     'container',
-                                     image_name)
-
-        log.info('Start to rebuild docker image %s from branch %s',
-                 image_name, branch)
+        log.info('Start to rebuild docker image %s from branch %s', name, branch)
 
         with temp_dir(suffix='-rebuild-docker-image') as working_dir:
             self.clone_repository(repo_url, branch, working_dir)
 
             last_commit_hash = get_commit_hash(
-                os.path.join(working_dir, image_name))
+                os.path.join(working_dir, name))
 
             return self.build_image(repo_url=repo_url,
                                     branch=branch,
@@ -146,6 +153,8 @@ class DockerImageRebuildHandlerForBodhi(DockerImageRebuildHandler):
             for container in found:
                 id = container['id']
                 if id not in containers:
+                    container_detail = pdc.get_release_component(self.pdc_session, id)
+                    container['branch'] = container_detail['dist_git_branch']
                     containers[id] = container
 
         return containers.values()

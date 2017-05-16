@@ -133,12 +133,14 @@ mock_found_containers = [
     {
         'release': 'fedora-25-updates',
         'id': 5430,
-        'name': 'testimage1'
+        'name': 'testimage1',
+        'branch': 'f25',
     },
     {
         'release': 'fedora-25-updates',
         'id': 5431,
-        'name': 'testimage2'
+        'name': 'testimage2',
+        'branch': 'f25',
     },
 ]
 
@@ -271,6 +273,7 @@ class TestRebuildWhenBodhiUpdateStable(BaseTestCase):
 
 class TestContainersIncludingRPMs(unittest.TestCase):
 
+    @patch('freshmaker.pdc.get_release_component', new=mock_get_release_component)
     @patch('freshmaker.handlers.image_builder.pdc.find_containers_by_rpm_name')
     def test_get_containers(self, find_containers_by_rpm_name):
         expected_found_containers = [
@@ -278,11 +281,13 @@ class TestContainersIncludingRPMs(unittest.TestCase):
                 'release': 'fedora-24-updates',
                 'id': 5430,
                 'name': 'testimage1',
+                'branch': 'f25',
             },
             {
                 'release': 'fedora-24-updates',
-                'id': 5432,
+                'id': 5431,
                 'name': 'testimage2',
+                'branch': 'f25',
             },
         ]
         find_containers_by_rpm_name.return_value = expected_found_containers
@@ -305,6 +310,7 @@ class TestContainersIncludingRPMs(unittest.TestCase):
              'release': '2.fc25',
              'version': '5.7.18'},
         ]
+
         containers = handler.get_containers_including_rpms(rpms)
 
         self.assertEqual(3, find_containers_by_rpm_name.call_count)

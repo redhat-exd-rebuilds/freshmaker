@@ -94,6 +94,10 @@ class MBS(BaseHandler):
 
     def handle_metadata_update(self, event):
         log.info("Triggering rebuild of %s, metadata updated", event.scm_url)
+        if not self.allow_build(event, 'module', event.name, event.branch):
+            log.info("Skip rebuild of %s:%s as it's not allowed by configured whitelist/blacklist",
+                     event.name, event.branch)
+            return []
         build_id = self.rebuild_module(event.scm_url, event.branch)
         if build_id is not None:
             self.record_build(event, event.name, 'module', build_id)
@@ -139,10 +143,16 @@ class MBS(BaseHandler):
             for mod in modules:
                 name = mod['variant_name']
                 version = mod['variant_version']
+                if not self.allow_build(event, 'module', name, version):
+                    log.info("Skip rebuild of %s:%s as it's not allowed by configured whitelist/blacklist",
+                             name, version)
+                    continue
                 commit_msg = "Bump to rebuild because of %s update" % module_name
                 build_id = self.bump_and_rebuild_module(name, version, commit_msg=commit_msg)
                 if build_id is not None:
                     self.record_build(event, name, 'module', build_id)
+
+        return []
 
     def handle_rpm_spec_updated(self, event):
         """
@@ -163,6 +173,10 @@ class MBS(BaseHandler):
         for mod in modules:
             module_name = mod['variant_name']
             module_branch = mod['variant_version']
+            if not self.allow_build(event, 'module', module_name, module_branch):
+                log.info("Skip rebuild of %s:%s as it's not allowed by configured whitelist/blacklist",
+                         module_name, module_branch)
+                continue
             log.info("Going to rebuild module '%s:%s'.", module_name, module_branch)
             commit_msg = "Bump to rebuild because of %s rpm spec update (%s)." % (rpm, rev)
             build_id = self.bump_and_rebuild_module(module_name, module_branch, commit_msg=commit_msg)

@@ -176,6 +176,16 @@ class Config(object):
             'type': str,
             'default': '',
             'desc': 'Build owner.'},
+        'handler_build_whitelist': {
+            'type': dict,
+            'default': {},
+            'desc': 'Whitelist for build targets of handlers',
+        },
+        'handler_build_blacklist': {
+            'type': dict,
+            'default': {},
+            'desc': 'Blacklist for build targets of handlers',
+        },
     }
 
     def __init__(self, conf_section_obj):
@@ -222,7 +232,7 @@ class Config(object):
         if key in self._defaults:
             # type conversion for configuration item
             convert = self._defaults[key]['type']
-            if convert in [bool, int, list, str, set]:
+            if convert in [bool, int, list, str, set, dict]:
                 try:
                     # Do no try to convert None...
                     if value is not None:
