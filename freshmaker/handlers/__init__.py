@@ -112,12 +112,16 @@ class BaseHandler(object):
         try:
             whitelist = whitelist_rules.get(artifact_type, [])
             if whitelist and not any([match_rule(name, branch, rule) for rule in whitelist]):
+                log.debug('name=%r, branch=%r, type=%r is not whitelisted.',
+                          name, branch, artifact_type)
                 in_whitelist = False
 
             # only need to check blacklist when it is in whitelist first
             if in_whitelist:
                 blacklist = blacklist_rules.get(artifact_type, [])
                 if blacklist and any([match_rule(name, branch, rule) for rule in blacklist]):
+                    log.debug('name=%r, branch=%r, type=%r is blacklisted.',
+                              name, branch, artifact_type)
                     in_blacklist = True
 
         except re.error as exc:
