@@ -110,8 +110,11 @@ def get_commit_hash(repo, revision='HEAD'):
     return _run_command(cmd, rundir=repo, return_output=True).strip()
 
 
-def _run_command(command, logger=None, rundir='/tmp', output=subprocess.PIPE, error=subprocess.PIPE, env=None, return_output=False):
+def _run_command(command, logger=None, rundir=None, output=subprocess.PIPE, error=subprocess.PIPE, env=None, return_output=False):
     """Run a command, return output if return_output is True. Error out if command exit with non-zero code."""
+
+    if rundir is None:
+        rundir = tempfile.gettempdir()
 
     if logger:
         logger.info("Running %s", subprocess.list2cmdline(command))
