@@ -26,11 +26,6 @@ import logging
 import os
 import ssl
 
-import fedmsg.config
-import moksha.hub
-import moksha.hub.hub
-import moksha.hub.reactor
-
 from freshmaker import app, conf, db
 from freshmaker import models
 
@@ -54,7 +49,7 @@ Usage: {0} [{1}]
 
 See also:
   freshmaker-manager(1)""".format(command,
-                           '|'.join(help_args)))
+                                  '|'.join(help_args)))
             sys.exit(2)
         r = f(*args, **kwargs)
         return r
@@ -98,6 +93,7 @@ def upgradedb():
     with app.app_context():
         flask_migrate.upgrade(directory=migrations_dir)
 
+
 @console_script_help
 @manager.command
 def cleardb():
@@ -106,6 +102,7 @@ def cleardb():
     models.Event.query.delete()
     models.ArtifactBuild.query.delete()
     db.session.commit()
+
 
 @manager.command
 @console_script_help
@@ -161,6 +158,7 @@ def runssl(host=conf.host, port=conf.port, debug=conf.debug):
         ssl_context=ssl_ctx,
         debug=debug
     )
+
 
 if __name__ == "__main__":
     manager.run()

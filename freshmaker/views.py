@@ -21,12 +21,9 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
-import json
-from flask import request, jsonify
 from flask.views import MethodView
 
-from freshmaker import app, conf, log
-from freshmaker import models, db
+from freshmaker import app
 
 api_v1 = {
     'freshmaker': {
@@ -44,6 +41,7 @@ class FreshmakerAPI(MethodView):
     def get(self, id):
         return "Done", 200
 
+
 def register_api_v1():
     """ Registers version 1 of MBS API. """
     module_view = FreshmakerAPI.as_view('freshmaker')
@@ -52,5 +50,6 @@ def register_api_v1():
                          endpoint=key,
                          view_func=module_view,
                          **val['options'])
+
 
 register_api_v1()

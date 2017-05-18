@@ -22,7 +22,7 @@ import os
 import sys
 import unittest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))  # noqa
 from tests import helpers
 
 from freshmaker import events, db, models
@@ -86,6 +86,7 @@ class BuildsysHandlerTest(helpers.FreshmakerTestCase):
         handler.handle(event)
         build = models.ArtifactBuild.query.all()[0]
         self.assertEqual(build.state, models.BUILD_STATES['done'])
+
 
 if __name__ == '__main__':
     unittest.main()
