@@ -56,9 +56,9 @@ class DockerImageRebuildHandler(BaseHandler):
 
         try:
             task_id = self.build_image(repo_url=event.repo_url,
-                                        rev=event.rev,
-                                        branch=event.branch,
-                                        namespace=event.namespace)
+                                       rev=event.rev,
+                                       branch=event.branch,
+                                       namespace=event.namespace)
 
             self.record_build(event, event.repo, 'image', task_id)
 

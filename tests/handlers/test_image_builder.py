@@ -245,18 +245,17 @@ class TestRebuildWhenBodhiUpdateStable(BaseTestCase):
         buildContainer = session.buildContainer
         self.assertEqual(2, buildContainer.call_count)
         buildContainer.assert_has_calls([
-                call('{}/container/{}?#{}'.format(conf.git_base_url,
-                                                  'testimage1',
-                                                  last_commit_hash),
-                     'f25-container-candidate',
-                     {'scratch': True, 'git_branch': 'f25'}),
-                call('{}/container/{}?#{}'.format(conf.git_base_url,
-                                                  'testimage2',
-                                                  last_commit_hash),
-                     'f25-container-candidate',
-                     {'scratch': True, 'git_branch': 'f25'}),
-            ],
-            any_order=True)
+            call('{}/container/{}?#{}'.format(conf.git_base_url,
+                                              'testimage1',
+                                              last_commit_hash),
+                 'f25-container-candidate',
+                 {'scratch': True, 'git_branch': 'f25'}),
+            call('{}/container/{}?#{}'.format(conf.git_base_url,
+                                              'testimage2',
+                                              last_commit_hash),
+                 'f25-container-candidate',
+                 {'scratch': True, 'git_branch': 'f25'}),
+        ], any_order=True)
 
         events = models.Event.query.all()
         self.assertEquals(len(events), 1)

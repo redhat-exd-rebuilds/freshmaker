@@ -23,7 +23,7 @@ import sys
 import unittest
 import mock
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))  # noqa
 from tests import helpers
 
 from freshmaker import events, db, models
@@ -372,6 +372,7 @@ class MBSHandlerTest(helpers.FreshmakerTestCase):
         handler.rebuild_module.return_value = None
         handler.handle(event)
         handler.rebuild_module.assert_not_called()
+
 
 if __name__ == '__main__':
     unittest.main()

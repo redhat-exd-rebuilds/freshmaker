@@ -47,7 +47,7 @@ ARTIFACT_TYPES = {
     "rpm": 0,
     "image": 1,
     "module": 2,
-    }
+}
 
 INVERSE_ARTIFACT_TYPES = {v: k for k, v in ARTIFACT_TYPES.items()}
 

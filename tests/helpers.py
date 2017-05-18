@@ -123,13 +123,15 @@ class DistGitMessage(FedMsgFactory):
         self.repo = repo
         self.branch = branch
         self.rev = rev
-        self.stats = {'files': {},
-                      'total': {
-                          'additions': 0,
-                          'deletions': 0,
-                          'files': 0,
-                          'lines': 0,
-                      }}
+        self.stats = {
+            'files': {},
+            'total': {
+                'additions': 0,
+                'deletions': 0,
+                'files': 0,
+                'lines': 0,
+            }
+        }
 
     @property
     def inner_msg(self):

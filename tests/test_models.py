@@ -22,7 +22,7 @@
 
 import unittest
 
-from freshmaker import conf, db
+from freshmaker import db
 from freshmaker.models import Event, ArtifactBuild
 
 
@@ -41,7 +41,7 @@ class TestModels(unittest.TestCase):
     def test_creating_event_and_builds(self):
         event = Event.create(db.session, "test_msg_id")
         build = ArtifactBuild.create(db.session, event, "ed", "module", 1234)
-        build2 = ArtifactBuild.create(db.session, event, "mksh", "module", 1235, build)
+        ArtifactBuild.create(db.session, event, "mksh", "module", 1235, build)
         db.session.commit()
         db.session.expire_all()
 
