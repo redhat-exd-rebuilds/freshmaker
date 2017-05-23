@@ -87,10 +87,24 @@ class ContainerImage(dict):
 class LightBlue(object):
     """Interface to query lightblue"""
 
-    ENTITY_VERSION_CONTAINER_IMAGE = '0.0.12'
-    ENTITY_VERSION_CONTAINER_REPOSITORY = '0.0.11'
+    def __init__(self, server_url, cert, private_key,
+                 verify_ssl=None,
+                 entity_versions=None):
+        """Initialize LightBlue instance
 
-    def __init__(self, server_url, cert, private_key, verify_ssl=None):
+        :param str server_url: URL used to call LightBlue APIs. It is
+            unnecessary to include path part, which will be handled
+            automatically. For example, https://lightblue.example.com/.
+        :param str cert: path to certificate file.
+        :param str private_key: path to private key file.
+        :param bool verify_ssl: whether to verify SSL over HTTP. Enabled by
+            default.
+        :param dict entity_versions: a mapping from entity to what version
+            should be used to request data. If no such a mapping appear , it
+            means the default version will be used. You should choose versions
+            explicitly. If entity_versions is omitted entirely, default version
+            will be used on each entity.
+        """
         self.server_url = server_url
         self.api_root = '{}/rest/data/'.format(server_url)
         if verify_ssl is None:
@@ -108,6 +122,20 @@ class LightBlue(object):
             raise IOError('Private key file {} does not exist.'.format(private_key))
         else:
             self.private_key = private_key
+
+        self.entity_versions = entity_versions or {}
+
+    def _get_entity_version(self, entity_name):
+        """Lookup configured entity's version
+
+        :param str entity_name: entity name to get its version.
+        :return: version configured for the entity name. If there is no
+            corresponding version, emtpy string is returned, which can be used
+            to construct request URL directly that means to use default
+            version.
+        :rtype: str
+        """
+        return self.entity_versions.get(entity_name, '')
 
     def _make_request(self, entity, data):
         """Make request to lightblue"""
@@ -145,7 +173,7 @@ class LightBlue(object):
         """
 
         url = 'find/containerRepository/{}'.format(
-            self.ENTITY_VERSION_CONTAINER_REPOSITORY)
+            self._get_entity_version('entityRespository'))
         response = self._make_request(url, request)
 
         repos = []
@@ -167,7 +195,7 @@ class LightBlue(object):
         """
 
         url = 'find/containerImage/{}'.format(
-            self.ENTITY_VERSION_CONTAINER_IMAGE)
+            self._get_entity_version('containerImage'))
         response = self._make_request(url, request)
 
         images = []

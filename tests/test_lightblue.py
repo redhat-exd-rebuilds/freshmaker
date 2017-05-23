@@ -23,6 +23,7 @@
 import json
 import unittest
 
+from mock import call
 from mock import patch
 from six.moves import http_client
 
@@ -103,7 +104,7 @@ class TestContainerRepository(unittest.TestCase):
         self.assertEqual('20170223T08:28:40.913-0500', image['metrics']['last_update_date'])
 
 
-class TestLightBlue(unittest.TestCase):
+class TestQueryEntityFromLightBlue(unittest.TestCase):
 
     def setUp(self):
         self.fake_server_url = 'lightblue.localhost'
@@ -159,9 +160,7 @@ class TestLightBlue(unittest.TestCase):
             images = lb.find_container_images(request=fake_request)
 
         post.assert_called_once_with(
-            '{}/{}/{}'.format(lb.api_root,
-                              'find/containerImage',
-                              LightBlue.ENTITY_VERSION_CONTAINER_IMAGE),
+            '{}/{}/'.format(lb.api_root, 'find/containerImage'),
             data=json.dumps(fake_request),
             verify=lb.verify_ssl,
             cert=(self.fake_cert_file, self.fake_private_key),
@@ -218,9 +217,7 @@ class TestLightBlue(unittest.TestCase):
             repos = lb.find_container_repositories(request=fake_request)
 
         post.assert_called_once_with(
-            '{}/{}/{}'.format(lb.api_root,
-                              'find/containerRepository',
-                              LightBlue.ENTITY_VERSION_CONTAINER_REPOSITORY),
+            '{}/{}/'.format(lb.api_root, 'find/containerRepository'),
             data=json.dumps(fake_request),
             verify=lb.verify_ssl,
             cert=(self.fake_cert_file, self.fake_private_key),
@@ -268,3 +265,65 @@ class TestLightBlue(unittest.TestCase):
                            private_key=self.fake_private_key)
             self.assertRaises(LightBlueRequestFailure,
                               lb._make_request, 'find/containerRepository/', fake_request)
+
+
+class TestEntityVersion(unittest.TestCase):
+    """Test case for ensuring correct entity version in request"""
+
+    def setUp(self):
+        self.fake_server_url = 'lightblue.localhost'
+        self.fake_cert_file = 'path/to/cert'
+        self.fake_private_key = 'path/to/private-key'
+        self.fake_entity_versions = {
+            'containerImage': '0.0.11'
+        }
+
+    @patch('freshmaker.lightblue.LightBlue._make_request')
+    @patch('os.path.exists')
+    def test_use_default_entity_version(self, exists, _make_request):
+        exists.return_value = True
+
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key,
+                       entity_versions=self.fake_entity_versions)
+        fake_request = {}
+        lb.find_container_repositories({})
+
+        _make_request.assert_called_once_with('find/containerRepository/', {})
+
+    @patch('freshmaker.lightblue.LightBlue._make_request')
+    @patch('os.path.exists')
+    def test_use_specified_entity_version(self, exists, _make_request):
+        exists.return_value = True
+
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key,
+                       entity_versions=self.fake_entity_versions)
+        fake_request = {}
+        lb.find_container_images({})
+
+        _make_request.assert_called_once_with('find/containerImage/0.0.11', {})
+
+    @patch('freshmaker.lightblue.LightBlue._make_request')
+    @patch('os.path.exists')
+    def test_use_default_entity_version_when_parameter_is_omitted(
+            self, exists, _make_request):
+        exists.return_value = True
+        _make_request.return_value = {
+            # Omit other attributes that are not useful for this test
+            'processed': []
+        }
+
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key)
+        fake_request = {}
+        lb.find_container_repositories({})
+        lb.find_container_images({})
+
+        _make_request.assert_has_calls([
+            call('find/containerRepository/', {}),
+            call('find/containerImage/', {}),
+        ])

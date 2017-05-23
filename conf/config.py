@@ -123,6 +123,12 @@ class BaseConfiguration(object):
     LIGHTBLUE_SERVER_URL = ''  # replace with default server url
     LIGHTBLUE_VERIFY_SSL = True
 
+    # Lookup versions of each entity: /rest/metadata/{entity name}
+    LIGHTBLUE_ENTITY_VERSIONS = {
+        'containerRepository': '0.0.11',
+        'containerImage': '0.0.12',
+    }
+
 
 class DevConfiguration(BaseConfiguration):
     DEBUG = True
