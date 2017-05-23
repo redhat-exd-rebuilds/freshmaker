@@ -26,6 +26,8 @@ import re
 import fedmsg.utils
 
 from freshmaker import conf, log, db, models
+from freshmaker.mbs import MBS
+from freshmaker.kojiservice import koji_service
 
 
 def load_handlers():
@@ -60,6 +62,43 @@ class BaseHandler(object):
         generate internal events for other handlers in Freshmaker.
         """
         raise NotImplementedError()
+
+    def build_module(self, name, branch, rev):
+        """
+        Build a module in MBS.
+
+        :param name: module name.
+        :param branch: module branch.
+        :param rev: git revision.
+        """
+        mbs = MBS(conf)
+        return mbs.build_module(name, branch, rev)
+
+    def build_container(self, name, branch, rev):
+        """
+        Build a container in koji.
+
+        :param container: container name.
+        :param branch: container branch.
+        :param rev: revision.
+        """
+        with koji_service(profile=conf.koji_profile, logger=log) as service:
+            log.debug('Logging into {0} with Kerberos authentication.'.format(service.server))
+            proxyuser = conf.koji_build_owner if conf.koji_proxyuser else None
+            service.krb_login(proxyuser=proxyuser)
+
+            if not service.logged_in:
+                log.error('Could not login server %s', service.server)
+                return None
+
+            build_source = "{}/container/{}.git?#{}".format(conf.git_base_url, name, rev)
+
+            log.debug('Building container from source: %s', build_source)
+
+            return service.build_container(build_source,
+                                           branch,
+                                           namespace='container',
+                                           scratch=conf.koji_container_scratch_build)
 
     def record_build(self, event, name, type, build_id, dep_of=None):
         """

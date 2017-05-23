@@ -42,10 +42,12 @@ class BaseConfiguration(object):
 
     # List of enabled composing handlers.
     HANDLERS = [
-        "freshmaker.handlers.mbs:MBS",  # Module Build Service
-        "freshmaker.handlers.image_builder:DockerImageRebuildHandler",
-        "freshmaker.handlers.image_builder:DockerImageRebuildHandlerForBodhi",
-        "freshmaker.handlers.buildsys:BuildsysHandler",
+        "freshmaker.handlers.bodhi:BodhiUpdateCompleteStableHandler",
+        "freshmaker.handlers.git:GitDockerfileChangeHandler",
+        "freshmaker.handlers.git:GitModuleMetadataChangeHandler",
+        "freshmaker.handlers.git:GitRPMSpecChangeHandler",
+        "freshmaker.handlers.koji:KojiTaskStateChangeHandler",
+        "freshmaker.handlers.mbs:MBSModuleStateChangeHandler",
     ]
 
     # Base URL of git repository with source artifacts.

@@ -21,19 +21,19 @@
 
 from freshmaker import log, db, models
 from freshmaker.handlers import BaseHandler
-from freshmaker.events import KojiTaskStateChanged
+from freshmaker.events import KojiTaskStateChangeEvent
 
 
-class BuildsysHandler(BaseHandler):
-    name = "BuildsysHandler"
+class KojiTaskStateChangeHandler(BaseHandler):
+    name = "KojiTaskStateChangeHandler"
 
     def can_handle(self, event):
-        if isinstance(event, KojiTaskStateChanged):
+        if isinstance(event, KojiTaskStateChangeEvent):
             return True
 
         return False
 
-    def handle_koji_task_state_changed(self, event):
+    def handle(self, event):
         task_id = event.task_id
         task_state = event.task_state
 
@@ -43,7 +43,7 @@ class BuildsysHandler(BaseHandler):
         if len(builds) > 1:
             raise RuntimeError("Found duplicate image build '%s' in db" % task_id)
         if len(builds) == 1:
-            build = builds[0]
+            build = builds.pop()
             if task_state in ['CLOSED', 'FAILED']:
                 log.info("Image build '%s' state changed in koji, updating it in db.", task_id)
             if task_state == 'CLOSED':
@@ -52,11 +52,5 @@ class BuildsysHandler(BaseHandler):
             if task_state == 'FAILED':
                 build.state = models.BUILD_STATES['failed']
                 db.session.commit()
-
-        return []
-
-    def handle(self, event):
-        if isinstance(event, KojiTaskStateChanged):
-            return self.handle_koji_task_state_changed(event)
 
         return []

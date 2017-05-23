@@ -21,37 +21,31 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
+
 from freshmaker import log
-from freshmaker.parsers import BaseParser
-from freshmaker.events import ModuleBuilt
+from freshmaker.handlers import BaseHandler
+from freshmaker.events import GitModuleMetadataChangeEvent
 
 
-class MBSModuleParser(BaseParser):
-    """
-    Parser parsing message from module-build-service, generating
-    ModuleBuilt event.
-    """
-    name = "MBSModuleParser"
-    topic_suffixes = ["mbs.module.state.change"]
+class GitModuleMetadataChangeHandler(BaseHandler):
+    name = "GitModuleMetadataChangeHandler"
 
-    def can_parse(self, topic, msg):
-        log.debug(topic)
-        if not any([topic.endswith(s) for s in self.topic_suffixes]):
-            return False
-        return True
+    def can_handle(self, event):
+        if isinstance(event, GitModuleMetadataChangeEvent):
+            return True
 
-    def parse(self, topic, msg):
-        msg_id = msg.get('msg_id')
-        msg_inner_msg = msg.get('msg')
+        return False
 
-        # If there isn't a msg dict in msg then this message can be skipped
-        if not msg_inner_msg:
-            log.debug(('Skipping message without any content with the '
-                      'topic "{0}"').format(topic))
-            return None
+    def handle(self, event):
+        log.info("Triggering rebuild of module %s:%s, metadata updated (%s).",
+                 event.module, event.branch, event.rev)
+        if not self.allow_build(event, 'module', event.module, event.branch):
+            log.info("Skip rebuild of %s:%s as it's not allowed by configured whitelist/blacklist",
+                     event.module, event.branch)
+            return []
 
-        return ModuleBuilt(msg_id,
-                           msg_inner_msg.get('id'),
-                           msg_inner_msg.get('state'),
-                           msg_inner_msg.get('name'),
-                           msg_inner_msg.get('stream'))
+        build_id = self.build_module(event.module, event.branch, event.rev)
+        if build_id is not None:
+            self.record_build(event, event.module, 'module', build_id)
+
+        return []

@@ -26,35 +26,35 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))  # noqa
 from tests import helpers
 
 from freshmaker import events, db, models
-from freshmaker.handlers.buildsys import BuildsysHandler
-from freshmaker.parsers.buildsys import BuildsysParser
+from freshmaker.handlers.koji import KojiTaskStateChangeHandler
+from freshmaker.parsers.koji import KojiTaskStateChangeParser
 
 
-class BuildsysHandlerTest(helpers.FreshmakerTestCase):
+class KojiTaskStateChangeHandlerTest(helpers.FreshmakerTestCase):
     def setUp(self):
         db.session.remove()
         db.drop_all()
         db.create_all()
         db.session.commit()
 
-        events.BaseEvent.register_parser(BuildsysParser)
+        events.BaseEvent.register_parser(KojiTaskStateChangeParser)
 
     def tearDown(self):
         db.session.remove()
         db.drop_all()
         db.session.commit()
 
-    def test_can_handle_koji_task_state_changed_event(self):
+    def test_can_handle_koji_task_state_change_message(self):
         """
         Tests buildsys handler can handle koji task state changed message
         """
-        m = helpers.BuildsysTaskStateChangeMessage(123, 'OPEN', 'FAILED')
+        m = helpers.KojiTaskStateChangeMessage(123, 'OPEN', 'FAILED')
         msg = m.produce()
         event = self.get_event_from_msg(msg)
-        handler = BuildsysHandler()
+        handler = KojiTaskStateChangeHandler()
         self.assertTrue(handler.can_handle(event))
 
-    def test_update_build_state_on_koji_task_state_changed_event(self):
+    def test_update_build_state_on_koji_task_state_change_event(self):
         """
         Tests build state will be updated when receives koji task state changed message
         """
@@ -69,21 +69,25 @@ class BuildsysHandlerTest(helpers.FreshmakerTestCase):
         db.session.add(build)
         db.session.commit()
 
-        m = helpers.BuildsysTaskStateChangeMessage(task_id, 'OPEN', 'FAILED')
+        m = helpers.KojiTaskStateChangeMessage(task_id, 'OPEN', 'FAILED')
         msg = m.produce()
         event = self.get_event_from_msg(msg)
 
-        handler = BuildsysHandler()
+        handler = KojiTaskStateChangeHandler()
+
+        self.assertTrue(handler.can_handle(event))
         handler.handle(event)
+
         build = models.ArtifactBuild.query.all()[0]
         self.assertEqual(build.state, models.BUILD_STATES['failed'])
 
-        m = helpers.BuildsysTaskStateChangeMessage(task_id, 'OPEN', 'CLOSED')
+        m = helpers.KojiTaskStateChangeMessage(task_id, 'OPEN', 'CLOSED')
         msg = m.produce()
         event = self.get_event_from_msg(msg)
 
-        handler = BuildsysHandler()
+        self.assertTrue(handler.can_handle(event))
         handler.handle(event)
+
         build = models.ArtifactBuild.query.all()[0]
         self.assertEqual(build.state, models.BUILD_STATES['done'])
 

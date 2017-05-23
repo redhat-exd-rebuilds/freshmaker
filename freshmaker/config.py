@@ -134,7 +134,7 @@ class Config(object):
             'desc': 'Global network retry interval for read/write operations, in seconds.'},
         'handlers': {
             'type': list,
-            'default': ["freshmaker.handlers.mbs:MBS"],
+            'default': ["freshmaker.handlers.mbs:MBSModuleStateChangeHandler"],
             'desc': 'List of enabled handlers.'},
         'git_base_url': {
             'type': str,

@@ -78,9 +78,9 @@ class FedMsgFactory(object):
         }
 
 
-class ModuleBuiltMessage(FedMsgFactory):
+class ModuleStateChangeMessage(FedMsgFactory):
     def __init__(self, name, stream, state='ready', build_id=None, *args, **kwargs):
-        super(ModuleBuiltMessage, self).__init__(*args, **kwargs)
+        super(ModuleStateChangeMessage, self).__init__(*args, **kwargs)
         self.topic = 'org.fedoraproject.prod.mbs.module.state.change'
         self.name = name
         self.stream = stream
@@ -163,9 +163,9 @@ class DistGitMessage(FedMsgFactory):
         self.stats['total']['lines'] += self.stats['files'][filename]['lines']
 
 
-class BuildsysTaskStateChangeMessage(FedMsgFactory):
+class KojiTaskStateChangeMessage(FedMsgFactory):
     def __init__(self, task_id, old_state, new_state, *args, **kwargs):
-        super(BuildsysTaskStateChangeMessage, self).__init__(*args, **kwargs)
+        super(KojiTaskStateChangeMessage, self).__init__(*args, **kwargs)
         self.topic = 'org.fedoraproject.prod.buildsys.task.state.change'
         self.attribute = 'state'
         self.task_id = task_id

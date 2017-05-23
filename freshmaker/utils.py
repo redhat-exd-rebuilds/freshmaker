@@ -80,12 +80,26 @@ def temp_dir(logger=None, *args, **kwargs):
                 logger.warn('Error removing %s: %s', dir, exc.strerror)
 
 
-def clone_module_repo(name, dest, branch='master', user=None, logger=None):
-    """Clone a module repo"""
-    if user is None:
-        user = getpass.getuser()
-    cmd = ['git', 'clone', '-b', branch, os.path.join(conf.git_ssh_base_url % user, 'modules', name), dest]
+def clone_repo(url, dest, branch='master', logger=None):
+    cmd = ['git', 'clone', '-b', branch, url, dest]
     _run_command(cmd, logger=logger)
+    return dest
+
+
+def clone_distgit_repo(namespace, name, dest, branch='master', ssh=True, user=None, logger=None):
+    """clone a git repo"""
+    if ssh:
+        if user is None:
+            if hasattr(conf, 'git_user'):
+                user = conf.git_user
+            else:
+                user = getpass.getuser()
+        repo_url = conf.git_ssh_base_url % user
+    else:
+        repo_url = conf.git_base_url
+
+    repo_url = os.path.join(repo_url, namespace, name)
+    return clone_repo(repo_url, dest, branch=branch, logger=logger)
 
 
 def add_empty_commit(repo, msg="bump", author=None, logger=None):
@@ -94,20 +108,44 @@ def add_empty_commit(repo, msg="bump", author=None, logger=None):
         author = conf.git_author
     cmd = ['git', 'commit', '--allow-empty', '-m', msg, '--author={}'.format(author)]
     _run_command(cmd, logger=logger, rundir=repo)
+    return get_commit_hash(repo)
 
 
-def push_repo(repo, user=None, logger=None):
+def push_repo(repo, logger=None):
     """Push repo"""
-    if user is None:
-        user = getpass.getuser()
     cmd = ['git', 'push']
     _run_command(cmd, logger=logger, rundir=repo)
 
 
-def get_commit_hash(repo, revision='HEAD'):
+def get_commit_hash(repo, branch='master', revision='HEAD', logger=None):
     """Get commit hash from revision"""
+    commit_hash = None
     cmd = ['git', 'rev-parse', revision]
-    return _run_command(cmd, rundir=repo, return_output=True).strip()
+    if '://' in repo:
+        # this is a remote repo url
+        with temp_dir(prefix='freshmaker-%s-' % repo.split('/').pop()) as repodir:
+            clone_repo(repo, repodir, branch=branch, logger=logger)
+            commit_hash = _run_command(cmd, rundir=repodir, return_output=True).strip()
+    else:
+        # repo is local dir
+        commit_hash = _run_command(cmd, rundir=repo, return_output=True).strip()
+
+    return commit_hash
+
+
+def bump_distgit_repo(namespace, name, branch='master', user=None, commit_author=None, commit_msg=None, logger=None):
+    rev = None
+    with temp_dir(prefix='freshmaker-%s-%s-' % (namespace, name)) as repodir:
+        try:
+            msg = commit_msg or "Bump"
+            clone_distgit_repo(namespace, name, repodir, branch=branch, ssh=True, user=user, logger=logger)
+            rev = add_empty_commit(repodir, msg=msg, author=commit_author, logger=logger)
+            push_repo(repodir, logger=logger)
+        except Exception:
+            if logger:
+                logger.error("Failed to update repo of '%s/%s:%s'.", namespace, name, branch)
+            return None
+    return rev
 
 
 def _run_command(command, logger=None, rundir=None, output=subprocess.PIPE, error=subprocess.PIPE, env=None, return_output=False):

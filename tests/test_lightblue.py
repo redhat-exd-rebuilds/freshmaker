@@ -287,7 +287,6 @@ class TestEntityVersion(unittest.TestCase):
                        cert=self.fake_cert_file,
                        private_key=self.fake_private_key,
                        entity_versions=self.fake_entity_versions)
-        fake_request = {}
         lb.find_container_repositories({})
 
         _make_request.assert_called_once_with('find/containerRepository/', {})
@@ -301,7 +300,6 @@ class TestEntityVersion(unittest.TestCase):
                        cert=self.fake_cert_file,
                        private_key=self.fake_private_key,
                        entity_versions=self.fake_entity_versions)
-        fake_request = {}
         lb.find_container_images({})
 
         _make_request.assert_called_once_with('find/containerImage/0.0.11', {})
@@ -319,7 +317,6 @@ class TestEntityVersion(unittest.TestCase):
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
                        private_key=self.fake_private_key)
-        fake_request = {}
         lb.find_container_repositories({})
         lb.find_container_images({})
 
