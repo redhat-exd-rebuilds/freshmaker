@@ -186,6 +186,14 @@ class Config(object):
             'default': {},
             'desc': 'Blacklist for build targets of handlers',
         },
+        'lightblue_server_url': {
+            'type': str,
+            'default': '',
+            'desc': 'Server URL of LightBlue.'},
+        'lightblue_verify_ssl': {
+            'type': bool,
+            'default': True,
+            'desc': 'Whether to enable SSL verification over HTTP with lightblue.'},
     }
 
     def __init__(self, conf_section_obj):
