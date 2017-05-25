@@ -23,17 +23,31 @@
 
 import abc
 import re
-import fedmsg.utils
+import sys
 
 from freshmaker import conf, log, db, models
 from freshmaker.mbs import MBS
 from freshmaker.kojiservice import koji_service
 
 
+def load_class(location):
+    """ Take a string of the form 'fedmsg.consumers.ircbot:IRCBotConsumer'
+    and return the IRCBotConsumer class.
+    """
+    mod_name, cls_name = location.strip().split(':')
+
+    __import__(mod_name)
+
+    try:
+        return getattr(sys.modules[mod_name], cls_name)
+    except AttributeError:
+        raise ImportError("%r not found in %r" % (cls_name, mod_name))
+
+
 def load_handlers():
     """ Import and instantiate all handlers listed in the given config. """
     for import_path in conf.handlers:
-        cls = fedmsg.utils.load_class(import_path)
+        cls = load_class(import_path)
         handler = cls()
         yield handler
 
