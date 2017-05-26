@@ -105,8 +105,8 @@ class LightBlue(object):
             explicitly. If entity_versions is omitted entirely, default version
             will be used on each entity.
         """
-        self.server_url = server_url
-        self.api_root = '{}/rest/data/'.format(server_url)
+        self.server_url = server_url.rstrip('/')
+        self.api_root = '{}/rest/data'.format(server_url)
         if verify_ssl is None:
             self.verify_ssl = True
         else:
