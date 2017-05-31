@@ -22,7 +22,7 @@
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
 from freshmaker import log, conf, utils, db, models
-from freshmaker.types import ArtifactType
+from freshmaker.types import ArtifactType, ArtifactBuildState
 from freshmaker.mbs import MBS
 from freshmaker.pdc import PDC
 from freshmaker.handlers import BaseHandler
@@ -50,19 +50,21 @@ class MBSModuleStateChangeHandler(BaseHandler):
         build_id = event.build_id
         build_state = event.build_state
 
+        module_build = None
         # update build state if the build is submitted by Freshmaker
         builds = db.session.query(models.ArtifactBuild).filter_by(build_id=build_id,
                                                                   type=ArtifactType.MODULE.value).all()
         if len(builds) > 1:
             raise RuntimeError("Found duplicate module build '%s' in db" % build_id)
         if len(builds) == 1:
-            build = builds.pop()
+            # we can find this build in DB
+            module_build = builds.pop()
             if build_state in [MBS.BUILD_STATES['ready'], MBS.BUILD_STATES['failed']]:
                 log.info("Module build '%s' state changed in MBS, updating it in db.", build_id)
             if build_state == MBS.BUILD_STATES['ready']:
-                build.state = models.BUILD_STATES['done']
+                module_build.state = ArtifactBuildState.DONE.value
             if build_state == MBS.BUILD_STATES['failed']:
-                build.state = models.BUILD_STATES['failed']
+                module_build.state = ArtifactBuildState.FAILED.value
             db.session.commit()
 
         # Rebuild depending modules when state of MBSModuleStateChangeEvent is 'ready'
@@ -85,8 +87,8 @@ class MBSModuleStateChangeHandler(BaseHandler):
                 # bump module repo first
                 commit_msg = "Bump to rebuild because of %s update" % module_name
                 rev = utils.bump_distgit_repo('modules', name, branch=version, commit_msg=commit_msg, logger=log)
-                build_id = self.build_module(name, version, rev)
-                if build_id is not None:
-                    self.record_build(event, name, 'module', build_id)
+                new_build_id = self.build_module(name, version, rev)
+                if new_build_id is not None:
+                    self.record_build(event, name, 'module', new_build_id, dep_of=module_build)
 
         return []
