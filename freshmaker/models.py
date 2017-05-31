@@ -149,3 +149,13 @@ class ArtifactBuild(FreshmakerBase):
         return "<ArtifactBuild %s, type %s, state %s, event %s>" % (
             self.name, ArtifactType(self.type).name,
             ArtifactBuildState(self.state).name, self.event.message_id)
+
+    def get_root_dep_of(self):
+        dep_of = self.dep_of
+        while dep_of:
+            dep = dep_of.dep_of
+            if dep:
+                dep_of = dep
+            else:
+                break
+        return dep_of
