@@ -72,6 +72,15 @@ class MBSModuleStateChangeHandler(BaseHandler):
             log.info("Triggering rebuild of modules depending on %s:%s "
                      "in MBS", module_name, module_stream)
 
+            if module_build:
+                # we have this build recorded in DB, check to prevent
+                # cyclic build loop
+                root_dep = module_build.get_root_dep_of()
+                if root_dep and root_dep.name == module_name:
+                    log.info("Skipping the rebuild triggered by %s:%s as it will"
+                             "result in cyclic build loop.", module_name, module_stream)
+                    return []
+
             pdc = PDC(conf)
             modules = pdc.get_latest_modules(build_dep_name=module_name,
                                              build_dep_stream=module_stream,

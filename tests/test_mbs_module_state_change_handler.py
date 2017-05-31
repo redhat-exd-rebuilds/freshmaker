@@ -175,6 +175,93 @@ class MBSModuleStateChangeHandlerTest(helpers.FreshmakerTestCase):
 
         handler.build_module.assert_not_called()
 
+    @mock.patch('freshmaker.handlers.mbs.module_state_change.PDC')
+    @mock.patch('freshmaker.handlers.mbs.module_state_change.utils')
+    @mock.patch('freshmaker.handlers.mbs.module_state_change.log')
+    def test_handler_not_fall_into_cyclic_rebuild_loop(self, log, utils, PDC):
+        """
+        Tests handler will not fall into cyclic rebuild loop when there is
+        build dep loop of modules.
+        """
+        # in this case, we have:
+        # 1. module2 depends on module1
+        # 2. module3 depends on module2
+        # 3. module1 depends on module3
+        #
+        # when we receives a modult built event of module1, the expect result is:
+        # 1. module2 get rebuild because module1 is built
+        # 2. module3 get rebuild because module2 is built
+        # 3. module1 get rebuild because module3 is built
+        # 4. stop here
+
+        utils.bump_distgit_repo.return_value = 'abcd'
+
+        mod1_info = helpers.PDCModuleInfo('module1', 'master', '20170412010101')
+        mod1_info.add_build_dep('module3', 'master')
+        mod1 = mod1_info.produce()
+
+        mod2_info = helpers.PDCModuleInfo('module2', 'master', '20170412010102')
+        mod2_info.add_build_dep('module1', 'master')
+        mod2 = mod2_info.produce()
+
+        mod3_info = helpers.PDCModuleInfo('module3', 'master', '20170412010103')
+        mod3_info.add_build_dep('module2', 'master')
+        mod3 = mod3_info.produce()
+
+        pdc = PDC.return_value
+        handler = MBSModuleStateChangeHandler()
+
+        # Assume we have build of module1 recorded in DB already, it doesn't has
+        # any dep_of as it was initial triggered by an event which is not
+        # associated with any build in our DB.
+        event = models.Event.create(db.session, "initial_msg_id")
+        models.ArtifactBuild.create(db.session, event, "module1", "module", '123')
+        db.session.commit()
+
+        # we received module built event of module1
+        msg = helpers.ModuleStateChangeMessage('module1', 'master', state='ready', build_id=123).produce()
+        event = self.get_event_from_msg(msg)
+        pdc.get_latest_modules.return_value = [mod2]
+        handler.build_module = mock.Mock()
+        handler.build_module.return_value = 124
+
+        # this will trigger module rebuild of module2
+        handler.handle(event)
+        handler.build_module.assert_called_once_with('module2', 'master', 'abcd')
+
+        # we received module built event of module2
+        msg = helpers.ModuleStateChangeMessage('module2', 'master', state='ready', build_id=124).produce()
+        event = self.get_event_from_msg(msg)
+        pdc.get_latest_modules.return_value = [mod3]
+        handler.build_module = mock.Mock()
+        handler.build_module.return_value = 125
+
+        # this will trigger module rebuild of module3
+        handler.handle(event)
+        handler.build_module.assert_called_once_with('module3', 'master', 'abcd')
+
+        # we received module built event of module3
+        msg = helpers.ModuleStateChangeMessage('module3', 'master', state='ready', build_id=125).produce()
+        event = self.get_event_from_msg(msg)
+        pdc.get_latest_modules.return_value = [mod1]
+        handler.build_module = mock.Mock()
+        handler.build_module.return_value = 126
+
+        # this will trigger module rebuild of module1
+        handler.handle(event)
+        handler.build_module.assert_called_once_with('module1', 'master', 'abcd')
+
+        # we received module built event of module1
+        msg = helpers.ModuleStateChangeMessage('module1', 'master', state='ready', build_id=126).produce()
+        event = self.get_event_from_msg(msg)
+        pdc.get_latest_modules.return_value = [mod2]
+        handler.build_module = mock.Mock()
+
+        # but this time we should not rebuild module2
+        handler.handle(event)
+        handler.build_module.assert_not_called()
+        log.info.assert_has_calls([mock.call('Skipping the rebuild triggered by %s:%s as it willresult in cyclic build loop.', 'module1', u'master')])
+
 
 if __name__ == '__main__':
     unittest.main()
