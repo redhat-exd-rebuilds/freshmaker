@@ -219,3 +219,12 @@ class KojiTaskStateChangeEvent(BaseEvent):
         super(KojiTaskStateChangeEvent, self).__init__(msg_id)
         self.task_id = task_id
         self.task_state = task_state
+
+
+class BrewRPMSignEvent(BaseEvent):
+    """
+    Represents the message sent by Brew when RPM is signed.
+    """
+    def __init__(self, msg_id, nvr):
+        super(BrewRPMSignEvent, self).__init__(msg_id)
+        self.nvr = nvr
