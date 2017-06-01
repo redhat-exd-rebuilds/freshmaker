@@ -312,3 +312,53 @@ class LightBlue(object):
             ]
         }
         return self.find_container_images(image_request)
+
+
+    def find_images_with_package_from_content_set(self, srpm_name,
+                    content_sets,
+                    published=True,
+                    deprecated=False,
+                    release_category="Generally Available"):
+        """Query lightblue and find containers which contain given
+        package from one of content sets
+
+        :param str srpm_name: srpm_name (source rpm name) to look for
+        :param list content_sets: list of strings (content sets) to consider
+            when looking for the packages
+
+        :return: a list of dictionaries with three keys - repository, commit and
+            srpm_nevra. Repository is a name git repository including the
+            namespace. Commit is a git ref - usually a git commit
+            hash. srpm_nevra is whole NEVRA of source rpm that is included in
+            the given image - can be used for comparisons if needed
+        :rtype: list
+        """
+        repos = self.find_repositories_with_content_sets(content_sets,
+                                                         published=published,
+                                                         deprecated=deprecated,
+                                                         release_category=release_category)
+        if not repos:
+            return []
+        images = self.find_images_with_included_srpm(repos,
+                                                     srpm_name,
+                                                     published=published)
+        commits = []
+        for image in images:
+            for f in image["parsed_data"]["files"]:
+                if f['key'] == 'buildfile':
+                    dockerfile_url = f['content_url']
+                    break
+
+            for rpm in image["parsed_data"]["rpm_manifest"]:
+                print(rpm)
+                if rpm["srpm_name"] == srpm_name:
+                    srpm_nevra = rpm['srpm_nevra']
+                    break
+
+            dockerfile, _, commit = dockerfile_url.partition("?id=")
+            _, _, reponame = dockerfile.partition("/cgit/")
+            reponame = reponame.replace("/plain/Dockerfile","")
+            commits.append({"repository": reponame,
+                            "commit": commit,
+                            "srpm_nevra": srpm_nevra})
+        return commits

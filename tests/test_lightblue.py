@@ -23,8 +23,7 @@
 import json
 import unittest
 
-from mock import call
-from mock import patch
+from mock import call, patch, Mock
 from six.moves import http_client
 
 from freshmaker.lightblue import ContainerImage
@@ -450,6 +449,69 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
         }
         cont_images.assert_called_with(expected_image_request)
         self.assertEqual(ret, cont_images.return_value)
+
+
+    @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
+    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @patch('os.path.exists')
+    def test_images_with_content_set_packages(self, exists,
+                                              cont_images,
+                                              cont_repos):
+
+        exists.return_value = True
+        cont_repos.return_value = self.fake_repositories_with_content_sets
+        cont_images.return_value = self.fake_images_with_parsed_data
+
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key)
+        ret = lb.find_images_with_package_from_content_set("openssl",
+                                                           ["dummy-content-set-1"])
+
+        self.assertEqual(2,len(ret))
+        self.assertEqual(ret,
+                         [
+                             {
+                                 "repository": "rpms/repo-1",
+                                 "commit": "commit_hash1",
+                                 "srpm_nevra": "openssl-0:1.2.3-1.src"
+                             },
+                             {
+                                 "repository": "ns/repo-2",
+                                 "commit": "commit_hash2",
+                                 "srpm_nevra": "openssl-1:1.2.3-1.src"
+                             }
+                         ])
+
+    @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
+    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @patch('os.path.exists')
+    def test_images_with_content_set_packages_exception(self, exists,
+                                                        cont_images,
+                                                        cont_repos):
+
+        exists.return_value = True
+        cont_repos.side_effect = LightBlueRequestFailure(
+            {"errors": [{"msg": "dummy error"}]}, http_client.REQUEST_TIMEOUT)
+        cont_images.return_value = self.fake_images_with_parsed_data
+
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key)
+        with self.assertRaises(LightBlueRequestFailure):
+            lb.find_images_with_package_from_content_set(
+                "openssl",
+                ["dummy-content-set-1"])
+
+        cont_repos.return_value = self.fake_repositories_with_content_sets
+        cont_images.side_effect = LightBlueRequestFailure(
+            {"errors": [{"msg": "dummy error"}]}, http_client.REQUEST_TIMEOUT)
+
+        with self.assertRaises(LightBlueRequestFailure):
+            lb.find_images_with_package_from_content_set(
+                "openssl",
+                ["dummy-content-set-1"])
+
 
 
 class TestEntityVersion(unittest.TestCase):
