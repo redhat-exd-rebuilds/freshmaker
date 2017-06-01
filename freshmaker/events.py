@@ -121,6 +121,14 @@ class BaseEvent(object):
 
         return None
 
+    @property
+    def search_key(self):
+        """
+        Returns the searchable key which is used to query for particular
+        events using the JSON API.
+        """
+        return self.msg_id
+
 
 class MBSModuleStateChangeEvent(BaseEvent):
     """ A class that inherits from BaseEvent to provide an event
@@ -136,6 +144,10 @@ class MBSModuleStateChangeEvent(BaseEvent):
         self.build_id = build_id
         self.build_state = build_state
 
+    @property
+    def search_key(self):
+        return str(self.build_id)
+
 
 class GitModuleMetadataChangeEvent(BaseEvent):
     """
@@ -148,6 +160,10 @@ class GitModuleMetadataChangeEvent(BaseEvent):
         self.module = module
         self.branch = branch
         self.rev = rev
+
+    @property
+    def search_key(self):
+        return "%s/%s?#%s" % (self.module, self.branch, self.rev)
 
 
 class GitRPMSpecChangeEvent(BaseEvent):
@@ -163,6 +179,10 @@ class GitRPMSpecChangeEvent(BaseEvent):
         self.rpm = rpm
         self.branch = branch
         self.rev = rev
+
+    @property
+    def search_key(self):
+        return "%s/%s?#%s" % (self.rpm, self.branch, self.rev)
 
 
 class TestingEvent(BaseEvent):
@@ -181,6 +201,10 @@ class GitDockerfileChangeEvent(BaseEvent):
         self.container = container
         self.branch = branch
         self.rev = rev
+
+    @property
+    def search_key(self):
+        return "%s/%s?#%s" % (self.container, self.branch, self.rev)
 
 
 class BodhiUpdateCompleteStableEvent(BaseEvent):
@@ -210,6 +234,10 @@ class BodhiUpdateCompleteStableEvent(BaseEvent):
         self.builds = builds
         self.release = release
 
+    @property
+    def search_key(self):
+        return str(self.update_id)
+
 
 class KojiTaskStateChangeEvent(BaseEvent):
     """
@@ -228,3 +256,7 @@ class BrewRPMSignEvent(BaseEvent):
     def __init__(self, msg_id, nvr):
         super(BrewRPMSignEvent, self).__init__(msg_id)
         self.nvr = nvr
+
+    @property
+    def search_key(self):
+        return str(self.task_id)

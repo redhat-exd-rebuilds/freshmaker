@@ -28,6 +28,10 @@ from datetime import datetime
 from sqlalchemy.orm import (validates, relationship)
 
 from freshmaker import db
+from freshmaker.events import (
+    MBSModuleStateChangeEvent, GitModuleMetadataChangeEvent,
+    GitRPMSpecChangeEvent, TestingEvent, GitDockerfileChangeEvent,
+    BodhiUpdateCompleteStableEvent, KojiTaskStateChangeEvent)
 
 # BUILD_STATES for the builds submitted by Freshmaker
 BUILD_STATES = {
@@ -51,6 +55,18 @@ ARTIFACT_TYPES = {
 
 INVERSE_ARTIFACT_TYPES = {v: k for k, v in ARTIFACT_TYPES.items()}
 
+EVENT_TYPES = {
+    MBSModuleStateChangeEvent: 0,
+    GitModuleMetadataChangeEvent: 1,
+    GitRPMSpecChangeEvent: 2,
+    TestingEvent: 3,
+    GitDockerfileChangeEvent: 4,
+    BodhiUpdateCompleteStableEvent: 5,
+    KojiTaskStateChangeEvent: 6,
+}
+
+INVERSE_EVENT_TYPES = {v: k for k, v in EVENT_TYPES.items()}
+
 
 class FreshmakerBase(db.Model):
     __abstract__ = True
@@ -59,28 +75,43 @@ class FreshmakerBase(db.Model):
 class Event(FreshmakerBase):
     __tablename__ = "events"
     id = db.Column(db.Integer, primary_key=True)
+    # ID of message generating the rebuild event.
     message_id = db.Column(db.String, nullable=False)
+    # Searchable key for the event - used when searching for events from the JSON
+    # API.
+    search_key = db.Column(db.String, nullable=False)
+    # Event type id defined in EVENT_TYPES - ID of class inherited from
+    # BaseEvent class - used when searching for events of particular type.
+    event_type_id = db.Column(db.Integer, nullable=False)
 
     # List of builds associated with this Event.
     builds = relationship("ArtifactBuild", back_populates="event")
 
     @classmethod
-    def create(cls, session, message_id):
+    def create(cls, session, message_id, search_key, event_type):
+        if event_type in EVENT_TYPES:
+            event_type = EVENT_TYPES[event_type]
         event = cls(
             message_id=message_id,
+            search_key=search_key,
+            event_type_id=event_type
         )
         session.add(event)
         return event
 
     @classmethod
-    def get_or_create(cls, session, message_id):
+    def get_or_create(cls, session, message_id, search_key, event_type):
         instance = session.query(cls).filter_by(message_id=message_id).first()
         if instance:
             return instance
-        return cls.create(session, message_id)
+        return cls.create(session, message_id, search_key, event_type)
+
+    @property
+    def event_type(self):
+        return INVERSE_EVENT_TYPES[self.event_type_id]
 
     def __repr__(self):
-        return "<Event %s>" % (self.message_id)
+        return "<Event %s, %r, %s>" % (self.message_id, self.event_type, self.search_key)
 
 
 class ArtifactBuild(FreshmakerBase):

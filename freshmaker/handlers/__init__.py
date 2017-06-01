@@ -124,7 +124,8 @@ class BaseHandler(object):
         :param build_id: id of the build in build system.
         :param def_of: the artifact which this one depends on.
         """
-        ev = models.Event.get_or_create(db.session, event.msg_id)
+        ev = models.Event.get_or_create(db.session, event.msg_id,
+                                        event.search_key, event.__class__)
         models.ArtifactBuild.create(db.session, ev, name, type, build_id, dep_of)
         db.session.commit()
 

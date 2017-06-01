@@ -59,7 +59,8 @@ class KojiTaskStateChangeHandlerTest(helpers.FreshmakerTestCase):
         Tests build state will be updated when receives koji task state changed message
         """
         task_id = 123
-        ev = models.Event.create(db.session, 'test_msg_id')
+        ev = models.Event.create(db.session, 'test_msg_id', "event-name",
+                                 events.KojiTaskStateChangeEvent)
         build = models.ArtifactBuild.create(db.session,
                                             ev,
                                             'testimage',

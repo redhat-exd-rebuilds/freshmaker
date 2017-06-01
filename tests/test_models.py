@@ -24,6 +24,7 @@ import unittest
 
 from freshmaker import db
 from freshmaker.models import Event, ArtifactBuild
+from freshmaker.events import TestingEvent
 
 
 class TestModels(unittest.TestCase):
@@ -39,7 +40,7 @@ class TestModels(unittest.TestCase):
         db.session.commit()
 
     def test_creating_event_and_builds(self):
-        event = Event.create(db.session, "test_msg_id")
+        event = Event.create(db.session, "test_msg_id", "RHSA-2017-284", TestingEvent)
         build = ArtifactBuild.create(db.session, event, "ed", "module", 1234)
         ArtifactBuild.create(db.session, event, "mksh", "module", 1235, build)
         db.session.commit()
@@ -47,6 +48,8 @@ class TestModels(unittest.TestCase):
 
         e = db.session.query(Event).filter(event.id == 1).one()
         self.assertEqual(e.message_id, "test_msg_id")
+        self.assertEqual(e.search_key, "RHSA-2017-284")
+        self.assertEqual(e.event_type, TestingEvent)
         self.assertEqual(len(e.builds), 2)
 
         self.assertEqual(e.builds[0].name, "ed")
