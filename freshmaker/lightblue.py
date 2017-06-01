@@ -257,3 +257,58 @@ class LightBlue(object):
             ]
         }
         return self.find_container_repositories(repo_request)
+
+
+    def find_images_with_included_srpm(self, repositories, srpm_name,
+                                       published=True):
+
+        """Query lightblue and find containerImages in given
+        containerRepositories. By default limit only to images which have been
+        published to at least one repository and images which have latest tag.
+
+        :param dict repositories: dictionary with repository names to look inside
+        :param str srpm_name: srpm_name (source rpm name) to look for
+        :param bool published: whether to limit queries to images with at least
+            one published repository
+        """
+        image_request = {
+            "objectType": "containerImage",
+            "query": {
+                "$and": [
+                    {
+                        "$or": [{
+                            "field": "repositories.*.repository",
+                            "op": "=",
+                            "rvalue": r['repository']
+                        } for r in repositories]
+                    },
+                    {
+                        "field": "repositories.*.published",
+                        "op": "=",
+                        "rvalue": published
+                    },
+                    {
+                        "field": "repositories.*.tags.*.name",
+                        "op": "=",
+                        "rvalue": "latest"
+                    },
+                    {
+                        "field": "parsed_data.rpm_manifest.*.srpm_name",
+                        "op": "=",
+                        "rvalue": srpm_name
+                    },
+                    {
+                        "field": "parsed_data.files.*.key",
+                        "op": "=",
+                        "rvalue": "buildfile"
+                    }
+                ]
+            },
+            "projection": [
+                {"field": "brew", "include": True, "recursive": True},
+                {"field": "parsed_data.files", "include": True, "recursive": True},
+                {"field": "parsed_data.rpm_manifest.*.srpm_nevra", "include": True, "recursive": True},
+                {"field": "parsed_data.rpm_manifest.*.srpm_name", "include": True, "recursive": True}
+            ]
+        }
+        return self.find_container_images(image_request)

@@ -387,6 +387,70 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
         cont_repos.assert_called_with(expected_repo_request)
         self.assertEqual(ret, cont_repos.return_value)
 
+    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @patch('os.path.exists')
+    def test_images_with_included_srpm(self, exists,
+                                       cont_images):
+
+        exists.return_value = True
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key)
+        repositories = self.fake_repositories_with_content_sets
+        cont_images.return_value = self.fake_images_with_parsed_data
+        ret = lb.find_images_with_included_srpm(repositories,
+                                                "openssl")
+
+        expected_image_request = {
+            "objectType": "containerImage",
+            "query": {
+                "$and": [
+                    {
+                        "$or": [
+                            {
+                                "field": "repositories.*.repository",
+                                "op": "=",
+                                "rvalue": "product/repo1"
+                            },
+                            {
+                                "field": "repositories.*.repository",
+                                "op": "=",
+                                "rvalue": "product2/repo2"
+                            },
+                        ],
+                    },
+                    {
+                        "field": "repositories.*.published",
+                        "op": "=",
+                        "rvalue": True
+                    },
+                    {
+                        "field": "repositories.*.tags.*.name",
+                        "op": "=",
+                        "rvalue": "latest"
+                    },
+                    {
+                        "field": "parsed_data.rpm_manifest.*.srpm_name",
+                        "op": "=",
+                        "rvalue": "openssl"
+                    },
+                    {
+                        "field": "parsed_data.files.*.key",
+                        "op": "=",
+                        "rvalue": "buildfile"
+                    }
+                ]
+            },
+            "projection": [
+                {"field": "brew", "include": True, "recursive": True},
+                {"field": "parsed_data.files", "include": True, "recursive": True},
+                {"field": "parsed_data.rpm_manifest.*.srpm_nevra", "include": True, "recursive": True},
+                {"field": "parsed_data.rpm_manifest.*.srpm_name", "include": True, "recursive": True}
+            ]
+        }
+        cont_images.assert_called_with(expected_image_request)
+        self.assertEqual(ret, cont_images.return_value)
+
 
 class TestEntityVersion(unittest.TestCase):
     """Test case for ensuring correct entity version in request"""
