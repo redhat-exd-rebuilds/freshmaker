@@ -23,7 +23,7 @@
 import json
 import unittest
 
-from mock import call, patch, Mock
+from mock import call, patch
 from six.moves import http_client
 
 from freshmaker.lightblue import ContainerImage
@@ -450,7 +450,6 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
         cont_images.assert_called_with(expected_image_request)
         self.assertEqual(ret, cont_images.return_value)
 
-
     @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('os.path.exists')
@@ -468,7 +467,7 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
         ret = lb.find_images_with_package_from_content_set("openssl",
                                                            ["dummy-content-set-1"])
 
-        self.assertEqual(2,len(ret))
+        self.assertEqual(2, len(ret))
         self.assertEqual(ret,
                          [
                              {
@@ -511,7 +510,6 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
             lb.find_images_with_package_from_content_set(
                 "openssl",
                 ["dummy-content-set-1"])
-
 
 
 class TestEntityVersion(unittest.TestCase):

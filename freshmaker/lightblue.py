@@ -258,7 +258,6 @@ class LightBlue(object):
         }
         return self.find_container_repositories(repo_request)
 
-
     def find_images_with_included_srpm(self, repositories, srpm_name,
                                        published=True):
 
@@ -313,12 +312,9 @@ class LightBlue(object):
         }
         return self.find_container_images(image_request)
 
-
-    def find_images_with_package_from_content_set(self, srpm_name,
-                    content_sets,
-                    published=True,
-                    deprecated=False,
-                    release_category="Generally Available"):
+    def find_images_with_package_from_content_set(
+            self, srpm_name, content_sets, published=True, deprecated=False,
+            release_category="Generally Available"):
         """Query lightblue and find containers which contain given
         package from one of content sets
 
@@ -357,7 +353,7 @@ class LightBlue(object):
 
             dockerfile, _, commit = dockerfile_url.partition("?id=")
             _, _, reponame = dockerfile.partition("/cgit/")
-            reponame = reponame.replace("/plain/Dockerfile","")
+            reponame = reponame.replace("/plain/Dockerfile", "")
             commits.append({"repository": reponame,
                             "commit": commit,
                             "srpm_nevra": srpm_nevra})
