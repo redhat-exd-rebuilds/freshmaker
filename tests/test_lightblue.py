@@ -23,8 +23,7 @@
 import json
 import unittest
 
-from mock import call
-from mock import patch
+from mock import call, patch, Mock
 from six.moves import http_client
 
 from freshmaker.lightblue import ContainerImage
@@ -110,6 +109,77 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
         self.fake_server_url = 'lightblue.localhost'
         self.fake_cert_file = 'path/to/cert'
         self.fake_private_key = 'path/to/private-key'
+        self.fake_repositories_with_content_sets = [
+            {
+                "repository": "product/repo1",
+                "content_sets": ["dummy-content-set-1",
+                                 "dummy-content-set-2"]
+            },
+            {
+                "repository": "product2/repo2",
+                "content_sets": ["dummy-content-set-1"]
+            }
+        ]
+
+        self.fake_images_with_parsed_data = [
+            {
+                'brew': {
+                    'completion_date': u'20170421T04:27:51.000-0400',
+                    'build': 'package-name-1-4-12.10',
+                    'package': 'package-name-1'
+                },
+                'parsed_data': {
+                    'files': [
+                        {
+                            'key': 'buildfile',
+                            'content_url': 'http://git.repo.com/cgit/rpms/repo-1/plain/Dockerfile?id=commit_hash1',
+                            'filename': u'Dockerfile'
+                        }
+                    ],
+                    'rpm_manifest': [
+                        {
+                            "srpm_name": "openssl",
+                            "srpm_nevra": "openssl-0:1.2.3-1.src"
+                        },
+                        {
+                            "srpm_name": "tespackage",
+                            "srpm_nevra": "testpackage-10:1.2.3-1.src"
+                        }
+                    ]
+                }
+            },
+            {
+                'brew': {
+                    'completion_date': u'20170421T04:27:51.000-0400',
+                    'build': 'package-name-2-4-12.10',
+                    'package': 'package-name-2'
+                },
+                'parsed_data': {
+                    'files': [
+                        {
+                            'key': 'buildfile',
+                            'content_url': 'http://git.repo.com/cgit/ns/repo-2/plain/Dockerfile?id=commit_hash2',
+                            'filename': 'Dockerfile'
+                        },
+                        {
+                            'key': 'bogusfile',
+                            'content_url': 'bogus_test_url',
+                            'filename': 'bogus.file'
+                        }
+                    ],
+                    'rpm_manifest': [
+                        {
+                            "srpm_name": "openssl",
+                            "srpm_nevra": "openssl-1:1.2.3-1.src"
+                        },
+                        {
+                            "srpm_name": "tespackage2",
+                            "srpm_nevra": "testpackage2-10:1.2.3-1.src"
+                        }
+                    ]
+                }
+            },
+        ]
 
     @patch('freshmaker.lightblue.requests.post')
     def test_find_container_images(self, post):
@@ -265,6 +335,183 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                            private_key=self.fake_private_key)
             self.assertRaises(LightBlueRequestFailure,
                               lb._make_request, 'find/containerRepository/', fake_request)
+
+    @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
+    @patch('os.path.exists')
+    def test_find_repositories_with_content_sets(self, exists,
+                                                 cont_repos):
+        exists.return_value = True
+        queried_content_set = "rhel-7-server-rpms"
+        cont_repos.return_value = self.fake_repositories_with_content_sets
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key)
+        ret = lb.find_repositories_with_content_sets([queried_content_set])
+        expected_repo_request = {
+            "objectType": "containerRepository",
+            "query": {
+                "$and": [
+                    {
+                        "$or": [
+                            {
+                                "field": "content_sets.*",
+                                "op": "=",
+                                "rvalue": queried_content_set
+                            }
+                        ],
+                    },
+                    {
+                        "field": "published",
+                        "op": "=",
+                        "rvalue": True
+                    },
+                    {
+                        "field": "deprecated",
+                        "op": "=",
+                        "rvalue": False
+                    },
+                    {
+                        "field": "release_categories.*",
+                        "op": "=",
+                        "rvalue": "Generally Available"
+                    }
+                ]
+            },
+            "projection": [
+                {"field": "repository", "include": True},
+                {"field": "content_sets", "include": True, "recursive": True}
+
+            ]
+        }
+        cont_repos.assert_called_with(expected_repo_request)
+        self.assertEqual(ret, cont_repos.return_value)
+
+    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @patch('os.path.exists')
+    def test_images_with_included_srpm(self, exists,
+                                       cont_images):
+
+        exists.return_value = True
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key)
+        repositories = self.fake_repositories_with_content_sets
+        cont_images.return_value = self.fake_images_with_parsed_data
+        ret = lb.find_images_with_included_srpm(repositories,
+                                                "openssl")
+
+        expected_image_request = {
+            "objectType": "containerImage",
+            "query": {
+                "$and": [
+                    {
+                        "$or": [
+                            {
+                                "field": "repositories.*.repository",
+                                "op": "=",
+                                "rvalue": "product/repo1"
+                            },
+                            {
+                                "field": "repositories.*.repository",
+                                "op": "=",
+                                "rvalue": "product2/repo2"
+                            },
+                        ],
+                    },
+                    {
+                        "field": "repositories.*.published",
+                        "op": "=",
+                        "rvalue": True
+                    },
+                    {
+                        "field": "repositories.*.tags.*.name",
+                        "op": "=",
+                        "rvalue": "latest"
+                    },
+                    {
+                        "field": "parsed_data.rpm_manifest.*.srpm_name",
+                        "op": "=",
+                        "rvalue": "openssl"
+                    },
+                    {
+                        "field": "parsed_data.files.*.key",
+                        "op": "=",
+                        "rvalue": "buildfile"
+                    }
+                ]
+            },
+            "projection": [
+                {"field": "brew", "include": True, "recursive": True},
+                {"field": "parsed_data.files", "include": True, "recursive": True},
+                {"field": "parsed_data.rpm_manifest.*.srpm_nevra", "include": True, "recursive": True},
+                {"field": "parsed_data.rpm_manifest.*.srpm_name", "include": True, "recursive": True}
+            ]
+        }
+        cont_images.assert_called_with(expected_image_request)
+        self.assertEqual(ret, cont_images.return_value)
+
+
+    @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
+    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @patch('os.path.exists')
+    def test_images_with_content_set_packages(self, exists,
+                                              cont_images,
+                                              cont_repos):
+
+        exists.return_value = True
+        cont_repos.return_value = self.fake_repositories_with_content_sets
+        cont_images.return_value = self.fake_images_with_parsed_data
+
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key)
+        ret = lb.find_images_with_package_from_content_set("openssl",
+                                                           ["dummy-content-set-1"])
+
+        self.assertEqual(2,len(ret))
+        self.assertEqual(ret,
+                         [
+                             {
+                                 "repository": "rpms/repo-1",
+                                 "commit": "commit_hash1",
+                                 "srpm_nevra": "openssl-0:1.2.3-1.src"
+                             },
+                             {
+                                 "repository": "ns/repo-2",
+                                 "commit": "commit_hash2",
+                                 "srpm_nevra": "openssl-1:1.2.3-1.src"
+                             }
+                         ])
+
+    @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
+    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @patch('os.path.exists')
+    def test_images_with_content_set_packages_exception(self, exists,
+                                                        cont_images,
+                                                        cont_repos):
+
+        exists.return_value = True
+        cont_repos.side_effect = LightBlueRequestFailure(
+            {"errors": [{"msg": "dummy error"}]}, http_client.REQUEST_TIMEOUT)
+        cont_images.return_value = self.fake_images_with_parsed_data
+
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key)
+        with self.assertRaises(LightBlueRequestFailure):
+            lb.find_images_with_package_from_content_set(
+                "openssl",
+                ["dummy-content-set-1"])
+
+        cont_repos.return_value = self.fake_repositories_with_content_sets
+        cont_images.side_effect = LightBlueRequestFailure(
+            {"errors": [{"msg": "dummy error"}]}, http_client.REQUEST_TIMEOUT)
+
+        with self.assertRaises(LightBlueRequestFailure):
+            lb.find_images_with_package_from_content_set(
+                "openssl",
+                ["dummy-content-set-1"])
+
 
 
 class TestEntityVersion(unittest.TestCase):

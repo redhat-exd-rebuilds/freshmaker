@@ -204,3 +204,161 @@ class LightBlue(object):
             image.update(image_data)
             images.append(image)
         return images
+
+    def find_repositories_with_content_sets(self,
+                                            content_sets,
+                                            published=True,
+                                            deprecated=False,
+                                            release_category="Generally Available"):
+        """Query lightblue and find containerRepositories which have content
+        from at least one of the content_sets. By default ignore unpublished,
+        deprecated repos or non-GA repositories
+
+        :param list content_sets: list of strings (content sets) to consider
+            when looking for the packages
+        :param bool published: whether to limit queries to published
+            repositories
+        :param bool deprecated: set to True to limit results to deprecated
+            repositories
+        :param str release_category: filter only repositories with specific
+            release category (options: Deprecated, Generally Available, Beta, Tech Preview)
+        """
+        repo_request = {
+            "objectType": "containerRepository",
+            "query": {
+                "$and": [
+                    {
+                        "$or": [{
+                            "field": "content_sets.*",
+                            "op": "=",
+                            "rvalue": c
+                        } for c in content_sets]
+                    },
+                    {
+                        "field": "published",
+                        "op": "=",
+                        "rvalue": published
+                    },
+                    {
+                        "field": "deprecated",
+                        "op": "=",
+                        "rvalue": deprecated
+                    },
+                    {
+                        "field": "release_categories.*",
+                        "op": "=",
+                        "rvalue": release_category
+                    }
+                ]
+            },
+            "projection": [
+                {"field": "repository", "include": True},
+                {"field": "content_sets", "include": True, "recursive": True}
+            ]
+        }
+        return self.find_container_repositories(repo_request)
+
+
+    def find_images_with_included_srpm(self, repositories, srpm_name,
+                                       published=True):
+
+        """Query lightblue and find containerImages in given
+        containerRepositories. By default limit only to images which have been
+        published to at least one repository and images which have latest tag.
+
+        :param dict repositories: dictionary with repository names to look inside
+        :param str srpm_name: srpm_name (source rpm name) to look for
+        :param bool published: whether to limit queries to images with at least
+            one published repository
+        """
+        image_request = {
+            "objectType": "containerImage",
+            "query": {
+                "$and": [
+                    {
+                        "$or": [{
+                            "field": "repositories.*.repository",
+                            "op": "=",
+                            "rvalue": r['repository']
+                        } for r in repositories]
+                    },
+                    {
+                        "field": "repositories.*.published",
+                        "op": "=",
+                        "rvalue": published
+                    },
+                    {
+                        "field": "repositories.*.tags.*.name",
+                        "op": "=",
+                        "rvalue": "latest"
+                    },
+                    {
+                        "field": "parsed_data.rpm_manifest.*.srpm_name",
+                        "op": "=",
+                        "rvalue": srpm_name
+                    },
+                    {
+                        "field": "parsed_data.files.*.key",
+                        "op": "=",
+                        "rvalue": "buildfile"
+                    }
+                ]
+            },
+            "projection": [
+                {"field": "brew", "include": True, "recursive": True},
+                {"field": "parsed_data.files", "include": True, "recursive": True},
+                {"field": "parsed_data.rpm_manifest.*.srpm_nevra", "include": True, "recursive": True},
+                {"field": "parsed_data.rpm_manifest.*.srpm_name", "include": True, "recursive": True}
+            ]
+        }
+        return self.find_container_images(image_request)
+
+
+    def find_images_with_package_from_content_set(self, srpm_name,
+                    content_sets,
+                    published=True,
+                    deprecated=False,
+                    release_category="Generally Available"):
+        """Query lightblue and find containers which contain given
+        package from one of content sets
+
+        :param str srpm_name: srpm_name (source rpm name) to look for
+        :param list content_sets: list of strings (content sets) to consider
+            when looking for the packages
+
+        :return: a list of dictionaries with three keys - repository, commit and
+            srpm_nevra. Repository is a name git repository including the
+            namespace. Commit is a git ref - usually a git commit
+            hash. srpm_nevra is whole NEVRA of source rpm that is included in
+            the given image - can be used for comparisons if needed
+        :rtype: list
+        """
+        repos = self.find_repositories_with_content_sets(content_sets,
+                                                         published=published,
+                                                         deprecated=deprecated,
+                                                         release_category=release_category)
+        if not repos:
+            return []
+        images = self.find_images_with_included_srpm(repos,
+                                                     srpm_name,
+                                                     published=published)
+        commits = []
+        for image in images:
+            for f in image["parsed_data"]["files"]:
+                if f['key'] == 'buildfile':
+                    dockerfile_url = f['content_url']
+                    break
+
+            for rpm in image["parsed_data"]["rpm_manifest"]:
+                print(rpm)
+                if rpm["srpm_name"] == srpm_name:
+                    srpm_nevra = rpm['srpm_nevra']
+                    break
+
+            dockerfile, _, commit = dockerfile_url.partition("?id=")
+            _, _, reponame = dockerfile.partition("/cgit/")
+            reponame = reponame.replace("/plain/Dockerfile","")
+            commits.append({"repository": reponame,
+                            "commit": commit,
+                            "srpm_nevra": srpm_nevra})
+        return commits
