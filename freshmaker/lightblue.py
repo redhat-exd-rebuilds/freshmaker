@@ -204,3 +204,56 @@ class LightBlue(object):
             image.update(image_data)
             images.append(image)
         return images
+
+    def find_repositories_with_content_sets(self,
+                                            content_sets,
+                                            published=True,
+                                            deprecated=False,
+                                            release_category="Generally Available"):
+        """Query lightblue and find containerRepositories which have content
+        from at least one of the content_sets. By default ignore unpublished,
+        deprecated repos or non-GA repositories
+
+        :param list content_sets: list of strings (content sets) to consider
+            when looking for the packages
+        :param bool published: whether to limit queries to published
+            repositories
+        :param bool deprecated: set to True to limit results to deprecated
+            repositories
+        :param str release_category: filter only repositories with specific
+            release category (options: Deprecated, Generally Available, Beta, Tech Preview)
+        """
+        repo_request = {
+            "objectType": "containerRepository",
+            "query": {
+                "$and": [
+                    {
+                        "$or": [{
+                            "field": "content_sets.*",
+                            "op": "=",
+                            "rvalue": c
+                        } for c in content_sets]
+                    },
+                    {
+                        "field": "published",
+                        "op": "=",
+                        "rvalue": published
+                    },
+                    {
+                        "field": "deprecated",
+                        "op": "=",
+                        "rvalue": deprecated
+                    },
+                    {
+                        "field": "release_categories.*",
+                        "op": "=",
+                        "rvalue": release_category
+                    }
+                ]
+            },
+            "projection": [
+                {"field": "repository", "include": True},
+                {"field": "content_sets", "include": True, "recursive": True}
+            ]
+        }
+        return self.find_container_repositories(repo_request)
