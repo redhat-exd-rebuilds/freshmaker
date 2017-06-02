@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from os import path
 
 
@@ -26,7 +28,6 @@ class BaseConfiguration(object):
 
     SYSTEM = 'koji'
     MESSAGING = 'fedmsg'  # or amq
-    MESSAGING_TOPIC_PREFIX = ['org.fedoraproject.prod']
     PDC_URL = 'http://modularity.fedorainfracloud.org:8080/rest_api/v1'
     PDC_INSECURE = True
     PDC_DEVELOP = True
@@ -39,6 +40,16 @@ class BaseConfiguration(object):
 
     # Available log levels are: debug, info, warn, error.
     LOG_LEVEL = 'info'
+
+    MESSAGING_TOPIC_PREFIX = ['org.fedoraproject.prod']
+
+    # Parsers defined for parse specific messages
+    PARSERS = [
+        'freshmaker.parsers.bodhi:BodhiUpdateCompleteStableParser',
+        'freshmaker.parsers.git:GitReceiveParser',
+        'freshmaker.parsers.koji:KojiTaskStateChangeParser',
+        'freshmaker.parsers.mbs:MBSModuleStateChangeParser',
+    ]
 
     # List of enabled composing handlers.
     HANDLERS = [

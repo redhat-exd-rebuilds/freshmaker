@@ -1,0 +1,12 @@
+# -*- coding: utf-8 -*-
+
+import os
+
+config = {
+    'zmq_enabled': False,
+    'stomp_heartbeat': 1000,
+    'stomp_uri': os.environ['FRESHMAKER_STOMP_URI'],
+    'stomp_ssl_crt': os.environ['FRESHMAKER_STOMP_SSL_CRT'],
+    'stomp_ssl_key': os.environ['FRESHMAKER_STOMP_SSL_KEY'],
+    'validate_signatures': False,
+}

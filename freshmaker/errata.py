@@ -24,7 +24,7 @@
 import requests
 from requests_kerberos import HTTPKerberosAuth
 
-from freshmaker.events import BrewRPMSignEvent
+from freshmaker.events import BrewSignRPMEvent
 
 
 class ErrataAdvisory(object):
@@ -87,7 +87,7 @@ class Errata(object):
         :return: List of ErrataAdvisory instances
         :rtype: list
         """
-        if isinstance(event, BrewRPMSignEvent):
+        if isinstance(event, BrewSignRPMEvent):
             build = self._errata_rest_get("/build/%s" % str(event.nvr))
             if "all_errata" not in build:
                 return []

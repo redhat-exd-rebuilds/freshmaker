@@ -25,7 +25,7 @@ import unittest
 from mock import patch
 
 from freshmaker.errata import Errata
-from freshmaker.events import BrewRPMSignEvent, GitRPMSpecChangeEvent
+from freshmaker.events import BrewSignRPMEvent, GitRPMSpecChangeEvent
 
 
 class MockedErrataRESTAPI(object):
@@ -81,7 +81,7 @@ class TestErrata(unittest.TestCase):
     @patch.object(Errata, "_errata_rest_get")
     def test_advisories_from_event(self, errata_rest_get):
         MockedErrataRESTAPI(errata_rest_get)
-        event = BrewRPMSignEvent("msgid", "libntirpc-1.4.3-4.el7rhgs")
+        event = BrewSignRPMEvent("msgid", "libntirpc-1.4.3-4.el7rhgs")
         advisories = self.errata.advisories_from_event(event)
         self.assertEqual(len(advisories), 1)
         self.assertEqual(advisories[0].errata_id, 28484)
@@ -91,7 +91,7 @@ class TestErrata(unittest.TestCase):
         mocked_errata = MockedErrataRESTAPI(errata_rest_get)
         del mocked_errata.builds["libntirpc-1.4.3-4.el7rhgs"]["all_errata"]
 
-        event = BrewRPMSignEvent("msgid", "libntirpc-1.4.3-4.el7rhgs")
+        event = BrewSignRPMEvent("msgid", "libntirpc-1.4.3-4.el7rhgs")
         advisories = self.errata.advisories_from_event(event)
         self.assertEqual(len(advisories), 0)
 

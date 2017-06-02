@@ -27,13 +27,9 @@ to use.
 
 import fedmsg.consumers
 import moksha.hub
-import freshmaker.handlers
-import freshmaker.parsers.mbs
-import freshmaker.parsers.git
-import freshmaker.parsers.bodhi
-import freshmaker.parsers.koji
 
 from freshmaker import log, conf, messaging, events
+from freshmaker.utils import load_classes
 
 
 class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
@@ -45,7 +41,6 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
 
     def __init__(self, hub):
         # set topic before super, otherwise topic will not be subscribed
-        self.handlers = list(freshmaker.handlers.load_handlers())
         self.register_parsers()
         super(FreshmakerConsumer, self).__init__(hub)
 
@@ -63,10 +58,9 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
             self.incoming.put(msg)
 
     def register_parsers(self):
-        events.BaseEvent.register_parser(freshmaker.parsers.bodhi.BodhiUpdateCompleteStableParser)
-        events.BaseEvent.register_parser(freshmaker.parsers.git.GitReceiveParser)
-        events.BaseEvent.register_parser(freshmaker.parsers.koji.KojiTaskStateChangeParser)
-        events.BaseEvent.register_parser(freshmaker.parsers.mbs.MBSModuleStateChangeParser)
+        parser_classes = load_classes(conf.parsers)
+        for parser_class in parser_classes:
+            events.BaseEvent.register_parser(parser_class)
         log.debug("Parser classes: %r", events.BaseEvent._parsers)
 
         self.topic = events.BaseEvent.get_parsed_topics()
@@ -112,19 +106,19 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
 
     def get_abstracted_msg(self, message):
         # Convert the message to an abstracted message
-        if conf.messaging == 'fedmsg' or conf.messaging == 'in_memory':
-            msg = events.BaseEvent.from_fedmsg(
-                message['topic'], message)
-        else:
-            raise ValueError('The messaging format "{0}" is not supported'
-                             .format(conf.messaging))
-        return msg
+        if 'topic' not in message:
+            raise ValueError(
+                'The messaging format "{}" is not supported'.format(conf.messaging))
+
+        return events.BaseEvent.from_fedmsg(message['topic'], message)
 
     def process_event(self, msg):
         log.debug('Received a message with an ID of "{0}" and of type "{1}"'
                   .format(getattr(msg, 'msg_id', None), type(msg).__name__))
 
-        for handler in self.handlers:
+        for handler_class in load_classes(conf.handlers):
+            handler = handler_class()
+
             if not handler.can_handle(msg):
                 continue
 

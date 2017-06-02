@@ -18,19 +18,25 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import unittest
-import mock
 import fedmsg.config
+import mock
+import unittest
 
 import freshmaker
 
+from freshmaker.events import BrewSignRPMEvent
 
-class ConsumerTest(unittest.TestCase):
-    def setUp(self):
-        pass
 
-    def tearDown(self):
-        pass
+class ConsumerBaseTest(unittest.TestCase):
+
+    def _create_consumer(self):
+        hub = mock.MagicMock()
+        hub.config = fedmsg.config.load_config()
+        hub.config['freshmakerconsumer'] = True
+        return freshmaker.consumer.FreshmakerConsumer(hub)
+
+
+class ConsumerTest(ConsumerBaseTest):
 
     @mock.patch("freshmaker.handlers.mbs.module_state_change.MBSModuleStateChangeHandler.handle")
     @mock.patch("freshmaker.consumer.get_global_consumer")
@@ -40,10 +46,7 @@ class ConsumerTest(unittest.TestCase):
         to proper handler and is able to get the further work from
         the handler.
         """
-        hub = mock.MagicMock()
-        hub.config = fedmsg.config.load_config()
-        hub.config['freshmakerconsumer'] = True
-        consumer = freshmaker.consumer.FreshmakerConsumer(hub)
+        consumer = self._create_consumer()
         global_consumer.return_value = consumer
 
         msg = {'body': {
@@ -68,14 +71,37 @@ class ConsumerTest(unittest.TestCase):
         """
         Tests consumer will try to subscribe specified topics.
         """
-        hub = mock.MagicMock()
-        hub.config = fedmsg.config.load_config()
-        consumer = freshmaker.consumer.FreshmakerConsumer(hub)
+        consumer = self._create_consumer()
         global_consumer.return_value = consumer
         topics = freshmaker.events.BaseEvent.get_parsed_topics()
         callback = consumer._consume_json if consumer.jsonify else consumer.consume
         for topic in topics:
-            self.assertIn(mock.call(topic, callback), hub.subscribe.call_args_list)
+            self.assertIn(mock.call(topic, callback), consumer.hub.subscribe.call_args_list)
+
+
+class ParseBrewSignRPMEventTest(ConsumerBaseTest):
+
+    @mock.patch('freshmaker.events.conf.parsers',
+                new=['freshmaker.parsers.brew.sign_rpm:BrewSignRpmParser'])
+    @mock.patch("freshmaker.consumer.get_global_consumer")
+    def test_get_internal_event_parser(self, get_global_consumer):
+        consumer = self._create_consumer()
+        get_global_consumer.return_value = consumer
+
+        msg = {
+            'msg_id': 'fake-msg-id',
+            'topic': '/topic/VirtualTopic.eng.brew.sign.rpm',
+            'msg': {
+                'build': {
+                    'id': 562101,
+                    'nvr': 'openshift-ansible-3.3.1.32-1.git.0.3b74dea.el7',
+                }
+            }
+        }
+        msg = consumer.get_abstracted_msg(msg)
+        self.assertIsInstance(msg, BrewSignRPMEvent)
+        self.assertEqual('fake-msg-id', msg.msg_id)
+        self.assertEqual('openshift-ansible-3.3.1.32-1.git.0.3b74dea.el7', msg.nvr)
 
 
 if __name__ == '__main__':

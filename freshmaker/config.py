@@ -50,9 +50,11 @@ def init_config(app):
     # try getting config_file from os.environ
     if 'FRESHMAKER_CONFIG_FILE' in os.environ:
         config_file = os.environ['FRESHMAKER_CONFIG_FILE']
+
     # try getting config_section from os.environ
     if 'FRESHMAKER_CONFIG_SECTION' in os.environ:
         config_section = os.environ['FRESHMAKER_CONFIG_SECTION']
+
     # TestConfiguration shall only be used for running tests, otherwise...
     if any(['nosetests' in arg or 'noserunner.py' in arg or 'py.test' in arg or 'pytest.py' in arg for arg in sys.argv]):
         config_section = 'TestConfiguration'
@@ -64,17 +66,22 @@ def init_config(app):
     # package -> /conf/config.py.
 
     elif ('FRESHMAKER_DEVELOPER_ENV' in os.environ and
-          os.environ['FRESHMAKER_DEVELOPER_ENV'].lower() in (
-            '1', 'on', 'true', 'y', 'yes')):
+          os.environ['FRESHMAKER_DEVELOPER_ENV'].lower() in ('1', 'on', 'true', 'y', 'yes')):
         config_section = 'DevConfiguration'
-        from conf import config
-        config_module = config
+        if 'FRESHMAKER_CONFIG_FILE' in os.environ:
+            config_file = os.environ['FRESHMAKER_CONFIG_FILE']
+            config_module = None
+        else:
+            from conf import config
+            config_module = config
+
     # try loading configuration from file
     if not config_module:
         try:
             config_module = imp.load_source('freshmaker_runtime_config',
                                             config_file)
         except:
+            raise
             raise SystemError("Configuration file {} was not found."
                               .format(config_file))
 
@@ -132,6 +139,10 @@ class Config(object):
             'type': int,
             'default': 30,
             'desc': 'Global network retry interval for read/write operations, in seconds.'},
+        'parsers': {
+            'type': list,
+            'default': [],
+            'desc': 'Parsers defined for parse specific messages.'},
         'handlers': {
             'type': list,
             'default': ["freshmaker.handlers.mbs:MBSModuleStateChangeHandler"],

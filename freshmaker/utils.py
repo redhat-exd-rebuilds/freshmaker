@@ -27,10 +27,33 @@ import getpass
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 
 from freshmaker import conf
+
+
+def load_class(location):
+    """ Take a string of the form 'fedmsg.consumers.ircbot:IRCBotConsumer'
+    and return the IRCBotConsumer class.
+    """
+    try:
+        mod_name, cls_name = location.strip().split(':')
+    except ValueError:
+        raise ImportError('Invalid import path.')
+
+    __import__(mod_name)
+
+    try:
+        return getattr(sys.modules[mod_name], cls_name)
+    except AttributeError:
+        raise ImportError("%r not found in %r" % (cls_name, mod_name))
+
+
+def load_classes(import_paths):
+    """Load classes from given paths"""
+    return [load_class(import_path) for import_path in import_paths]
 
 
 def retry(timeout=conf.net_timeout, interval=conf.net_retry_interval, wait_on=Exception, logger=None):
