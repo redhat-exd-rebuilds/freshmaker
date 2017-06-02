@@ -113,13 +113,11 @@ class MBSModuleStateChangeHandlerTest(helpers.FreshmakerTestCase):
     def test_module_is_not_allowed_in_whitelist(self, conf, utils, PDC):
         conf.handler_build_whitelist = {
             "MBSModuleStateChangeHandler": {
-                "MBSModuleStateChangeEvent": {
-                    "module": [
-                        {
-                            'name': 'base.*',
-                        },
-                    ],
-                },
+                "module": [
+                    {
+                        'name': 'base.*',
+                    },
+                ],
             },
         }
         conf.handler_build_blacklist = {}
@@ -150,13 +148,11 @@ class MBSModuleStateChangeHandlerTest(helpers.FreshmakerTestCase):
         conf.handler_build_whitelist = {}
         conf.handler_build_blacklist = {
             "MBSModuleStateChangeHandler": {
-                "MBSModuleStateChangeEvent": {
-                    "module": [
-                        {
-                            'name': 'test.*',
-                        },
-                    ],
-                },
+                "module": [
+                    {
+                        'name': 'test.*',
+                    },
+                ],
             },
         }
         msg = helpers.ModuleStateChangeMessage('testmodule', 'master', state='ready').produce()

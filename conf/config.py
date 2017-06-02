@@ -80,45 +80,39 @@ class BaseConfiguration(object):
     SSL_ENABLED = False
 
     # whitelist and blacklist for handlers to decide whether an artifact
-    # can be built on some events.
+    # can be built.
     #
     # In format of:
     #
     # { <handler_name> :
-    #     { <event_name> :
-    #         { <artifact_type>: <list_of_name_branch_dict> }
-    #     }
+    #     { <artifact_type>: <list_of_name_branch_dict> }
     # }
     #
-    # Here is an example of allowing MBS handler to build any module on
-    # "RPMSpecUpdated" event that module name matches 'base-.*' but not:
+    # Here is an example of allowing MBSModuleStateChangeHandler to build
+    # any module that module name matches 'base-.*' but not:
     #   1. module name matches 'base-test-module'
     # or:
     #   2. module from branch 'rawhide'
     #
     # HANDLER_BUILD_WHITELIST = {
-    #     "MBS": {
-    #         "RPMSpecUpdated": {
-    #             "module": [
-    #                 {
-    #                     'name': 'base-.*',
-    #                 },
-    #             ],
-    #         },
+    #     "MBSModuleStateChangeHandler": {
+    #         "module": [
+    #             {
+    #                 'name': 'base-.*',
+    #             },
+    #         ],
     #     },
     # }
     # HANDLER_BUILD_BLACKLIST = {
-    #     "MBS": {
-    #         "RPMSpecUpdated": {
-    #             "module": [
-    #                 {
-    #                     'name': 'base-test-module',
-    #                 },
-    #                 {
-    #                     'branch': 'rawhide',
-    #                 },
-    #             ],
-    #         },
+    #     "MBSModuleStateChangeHandler": {
+    #         "module": [
+    #             {
+    #                 'name': 'base-test-module',
+    #             },
+    #             {
+    #                 'branch': 'rawhide',
+    #             },
+    #         ],
     #     },
     # }
 
