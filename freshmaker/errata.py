@@ -50,12 +50,27 @@ class Errata(object):
 
         :param str server_url: Base URL of Errata server.
         """
-        self._api_ver = 'api/v1'
+        self._rest_api_ver = 'api/v1'
         self.server_url = server_url.rstrip('/')
 
-    def _errata_get(self, endpoint):
-        r = requests.get("%s/%s/%s" % (self.server_url, self._api_ver,
+    def _errata_rest_get(self, endpoint):
+        """Request REST-style API
+
+        Document: /developer-guide/api-http-api.html
+        """
+        r = requests.get("%s/%s/%s" % (self.server_url,
+                                       self._rest_api_ver,
                                        endpoint.lstrip('/')),
+                         auth=HTTPKerberosAuth())
+        r.raise_for_status()
+        return r.json()
+
+    def _errata_http_get(self, endpoint):
+        """Request Errata legacy HTTP API
+
+        See also Legacy section in /developer-guide/api-http-api.html
+        """
+        r = requests.get('{}/{}'.format(self.server_url, endpoint),
                          auth=HTTPKerberosAuth())
         r.raise_for_status()
         return r.json()
@@ -73,7 +88,7 @@ class Errata(object):
         :rtype: list
         """
         if isinstance(event, BrewRPMSignEvent):
-            build = self._errata_get("/build/%s" % str(event.nvr))
+            build = self._errata_rest_get("/build/%s" % str(event.nvr))
             if "all_errata" not in build:
                 return []
             return [
@@ -89,7 +104,7 @@ class Errata(object):
         :return: True if all builds in advisory are signed.
         :rtype: bool
         """
-        builds_per_product = self._errata_get(
+        builds_per_product = self._errata_rest_get(
             "advisory/%s/builds.json" % str(errata_id))
 
         # Store NVRs of all builds in advisory to nvrs set.
@@ -100,8 +115,20 @@ class Errata(object):
 
         # For each NVR, check that all the rpms are signed.
         for nvr in nvrs:
-            build = self._errata_get("build/%s" % str(nvr))
+            build = self._errata_rest_get("build/%s" % str(nvr))
             if "rpms_signed" not in build or not build["rpms_signed"]:
                 return False
 
         return True
+
+    def get_pulp_repository_ids(self, errata_id):
+        """Get Pulp repository IDs where packages included in errata will end up
+
+        :param errata_id: Errata advisory ID, e.g. 25713.
+        :type errata_id: str or int
+        :return: a list of strings each of them represents a pulp repository ID
+        :rtype: list
+        """
+        data = self._errata_http_get(
+            '/errata/get_pulp_packages/{}.json'.format(errata_id))
+        return data.keys()

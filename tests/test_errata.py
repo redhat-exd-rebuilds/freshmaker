@@ -28,12 +28,12 @@ from freshmaker.errata import Errata
 from freshmaker.events import BrewRPMSignEvent, GitRPMSpecChangeEvent
 
 
-class MockedErrataAPI(object):
+class MockedErrataRESTAPI(object):
     """
     Class mocking methods accessing Errata API in Errata class.
     """
-    def __init__(self, errata_get):
-        errata_get.side_effect = (self.errata_get)
+    def __init__(self, errata_rest_get):
+        errata_rest_get.side_effect = (self.errata_rest_get)
 
         self.builds_json = {
             "PRODUCT1": [
@@ -66,7 +66,7 @@ class MockedErrataAPI(object):
             "all_errata": [{"id": 28484, "name": "RHSA-2017:28484", "status": "QE"}],
             "rpms_signed": True}
 
-    def errata_get(self, endpoint):
+    def errata_rest_get(self, endpoint):
         if endpoint.endswith("builds.json"):
             return self.builds_json
         elif endpoint.find("build/") != -1:
@@ -78,17 +78,17 @@ class TestErrata(unittest.TestCase):
     def setUp(self):
         self.errata = Errata("https://localhost/")
 
-    @patch.object(Errata, "_errata_get")
-    def test_advisories_from_event(self, errata_get):
-        MockedErrataAPI(errata_get)
+    @patch.object(Errata, "_errata_rest_get")
+    def test_advisories_from_event(self, errata_rest_get):
+        MockedErrataRESTAPI(errata_rest_get)
         event = BrewRPMSignEvent("msgid", "libntirpc-1.4.3-4.el7rhgs")
         advisories = self.errata.advisories_from_event(event)
         self.assertEqual(len(advisories), 1)
         self.assertEqual(advisories[0].errata_id, 28484)
 
-    @patch.object(Errata, "_errata_get")
-    def test_advisories_from_event_missing_all_errata(self, errata_get):
-        mocked_errata = MockedErrataAPI(errata_get)
+    @patch.object(Errata, "_errata_rest_get")
+    def test_advisories_from_event_missing_all_errata(self, errata_rest_get):
+        mocked_errata = MockedErrataRESTAPI(errata_rest_get)
         del mocked_errata.builds["libntirpc-1.4.3-4.el7rhgs"]["all_errata"]
 
         event = BrewRPMSignEvent("msgid", "libntirpc-1.4.3-4.el7rhgs")
@@ -100,19 +100,40 @@ class TestErrata(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.errata.advisories_from_event(event)
 
-    @patch.object(Errata, "_errata_get")
-    def test_builds_signed_all_signed(self, errata_get):
-        MockedErrataAPI(errata_get)
+    @patch.object(Errata, "_errata_rest_get")
+    def test_builds_signed_all_signed(self, errata_rest_get):
+        MockedErrataRESTAPI(errata_rest_get)
         self.assertTrue(self.errata.builds_signed(28484))
 
-    @patch.object(Errata, "_errata_get")
-    def test_builds_signed_some_unsigned(self, errata_get):
-        mocked_errata = MockedErrataAPI(errata_get)
+    @patch.object(Errata, "_errata_rest_get")
+    def test_builds_signed_some_unsigned(self, errata_rest_get):
+        mocked_errata = MockedErrataRESTAPI(errata_rest_get)
         mocked_errata.builds["libntirpc-1.4.3-4.el7rhgs"]["rpms_signed"] = False
         self.assertFalse(self.errata.builds_signed(28484))
 
-    @patch.object(Errata, "_errata_get")
-    def test_builds_signed_missing_data(self, errata_get):
-        mocked_errata = MockedErrataAPI(errata_get)
+    @patch.object(Errata, "_errata_rest_get")
+    def test_builds_signed_missing_data(self, errata_rest_get):
+        mocked_errata = MockedErrataRESTAPI(errata_rest_get)
         mocked_errata.builds["libntirpc-1.4.3-4.el7rhgs"] = {}
         self.assertFalse(self.errata.builds_signed(28484))
+
+    @patch('freshmaker.errata.requests.get')
+    def test_get_errata_repo_ids(self, get):
+        get.return_value.json.return_value = {
+            'rhel-6-server-eus-source-rpms__6_DOT_7__x86_64': [
+            ],
+            'rhel-6-server-eus-optional-debug-rpms__6_DOT_7__i386': [
+                '/path/to/package.rpm',
+                '/path/to/package1.rpm',
+                '/path/to/package2.rpm',
+            ],
+            'rhel-6-server-eus-rpms__6_DOT_7__x86_64': [
+            ],
+        }
+
+        repo_ids = self.errata.get_pulp_repository_ids(25718)
+
+        self.assertEqual(set(['rhel-6-server-eus-source-rpms__6_DOT_7__x86_64',
+                              'rhel-6-server-eus-optional-debug-rpms__6_DOT_7__i386',
+                              'rhel-6-server-eus-rpms__6_DOT_7__x86_64']),
+                         set(repo_ids))
