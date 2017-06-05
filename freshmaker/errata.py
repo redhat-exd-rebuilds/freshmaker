@@ -50,10 +50,12 @@ class Errata(object):
 
         :param str server_url: Base URL of Errata server.
         """
+        self._api_ver = 'api/v1'
         self.server_url = server_url.rstrip('/')
 
     def _errata_get(self, endpoint):
-        r = requests.get("%s/%s" % (self.server_url, endpoint),
+        r = requests.get("%s/%s/%s" % (self.server_url, self._api_ver,
+                                       endpoint.lstrip('/')),
                          auth=HTTPKerberosAuth())
         r.raise_for_status()
         return r.json()
@@ -71,7 +73,7 @@ class Errata(object):
         :rtype: list
         """
         if isinstance(event, BrewRPMSignEvent):
-            build = self._errata_get("api/v1/build/%s" % str(event.nvr))
+            build = self._errata_get("/build/%s" % str(event.nvr))
             if "all_errata" not in build:
                 return []
             return [
@@ -98,7 +100,7 @@ class Errata(object):
 
         # For each NVR, check that all the rpms are signed.
         for nvr in nvrs:
-            build = self._errata_get("api/v1/build/%s" % str(nvr))
+            build = self._errata_get("build/%s" % str(nvr))
             if "rpms_signed" not in build or not build["rpms_signed"]:
                 return False
 

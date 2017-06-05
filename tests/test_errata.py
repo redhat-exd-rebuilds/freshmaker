@@ -69,7 +69,7 @@ class MockedErrataAPI(object):
     def errata_get(self, endpoint):
         if endpoint.endswith("builds.json"):
             return self.builds_json
-        elif endpoint.find("api/v1/build/") != -1:
+        elif endpoint.find("build/") != -1:
             nvr = endpoint.split("/")[-1]
             return self.builds[nvr]
 
