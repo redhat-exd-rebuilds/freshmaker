@@ -136,6 +136,13 @@ class BaseConfiguration(object):
         'containerImage': '0.0.12',
     }
 
+    # Pulp server url, e.g. http://localhost/
+    PULP_SERVER_URL = ''
+
+    # Username and password used to query Pulp server
+    PULP_USERNAME = ''
+    PULP_PASSWORD = ''
+
 
 class DevConfiguration(BaseConfiguration):
     DEBUG = True
