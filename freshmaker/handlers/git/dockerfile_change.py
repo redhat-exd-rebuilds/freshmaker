@@ -22,6 +22,7 @@
 # Written by Chenxiong Qi <cqi@redhat.com>
 
 from freshmaker import log
+from freshmaker.types import ArtifactType
 from freshmaker.handlers import BaseHandler
 from freshmaker.events import GitDockerfileChangeEvent
 
@@ -38,7 +39,7 @@ class GitDockerfileChangeHandler(BaseHandler):
 
         log.info('Start to rebuild docker image %s.', event.container)
 
-        if not self.allow_build('image', event.container, event.branch):
+        if not self.allow_build(ArtifactType.IMAGE, event.container, event.branch):
             log.info("Skip rebuild of %s:%s as it's not allowed by configured whitelist/blacklist",
                      event.container, event.branch)
             return []

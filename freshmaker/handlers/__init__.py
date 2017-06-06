@@ -111,7 +111,7 @@ class BaseHandler(object):
         Check whether the artifact is allowed to be built by checking
         HANDLER_BUILD_WHITELIST and HANDLER_BUILD_BLACKLIST in config.
 
-        :param artifact_type: 'module' or 'image'.
+        :param artifact_type: an enum member of ArtifactType.
         :param name: name of the artifact.
         :param branch: branch name of the artifact.
         :return: True or False.
@@ -139,23 +139,23 @@ class BaseHandler(object):
             return True
 
         try:
-            whitelist = whitelist_rules.get(artifact_type, [])
+            whitelist = whitelist_rules.get(artifact_type.name.lower(), [])
             if whitelist and not any([match_rule(name, branch, rule) for rule in whitelist]):
                 log.debug('name=%r, branch=%r, type=%r is not whitelisted.',
-                          name, branch, artifact_type)
+                          name, branch, artifact_type.name.lower())
                 in_whitelist = False
 
             # only need to check blacklist when it is in whitelist first
             if in_whitelist:
-                blacklist = blacklist_rules.get(artifact_type, [])
+                blacklist = blacklist_rules.get(artifact_type.name.lower(), [])
                 if blacklist and any([match_rule(name, branch, rule) for rule in blacklist]):
                     log.debug('name=%r, branch=%r, type=%r is blacklisted.',
-                              name, branch, artifact_type)
+                              name, branch, artifact_type.name.lower())
                     in_blacklist = True
 
         except re.error as exc:
             log.error("Error while compiling blacklist/whilelist rule for <handler(%s) artifact(%s)>:\n"
                       "Incorrect regular expression: %s\nBlacklist and Whitelist will not take effect",
-                      handler_name, artifact_type, str(exc))
+                      handler_name, artifact_type.name.lower(), str(exc))
             return True
         return in_whitelist and not in_blacklist

@@ -26,6 +26,7 @@ from itertools import chain
 from freshmaker import conf
 from freshmaker import log
 from freshmaker import utils
+from freshmaker.types import ArtifactType
 from freshmaker.handlers import BaseHandler
 from freshmaker.events import BodhiUpdateCompleteStableEvent
 from freshmaker.pdc import PDC
@@ -49,7 +50,7 @@ class BodhiUpdateCompleteStableHandler(BaseHandler):
         log.info('Found docker images to rebuild: %s', containers)
 
         for container in containers:
-            if not self.allow_build('image', container['name'], container['branch']):
+            if not self.allow_build(ArtifactType.IMAGE, container['name'], container['branch']):
                 log.info("Skip rebuild of image %s:%s as it's not allowed by configured whitelist/blacklist",
                          container['name'], container['branch'])
                 continue

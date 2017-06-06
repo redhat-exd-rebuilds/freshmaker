@@ -20,6 +20,7 @@
 # SOFTWARE.
 
 from freshmaker import log, conf, utils
+from freshmaker.types import ArtifactType
 from freshmaker.pdc import PDC
 from freshmaker.handlers import BaseHandler
 from freshmaker.events import GitRPMSpecChangeEvent
@@ -53,7 +54,7 @@ class GitRPMSpecChangeHandler(BaseHandler):
         for module in modules:
             name = module['variant_name']
             version = module['variant_version']
-            if not self.allow_build('module', name, version):
+            if not self.allow_build(ArtifactType.MODULE, name, version):
                 log.info("Skip rebuild of %s:%s as it's not allowed by configured whitelist/blacklist",
                          name, version)
                 continue

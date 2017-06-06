@@ -22,6 +22,7 @@
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
 from freshmaker import log, conf, utils, db, models
+from freshmaker.types import ArtifactType
 from freshmaker.mbs import MBS
 from freshmaker.pdc import PDC
 from freshmaker.handlers import BaseHandler
@@ -77,7 +78,7 @@ class MBSModuleStateChangeHandler(BaseHandler):
             for mod in modules:
                 name = mod['variant_name']
                 version = mod['variant_version']
-                if not self.allow_build('module', name, version):
+                if not self.allow_build(ArtifactType.MODULE, name, version):
                     log.info("Skip rebuild of %s:%s as it's not allowed by configured whitelist/blacklist",
                              name, version)
                     continue
