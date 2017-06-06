@@ -31,6 +31,7 @@ from mock import MagicMock
 
 from freshmaker import db, models
 from freshmaker.consumer import FreshmakerConsumer
+from freshmaker.types import ArtifactType
 from tests import get_fedmsg
 
 
@@ -89,7 +90,7 @@ class GitDockerfileChangeHandlerTest(BaseTestCase):
         builds = models.ArtifactBuild.query.all()
         self.assertEqual(len(builds), 1)
         self.assertEqual(builds[0].name, 'testimage')
-        self.assertEqual(builds[0].type, models.ARTIFACT_TYPES['image'])
+        self.assertEqual(builds[0].type, ArtifactType.IMAGE.value)
         self.assertEqual(builds[0].build_id, 123)
 
     @patch('freshmaker.handlers.git.dockerfile_change.GitDockerfileChangeHandler.build_container')

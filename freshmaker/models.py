@@ -28,6 +28,7 @@ from datetime import datetime
 from sqlalchemy.orm import (validates, relationship)
 
 from freshmaker import db
+from freshmaker.types import ArtifactType
 from freshmaker.events import (
     MBSModuleStateChangeEvent, GitModuleMetadataChangeEvent,
     GitRPMSpecChangeEvent, TestingEvent, GitDockerfileChangeEvent,
@@ -46,14 +47,6 @@ BUILD_STATES = {
 }
 
 INVERSE_BUILD_STATES = {v: k for k, v in BUILD_STATES.items()}
-
-ARTIFACT_TYPES = {
-    "rpm": 0,
-    "image": 1,
-    "module": 2,
-}
-
-INVERSE_ARTIFACT_TYPES = {v: k for k, v in ARTIFACT_TYPES.items()}
 
 EVENT_TYPES = {
     MBSModuleStateChangeEvent: 0,
@@ -160,13 +153,13 @@ class ArtifactBuild(FreshmakerBase):
 
     @validates('type')
     def validate_type(self, key, field):
-        if field in ARTIFACT_TYPES.values():
+        if field in [t.value for t in list(ArtifactType)]:
             return field
-        if field in ARTIFACT_TYPES:
-            return ARTIFACT_TYPES[field]
-        raise ValueError("%s: %s, not in %r" % (key, field, ARTIFACT_TYPES))
+        if field in [t.name.lower() for t in list(ArtifactType)]:
+            return ArtifactType[field.upper()].value
+        raise ValueError("%s: %s, not in %r" % (key, field, list(ArtifactType)))
 
     def __repr__(self):
         return "<ArtifactBuild %s, type %s, state %s, event %s>" % (
-            self.name, INVERSE_ARTIFACT_TYPES[self.type],
+            self.name, ArtifactType(self.type).name,
             INVERSE_BUILD_STATES[self.state], self.event.message_id)

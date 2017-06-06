@@ -27,6 +27,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))  # noqa
 from tests import helpers
 
 from freshmaker import events, db, models
+from freshmaker.types import ArtifactType
 from freshmaker.handlers.mbs import MBSModuleStateChangeHandler
 from freshmaker.parsers.mbs import MBSModuleStateChangeParser
 
@@ -101,11 +102,11 @@ class MBSModuleStateChangeHandlerTest(helpers.FreshmakerTestCase):
         builds = models.ArtifactBuild.query.all()
         self.assertEqual(len(builds), 2)
         self.assertEqual(builds[0].name, mod2_r1['variant_name'])
-        self.assertEqual(builds[0].type, models.ARTIFACT_TYPES['module'])
+        self.assertEqual(builds[0].type, ArtifactType.MODULE.value)
         self.assertEqual(builds[0].build_id, 123)
         self.assertEqual(builds[1].name, mod3_r1['variant_name'])
         self.assertEqual(builds[1].build_id, 456)
-        self.assertEqual(builds[1].type, models.ARTIFACT_TYPES['module'])
+        self.assertEqual(builds[1].type, ArtifactType.MODULE.value)
 
     @mock.patch('freshmaker.handlers.mbs.module_state_change.PDC')
     @mock.patch('freshmaker.handlers.mbs.module_state_change.utils')

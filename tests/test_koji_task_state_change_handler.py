@@ -26,6 +26,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))  # noqa
 from tests import helpers
 
 from freshmaker import events, db, models
+from freshmaker.types import ArtifactType
 from freshmaker.handlers.koji import KojiTaskStateChangeHandler
 from freshmaker.parsers.koji import KojiTaskStateChangeParser
 
@@ -64,7 +65,7 @@ class KojiTaskStateChangeHandlerTest(helpers.FreshmakerTestCase):
         build = models.ArtifactBuild.create(db.session,
                                             ev,
                                             'testimage',
-                                            models.ARTIFACT_TYPES['image'],
+                                            ArtifactType.IMAGE.value,
                                             task_id)
         db.session.add(ev)
         db.session.add(build)

@@ -27,6 +27,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))  # noqa
 from tests import helpers
 
 from freshmaker import events, db, models
+from freshmaker.types import ArtifactType
 from freshmaker.handlers.git import GitModuleMetadataChangeHandler
 from freshmaker.parsers.git import GitReceiveParser
 
@@ -84,7 +85,7 @@ class GitModuleMetadataChangeHandlerTest(helpers.FreshmakerTestCase):
         builds = models.ArtifactBuild.query.all()
         self.assertEqual(len(builds), 1)
         self.assertEqual(builds[0].name, 'testmodule')
-        self.assertEqual(builds[0].type, models.ARTIFACT_TYPES['module'])
+        self.assertEqual(builds[0].type, ArtifactType.MODULE.value)
         self.assertEqual(builds[0].build_id, 123)
 
 

@@ -20,6 +20,7 @@
 # SOFTWARE.
 
 from freshmaker import log, db, models
+from freshmaker.types import ArtifactType
 from freshmaker.handlers import BaseHandler
 from freshmaker.events import KojiTaskStateChangeEvent
 
@@ -39,7 +40,7 @@ class KojiTaskStateChangeHandler(BaseHandler):
 
         # check whether the task exists in db as image build
         builds = db.session.query(models.ArtifactBuild).filter_by(build_id=task_id,
-                                                                  type=models.ARTIFACT_TYPES['image']).all()
+                                                                  type=ArtifactType.IMAGE.value).all()
         if len(builds) > 1:
             raise RuntimeError("Found duplicate image build '%s' in db" % task_id)
         if len(builds) == 1:

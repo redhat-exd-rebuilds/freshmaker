@@ -52,7 +52,7 @@ class MBSModuleStateChangeHandler(BaseHandler):
 
         # update build state if the build is submitted by Freshmaker
         builds = db.session.query(models.ArtifactBuild).filter_by(build_id=build_id,
-                                                                  type=models.ARTIFACT_TYPES['module']).all()
+                                                                  type=ArtifactType.MODULE.value).all()
         if len(builds) > 1:
             raise RuntimeError("Found duplicate module build '%s' in db" % build_id)
         if len(builds) == 1:

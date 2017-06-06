@@ -31,6 +31,7 @@ from tests import helpers
 from tests import get_fedmsg
 
 from freshmaker import events, db, models
+from freshmaker.types import ArtifactType
 from freshmaker.handlers.bodhi import BodhiUpdateCompleteStableHandler
 from freshmaker.parsers.bodhi import BodhiUpdateCompleteStableParser
 
@@ -152,10 +153,10 @@ class BodhiUpdateCompleteStableHandlerTest(helpers.FreshmakerTestCase):
         builds = models.ArtifactBuild.query.all()
         self.assertEqual(len(builds), 2)
         self.assertEqual(builds[0].name, 'testimage1')
-        self.assertEqual(builds[0].type, models.ARTIFACT_TYPES['image'])
+        self.assertEqual(builds[0].type, ArtifactType.IMAGE.value)
         self.assertEqual(builds[0].build_id, 123)
         self.assertEqual(builds[1].name, 'testimage2')
-        self.assertEqual(builds[1].type, models.ARTIFACT_TYPES['image'])
+        self.assertEqual(builds[1].type, ArtifactType.IMAGE.value)
         self.assertEqual(builds[1].build_id, 456)
 
     @mock.patch('freshmaker.handlers.bodhi.update_complete_stable.PDC')
