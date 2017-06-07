@@ -26,3 +26,10 @@ class ArtifactType(Enum):
     RPM = 0
     IMAGE = 1
     MODULE = 2
+
+
+class ArtifactBuildState(Enum):
+    BUILD = 0
+    DONE = 1
+    FAILED = 2
+    CANCELED = 3

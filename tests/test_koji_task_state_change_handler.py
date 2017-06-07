@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))  # noqa
 from tests import helpers
 
 from freshmaker import events, db, models
-from freshmaker.types import ArtifactType
+from freshmaker.types import ArtifactType, ArtifactBuildState
 from freshmaker.handlers.koji import KojiTaskStateChangeHandler
 from freshmaker.parsers.koji import KojiTaskStateChangeParser
 
@@ -81,7 +81,7 @@ class KojiTaskStateChangeHandlerTest(helpers.FreshmakerTestCase):
         handler.handle(event)
 
         build = models.ArtifactBuild.query.all()[0]
-        self.assertEqual(build.state, models.BUILD_STATES['failed'])
+        self.assertEqual(build.state, ArtifactBuildState.FAILED.value)
 
         m = helpers.KojiTaskStateChangeMessage(task_id, 'OPEN', 'CLOSED')
         msg = m.produce()
@@ -91,7 +91,7 @@ class KojiTaskStateChangeHandlerTest(helpers.FreshmakerTestCase):
         handler.handle(event)
 
         build = models.ArtifactBuild.query.all()[0]
-        self.assertEqual(build.state, models.BUILD_STATES['done'])
+        self.assertEqual(build.state, ArtifactBuildState.DONE.value)
 
 
 if __name__ == '__main__':

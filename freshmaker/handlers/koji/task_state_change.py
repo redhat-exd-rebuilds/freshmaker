@@ -20,7 +20,7 @@
 # SOFTWARE.
 
 from freshmaker import log, db, models
-from freshmaker.types import ArtifactType
+from freshmaker.types import ArtifactType, ArtifactBuildState
 from freshmaker.handlers import BaseHandler
 from freshmaker.events import KojiTaskStateChangeEvent
 
@@ -48,10 +48,10 @@ class KojiTaskStateChangeHandler(BaseHandler):
             if task_state in ['CLOSED', 'FAILED']:
                 log.info("Image build '%s' state changed in koji, updating it in db.", task_id)
             if task_state == 'CLOSED':
-                build.state = models.BUILD_STATES['done']
+                build.state = ArtifactBuildState.DONE.value
                 db.session.commit()
             if task_state == 'FAILED':
-                build.state = models.BUILD_STATES['failed']
+                build.state = ArtifactBuildState.FAILED.value
                 db.session.commit()
 
         return []
