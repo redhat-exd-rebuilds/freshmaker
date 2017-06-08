@@ -40,3 +40,5 @@ db = SQLAlchemy(app)
 conf = init_config(app)
 init_logging(conf)
 log = getLogger(__name__)
+
+from freshmaker import views  # noqa
