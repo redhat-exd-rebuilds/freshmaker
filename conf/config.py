@@ -127,22 +127,6 @@ class BaseConfiguration(object):
     #     },
     # }
 
-    LIGHTBLUE_SERVER_URL = ''  # replace with default server url
-    LIGHTBLUE_VERIFY_SSL = True
-
-    # Lookup versions of each entity: /rest/metadata/{entity name}
-    LIGHTBLUE_ENTITY_VERSIONS = {
-        'containerRepository': '0.0.11',
-        'containerImage': '0.0.12',
-    }
-
-    # Pulp server url, e.g. http://localhost/
-    PULP_SERVER_URL = ''
-
-    # Username and password used to query Pulp server
-    PULP_USERNAME = ''
-    PULP_PASSWORD = ''
-
 
 class DevConfiguration(BaseConfiguration):
     DEBUG = True

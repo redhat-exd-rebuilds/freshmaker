@@ -27,6 +27,30 @@ class BaseConfiguration(config.BaseConfiguration):
     HANDLERS = [
     ]
 
+    # LightBlue server URL, e.g. http://localhost/
+    LIGHTBLUE_SERVER_URL = ''  # replace with default server url
+    LIGHTBLUE_VERIFY_SSL = True
+    # Path to LightBlue certificate file
+    LIGHTBLUE_CERTIFICATE = ''
+    # Path to LightBlue private key file
+    LIGHTBLUE_PRIVATE_KEY = ''
+
+    # Lookup versions of each entity: /rest/metadata/{entity name}
+    LIGHTBLUE_ENTITY_VERSIONS = {
+        'containerRepository': '0.0.11',
+        'containerImage': '0.0.12',
+    }
+
+    # replace with real value when deploy
+    ERRATA_TOOL_SERVER_URL = ''
+
+    # Pulp server url, e.g. http://localhost/
+    PULP_SERVER_URL = ''
+
+    # Username and password used to query Pulp server
+    PULP_USERNAME = ''
+    PULP_PASSWORD = ''
+
 
 class DevConfiguration(BaseConfiguration):
     DEBUG = True
