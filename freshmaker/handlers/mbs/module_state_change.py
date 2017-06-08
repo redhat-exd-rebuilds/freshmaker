@@ -98,6 +98,6 @@ class MBSModuleStateChangeHandler(BaseHandler):
                 rev = utils.bump_distgit_repo('modules', name, branch=version, commit_msg=commit_msg, logger=log)
                 new_build_id = self.build_module(name, version, rev)
                 if new_build_id is not None:
-                    self.record_build(event, name, 'module', new_build_id, dep_of=module_build)
+                    self.record_build(event, name, ArtifactType.MODULE, new_build_id, dep_of=module_build)
 
         return []

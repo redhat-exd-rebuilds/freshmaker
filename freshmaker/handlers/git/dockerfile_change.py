@@ -48,7 +48,7 @@ class GitDockerfileChangeHandler(BaseHandler):
             task_id = self.build_container(event.container, event.branch, event.rev)
 
             if task_id is not None:
-                self.record_build(event, event.container, 'image', task_id)
+                self.record_build(event, event.container, ArtifactType.IMAGE, task_id)
 
         except koji.krbV.Krb5Error as e:
             log.exception('Failed to login Koji via Kerberos using GSSAPI. %s', e.args[1])

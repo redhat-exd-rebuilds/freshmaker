@@ -47,6 +47,6 @@ class GitModuleMetadataChangeHandler(BaseHandler):
 
         build_id = self.build_module(event.module, event.branch, event.rev)
         if build_id is not None:
-            self.record_build(event, event.module, 'module', build_id)
+            self.record_build(event, event.module, ArtifactType.MODULE, build_id)
 
         return []

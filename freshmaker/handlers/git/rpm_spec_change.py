@@ -63,6 +63,6 @@ class GitRPMSpecChangeHandler(BaseHandler):
             rev = utils.bump_distgit_repo('modules', name, branch=version, commit_msg=commit_msg, logger=log)
             build_id = self.build_module(name, version, rev)
             if build_id is not None:
-                self.record_build(event, name, 'module', build_id)
+                self.record_build(event, name, ArtifactType.MODULE, build_id)
 
         return []
