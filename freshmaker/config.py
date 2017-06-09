@@ -205,6 +205,30 @@ class Config(object):
             'type': bool,
             'default': True,
             'desc': 'Whether to enable SSL verification over HTTP with lightblue.'},
+        'lightblue_certificate': {
+            'type': str,
+            'default': '',
+            'desc': 'Path to LightBlue certificate file.'},
+        'lightblue_private_key': {
+            'type': str,
+            'default': '',
+            'desc': 'Path to LightBlue private key file.'},
+        'errata_tool_server_url': {
+            'type': str,
+            'default': '',
+            'desc': 'Server URL of Errata Tool.'},
+        'pulp_server_url': {
+            'type': str,
+            'default': '',
+            'desc': 'Server URL of Pulp.'},
+        'pulp_username': {
+            'type': str,
+            'default': '',
+            'desc': 'Username to login Pulp.'},
+        'pulp_password': {
+            'type': str,
+            'default': '',
+            'desc': 'Password to login Pulp.'},
     }
 
     def __init__(self, conf_section_obj):
