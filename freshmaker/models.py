@@ -150,6 +150,18 @@ class ArtifactBuild(FreshmakerBase):
             self.name, ArtifactType(self.type).name,
             ArtifactBuildState(self.state).name, self.event.message_id)
 
+    def json(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "type": self.type,
+            "state": self.state,
+            "time_submitted": self.time_submitted,
+            "time_completed": self.time_completed,
+            "event_id": self.event_id,
+            "build_id": self.build_id,
+        }
+
     def get_root_dep_of(self):
         dep_of = self.dep_of
         while dep_of:
