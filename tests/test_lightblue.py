@@ -520,27 +520,13 @@ class TestEntityVersion(unittest.TestCase):
         self.fake_cert_file = 'path/to/cert'
         self.fake_private_key = 'path/to/private-key'
         self.fake_entity_versions = {
-            'containerImage': '0.0.11'
+            'containerImage': '0.0.11',
+            'containerRepository': '0.0.12',
         }
 
     @patch('freshmaker.lightblue.LightBlue._make_request')
-    @patch('os.path.exists')
-    def test_use_default_entity_version(self, exists, _make_request):
-        exists.return_value = True
-
-        lb = LightBlue(server_url=self.fake_server_url,
-                       cert=self.fake_cert_file,
-                       private_key=self.fake_private_key,
-                       entity_versions=self.fake_entity_versions)
-        lb.find_container_repositories({})
-
-        _make_request.assert_called_once_with('find/containerRepository/', {})
-
-    @patch('freshmaker.lightblue.LightBlue._make_request')
-    @patch('os.path.exists')
-    def test_use_specified_entity_version(self, exists, _make_request):
-        exists.return_value = True
-
+    @patch('os.path.exists', return_value=True)
+    def test_use_specified_container_image_version(self, exists, _make_request):
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
                        private_key=self.fake_private_key,
@@ -550,10 +536,19 @@ class TestEntityVersion(unittest.TestCase):
         _make_request.assert_called_once_with('find/containerImage/0.0.11', {})
 
     @patch('freshmaker.lightblue.LightBlue._make_request')
-    @patch('os.path.exists')
-    def test_use_default_entity_version_when_parameter_is_omitted(
-            self, exists, _make_request):
-        exists.return_value = True
+    @patch('os.path.exists', return_value=True)
+    def test_use_specified_container_repository_version(self, exists, _make_request):
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key,
+                       entity_versions=self.fake_entity_versions)
+        lb.find_container_repositories({})
+
+        _make_request.assert_called_once_with('find/containerRepository/0.0.12', {})
+
+    @patch('freshmaker.lightblue.LightBlue._make_request')
+    @patch('os.path.exists', return_value=True)
+    def test_use_default_entity_version(self, exists, _make_request):
         _make_request.return_value = {
             # Omit other attributes that are not useful for this test
             'processed': []

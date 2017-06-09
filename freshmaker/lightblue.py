@@ -173,7 +173,7 @@ class LightBlue(object):
         """
 
         url = 'find/containerRepository/{}'.format(
-            self._get_entity_version('entityRespository'))
+            self._get_entity_version('containerRepository'))
         response = self._make_request(url, request)
 
         repos = []
