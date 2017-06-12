@@ -21,6 +21,7 @@
 # SOFTWARE.
 
 import json
+import six
 import unittest
 
 from mock import call, patch
@@ -29,11 +30,12 @@ from six.moves import http_client
 from freshmaker.lightblue import ContainerImage
 from freshmaker.lightblue import ContainerRepository
 from freshmaker.lightblue import LightBlue
-from freshmaker.lightblue import LightBlueRequestFailure
+from freshmaker.lightblue import LightBlueRequestError
+from freshmaker.lightblue import LightBlueSystemError
 
 
-class TestLightBlueRequestFailure(unittest.TestCase):
-    """Test case for exception LightBlueRequestFailure"""
+class TestLightBlueRequestError(unittest.TestCase):
+    """Test case for exception LightBlueRequestError"""
 
     def setUp(self):
         self.fake_error_data = {
@@ -53,22 +55,66 @@ class TestLightBlueRequestFailure(unittest.TestCase):
             'modifiedCount': 0,
             'status': 'ERROR'
         }
-        self.e = LightBlueRequestFailure(self.fake_error_data,
-                                         http_client.INTERNAL_SERVER_ERROR)
+        self.e = LightBlueRequestError(http_client.BAD_REQUEST,
+                                       self.fake_error_data)
 
     def test_get_raw_error_json_data(self):
         self.assertEqual(self.fake_error_data, self.e.raw)
 
     def test_get_status_code(self):
-        self.assertEqual(http_client.INTERNAL_SERVER_ERROR, self.e.status_code)
+        self.assertEqual(http_client.BAD_REQUEST, self.e.status_code)
 
     def test_get_inner_errors(self):
-        self.assertEqual(self.fake_error_data['errors'], self.e.errors)
+        self.assertEqual(self.fake_error_data['errors'], self.e.raw['errors'])
 
     def test_errors_listed_in_str(self):
         expected_s = '\n'.join(('    {}'.format(err['msg'])
                                 for err in self.fake_error_data['errors']))
         self.assertIn(expected_s, str(self.e))
+
+
+class TestLightBlueSystemError(unittest.TestCase):
+    """Test LightBlueSystemError"""
+
+    def setUp(self):
+        buf = six.StringIO('''
+<html><head><title>JBWEB000065: HTTP Status 401 - JBWEB000009: No client
+certificate chain in this request</title><style><!--H1 {font-family:Tahoma,
+Arial,sans-serif;color:white;background-color:#525D76;font-size:22px;} H2
+{font-family:Tahoma,Arial,sans-serif;color:white;background-color:#525D76;
+font-size:16px;} H3 {font-family:Tahoma,Arial,sans-serif;color:white;
+background-color:#525D76;font-size:14px;} BODY {font-family:Tahoma,Arial,
+sans-serif;color:black;background-color:white;} B {font-family:Tahoma,Arial,
+sans-serif;color:white;background-color:#525D76;} P {font-family:Tahoma,Arial,
+sans-serif;background:white;color:black;font-size:12px;}A {color : black;}
+A.name {color : black;}HR {color : #525D76;}--></style> </head><body><h1>
+JBWEB000065: HTTP Status 401 - JBWEB000009: No client certificate chain in
+this request</h1><HR size="1" noshade="noshade"><p><b>JBWEB000309: type</b>
+JBWEB000067: Status report</p><p><b>JBWEB000068: message</b> <u>JBWEB000009:
+No client certificate chain in this request</u></p><p><b>JBWEB000069:
+description</b> <u>JBWEB000121: This request requires HTTP authentication.</u>
+</p><HR size="1" noshade="noshade"></body></html>
+''')
+        self.fake_error_data = ' '.join((line.strip() for line in buf))
+        self.e = LightBlueSystemError(http_client.UNAUTHORIZED,
+                                      self.fake_error_data)
+
+    def test_get_status_code(self):
+        self.assertEqual(http_client.UNAUTHORIZED, self.e.status_code)
+
+    def test_raw(self):
+        self.assertEqual(self.fake_error_data, self.e.raw)
+
+    def test__str__(self):
+        self.assertEqual(
+            'JBWEB000065: HTTP Status 401 - JBWEB000009: No client certificate'
+            ' chain in this request',
+            str(self.e))
+
+    def test__repr__(self):
+        self.assertEqual('<{} [{}]>'.format(self.e.__class__.__name__,
+                                            self.e.status_code),
+                         repr(self.e))
 
 
 class TestContainerImageObject(unittest.TestCase):
@@ -303,7 +349,7 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
 
     @patch('freshmaker.lightblue.requests.post')
     def test_raise_error_if_request_data_is_incorrect(self, post):
-        post.return_value.status_code = http_client.INTERNAL_SERVER_ERROR
+        post.return_value.status_code = http_client.BAD_REQUEST
         post.return_value.json.return_value = {
             'entity': 'containerImage',
             'entityVersion': '0.0.11',
@@ -333,7 +379,7 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
             lb = LightBlue(server_url=self.fake_server_url,
                            cert=self.fake_cert_file,
                            private_key=self.fake_private_key)
-            self.assertRaises(LightBlueRequestFailure,
+            self.assertRaises(LightBlueRequestError,
                               lb._make_request, 'find/containerRepository/', fake_request)
 
     @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
@@ -490,23 +536,23 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                                                         cont_repos):
 
         exists.return_value = True
-        cont_repos.side_effect = LightBlueRequestFailure(
+        cont_repos.side_effect = LightBlueRequestError(
             {"errors": [{"msg": "dummy error"}]}, http_client.REQUEST_TIMEOUT)
         cont_images.return_value = self.fake_images_with_parsed_data
 
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
                        private_key=self.fake_private_key)
-        with self.assertRaises(LightBlueRequestFailure):
+        with self.assertRaises(LightBlueRequestError):
             lb.find_images_with_package_from_content_set(
                 "openssl",
                 ["dummy-content-set-1"])
 
         cont_repos.return_value = self.fake_repositories_with_content_sets
-        cont_images.side_effect = LightBlueRequestFailure(
+        cont_images.side_effect = LightBlueRequestError(
             {"errors": [{"msg": "dummy error"}]}, http_client.REQUEST_TIMEOUT)
 
-        with self.assertRaises(LightBlueRequestFailure):
+        with self.assertRaises(LightBlueRequestError):
             lb.find_images_with_package_from_content_set(
                 "openssl",
                 ["dummy-content-set-1"])

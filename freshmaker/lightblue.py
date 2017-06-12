@@ -21,47 +21,68 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
-import os
-import requests
 import json
+import os
+import re
+import requests
+import six
 
 from six.moves import http_client
 
 
-class LightBlueRequestFailure(Exception):
-    """Exception when fail to request from LightBlue"""
+class LightBlueError(Exception):
+    """Base class representing errors from LightBlue server"""
 
-    def __init__(self, json_response, status_code):
+    def __init__(self, status_code, error_response):
         """Initialize
 
-        :param dict json_response: the JSON data returned from LightBlue
-            which contains all error information.
         :param int status_code: repsonse status code
+        :param str or dict error_response: response content returned from
+            LightBlue server that contains error content. There are two types of
+            error. A piece of HTML when error happens in system-wide, for example,
+            requested resource does not exists (404), and internal server error (500).
+            It could also be a JSON data when error happens while LightBlue handles
+            request.
         """
-        self._raw = json_response
+        self._raw = error_response
         self._status_code = status_code
 
     def __repr__(self):
         return '<{} [{}]>'.format(self.__class__.__name__, self.status_code)
-
-    def __str__(self):
-        return 'Error{} ({}):\n{}'.format(
-            's' if len(self.errors) > 1 else '',
-            len(self.errors),
-            '\n'.join(('    {}'.format(err['msg']) for err in self.errors))
-        )
 
     @property
     def raw(self):
         return self._raw
 
     @property
-    def errors(self):
-        return self.raw['errors']
-
-    @property
     def status_code(self):
         return self._status_code
+
+
+class LightBlueSystemError(LightBlueError):
+    """LightBlue system error"""
+
+    def _get_error_message(self):
+        # Remove all newlines if there is
+        buf = six.StringIO(self.raw)
+        html = ''.join((line.strip('\n') for line in buf))
+        match = re.search('<title>(.+)</title>', html)
+        return match.groups()[0]
+
+    def __str__(self):
+        return self._get_error_message()
+
+
+class LightBlueRequestError(LightBlueError):
+    """LightBlue request error"""
+
+    def __str__(self):
+        return 'Error{} ({}):\n{}'.format(
+            's' if len(self.raw['errors']) > 1 else '',
+            len(self.raw['errors']),
+            '\n'.join(('    {}'.format(err['msg'])
+                      for err in self.raw['errors']))
+        )
 
 
 class ContainerRepository(dict):
@@ -154,12 +175,20 @@ class LightBlue(object):
 
         :param dict response: the response returned from LightBlue, which is
             actually the requests response object.
-        :raises LightBlueRequestFailure: if response status code is not 200.
-            Otherwise, just keep silient.
+        :raises LightBlueSystemError or LightBlueRequestError: if response
+            status code is not 200. Otherwise, just keep silient.
         """
-        if response.status_code == http_client.OK:
+        status_code = response.status_code
+
+        if status_code == http_client.OK:
             return
-        raise LightBlueRequestFailure(response.json(), response.status_code)
+
+        if status_code in (http_client.NOT_FOUND,
+                           http_client.INTERNAL_SERVER_ERROR,
+                           http_client.UNAUTHORIZED):
+            raise LightBlueSystemError(status_code, response.content)
+
+        raise LightBlueRequestError(status_code, response.json())
 
     def find_container_repositories(self, request):
         """Query via entity containerRepository
