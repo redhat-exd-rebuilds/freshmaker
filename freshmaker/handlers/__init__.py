@@ -65,16 +65,20 @@ class BaseHandler(object):
         mbs = MBS(conf)
         return mbs.build_module(name, branch, rev)
 
-    def build_container(self, name, branch, rev):
+    def build_container(self, name, branch, rev, namespace='container'):
         """
-        Build a container in koji.
+        Build a container in Koji.
 
-        :param container: container name.
-        :param branch: container branch.
-        :param rev: revision.
+        :param str name: container name.
+        :param str branch: container branch.
+        :param str rev: revision.
+        :param str namespace: namespace of container in dist-git. By default,
+            it is container.
+        :return: task id returned from Koji buildContainer API.
+        :rtype: int
         """
         with koji_service(profile=conf.koji_profile, logger=log) as service:
-            log.debug('Logging into {0} with Kerberos authentication.'.format(service.server))
+            log.debug('Logging into %s with Kerberos authentication.', service.server)
             proxyuser = conf.koji_build_owner if conf.koji_proxyuser else None
             service.krb_login(proxyuser=proxyuser)
 
@@ -82,13 +86,14 @@ class BaseHandler(object):
                 log.error('Could not login server %s', service.server)
                 return None
 
-            build_source = "{}/container/{}.git?#{}".format(conf.git_base_url, name, rev)
+            build_source = "{}/{}/{}.git?#{}".format(
+                conf.git_base_url, namespace, name, rev)
 
             log.debug('Building container from source: %s', build_source)
 
             return service.build_container(build_source,
                                            branch,
-                                           namespace='container',
+                                           namespace=namespace,
                                            scratch=conf.koji_container_scratch_build)
 
     def record_build(self, event, name, artifact_type, build_id, dep_of=None):
