@@ -25,8 +25,8 @@ from flask import request, jsonify
 from flask.views import MethodView
 
 from freshmaker import app
-from freshmaker.api_utils import pagination_metadata, filter_artifact_builds
-from freshmaker.models import ArtifactBuild
+from freshmaker import models
+from freshmaker.api_utils import pagination_metadata, filter_artifact_builds, filter_events
 
 api_v1 = {
     'events': {
@@ -34,6 +34,12 @@ api_v1 = {
             'url': '/freshmaker/1/events/',
             'options': {
                 'defaults': {'id': None},
+                'methods': ['GET'],
+            }
+        },
+        'event': {
+            'url': '/freshmaker/1/events/<int:id>',
+            'options': {
                 'methods': ['GET'],
             }
         },
@@ -59,7 +65,22 @@ api_v1 = {
 class EventAPI(MethodView):
 
     def get(self, id):
-        return "Done", 200
+        if id is None:
+            p_query = filter_events(request)
+
+            json_data = {
+                'meta': pagination_metadata(p_query)
+            }
+            json_data['items'] = [item.json() for item in p_query.items]
+
+            return jsonify(json_data), 200
+
+        else:
+            event = models.Event.query.filter_by(id=id).first()
+            if event:
+                return jsonify(event.json()), 200
+            else:
+                raise ValueError('No shuch event found.')
 
 
 class BuildAPI(MethodView):
@@ -75,7 +96,7 @@ class BuildAPI(MethodView):
             return jsonify(json_data), 200
 
         else:
-            build = ArtifactBuild.query.filter_by(id=id).first()
+            build = models.ArtifactBuild.query.filter_by(id=id).first()
             if build:
                 return jsonify(build.json()), 200
             else:

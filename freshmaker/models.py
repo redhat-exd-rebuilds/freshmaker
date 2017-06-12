@@ -92,6 +92,15 @@ class Event(FreshmakerBase):
     def __repr__(self):
         return "<Event %s, %r, %s>" % (self.message_id, self.event_type, self.search_key)
 
+    def json(self):
+        return {
+            "id": self.id,
+            "message_id": self.message_id,
+            "search_key": self.search_key,
+            "event_type_id": self.event_type_id,
+            "builds": [b.id for b in self.builds],
+        }
+
 
 class ArtifactBuild(FreshmakerBase):
     __tablename__ = "artifact_builds"

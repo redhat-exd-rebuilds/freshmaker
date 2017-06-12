@@ -42,6 +42,7 @@ class TestViews(unittest.TestCase):
         models.ArtifactBuild.create(db.session, event, "ed", "module", 1234)
         models.ArtifactBuild.create(db.session, event, "mksh", "module", 1235)
         models.ArtifactBuild.create(db.session, event, "bash", "module", 1236)
+        models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000002", "RHSA-2018-102", events.TestingEvent)
         db.session.commit()
         db.session.expire_all()
 
@@ -110,6 +111,32 @@ class TestViews(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             self.client.get('/freshmaker/1/builds/?state=100')
         self.assertEqual(str(ctx.exception), 'An invalid state was supplied')
+
+    def test_query_event(self):
+        resp = self.client.get('/freshmaker/1/events/1')
+        data = json.loads(resp.data.decode('utf8'))
+        self.assertEqual(data['id'], 1)
+        self.assertEqual(data['message_id'], '2017-00000000-0000-0000-0000-000000000001')
+        self.assertEqual(data['search_key'], 'RHSA-2018-101')
+        self.assertEqual(data['event_type_id'], models.EVENT_TYPES[events.TestingEvent])
+        self.assertEqual(data['builds'], [1, 2, 3])
+
+    def test_query_events(self):
+        resp = self.client.get('/freshmaker/1/events/')
+        evs = json.loads(resp.data.decode('utf8'))['items']
+        self.assertEqual(len(evs), 2)
+
+    def test_query_event_by_message_id(self):
+        resp = self.client.get('/freshmaker/1/events/?message_id=2017-00000000-0000-0000-0000-000000000001')
+        evs = json.loads(resp.data.decode('utf8'))['items']
+        self.assertEqual(len(evs), 1)
+        self.assertEqual(evs[0]['message_id'], '2017-00000000-0000-0000-0000-000000000001')
+
+    def test_query_event_by_search_key(self):
+        resp = self.client.get('/freshmaker/1/events/?search_key=RHSA-2018-101')
+        evs = json.loads(resp.data.decode('utf8'))['items']
+        self.assertEqual(len(evs), 1)
+        self.assertEqual(evs[0]['search_key'], 'RHSA-2018-101')
 
 
 if __name__ == '__main__':

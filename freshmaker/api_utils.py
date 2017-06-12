@@ -22,7 +22,7 @@
 from flask import request, url_for
 
 from freshmaker.types import ArtifactType, ArtifactBuildState
-from freshmaker.models import ArtifactBuild
+from freshmaker.models import ArtifactBuild, Event
 
 
 def pagination_metadata(p_query):
@@ -90,6 +90,28 @@ def filter_artifact_builds(flask_request):
             search_query[key] = flask_request.args[key]
 
     query = ArtifactBuild.query
+
+    if search_query:
+        query = query.filter_by(**search_query)
+
+    page = flask_request.args.get('page', 1, type=int)
+    per_page = flask_request.args.get('per_page', 10, type=int)
+    return query.paginate(page, per_page, False)
+
+
+def filter_events(flask_request):
+    """
+    Returns a flask_sqlalchemy.Pagination object based on the request parameters
+    :param request: Flask request object
+    :return: flask_sqlalchemy.Pagination
+    """
+    search_query = dict()
+
+    for key in ['message_id', 'search_key', 'event_type_id']:
+        if flask_request.args.get(key, None):
+            search_query[key] = flask_request.args[key]
+
+    query = Event.query
 
     if search_query:
         query = query.filter_by(**search_query)
