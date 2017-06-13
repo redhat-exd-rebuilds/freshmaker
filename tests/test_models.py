@@ -22,9 +22,8 @@
 
 import unittest
 
-from freshmaker import db
+from freshmaker import db, events
 from freshmaker.models import Event, ArtifactBuild
-from freshmaker.events import TestingEvent
 
 
 class TestModels(unittest.TestCase):
@@ -40,7 +39,7 @@ class TestModels(unittest.TestCase):
         db.session.commit()
 
     def test_creating_event_and_builds(self):
-        event = Event.create(db.session, "test_msg_id", "RHSA-2017-284", TestingEvent)
+        event = Event.create(db.session, "test_msg_id", "RHSA-2017-284", events.TestingEvent)
         build = ArtifactBuild.create(db.session, event, "ed", "module", 1234)
         ArtifactBuild.create(db.session, event, "mksh", "module", 1235, build)
         db.session.commit()
@@ -49,7 +48,7 @@ class TestModels(unittest.TestCase):
         e = db.session.query(Event).filter(event.id == 1).one()
         self.assertEqual(e.message_id, "test_msg_id")
         self.assertEqual(e.search_key, "RHSA-2017-284")
-        self.assertEqual(e.event_type, TestingEvent)
+        self.assertEqual(e.event_type, events.TestingEvent)
         self.assertEqual(len(e.builds), 2)
 
         self.assertEqual(e.builds[0].name, "ed")
@@ -65,7 +64,7 @@ class TestModels(unittest.TestCase):
         self.assertEqual(e.builds[1].dep_of.name, "ed")
 
     def test_get_root_dep_of(self):
-        event = Event.create(db.session, "test_msg_id", "test", TestingEvent)
+        event = Event.create(db.session, "test_msg_id", "test", events.TestingEvent)
         build1 = ArtifactBuild.create(db.session, event, "ed", "module", 1234)
         build2 = ArtifactBuild.create(db.session, event, "mksh", "module", 1235, build1)
         build3 = ArtifactBuild.create(db.session, event, "runtime", "module", 1236, build2)
