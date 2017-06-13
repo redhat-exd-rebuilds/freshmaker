@@ -21,6 +21,7 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
+import json
 import requests
 
 
@@ -33,12 +34,29 @@ class Pulp(object):
         self.server_url = server_url
         self.rest_api_root = '{0}/pulp/api/v2/'.format(self.server_url.rstrip('/'))
 
-    def _rest_get(self, endpoint):
-        r = requests.get('{0}{1}'.format(self.rest_api_root, endpoint.lstrip('/')),
-                         auth=(self.username, self.password))
+    def _rest_post(self, endpoint, post_data):
+        r = requests.post(
+            '{0}{1}'.format(self.rest_api_root, endpoint.lstrip('/')),
+            post_data,
+            auth=(self.username, self.password))
         r.raise_for_status()
         return r.json()
 
-    def get_content_set_by_repo_id(self, repo_id):
-        data = self._rest_get('repositories/{0}/'.format(repo_id))
-        return data['notes']['content_set']
+    def get_content_set_by_repo_ids(self, repo_ids):
+        """Get content_sets by repository IDs
+
+        :param list repo_ids: list of repository IDs.
+        :return: list of names of content_sets.
+        :rtype: list
+        """
+        query_data = {
+            'criteria': {
+                'filters': {
+                    'id': {'$in': repo_ids},
+                },
+                'fields': ['notes.content_set'],
+            }
+        }
+        repos = self._rest_post('repositories/search/', json.dumps(query_data))
+        return [repo['notes']['content_set'] for repo in repos
+                if 'content_set' in repo['notes']]

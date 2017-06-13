@@ -21,6 +21,7 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
+import json
 import unittest
 
 from mock import patch
@@ -36,34 +37,123 @@ class TestPulp(unittest.TestCase):
         self.username = 'qa'
         self.password = 'qa'
 
-    @patch('freshmaker.pulp.requests.get')
-    def test_query_content_set_by_repo_id(self, get):
-        get.return_value.json.return_value = {
-            'id': 'rhel-7-desktop-debug-rpms__7Client__x86_64',
-            '_ns': 'repos',
-            'content_unit_counts': {
-                'erratum': 1420,
-                'rpm': 4773
+    @patch('freshmaker.pulp.requests.post')
+    def test_query_content_set_by_repo_ids(self, post):
+        post.return_value.json.return_value = [
+            {
+                '_href': '/pulp/api/v2/repositories/rhel-7-workstation-rpms__7Workstation__x86_64/',
+                '_id':
+                {
+                    '$oid': '53853a247bc9f61b85909cfe'
+                },
+                'id': 'rhel-7-workstation-rpms__7Workstation__x86_64',
+                'notes':
+                {
+                    'content_set': 'rhel-7-workstation-rpms',
+                },
             },
-            '_id': {
-                '$oid': '5384ee687bc9f619942a8b47'
+            {
+                '_href': '/pulp/api/v2/repositories/rhel-7-hpc-node-rpms__7ComputeNode__x86_64/',
+                '_id': {
+                    '$oid': '5384ee7c7bc9f619942a8f89',
+                },
+                'id': 'rhel-7-hpc-node-rpms__7ComputeNode__x86_64',
+                'notes': {
+                    'content_set': 'rhel-7-hpc-node-rpms'
+                },
             },
-            'last_unit_added': '2017-06-02T15:01:06Z',
-            'notes': {
-                'arch': 'x86_64',
-                'content_set': 'rhel-7-desktop-debug-rpms',
-                'platform_full_version': '7',
-            },
-            'display_name': 'rhel-7-desktop-debug-rpms__7Client__x86_64',
-            'description': None,
-        }
+            {
+                '_href': '/pulp/api/v2/repositories/rhel-7-desktop-rpms__7Client__x86_64/',
+                '_id': {
+                    '$oid': '5384ee6a7bc9f619942a8bca',
+                },
+                'id': 'rhel-7-desktop-rpms__7Client__x86_64',
+                'notes': {
+                    'content_set': 'rhel-7-desktop-rpms',
+                }
+            }
+        ]
 
         pulp = Pulp(self.server_url, username=self.username, password=self.password)
-        repo_id = 'rhel-7-desktop-debug-rpms__7Client__x86_64'
-        content_set = pulp.get_content_set_by_repo_id(repo_id)
+        repo_ids = [
+            'rhel-7-hpc-node-rpms__7ComputeNode__x86_64',
+            'rhel-7-workstation-rpms__7Workstation__x86_64',
+            'rhel-7-desktop-rpms__7Client__x86_64',
+        ]
+        content_sets = pulp.get_content_set_by_repo_ids(repo_ids)
 
-        get.assert_called_once_with(
-            '{}pulp/api/v2/repositories/{}/'.format(self.server_url, repo_id),
+        post.assert_called_once_with(
+            '{}pulp/api/v2/repositories/search/'.format(self.server_url),
+            json.dumps({
+                'criteria': {
+                    'filters': {
+                        'id': {'$in': repo_ids},
+                    },
+                    'fields': ['notes.content_set'],
+                }
+            }),
             auth=(self.username, self.password))
 
-        self.assertEqual('rhel-7-desktop-debug-rpms', content_set)
+        self.assertEqual(
+            ['rhel-7-workstation-rpms',
+             'rhel-7-hpc-node-rpms',
+             'rhel-7-desktop-rpms'],
+            content_sets)
+
+    @patch('freshmaker.pulp.requests.post')
+    def test_get_content_sets_by_ignoring_nonexisting_ones(self, post):
+        post.return_value.json.return_value = [
+            {
+                '_href': '/pulp/api/v2/repositories/rhel-7-workstation-rpms__7Workstation__x86_64/',
+                '_id':
+                {
+                    '$oid': '53853a247bc9f61b85909cfe'
+                },
+                'id': 'rhel-7-workstation-rpms__7Workstation__x86_64',
+                'notes':
+                {
+                    'content_set': 'rhel-7-workstation-rpms',
+                },
+            },
+            {
+                '_href': '/pulp/api/v2/repositories/rhel-7-hpc-node-rpms__7ComputeNode__x86_64/',
+                '_id': {
+                    '$oid': '5384ee7c7bc9f619942a8f89',
+                },
+                'id': 'rhel-7-hpc-node-rpms__7ComputeNode__x86_64',
+                'notes': {},
+            },
+            {
+                '_href': '/pulp/api/v2/repositories/rhel-7-desktop-rpms__7Client__x86_64/',
+                '_id': {
+                    '$oid': '5384ee6a7bc9f619942a8bca',
+                },
+                'id': 'rhel-7-desktop-rpms__7Client__x86_64',
+                'notes': {
+                    'content_set': 'rhel-7-desktop-rpms',
+                }
+            }
+        ]
+
+        pulp = Pulp(self.server_url, username=self.username, password=self.password)
+        repo_ids = [
+            'rhel-7-hpc-node-rpms__7ComputeNode__x86_64',
+            'rhel-7-workstation-rpms__7Workstation__x86_64',
+            'rhel-7-desktop-rpms__7Client__x86_64',
+        ]
+        content_sets = pulp.get_content_set_by_repo_ids(repo_ids)
+
+        post.assert_called_once_with(
+            '{}pulp/api/v2/repositories/search/'.format(self.server_url),
+            json.dumps({
+                'criteria': {
+                    'filters': {
+                        'id': {'$in': repo_ids},
+                    },
+                    'fields': ['notes.content_set'],
+                }
+            }),
+            auth=(self.username, self.password))
+
+        self.assertEqual(['rhel-7-workstation-rpms', 'rhel-7-desktop-rpms'],
+                         content_sets)
