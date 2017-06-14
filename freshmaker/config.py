@@ -81,7 +81,6 @@ def init_config(app):
             config_module = imp.load_source('freshmaker_runtime_config',
                                             config_file)
         except:
-            raise
             raise SystemError("Configuration file {} was not found."
                               .format(config_file))
 
