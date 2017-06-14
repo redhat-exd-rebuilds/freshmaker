@@ -25,7 +25,10 @@ class BaseConfiguration(config.BaseConfiguration):
     ]
 
     HANDLERS = [
+        'freshmaker.handlers.brew:BrewSignRPMHanlder',
     ]
+
+    KOJI_PROFILE = 'brew'
 
     # LightBlue server URL, e.g. http://localhost/
     LIGHTBLUE_SERVER_URL = ''  # replace with default server url

@@ -28,12 +28,14 @@ from freshmaker.errata import Errata
 from freshmaker.events import BrewSignRPMEvent, GitRPMSpecChangeEvent
 
 
-class MockedErrataRESTAPI(object):
+class MockedErrataAPI(object):
     """
     Class mocking methods accessing Errata API in Errata class.
     """
-    def __init__(self, errata_rest_get):
+    def __init__(self, errata_rest_get, errata_http_get=None):
         errata_rest_get.side_effect = (self.errata_rest_get)
+        if errata_http_get:
+            errata_http_get.side_effect = self.errata_http_get
 
         self.builds_json = {
             "PRODUCT1": [
@@ -67,11 +69,13 @@ class MockedErrataRESTAPI(object):
             "rpms_signed": True}
 
     def errata_rest_get(self, endpoint):
-        if endpoint.endswith("builds.json"):
-            return self.builds_json
-        elif endpoint.find("build/") != -1:
+        if endpoint.find("build/") != -1:
             nvr = endpoint.split("/")[-1]
             return self.builds[nvr]
+
+    def errata_http_get(self, endpoint):
+        if endpoint.endswith("builds.json"):
+            return self.builds_json
 
 
 class TestErrata(unittest.TestCase):
@@ -80,7 +84,7 @@ class TestErrata(unittest.TestCase):
 
     @patch.object(Errata, "_errata_rest_get")
     def test_advisories_from_event(self, errata_rest_get):
-        MockedErrataRESTAPI(errata_rest_get)
+        MockedErrataAPI(errata_rest_get)
         event = BrewSignRPMEvent("msgid", "libntirpc-1.4.3-4.el7rhgs")
         advisories = self.errata.advisories_from_event(event)
         self.assertEqual(len(advisories), 1)
@@ -88,7 +92,7 @@ class TestErrata(unittest.TestCase):
 
     @patch.object(Errata, "_errata_rest_get")
     def test_advisories_from_event_missing_all_errata(self, errata_rest_get):
-        mocked_errata = MockedErrataRESTAPI(errata_rest_get)
+        mocked_errata = MockedErrataAPI(errata_rest_get)
         del mocked_errata.builds["libntirpc-1.4.3-4.el7rhgs"]["all_errata"]
 
         event = BrewSignRPMEvent("msgid", "libntirpc-1.4.3-4.el7rhgs")
@@ -101,19 +105,22 @@ class TestErrata(unittest.TestCase):
             self.errata.advisories_from_event(event)
 
     @patch.object(Errata, "_errata_rest_get")
-    def test_builds_signed_all_signed(self, errata_rest_get):
-        MockedErrataRESTAPI(errata_rest_get)
+    @patch.object(Errata, "_errata_http_get")
+    def test_builds_signed_all_signed(self, errata_http_get, errata_rest_get):
+        MockedErrataAPI(errata_rest_get, errata_http_get)
         self.assertTrue(self.errata.builds_signed(28484))
 
     @patch.object(Errata, "_errata_rest_get")
-    def test_builds_signed_some_unsigned(self, errata_rest_get):
-        mocked_errata = MockedErrataRESTAPI(errata_rest_get)
+    @patch.object(Errata, "_errata_http_get")
+    def test_builds_signed_some_unsigned(self, errata_http_get, errata_rest_get):
+        mocked_errata = MockedErrataAPI(errata_rest_get, errata_http_get)
         mocked_errata.builds["libntirpc-1.4.3-4.el7rhgs"]["rpms_signed"] = False
         self.assertFalse(self.errata.builds_signed(28484))
 
     @patch.object(Errata, "_errata_rest_get")
-    def test_builds_signed_missing_data(self, errata_rest_get):
-        mocked_errata = MockedErrataRESTAPI(errata_rest_get)
+    @patch.object(Errata, "_errata_http_get")
+    def test_builds_signed_missing_data(self, errata_http_get, errata_rest_get):
+        mocked_errata = MockedErrataAPI(errata_rest_get, errata_http_get)
         mocked_errata.builds["libntirpc-1.4.3-4.el7rhgs"] = {}
         self.assertFalse(self.errata.builds_signed(28484))
 

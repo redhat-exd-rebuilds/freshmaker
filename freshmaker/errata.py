@@ -104,7 +104,7 @@ class Errata(object):
         :return: True if all builds in advisory are signed.
         :rtype: bool
         """
-        builds_per_product = self._errata_rest_get(
+        builds_per_product = self._errata_http_get(
             "advisory/%s/builds.json" % str(errata_id))
 
         # Store NVRs of all builds in advisory to nvrs set.

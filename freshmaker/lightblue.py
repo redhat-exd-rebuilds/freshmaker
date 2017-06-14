@@ -127,7 +127,7 @@ class LightBlue(object):
             will be used on each entity.
         """
         self.server_url = server_url.rstrip('/')
-        self.api_root = '{}/rest/data'.format(server_url)
+        self.api_root = '{}/rest/data'.format(self.server_url)
         if verify_ssl is None:
             self.verify_ssl = True
         else:
@@ -375,7 +375,6 @@ class LightBlue(object):
                     break
 
             for rpm in image["parsed_data"]["rpm_manifest"]:
-                print(rpm)
                 if rpm["srpm_name"] == srpm_name:
                     srpm_nevra = rpm['srpm_nevra']
                     break
@@ -385,5 +384,6 @@ class LightBlue(object):
             reponame = reponame.replace("/plain/Dockerfile", "")
             commits.append({"repository": reponame,
                             "commit": commit,
-                            "srpm_nevra": srpm_nevra})
+                            "srpm_nevra": srpm_nevra,
+                            "brew": image["brew"]})
         return commits

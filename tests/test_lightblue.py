@@ -519,12 +519,22 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                              {
                                  "repository": "rpms/repo-1",
                                  "commit": "commit_hash1",
-                                 "srpm_nevra": "openssl-0:1.2.3-1.src"
+                                 "srpm_nevra": "openssl-0:1.2.3-1.src",
+                                 "brew": {
+                                     "completion_date": u"20170421T04:27:51.000-0400",
+                                     "build": "package-name-1-4-12.10",
+                                     "package": "package-name-1"
+                                 }
                              },
                              {
                                  "repository": "ns/repo-2",
                                  "commit": "commit_hash2",
-                                 "srpm_nevra": "openssl-1:1.2.3-1.src"
+                                 "srpm_nevra": "openssl-1:1.2.3-1.src",
+                                 "brew": {
+                                     "completion_date": u"20170421T04:27:51.000-0400",
+                                     "build": "package-name-2-4-12.10",
+                                     "package": "package-name-2"
+                                 }
                              }
                          ])
 
