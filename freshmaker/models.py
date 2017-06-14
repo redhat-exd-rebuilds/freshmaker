@@ -113,8 +113,8 @@ class ArtifactBuild(FreshmakerBase):
 
     # Link to the Artifact on which this one depends and which triggered
     # the rebuild of this Artifact.
-    dep_of_id = db.Column(db.Integer, db.ForeignKey('artifact_builds.id'))
-    dep_of = relationship('ArtifactBuild', remote_side=[id])
+    dep_on_id = db.Column(db.Integer, db.ForeignKey('artifact_builds.id'))
+    dep_on = relationship('ArtifactBuild', remote_side=[id])
 
     # Event associated with this Build
     event_id = db.Column(db.Integer, db.ForeignKey('events.id'))
@@ -124,7 +124,7 @@ class ArtifactBuild(FreshmakerBase):
     build_id = db.Column(db.Integer)
 
     @classmethod
-    def create(cls, session, event, name, type, build_id, dep_of=None):
+    def create(cls, session, event, name, type, build_id, dep_on=None):
         now = datetime.utcnow()
         build = cls(
             name=name,
@@ -133,7 +133,7 @@ class ArtifactBuild(FreshmakerBase):
             state="build",
             build_id=build_id,
             time_submitted=now,
-            dep_of=dep_of
+            dep_on=dep_on
         )
         session.add(build)
         return build
@@ -171,12 +171,12 @@ class ArtifactBuild(FreshmakerBase):
             "build_id": self.build_id,
         }
 
-    def get_root_dep_of(self):
-        dep_of = self.dep_of
-        while dep_of:
-            dep = dep_of.dep_of
+    def get_root_dep_on(self):
+        dep_on = self.dep_on
+        while dep_on:
+            dep = dep_on.dep_on
             if dep:
-                dep_of = dep
+                dep_on = dep
             else:
                 break
-        return dep_of
+        return dep_on

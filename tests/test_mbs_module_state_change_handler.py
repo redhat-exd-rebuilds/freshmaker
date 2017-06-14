@@ -212,7 +212,7 @@ class MBSModuleStateChangeHandlerTest(helpers.FreshmakerTestCase):
         handler = MBSModuleStateChangeHandler()
 
         # Assume we have build of module1 recorded in DB already, it doesn't has
-        # any dep_of as it was initial triggered by an event which is not
+        # any dep_on as it was initial triggered by an event which is not
         # associated with any build in our DB.
         event = models.Event.create(db.session, "initial_msg_id", "test", events.TestingEvent)
         models.ArtifactBuild.create(db.session, event, "module1", "module", '123')

@@ -55,15 +55,15 @@ class TestModels(unittest.TestCase):
         self.assertEqual(e.builds[0].type, 2)
         self.assertEqual(e.builds[0].state, 0)
         self.assertEqual(e.builds[0].build_id, 1234)
-        self.assertEqual(e.builds[0].dep_of, None)
+        self.assertEqual(e.builds[0].dep_on, None)
 
         self.assertEqual(e.builds[1].name, "mksh")
         self.assertEqual(e.builds[1].type, 2)
         self.assertEqual(e.builds[1].state, 0)
         self.assertEqual(e.builds[1].build_id, 1235)
-        self.assertEqual(e.builds[1].dep_of.name, "ed")
+        self.assertEqual(e.builds[1].dep_on.name, "ed")
 
-    def test_get_root_dep_of(self):
+    def test_get_root_dep_on(self):
         event = Event.create(db.session, "test_msg_id", "test", events.TestingEvent)
         build1 = ArtifactBuild.create(db.session, event, "ed", "module", 1234)
         build2 = ArtifactBuild.create(db.session, event, "mksh", "module", 1235, build1)
@@ -71,7 +71,7 @@ class TestModels(unittest.TestCase):
         build4 = ArtifactBuild.create(db.session, event, "perl-runtime", "module", 1237, build3)
         db.session.commit()
         db.session.expire_all()
-        self.assertEqual(build1.get_root_dep_of(), None)
-        self.assertEqual(build2.get_root_dep_of(), build1)
-        self.assertEqual(build3.get_root_dep_of(), build1)
-        self.assertEqual(build4.get_root_dep_of(), build1)
+        self.assertEqual(build1.get_root_dep_on(), None)
+        self.assertEqual(build2.get_root_dep_on(), build1)
+        self.assertEqual(build3.get_root_dep_on(), build1)
+        self.assertEqual(build4.get_root_dep_on(), build1)

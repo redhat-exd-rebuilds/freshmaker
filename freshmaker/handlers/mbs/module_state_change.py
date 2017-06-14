@@ -75,7 +75,7 @@ class MBSModuleStateChangeHandler(BaseHandler):
             if module_build:
                 # we have this build recorded in DB, check to prevent
                 # cyclic build loop
-                root_dep = module_build.get_root_dep_of()
+                root_dep = module_build.get_root_dep_on()
                 if root_dep and root_dep.name == module_name:
                     log.info("Skipping the rebuild triggered by %s:%s as it will"
                              "result in cyclic build loop.", module_name, module_stream)
@@ -98,6 +98,6 @@ class MBSModuleStateChangeHandler(BaseHandler):
                 rev = utils.bump_distgit_repo('modules', name, branch=version, commit_msg=commit_msg, logger=log)
                 new_build_id = self.build_module(name, version, rev)
                 if new_build_id is not None:
-                    self.record_build(event, name, ArtifactType.MODULE, new_build_id, dep_of=module_build)
+                    self.record_build(event, name, ArtifactType.MODULE, new_build_id, dep_on=module_build)
 
         return []

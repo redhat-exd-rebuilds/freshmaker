@@ -96,7 +96,7 @@ class BaseHandler(object):
                                            namespace=namespace,
                                            scratch=conf.koji_container_scratch_build)
 
-    def record_build(self, event, name, artifact_type, build_id, dep_of=None):
+    def record_build(self, event, name, artifact_type, build_id, dep_on=None):
         """
         Record build in db.
 
@@ -108,7 +108,7 @@ class BaseHandler(object):
         """
         ev = models.Event.get_or_create(db.session, event.msg_id,
                                         event.search_key, event.__class__)
-        models.ArtifactBuild.create(db.session, ev, name, artifact_type.name.lower(), build_id, dep_of)
+        models.ArtifactBuild.create(db.session, ev, name, artifact_type.name.lower(), build_id, dep_on)
         db.session.commit()
 
     def allow_build(self, artifact_type, name, branch):
