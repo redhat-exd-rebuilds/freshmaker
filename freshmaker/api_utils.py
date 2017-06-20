@@ -21,6 +21,7 @@
 
 from flask import request, url_for
 
+from freshmaker import db
 from freshmaker.types import ArtifactType, ArtifactBuildState
 from freshmaker.models import ArtifactBuild, Event
 
@@ -93,6 +94,17 @@ def filter_artifact_builds(flask_request):
 
     if search_query:
         query = query.filter_by(**search_query)
+
+    event_type_id = flask_request.args.get('event_type_id', None)
+    if event_type_id:
+        query = query.join(Event).filter(Event.event_type_id == event_type_id)
+
+    event_search_key = flask_request.args.get('event_search_key', None)
+    if event_search_key:
+        # use alias to avoid 'ambiguous column name' error when we have both
+        # event_type_id and event_search_key specified.
+        ea = db.aliased(Event)
+        query = query.join(ea).filter(ea.search_key == event_search_key)
 
     page = flask_request.args.get('page', 1, type=int)
     per_page = flask_request.args.get('per_page', 10, type=int)

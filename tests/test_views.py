@@ -112,6 +112,59 @@ class TestViews(unittest.TestCase):
             self.client.get('/freshmaker/1/builds/?state=100')
         self.assertEqual(str(ctx.exception), 'An invalid state was supplied')
 
+    def test_query_build_by_event_type_id(self):
+        event1 = models.Event.create(db.session,
+                                     "2018-00000000-0000-0000-0000-000000000001",
+                                     "testmodule/master/?#0000000000000000000000000000000000000001",
+                                     events.GitModuleMetadataChangeEvent)
+        build1 = models.ArtifactBuild.create(db.session, event1, "testmodule", "module", 2345)
+        event2 = models.Event.create(db.session,
+                                     "2018-00000000-0000-0000-0000-000000000002",
+                                     "2345",
+                                     events.MBSModuleStateChangeEvent)
+        models.ArtifactBuild.create(db.session, event2, "testmodule2", "module", 2346, build1)
+
+        event3 = models.Event.create(db.session,
+                                     "2018-00000000-0000-0000-0000-000000000003",
+                                     "testmodule3/master/?#0000000000000000000000000000000000000001",
+                                     events.GitModuleMetadataChangeEvent)
+        models.ArtifactBuild.create(db.session, event3, "testmodule3", "module", 2347, build1)
+        db.session.commit()
+
+        resp = self.client.get('/freshmaker/1/builds/?event_type_id=%s' % models.EVENT_TYPES[events.TestingEvent])
+        builds = json.loads(resp.data.decode('utf8'))['items']
+        self.assertEqual(len(builds), 3)
+
+        resp = self.client.get('/freshmaker/1/builds/?event_type_id=%s' % models.EVENT_TYPES[events.GitModuleMetadataChangeEvent])
+        builds = json.loads(resp.data.decode('utf8'))['items']
+        self.assertEqual(len(builds), 2)
+
+        resp = self.client.get('/freshmaker/1/builds/?event_type_id=%s' % models.EVENT_TYPES[events.MBSModuleStateChangeEvent])
+        builds = json.loads(resp.data.decode('utf8'))['items']
+        self.assertEqual(len(builds), 1)
+
+        resp = self.client.get('/freshmaker/1/builds/?event_type_id=%s' % models.EVENT_TYPES[events.KojiTaskStateChangeEvent])
+        builds = json.loads(resp.data.decode('utf8'))['items']
+        self.assertEqual(len(builds), 0)
+
+    def test_query_build_by_event_search_key(self):
+        resp = self.client.get('/freshmaker/1/builds/?event_search_key=RHSA-2018-101')
+        builds = json.loads(resp.data.decode('utf8'))['items']
+        self.assertEqual(len(builds), 3)
+
+        resp = self.client.get('/freshmaker/1/builds/?event_search_key=RHSA-2018-102')
+        builds = json.loads(resp.data.decode('utf8'))['items']
+        self.assertEqual(len(builds), 0)
+
+    def test_query_build_by_event_type_id_and_search_key(self):
+        resp = self.client.get('/freshmaker/1/builds/?event_type_id=%s&event_search_key=RHSA-2018-101' % models.EVENT_TYPES[events.TestingEvent])
+        builds = json.loads(resp.data.decode('utf8'))['items']
+        self.assertEqual(len(builds), 3)
+
+        resp = self.client.get('/freshmaker/1/builds/?event_type_id=%s&event_search_key=RHSA-2018-102' % models.EVENT_TYPES[events.TestingEvent])
+        builds = json.loads(resp.data.decode('utf8'))['items']
+        self.assertEqual(len(builds), 0)
+
     def test_query_event(self):
         resp = self.client.get('/freshmaker/1/events/1')
         data = json.loads(resp.data.decode('utf8'))
