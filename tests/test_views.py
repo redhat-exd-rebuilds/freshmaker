@@ -21,6 +21,7 @@
 
 import unittest
 import json
+import six
 
 from freshmaker import app, db, events, models
 from freshmaker.types import ArtifactType, ArtifactBuildState
@@ -190,6 +191,63 @@ class TestViews(unittest.TestCase):
         evs = json.loads(resp.data.decode('utf8'))['items']
         self.assertEqual(len(evs), 1)
         self.assertEqual(evs[0]['search_key'], 'RHSA-2018-101')
+
+    def test_query_event_types(self):
+        resp = self.client.get('/freshmaker/1/event-types/')
+        event_types = json.loads(resp.data.decode('utf8'))['items']
+        self.assertEqual(len(event_types), len(models.EVENT_TYPES))
+
+    def test_query_event_type(self):
+        for cls, val in six.iteritems(models.EVENT_TYPES):
+            resp = self.client.get('/freshmaker/1/event-types/%s' % val)
+            event = json.loads(resp.data.decode('utf8'))
+            self.assertEqual(event['id'], val)
+            self.assertEqual(event['name'], cls.__name__)
+
+    def test_query_nonexist_event_type(self):
+        resp = self.client.get('/freshmaker/1/event-types/99999')
+        data = json.loads(resp.data.decode('utf8'))
+        self.assertEqual(data['status'], 404)
+        self.assertEqual(data['error'], 'Not Found')
+        self.assertEqual(data['message'], 'No such event type found.')
+
+    def test_query_build_types(self):
+        resp = self.client.get('/freshmaker/1/build-types/')
+        build_types = json.loads(resp.data.decode('utf8'))['items']
+        self.assertEqual(len(build_types), len(list(ArtifactType)))
+
+    def test_query_build_type(self):
+        for t in list(ArtifactType):
+            resp = self.client.get('/freshmaker/1/build-types/%s' % t.value)
+            build_type = json.loads(resp.data.decode('utf8'))
+            self.assertEqual(build_type['id'], t.value)
+            self.assertEqual(build_type['name'], t.name)
+
+    def test_query_nonexist_build_type(self):
+        resp = self.client.get('/freshmaker/1/build-types/99999')
+        data = json.loads(resp.data.decode('utf8'))
+        self.assertEqual(data['status'], 404)
+        self.assertEqual(data['error'], 'Not Found')
+        self.assertEqual(data['message'], 'No such build type found.')
+
+    def test_query_build_states(self):
+        resp = self.client.get('/freshmaker/1/build-states/')
+        build_types = json.loads(resp.data.decode('utf8'))['items']
+        self.assertEqual(len(build_types), len(list(ArtifactBuildState)))
+
+    def test_query_build_state(self):
+        for t in list(ArtifactBuildState):
+            resp = self.client.get('/freshmaker/1/build-states/%s' % t.value)
+            build_type = json.loads(resp.data.decode('utf8'))
+            self.assertEqual(build_type['id'], t.value)
+            self.assertEqual(build_type['name'], t.name)
+
+    def test_query_nonexist_build_state(self):
+        resp = self.client.get('/freshmaker/1/build-states/99999')
+        data = json.loads(resp.data.decode('utf8'))
+        self.assertEqual(data['status'], 404)
+        self.assertEqual(data['error'], 'Not Found')
+        self.assertEqual(data['message'], 'No such build state found.')
 
 
 if __name__ == '__main__':

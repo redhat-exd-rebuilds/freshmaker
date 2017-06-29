@@ -21,14 +21,64 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
+import six
 from flask import request, jsonify
 from flask.views import MethodView
 
 from freshmaker import app
+from freshmaker import types
 from freshmaker import models
-from freshmaker.api_utils import pagination_metadata, filter_artifact_builds, filter_events
+from freshmaker.api_utils import pagination_metadata
+from freshmaker.api_utils import filter_artifact_builds
+from freshmaker.api_utils import filter_events
+from freshmaker.api_utils import json_error
 
 api_v1 = {
+    'event_types': {
+        'event_types_list': {
+            'url': '/freshmaker/1/event-types/',
+            'options': {
+                'defaults': {'id': None},
+                'methods': ['GET'],
+            }
+        },
+        'event_type': {
+            'url': '/freshmaker/1/event-types/<int:id>',
+            'options': {
+                'methods': ['GET'],
+            }
+        },
+    },
+    'build_types': {
+        'build_types_list': {
+            'url': '/freshmaker/1/build-types/',
+            'options': {
+                'defaults': {'id': None},
+                'methods': ['GET'],
+            }
+        },
+        'build_type': {
+            'url': '/freshmaker/1/build-types/<int:id>',
+            'options': {
+                'methods': ['GET'],
+            }
+        },
+    },
+    'build_states': {
+        'build_states_list': {
+            'url': '/freshmaker/1/build-states/',
+            'options': {
+                'defaults': {'id': None},
+                'methods': ['GET'],
+            }
+        },
+        'build_state': {
+            'url': '/freshmaker/1/build-states/<int:id>',
+            'options': {
+                'methods': ['GET'],
+            }
+        },
+    },
     'events': {
         'events_list': {
             'url': '/freshmaker/1/events/',
@@ -62,8 +112,70 @@ api_v1 = {
 }
 
 
-class EventAPI(MethodView):
+class EventTypeAPI(MethodView):
+    def get(self, id):
+        event_types = []
+        for cls, val in six.iteritems(models.EVENT_TYPES):
+            event_types.append({'name': cls.__name__, 'id': val})
 
+        if id is None:
+            json_data = {}
+            json_data['items'] = event_types
+
+            return jsonify(json_data), 200
+
+        else:
+            event_type = [x for x in event_types if x['id'] == id]
+
+            if event_type:
+                return jsonify(event_type.pop()), 200
+            else:
+                return json_error(404, "Not Found", "No such event type found.")
+
+
+class BuildTypeAPI(MethodView):
+    def get(self, id):
+        build_types = []
+        for x in list(types.ArtifactType):
+            build_types.append({'name': x.name, 'id': x.value})
+
+        if id is None:
+            json_data = {}
+            json_data['items'] = build_types
+
+            return jsonify(json_data), 200
+
+        else:
+            build_type = [x for x in build_types if x['id'] == id]
+
+            if build_type:
+                return jsonify(build_type.pop()), 200
+            else:
+                return json_error(404, "Not Found", "No such build type found.")
+
+
+class BuildStateAPI(MethodView):
+    def get(self, id):
+        build_states = []
+        for x in list(types.ArtifactBuildState):
+            build_states.append({'name': x.name, 'id': x.value})
+
+        if id is None:
+            json_data = {}
+            json_data['items'] = build_states
+
+            return jsonify(json_data), 200
+
+        else:
+            build_state = [x for x in build_states if x['id'] == id]
+
+            if build_state:
+                return jsonify(build_state.pop()), 200
+            else:
+                return json_error(404, "Not Found", "No such build state found.")
+
+
+class EventAPI(MethodView):
     def get(self, id):
         if id is None:
             p_query = filter_events(request)
@@ -80,7 +192,7 @@ class EventAPI(MethodView):
             if event:
                 return jsonify(event.json()), 200
             else:
-                raise ValueError('No shuch event found.')
+                return json_error(404, "Not Found", "No such event found.")
 
 
 class BuildAPI(MethodView):
@@ -100,12 +212,15 @@ class BuildAPI(MethodView):
             if build:
                 return jsonify(build.json()), 200
             else:
-                raise ValueError('No such build found.')
+                return json_error(404, "Not Found", "No such build found.")
 
 
 API_V1_MAPPING = {
     'events': EventAPI,
     'builds': BuildAPI,
+    'event_types': EventTypeAPI,
+    'build_types': BuildTypeAPI,
+    'build_states': BuildStateAPI,
 }
 
 

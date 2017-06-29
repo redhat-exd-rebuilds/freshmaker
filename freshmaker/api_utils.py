@@ -19,7 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from flask import request, url_for
+from flask import request, url_for, jsonify
 
 from freshmaker import db
 from freshmaker.types import ArtifactType, ArtifactBuildState
@@ -131,3 +131,11 @@ def filter_events(flask_request):
     page = flask_request.args.get('page', 1, type=int)
     per_page = flask_request.args.get('per_page', 10, type=int)
     return query.paginate(page, per_page, False)
+
+
+def json_error(status, error, message):
+    response = jsonify({'status': status,
+                        'error': error,
+                        'message': message})
+    response.status_code = status
+    return response
