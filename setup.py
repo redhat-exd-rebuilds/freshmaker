@@ -8,7 +8,7 @@ with open('test-requirements.txt') as f:
 
 setup(name='freshmaker',
       description='Continuous Compose Service',
-      version='0.0.3',
+      version='0.0.4',
       classifiers=[
           "Programming Language :: Python",
           "Topic :: Software Development :: Build Tools"
@@ -20,13 +20,17 @@ setup(name='freshmaker',
       author_email='freshmaker-owner@fedoraproject.org',
       url='https://pagure.io/freshmaker/',
       license='MIT',
-      packages=find_packages(),
+      packages=find_packages(exclude=['tests']),
       include_package_data=True,
       zip_safe=False,
       install_requires=requirements,
       tests_require=test_requirements,
       entry_points={
           'moksha.consumer': 'freshmakerconsumer = freshmaker.consumer:FreshmakerConsumer',
+          'console_scripts': ['freshmaker-frontend = freshmaker.manage:runssl',
+                              'freshmaker-upgradedb = freshmaker.manage:upgradedb',
+                              'freshmaker-gencert = freshmaker.manage:generatelocalhostcert',
+                              'freshmaker-manager = freshmaker.manage:manager_wrapper']
       },
       data_files=[('/etc/freshmaker/', ['conf/config.py']),
                   ('/etc/fedmsg.d/', ['fedmsg.d/freshmaker-logging.py',

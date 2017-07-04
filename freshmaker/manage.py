@@ -160,5 +160,13 @@ def runssl(host=conf.host, port=conf.port, debug=conf.debug):
     )
 
 
+def manager_wrapper():
+    """
+    Runs the manager. We have separate method for this so we can use it in
+    `console_scripts` part of setup.py
+    """
+    manager.run()
+
+
 if __name__ == "__main__":
     manager.run()
