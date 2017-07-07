@@ -70,7 +70,8 @@ class KojiService(object):
     def logout(self):
         self.session.logout()
 
-    def build_container(self, source_url, branch, namespace=None, scratch=None):
+    def build_container(self, source_url, branch,
+                        namespace=None, scratch=None, repo_urls=None):
         """Build container by buildContainer"""
 
         build_target = '{}-{}-candidate'.format(
@@ -81,6 +82,8 @@ class KojiService(object):
             'scratch': False if scratch is None else True,
             'git_branch': branch,
         }
+        if repo_urls:
+            build_opts['yum_repourls'] = repo_urls
 
         if self._logger:
             self._logger.debug('Build from target: %s', build_target)

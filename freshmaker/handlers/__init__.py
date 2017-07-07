@@ -65,7 +65,8 @@ class BaseHandler(object):
         mbs = MBS(conf)
         return mbs.build_module(name, branch, rev)
 
-    def build_container(self, name, branch, rev, namespace='container'):
+    def build_container(self, name, branch, rev,
+                        namespace='container', repo_urls=None):
         """
         Build a container in Koji.
 
@@ -93,6 +94,7 @@ class BaseHandler(object):
 
             return service.build_container(build_source,
                                            branch,
+                                           repo_urls=repo_urls,
                                            namespace=namespace,
                                            scratch=conf.koji_container_scratch_build)
 
