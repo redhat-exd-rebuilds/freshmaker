@@ -19,7 +19,7 @@ setup(name='freshmaker',
       # but let's set this proactively to the new name.
       author_email='freshmaker-owner@fedoraproject.org',
       url='https://pagure.io/freshmaker/',
-      license='GPLv2+',
+      license='MIT',
       packages=find_packages(),
       include_package_data=True,
       zip_safe=False,
