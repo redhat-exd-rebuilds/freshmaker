@@ -113,14 +113,13 @@ class BaseHandler(object):
         models.ArtifactBuild.create(db.session, ev, name, artifact_type.name.lower(), build_id, dep_on)
         db.session.commit()
 
-    def allow_build(self, artifact_type, name, branch):
+    def allow_build(self, artifact_type, **kwargs):
         """
         Check whether the artifact is allowed to be built by checking
         HANDLER_BUILD_WHITELIST and HANDLER_BUILD_BLACKLIST in config.
 
         :param artifact_type: an enum member of ArtifactType.
-        :param name: name of the artifact.
-        :param branch: branch name of the artifact.
+        :param kwargs: dictionary of arguments to check against
         :return: True or False.
         """
         # If there is a whitelist specified for the (handler, artifact_type),
@@ -136,28 +135,26 @@ class BaseHandler(object):
         whitelist_rules = conf.handler_build_whitelist.get(handler_name, {})
         blacklist_rules = conf.handler_build_blacklist.get(handler_name, {})
 
-        def match_rule(name, branch, rule):
-            name_rule = rule.get('name', None)
-            branch_rule = rule.get('branch', None)
-            if name_rule and not re.compile(name_rule).match(name):
-                    return False
-            if branch_rule and not re.compile(branch_rule).match(branch):
+        def match_rule(kwargs, rule):
+            for key, value in kwargs.items():
+                value_rule = rule.get(key, None)
+                if value_rule and not re.compile(value_rule).match(value):
                     return False
             return True
 
         try:
             whitelist = whitelist_rules.get(artifact_type.name.lower(), [])
-            if whitelist and not any([match_rule(name, branch, rule) for rule in whitelist]):
-                log.debug('name=%r, branch=%r, type=%r is not whitelisted.',
-                          name, branch, artifact_type.name.lower())
+            if whitelist and not any([match_rule(kwargs, rule) for rule in whitelist]):
+                log.debug('%r, type=%r is not whitelisted.',
+                          kwargs, artifact_type.name.lower())
                 in_whitelist = False
 
             # only need to check blacklist when it is in whitelist first
             if in_whitelist:
                 blacklist = blacklist_rules.get(artifact_type.name.lower(), [])
-                if blacklist and any([match_rule(name, branch, rule) for rule in blacklist]):
-                    log.debug('name=%r, branch=%r, type=%r is blacklisted.',
-                              name, branch, artifact_type.name.lower())
+                if blacklist and any([match_rule(kwargs, rule) for rule in blacklist]):
+                    log.debug('%r, type=%r is blacklisted.',
+                              kwargs, artifact_type.name.lower())
                     in_blacklist = True
 
         except re.error as exc:

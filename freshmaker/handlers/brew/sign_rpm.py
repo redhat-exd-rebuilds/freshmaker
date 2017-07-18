@@ -31,6 +31,7 @@ from freshmaker.kojiservice import koji_service
 from freshmaker.lightblue import LightBlue
 from freshmaker.pulp import Pulp
 from freshmaker.errata import Errata
+from freshmaker.types import ArtifactType
 
 
 class BrewSignRPMHanlder(BaseHandler):
@@ -76,6 +77,15 @@ class BrewSignRPMHanlder(BaseHandler):
         # containing that RPM and has to ensure all builds are signed.
         errata = Errata(conf.errata_tool_server_url)
         advisories = errata.advisories_from_event(event)
+
+        # Filter out advisories which are not allow by configuration
+        advisories = [advisory for advisory in advisories
+                      if self.allow_build(ArtifactType.IMAGE,
+                                          advisory_name=advisory.name)]
+        if not advisories:
+            log.info("No advisories found suitable for rebuilding Docker "
+                     "images")
+            return []
 
         if not all((errata.builds_signed(advisory.errata_id)
                     for advisory in advisories)):

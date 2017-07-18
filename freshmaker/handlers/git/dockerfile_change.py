@@ -39,7 +39,7 @@ class GitDockerfileChangeHandler(BaseHandler):
 
         log.info('Start to rebuild docker image %s.', event.container)
 
-        if not self.allow_build(ArtifactType.IMAGE, event.container, event.branch):
+        if not self.allow_build(ArtifactType.IMAGE, name=event.container, branch=event.branch):
             log.info("Skip rebuild of %s:%s as it's not allowed by configured whitelist/blacklist",
                      event.container, event.branch)
             return []

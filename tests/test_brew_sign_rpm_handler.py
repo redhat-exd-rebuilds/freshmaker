@@ -25,9 +25,10 @@ import six
 import pytest
 import unittest
 
-from mock import patch
+from mock import patch, MagicMock, PropertyMock
 
 from freshmaker.handlers.brew.sign_rpm import BrewSignRPMHanlder
+from freshmaker.errata import ErrataAdvisory
 
 
 @pytest.mark.skipif(six.PY3, reason='koji does not work in Python 3')
@@ -78,3 +79,48 @@ class TestFindBuildSrpmName(unittest.TestCase):
 
         session.getBuild.assert_called_once_with('bind-dyndb-ldap-2.3-8.el6')
         session.listRPMs.assert_called_once_with(buildID=439408, arches='src')
+
+
+class TestAllowBuild(unittest.TestCase):
+    """Test BrewSignRPMHanlder.allow_build"""
+
+    @patch('freshmaker.errata.Errata.advisories_from_event')
+    @patch('freshmaker.errata.Errata.builds_signed')
+    @patch("freshmaker.config.Config.handler_build_whitelist",
+           new_callable=PropertyMock, return_value={
+               "BrewSignRPMHandler": {"image": [{"advisory_name": "RHSA-.*"}]}})
+    def test_allow_build_false(self, handler_build_whitelist, builds_signed,
+                               advisories_from_event):
+        """
+        Tests that allow_build filters out advisories based on advisory_name.
+        """
+        advisories_from_event.return_value = [
+            ErrataAdvisory(123, "RHBA-2017", "REL_PREP")]
+        builds_signed.return_value = False
+
+        event = MagicMock()
+        handler = BrewSignRPMHanlder()
+        handler.handle(event)
+
+        builds_signed.assert_not_called()
+
+    @patch('freshmaker.errata.Errata.advisories_from_event')
+    @patch('freshmaker.errata.Errata.builds_signed')
+    @patch("freshmaker.config.Config.handler_build_whitelist",
+           new_callable=PropertyMock, return_value={
+               "BrewSignRPMHandler": {"image": [{"advisory_name": "RHSA-.*"}]}})
+    def test_allow_build_true(self, handler_build_whitelist, builds_signed,
+                              advisories_from_event):
+        """
+        Tests that allow_build does not filter out advisories based on
+        advisory_name.
+        """
+        advisories_from_event.return_value = [
+            ErrataAdvisory(123, "RHSA-2017", "REL_PREP")]
+        builds_signed.return_value = False
+
+        event = MagicMock()
+        handler = BrewSignRPMHanlder()
+        handler.handle(event)
+
+        builds_signed.assert_called_once()

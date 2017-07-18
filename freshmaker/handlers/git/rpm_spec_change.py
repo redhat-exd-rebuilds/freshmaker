@@ -54,7 +54,7 @@ class GitRPMSpecChangeHandler(BaseHandler):
         for module in modules:
             name = module['variant_name']
             version = module['variant_version']
-            if not self.allow_build(ArtifactType.MODULE, name, version):
+            if not self.allow_build(ArtifactType.MODULE, name=name, branch=version):
                 log.info("Skip rebuild of %s:%s as it's not allowed by configured whitelist/blacklist",
                          name, version)
                 continue

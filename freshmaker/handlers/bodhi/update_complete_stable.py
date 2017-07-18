@@ -50,7 +50,7 @@ class BodhiUpdateCompleteStableHandler(BaseHandler):
         log.info('Found docker images to rebuild: %s', containers)
 
         for container in containers:
-            if not self.allow_build(ArtifactType.IMAGE, container['name'], container['branch']):
+            if not self.allow_build(ArtifactType.IMAGE, name=container['name'], branch=container['branch']):
                 log.info("Skip rebuild of image %s:%s as it's not allowed by configured whitelist/blacklist",
                          container['name'], container['branch'])
                 continue
