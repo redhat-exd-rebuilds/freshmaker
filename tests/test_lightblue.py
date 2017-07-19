@@ -486,12 +486,7 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                     }
                 ]
             },
-            "projection": [
-                {"field": "brew", "include": True, "recursive": True},
-                {"field": "parsed_data.files", "include": True, "recursive": True},
-                {"field": "parsed_data.rpm_manifest.*.srpm_nevra", "include": True, "recursive": True},
-                {"field": "parsed_data.rpm_manifest.*.srpm_name", "include": True, "recursive": True}
-            ]
+            "projection": lb._get_default_projection()
         }
         cont_images.assert_called_with(expected_image_request)
         self.assertEqual(ret, cont_images.return_value)
@@ -537,6 +532,23 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                                  }
                              }
                          ])
+
+    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @patch('os.path.exists')
+    def test_parent_images_with_package(self, exists, cont_images):
+
+        exists.return_value = True
+        cont_images.side_effect = [self.fake_images_with_parsed_data, [],
+                                   self.fake_images_with_parsed_data]
+
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key)
+        ret = lb.find_parent_images_with_package(
+            "openssl", ["layer0", "layer1", "layer2", "layer3"])
+
+        self.assertEqual(1, len(ret))
+        self.assertEqual(ret[0]["brew"]["package"], "package-name-1")
 
     @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
