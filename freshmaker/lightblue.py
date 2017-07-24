@@ -287,6 +287,15 @@ class LightBlue(object):
         }
         return self.find_container_repositories(repo_request)
 
+    def _get_default_projection(self):
+        return [
+            {"field": "brew", "include": True, "recursive": True},
+            {"field": "parsed_data.files", "include": True, "recursive": True},
+            {"field": "parsed_data.rpm_manifest.*.srpm_nevra", "include": True, "recursive": True},
+            {"field": "parsed_data.rpm_manifest.*.srpm_name", "include": True, "recursive": True},
+            {"field": "parsed_data.layers.*", "include": True, "recursive": True},
+        ]
+
     def find_images_with_included_srpm(self, repositories, srpm_name,
                                        published=True):
 
@@ -332,14 +341,84 @@ class LightBlue(object):
                     }
                 ]
             },
-            "projection": [
-                {"field": "brew", "include": True, "recursive": True},
-                {"field": "parsed_data.files", "include": True, "recursive": True},
-                {"field": "parsed_data.rpm_manifest.*.srpm_nevra", "include": True, "recursive": True},
-                {"field": "parsed_data.rpm_manifest.*.srpm_name", "include": True, "recursive": True}
-            ]
+            "projection": self._get_default_projection()
         }
         return self.find_container_images(image_request)
+
+    def get_parent_image_with_package(
+            self, srpm_name, top_layer, expected_layer_count):
+        """
+        Find parent image by layers.
+
+        Docker images are layered and those layers are identified by its
+        checksum in the ContainerImage["parsed_data"]["layers"] list.
+        The first layer defined there is the layer defining the image
+        itself, the second layer is the layer defining its parent, and so on.
+
+        To find the parent image P of image X, we therefore have to search for
+        an image which has P.parsed_data.layers[0] equal to
+        X.parsed_data.layers[1]. However, query like this is not possible, so
+        we search for any image containing the layer X.parsed_data.layers[1],
+        but further limit the query to return only image which have the count
+        of the layers equal to `expected_layer_count`.
+
+        :param srpm_name str: Name of the package which should be included in
+            the rpm manifest of returned image.
+        :param top_layer str: parent's top most layer (parsed_data.layers[1]).
+        :param expected_layer_count str: parent should has one less layer
+            than child (len(parsed_data.layers) - 1)
+        :return: parent ContainerImage object
+        :rtype: ContainerImage
+        """
+        query = {
+            "objectType": "containerImage",
+            "query": {
+                "$and": [
+                    {
+                        "field": "parsed_data.layers#",
+                        "op": "$eq",
+                        "rvalue": expected_layer_count
+                    },
+                    {
+                        "field": "parsed_data.layers.*",
+                        "op": "$eq",
+                        "rvalue": top_layer
+                    },
+                    {
+                        "field": "parsed_data.rpm_manifest.*.srpm_name",
+                        "op": "=",
+                        "rvalue": srpm_name
+                    },
+                ],
+            },
+            "projection": self._get_default_projection()
+        }
+
+        images = self.find_container_images(query)
+        if not images:
+            return None
+        return images[0]
+
+    def find_parent_images_with_package(self, srpm_name, layers):
+        """
+        Returns the chain of all parent images of the image with
+        parsed_data.layers `layers` which contain the package `srpm_name`
+        in their RPM manifest.
+
+        The first item in the list is direct parent of the image in question.
+        The last item in the list is the top level parent of the image in
+        question.
+        """
+        images = []
+
+        for idx, layer in enumerate(layers[1:]):
+            # `len(layers) - 1 - idx`. We decrement 1, because we skip the
+            # first layer in for loop.
+            image = self.get_parent_image_with_package(
+                srpm_name, layer, len(layers) - 1 - idx)
+            if not image:
+                return images
+            images.append(image)
 
     def find_images_with_package_from_content_set(
             self, srpm_name, content_sets, published=True, deprecated=False,
