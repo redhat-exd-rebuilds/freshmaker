@@ -28,6 +28,8 @@ import requests
 import six
 
 from six.moves import http_client
+import concurrent.futures
+from freshmaker import log
 
 
 class LightBlueError(Exception):
@@ -103,6 +105,44 @@ class ContainerImage(dict):
         image = cls()
         image.update(data)
         return image
+
+    def __hash__(self):
+        return hash((self['brew']['build']))
+
+    def resolve_commit(self, srpm_name):
+        """
+        Uses the ContainerImage data to resolve the information about
+        commit from which the Docker image has been built.
+
+        Sets the "repository, "commit" and "srpm_nevra" keys/values if
+        available.
+
+        :param str srpm_name: Name of the package because of which the Docker
+                              image is rebuilt.
+        """
+        dockerfile_url = None
+        if "parsed_data" in self and "files" in self["parsed_data"]:
+            for f in self["parsed_data"]["files"]:
+                if f['key'] == 'buildfile':
+                    dockerfile_url = f['content_url']
+                    break
+
+        srpm_nevra = None
+        if "parsed_data" in self and "rpm_manifest" in self["parsed_data"]:
+            for rpm in self["parsed_data"]["rpm_manifest"]:
+                if rpm["srpm_name"] == srpm_name:
+                    srpm_nevra = rpm['srpm_nevra']
+                    break
+
+        reponame = None
+        commit = None
+        if dockerfile_url:
+            dockerfile, _, commit = dockerfile_url.partition("?id=")
+            _, _, reponame = dockerfile.partition("/cgit/")
+            reponame = reponame.replace("/plain/Dockerfile", "")
+        data = {"repository": reponame, "commit": commit,
+                "srpm_nevra": srpm_nevra}
+        self.update(data)
 
 
 class LightBlue(object):
@@ -294,6 +334,7 @@ class LightBlue(object):
             {"field": "parsed_data.rpm_manifest.*.srpm_nevra", "include": True, "recursive": True},
             {"field": "parsed_data.rpm_manifest.*.srpm_name", "include": True, "recursive": True},
             {"field": "parsed_data.layers.*", "include": True, "recursive": True},
+            {"field": "repositories.*.published", "include": True, "recursive": True},
         ]
 
     def find_images_with_included_srpm(self, repositories, srpm_name,
@@ -345,6 +386,47 @@ class LightBlue(object):
         }
         return self.find_container_images(image_request)
 
+    def find_unpublished_image_for_build(self, build):
+        """
+        Returns the unpublished variant of Docker image specified by `build`
+        brew build ID.
+
+        :param build str: Brew build id.
+        :return: Unpublished container image.
+        :rtype: ContainerImage.
+        """
+        image_request = {
+            "objectType": "containerImage",
+            "query": {
+                "$and": [
+                    {
+                        "field": "brew.build",
+                        "op": "=",
+                        "rvalue": build
+                    },
+                    {
+                        "$or": [
+                            {
+                                "field": "repositories.*.published",
+                                "op": "=",
+                                "rvalue": False
+                            },
+                            {
+                                "field": "repositories#",
+                                "op": "=",
+                                "rvalue": 0
+                            }
+                        ]
+                    }
+                ]
+            },
+            "projection": self._get_default_projection()
+        }
+        images = self.find_container_images(image_request)
+        if not images:
+            return None
+        return images[0]
+
     def get_parent_image_with_package(
             self, srpm_name, top_layer, expected_layer_count):
         """
@@ -388,6 +470,47 @@ class LightBlue(object):
                         "field": "parsed_data.rpm_manifest.*.srpm_name",
                         "op": "=",
                         "rvalue": srpm_name
+                    }
+                ],
+            },
+            "projection": self._get_default_projection()
+        }
+
+        images = self.find_container_images(query)
+        if not images:
+            return None
+        for image in images:
+            # we should prefer published image
+            if 'repositories' in image:
+                for repository in image['repositories']:
+                    if repository['published']:
+                        return image
+
+        return images[0]
+
+    def get_parent_image(self, top_layer, expected_layer_count):
+        """
+        Find parent image by layers
+        Args:
+            top_layer: parent's top most layer (parsed_data.layers[1])
+            expected_layer_count: parent should has one less layer than child
+                                  (len(parsed_data.layers) -1)
+
+        Returns: parent containerImage object
+        """
+        query = {
+            "objectType": "containerImage",
+            "query": {
+                "$and": [
+                    {
+                        "field": "parsed_data.layers#",
+                        "op": "$eq",
+                        "rvalue": expected_layer_count
+                    },
+                    {
+                        "field": "parsed_data.layers.*",
+                        "op": "$eq",
+                        "rvalue": top_layer
                     },
                 ],
             },
@@ -397,6 +520,12 @@ class LightBlue(object):
         images = self.find_container_images(query)
         if not images:
             return None
+        for image in images:
+            # we should prefer published image
+            if 'repositories' in image:
+                for repository in image['repositories']:
+                    if repository['published']:
+                        return image
         return images[0]
 
     def find_parent_images_with_package(self, srpm_name, layers):
@@ -416,6 +545,22 @@ class LightBlue(object):
             # first layer in for loop.
             image = self.get_parent_image_with_package(
                 srpm_name, layer, len(layers) - 1 - idx)
+            if image:
+                image.resolve_commit(srpm_name)
+
+            if images:
+                if image:
+                    images[-1]['parent'] = image
+                else:
+                    # If we did not find the parent image with the package,
+                    # We still want to set the parent of the last image with
+                    # the package so we know against which image it has been
+                    # built.
+                    parent = self.get_parent_image(
+                        layer, len(layers) - 1 - idx)
+                    if parent:
+                        parent.resolve_commit(srpm_name)
+                    images[-1]['parent'] = parent
             if not image:
                 return images
             images.append(image)
@@ -446,23 +591,107 @@ class LightBlue(object):
         images = self.find_images_with_included_srpm(repos,
                                                      srpm_name,
                                                      published=published)
-        commits = []
         for image in images:
-            for f in image["parsed_data"]["files"]:
-                if f['key'] == 'buildfile':
-                    dockerfile_url = f['content_url']
-                    break
+            image.resolve_commit(srpm_name)
+        return images
 
-            for rpm in image["parsed_data"]["rpm_manifest"]:
-                if rpm["srpm_name"] == srpm_name:
-                    srpm_nevra = rpm['srpm_nevra']
-                    break
+    def find_images_to_rebuild(
+            self, srpm_name, content_sets, published=True, deprecated=False,
+            release_category="Generally Available"):
+        """
+        Returns the list of sub-lists in which each sub-list contains
+        ContainerImage instances which can be built in parallel. Sub-list N+1
+        contains images which depend on images from sub-list N, so building any
+        image from N+1 must happen *after* all of the images from sub-list N
+        have been rebuilt.
 
-            dockerfile, _, commit = dockerfile_url.partition("?id=")
-            _, _, reponame = dockerfile.partition("/cgit/")
-            reponame = reponame.replace("/plain/Dockerfile", "")
-            commits.append({"repository": reponame,
-                            "commit": commit,
-                            "srpm_nevra": srpm_nevra,
-                            "brew": image["brew"]})
-        return commits
+        :param str srpm_name: srpm_name (source rpm name) to look for
+        :param list content_sets: list of strings (content sets) to consider
+            when looking for the packages
+        """
+        images = self.find_images_with_package_from_content_set(
+            srpm_name, content_sets, published, deprecated, release_category)
+
+        def _get_images_to_rebuild(image):
+            """
+            Find out parent images to rebuild, helper called from threadpool.
+            """
+
+            unpublished = self.find_unpublished_image_for_build(
+                image['brew']['build'])
+            if not unpublished:
+                return []
+
+            layers = unpublished["parsed_data"]["layers"]
+            rebuild_list = self.find_parent_images_with_package(
+                srpm_name, layers)
+            if rebuild_list:
+                image['parent'] = rebuild_list[0]
+            else:
+                parent = self.get_parent_image(layers[1], len(layers) - 1)
+                if parent:
+                    parent.resolve_commit(srpm_name)
+                image['parent'] = parent
+            rebuild_list.insert(0, image)
+            return rebuild_list
+
+        # For every image, find out all its parent images which contain the
+        # srpm_name package and store these lists to to_rebuild.
+        to_rebuild = []
+        max_len = 0
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+            futures = {executor.submit(_get_images_to_rebuild, i): i
+                       for i in images}
+            concurrent.futures.wait(futures)
+            for future in futures:
+                rebuild_list = future.result()
+                max_len = max(len(rebuild_list), max_len)
+                to_rebuild.append(rebuild_list)
+
+        # The to_rebuild list now contains all the images which need to be
+        # rebuilt, but there are lot of duplicates there - for example for
+        # every RHSCL Docker image, there is s2i-base image (their shared
+        # parent image).
+        # Therefore, group the same parent images from the same inheritance
+        # level to not build them multiple times for each image, but just once.
+        batches = []
+        for i in reversed(range(-max_len, 0)):
+            batch = []
+            seen = []   # Used to remove possible duplicates in single batch.
+            for imgs in to_rebuild:
+                if len(imgs) < abs(i):
+                    continue
+                image = imgs[i]
+
+                # Duplicate build means that it is built from the same
+                # repository and commit hash. We don't want duplicate builds,
+                # so in case we find some, do not add it to batch.
+                seen_dict = {}
+                if "repository" not in image or "commit" not in image:
+                    log.error("Cannot obtain repository and commit of image %r",
+                              image)
+                    return []
+                seen_dict["repository"] = image["repository"]
+                seen_dict["commit"] = image["commit"]
+                if seen_dict not in seen:
+                    batch.append(image)
+                    seen.append(seen_dict)
+            batches.append(batch)
+
+        # In previous step, we have removed only duplicate builds within
+        # single batch, but we want to remove duplicates between batches too.
+        # In this step, check all the images in batch N and if we find the
+        # duplicate image in the batch N + 1, N + 2, ..., remove it from that
+        # batch.
+        for i, batch in enumerate(batches):
+            for image in batch:
+                for next_batch in batches[i + 1:]:
+                    to_remove = []
+                    for next_image in next_batch:
+                        if (next_image["repository"] == image["repository"] and
+                                next_image["commit"] == image["commit"]):
+                            to_remove.append(next_image)
+                    for image_to_remove in to_remove:
+                        next_batch.remove(image_to_remove)
+
+        return batches

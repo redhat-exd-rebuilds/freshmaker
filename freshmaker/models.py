@@ -124,13 +124,13 @@ class ArtifactBuild(FreshmakerBase):
     build_id = db.Column(db.Integer)
 
     @classmethod
-    def create(cls, session, event, name, type, build_id, dep_on=None):
+    def create(cls, session, event, name, type, build_id, dep_on=None, state=None):
         now = datetime.utcnow()
         build = cls(
             name=name,
             type=type,
             event=event,
-            state="build",
+            state=state or "build",
             build_id=build_id,
             time_submitted=now,
             dep_on=dep_on

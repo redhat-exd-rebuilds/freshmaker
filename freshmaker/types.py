@@ -33,3 +33,4 @@ class ArtifactBuildState(Enum):
     DONE = 1
     FAILED = 2
     CANCELED = 3
+    PLANNED = 4

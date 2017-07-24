@@ -60,13 +60,22 @@ class BrewSignRPMHanlder(BaseHandler):
           from those content sets.
         """
 
-        images = self._find_images_to_rebuild(event)
+        batches = self._find_images_to_rebuild(event)
 
-        if not images:
+        if not batches:
             log.info('Not find docker images to rebuild.')
             return []
 
-        log.info('Found docker images to rebuild: %s', images)
+        log.info('Found docker images to rebuild in following order:')
+        for i, batch in enumerate(batches):
+            log.info('   Batch %d (%d images):', i, len(batch))
+            for image in batch:
+                based_on = "based on %s" % image["parent"]["brew"]["build"] \
+                    if image["parent"] else "base image"
+                log.info('      - %s#%s (%s)' %
+                         (image["repository"], image["commit"], based_on))
+
+        # TODO: Add batches to database using ArtifactBuild.dep_on
 
         # TODO: build yum repo to contain that signed RPM and start to rebuild
 
@@ -115,8 +124,7 @@ class BrewSignRPMHanlder(BaseHandler):
                        private_key=conf.lightblue_private_key)
 
         srpm_name = self._find_build_srpm_name(event.nvr)
-        return lb.find_images_with_package_from_content_set(srpm_name,
-                                                            content_sets)
+        return lb.find_images_to_rebuild(srpm_name, content_sets)
 
     def _find_build_srpm_name(self, build_nvr):
         """Find srpm name from a build"""

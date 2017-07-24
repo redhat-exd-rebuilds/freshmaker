@@ -226,6 +226,9 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                 }
             },
         ]
+        self.fake_container_images = [
+            ContainerImage.create(data)
+            for data in self.fake_images_with_parsed_data]
 
     @patch('freshmaker.lightblue.requests.post')
     def test_find_container_images(self, post):
@@ -500,7 +503,7 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
 
         exists.return_value = True
         cont_repos.return_value = self.fake_repositories_with_content_sets
-        cont_images.return_value = self.fake_images_with_parsed_data
+        cont_images.return_value = self.fake_container_images
 
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
@@ -519,6 +522,25 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                                      "completion_date": u"20170421T04:27:51.000-0400",
                                      "build": "package-name-1-4-12.10",
                                      "package": "package-name-1"
+                                 },
+                                 'parsed_data': {
+                                     'files': [
+                                         {
+                                             'key': 'buildfile',
+                                             'content_url': 'http://git.repo.com/cgit/rpms/repo-1/plain/Dockerfile?id=commit_hash1',
+                                             'filename': u'Dockerfile'
+                                         }
+                                     ],
+                                     'rpm_manifest': [
+                                         {
+                                             "srpm_name": "openssl",
+                                             "srpm_nevra": "openssl-0:1.2.3-1.src"
+                                         },
+                                         {
+                                             "srpm_name": "tespackage",
+                                             "srpm_nevra": "testpackage-10:1.2.3-1.src"
+                                         }
+                                     ]
                                  }
                              },
                              {
@@ -529,6 +551,30 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                                      "completion_date": u"20170421T04:27:51.000-0400",
                                      "build": "package-name-2-4-12.10",
                                      "package": "package-name-2"
+                                 },
+                                 'parsed_data': {
+                                     'files': [
+                                         {
+                                             'key': 'buildfile',
+                                             'content_url': 'http://git.repo.com/cgit/ns/repo-2/plain/Dockerfile?id=commit_hash2',
+                                             'filename': 'Dockerfile'
+                                         },
+                                         {
+                                             'key': 'bogusfile',
+                                             'content_url': 'bogus_test_url',
+                                             'filename': 'bogus.file'
+                                         }
+                                     ],
+                                     'rpm_manifest': [
+                                         {
+                                             "srpm_name": "openssl",
+                                             "srpm_nevra": "openssl-1:1.2.3-1.src"
+                                         },
+                                         {
+                                             "srpm_name": "tespackage2",
+                                             "srpm_nevra": "testpackage2-10:1.2.3-1.src"
+                                         }
+                                     ]
                                  }
                              }
                          ])
@@ -538,8 +584,8 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
     def test_parent_images_with_package(self, exists, cont_images):
 
         exists.return_value = True
-        cont_images.side_effect = [self.fake_images_with_parsed_data, [],
-                                   self.fake_images_with_parsed_data]
+        cont_images.side_effect = [self.fake_container_images, [],
+                                   self.fake_container_images]
 
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
@@ -549,6 +595,61 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
 
         self.assertEqual(1, len(ret))
         self.assertEqual(ret[0]["brew"]["package"], "package-name-1")
+
+    @patch('freshmaker.lightblue.LightBlue.find_images_with_package_from_content_set')
+    @patch('freshmaker.lightblue.LightBlue.find_parent_images_with_package')
+    @patch('freshmaker.lightblue.LightBlue.find_unpublished_image_for_build')
+    @patch('os.path.exists')
+    def test_images_to_rebuild(self, exists, unpublished_image,
+                               parent_images, cont_images):
+
+        exists.return_value = True
+
+        child1 = ContainerImage.create({'brew': {'package': 'child1', 'build': 'child1'},
+                                        "parsed_data": {"layers": None}})
+        child2 = ContainerImage.create({'brew': {'package': 'child2', 'build': 'child2'},
+                                        "parsed_data": {"layers": None}})
+        cont_images.return_value = [child1, child2]
+        unpublished_image.side_effect = [child1, child2]
+
+        child1_parent1 = ContainerImage.create(
+            {'brew': {'package': 'child1_parent1', 'build': 'child1_parent1'}})
+        child1_parent2 = ContainerImage.create(
+            {'brew': {'package': 'child1_parent2', 'build': 'child1_parent2'}})
+        child1_parent3 = ContainerImage.create(
+            {'brew': {'package': 'child1_parent3', 'build': 'child1_parent3'}})
+        child1_parent4 = ContainerImage.create(
+            {'brew': {'package': 'shared_parent', 'build': 'shared_parent'}})
+        # Include child1_parent2 twice to ensure find_images_to_rebuild
+        # removes duplicates
+        child1_parents = [child1_parent1, child1_parent2, child1_parent2,
+                          child1_parent3, child1_parent4]
+
+        child2_parent1 = ContainerImage.create(
+            {'brew': {'package': 'child2_parent1', 'build': 'child2_parent1'}})
+        child2_parent2 = ContainerImage.create(
+            {'brew': {'package': 'child2_parent2', 'build': 'child2_parent2'}})
+        child2_parent3 = ContainerImage.create(
+            {'brew': {'package': 'shared_parent', 'build': 'shared_parent'}})
+        child2_parents = [child2_parent1, child2_parent2, child2_parent3]
+
+        for image in child1_parents + child2_parents + [child1, child2]:
+            image["repository"] = "repo_" + image["brew"]["build"]
+            image["commit"] = "commit_" + image["brew"]["build"]
+
+        parent_images.side_effect = [child1_parents, child2_parents]
+
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key)
+        ret = lb.find_images_to_rebuild("dummy", "dummy")
+        self.assertEqual([len(x) for x in ret], [1, 2, 2, 1, 1, 1])
+        self.assertEqual(set(ret[0]), set([child1_parent4]))
+        self.assertEqual(set(ret[1]), set([child1_parent3, child2_parent2]))
+        self.assertEqual(set(ret[2]), set([child1_parent2, child2_parent1]))
+        self.assertEqual(set(ret[3]), set([child2]))
+        self.assertEqual(set(ret[4]), set([child1_parent1]))
+        self.assertEqual(set(ret[5]), set([child1]))
 
     @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
