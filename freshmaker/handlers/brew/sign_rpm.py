@@ -25,13 +25,15 @@ from itertools import chain
 
 from freshmaker import conf
 from freshmaker import log
+from freshmaker import db
 from freshmaker.events import BrewSignRPMEvent
 from freshmaker.handlers import BaseHandler
 from freshmaker.kojiservice import koji_service
 from freshmaker.lightblue import LightBlue
 from freshmaker.pulp import Pulp
 from freshmaker.errata import Errata
-from freshmaker.types import ArtifactType
+from freshmaker.types import ArtifactType, ArtifactBuildState
+import json
 
 
 class BrewSignRPMHanlder(BaseHandler):
@@ -66,6 +68,18 @@ class BrewSignRPMHanlder(BaseHandler):
             log.info('Not find docker images to rebuild.')
             return []
 
+        self._log_batches(batches)
+        self._record_batches(batches, event)
+
+        # TODO: build yum repo to contain that signed RPM and start to rebuild
+
+        return []
+
+    def _log_batches(self, batches):
+        """
+        Logs the information about images to rebuilt using log.info(...).
+        :param batches list: Output of _find_images_to_rebuild(...).
+        """
         log.info('Found docker images to rebuild in following order:')
         for i, batch in enumerate(batches):
             log.info('   Batch %d (%d images):', i, len(batch))
@@ -75,11 +89,33 @@ class BrewSignRPMHanlder(BaseHandler):
                 log.info('      - %s#%s (%s)' %
                          (image["repository"], image["commit"], based_on))
 
-        # TODO: Add batches to database using ArtifactBuild.dep_on
+    def _record_batches(self, batches, event):
+        """
+        Records the images from batches to database.
+        :param batches list: Output of _find_images_to_rebuild(...).
+        """
 
-        # TODO: build yum repo to contain that signed RPM and start to rebuild
+        # Used as tmp dict with {brew_buil_id: ArtifactBuild, ...} mapping.
+        builds = {}
 
-        return []
+        for batch in batches:
+            for image in batch:
+                name = image["brew"]["build"]
+                parent_name = image["parent"]["brew"]["build"] \
+                    if image["parent"] else None
+                dep_on = builds[parent_name] if parent_name in builds else None
+                build = self.record_build(
+                    event, name, ArtifactType.IMAGE, 0, dep_on,
+                    ArtifactBuildState.PLANNED.value)
+
+                build_args = {}
+                build_args["repository"] = image["repository"]
+                build_args["commit"] = image["commit"]
+                build_args["parent"] = parent_name
+                build.build_args = json.dumps(build_args)
+                db.session.commit()
+
+                builds[name] = build
 
     def _find_images_to_rebuild(self, event):
         # When get a signed RPM, first step is to find out advisories

@@ -98,7 +98,8 @@ class BaseHandler(object):
                                            namespace=namespace,
                                            scratch=conf.koji_container_scratch_build)
 
-    def record_build(self, event, name, artifact_type, build_id, dep_on=None):
+    def record_build(self, event, name, artifact_type, build_id, dep_on=None,
+                     state=None):
         """
         Record build in db.
 
@@ -106,12 +107,18 @@ class BaseHandler(object):
         :param name: name of the artifact.
         :param artifact_type: an enum member of ArtifactType.
         :param build_id: id of the build in build system.
-        :param def_of: the artifact which this one depends on.
+        :param dep_on: the artifact which this one depends on.
+        :param state: the initial state of build.
+        :return: recorded build.
+        :rtype: ArtifactBuild.
         """
         ev = models.Event.get_or_create(db.session, event.msg_id,
                                         event.search_key, event.__class__)
-        models.ArtifactBuild.create(db.session, ev, name, artifact_type.name.lower(), build_id, dep_on)
+        build = models.ArtifactBuild.create(
+            db.session, ev, name, artifact_type.name.lower(), build_id,
+            dep_on, state)
         db.session.commit()
+        return build
 
     def allow_build(self, artifact_type, **kwargs):
         """

@@ -35,6 +35,7 @@ def upgrade():
     sa.Column('dep_on_id', sa.Integer(), nullable=True),
     sa.Column('event_id', sa.Integer(), nullable=True),
     sa.Column('build_id', sa.Integer(), nullable=True),
+    sa.Column('build_args', sa.String(), nullable=True),
     sa.ForeignKeyConstraint(['dep_on_id'], ['artifact_builds.id'], ),
     sa.ForeignKeyConstraint(['event_id'], ['events.id'], ),
     sa.PrimaryKeyConstraint('id')

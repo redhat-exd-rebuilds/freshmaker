@@ -32,7 +32,7 @@ from freshmaker.types import ArtifactType, ArtifactBuildState
 from freshmaker.events import (
     MBSModuleStateChangeEvent, GitModuleMetadataChangeEvent,
     GitRPMSpecChangeEvent, TestingEvent, GitDockerfileChangeEvent,
-    BodhiUpdateCompleteStableEvent, KojiTaskStateChangeEvent)
+    BodhiUpdateCompleteStableEvent, KojiTaskStateChangeEvent, BrewSignRPMEvent)
 
 EVENT_TYPES = {
     MBSModuleStateChangeEvent: 0,
@@ -42,6 +42,7 @@ EVENT_TYPES = {
     GitDockerfileChangeEvent: 4,
     BodhiUpdateCompleteStableEvent: 5,
     KojiTaskStateChangeEvent: 6,
+    BrewSignRPMEvent: 7,
 }
 
 INVERSE_EVENT_TYPES = {v: k for k, v in EVENT_TYPES.items()}
@@ -122,6 +123,9 @@ class ArtifactBuild(FreshmakerBase):
 
     # Id of a build in the build system
     build_id = db.Column(db.Integer)
+
+    # Build args in json format.
+    build_args = db.Column(db.String, nullable=True)
 
     @classmethod
     def create(cls, session, event, name, type, build_id, dep_on=None, state=None):

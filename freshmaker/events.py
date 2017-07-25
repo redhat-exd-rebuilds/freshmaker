@@ -259,4 +259,4 @@ class BrewSignRPMEvent(BaseEvent):
 
     @property
     def search_key(self):
-        return str(self.task_id)
+        return str(self.nvr)
