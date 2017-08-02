@@ -8,3 +8,4 @@ recursive-include docs *.txt *.rst *.md
 recursive-include freshmaker *
 recursive-include fedmsg.d *
 recursive-include tests *
+recursive-include contrib *

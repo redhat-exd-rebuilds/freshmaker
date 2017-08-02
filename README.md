@@ -14,6 +14,22 @@ The example flow for the modulemd yaml change in dist-git is following:
 
 Handlers can be turned on/off in config file.
 
+## List of Freshmaker handlers
+
+Following is the list of all available HANDLERS:
+
+* `freshmaker.handlers.koji:KojiTaskStateChangeHandler`
+* `freshmaker.handlers.mbs:MBSModuleStateChangeHandler`
+  * Depends on: MBS, PDC
+* `freshmaker.handlers.git:GitRPMSpecChangeHandler`
+  * Depends on: PDC
+* `freshmaker.handlers.brew:BrewSignRPMHandler`
+  * Depends on: Errata, LightBlue, Pulp, Koji
+* `freshmaker.handlers.git:GitDockerfileChangeHandler`
+* `freshmaker.handlers.git:GitModuleMetadataChangeHandler`
+* `freshmaker.handlers.bodhi:BodhiUpdateCompleteStableHandler`
+  * Depends on: PDC, Koji
+
 ## Testing
 
 ```

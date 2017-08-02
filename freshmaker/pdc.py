@@ -69,7 +69,7 @@ class PDC(object):
             latest_modules.append(sorted(mods, key=lambda x: x['variant_release']).pop())
         return list(filter(lambda x: x in latest_modules, modules))
 
-    @freshmaker.utils.retry(wait_on=(requests.ConnectTimeout, requests.ConnectionError), logger=freshmaker.log)
+    @freshmaker.utils.retry(wait_on=(requests.Timeout, requests.ConnectionError), logger=freshmaker.log)
     def get_modules(self, **kwargs):
         """
         Query PDC with specified query parameters and return a list of modules.
@@ -80,12 +80,12 @@ class PDC(object):
         modules = self.session['unreleasedvariants'](page_size=-1, **kwargs)
         return modules
 
-    @freshmaker.utils.retry(wait_on=(requests.ConnectTimeout, requests.ConnectionError), logger=freshmaker.log)
+    @freshmaker.utils.retry(wait_on=(requests.Timeout, requests.ConnectionError), logger=freshmaker.log)
     def find_containers_by_rpm_name(self, rpm_name):
         rels = self.session['release-component-relationships'](type='ContainerIncludesRPM',
                                                                to_component_name=rpm_name)
         return [rel['from_component'] for rel in rels['results']]
 
-    @freshmaker.utils.retry(wait_on=(requests.ConnectTimeout, requests.ConnectionError), logger=freshmaker.log)
+    @freshmaker.utils.retry(wait_on=(requests.Timeout, requests.ConnectionError), logger=freshmaker.log)
     def get_release_component_by_id(self, id):
         return self.session['release-components/{}/'.format(id)]()

@@ -36,7 +36,7 @@ from freshmaker.types import ArtifactType, ArtifactBuildState
 import json
 
 
-class BrewSignRPMHanlder(BaseHandler):
+class BrewSignRPMHandler(BaseHandler):
     """Rebuild docker images when a RPM is signed in Brew"""
 
     name = 'BrewSignRPMHandler'

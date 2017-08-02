@@ -28,7 +28,7 @@ import json
 
 from mock import patch, MagicMock, PropertyMock
 
-from freshmaker.handlers.brew.sign_rpm import BrewSignRPMHanlder
+from freshmaker.handlers.brew.sign_rpm import BrewSignRPMHandler
 from freshmaker.errata import ErrataAdvisory
 
 from freshmaker import db, events
@@ -38,7 +38,7 @@ from freshmaker.types import ArtifactBuildState, ArtifactType
 
 @pytest.mark.skipif(six.PY3, reason='koji does not work in Python 3')
 class TestFindBuildSrpmName(unittest.TestCase):
-    """Test BrewSignRPMHanlder._find_build_srpm_name"""
+    """Test BrewSignRPMHandler._find_build_srpm_name"""
 
     @patch('koji.ClientSession')
     def test_find_srpm_name(self, ClientSession):
@@ -55,7 +55,7 @@ class TestFindBuildSrpmName(unittest.TestCase):
             'nvr': 'bind-dyndb-ldap-2.3-8.el6',
         }]
 
-        handler = BrewSignRPMHanlder()
+        handler = BrewSignRPMHandler()
         srpm_name = handler._find_build_srpm_name('bind-dyndb-ldap-2.3-8.el6')
 
         session.getBuild.assert_called_once_with('bind-dyndb-ldap-2.3-8.el6')
@@ -73,7 +73,7 @@ class TestFindBuildSrpmName(unittest.TestCase):
         }
         session.listRPMs.return_value = []
 
-        handler = BrewSignRPMHanlder()
+        handler = BrewSignRPMHandler()
 
         self.assertRaisesRegexp(
             ValueError,
@@ -87,7 +87,7 @@ class TestFindBuildSrpmName(unittest.TestCase):
 
 
 class TestAllowBuild(unittest.TestCase):
-    """Test BrewSignRPMHanlder.allow_build"""
+    """Test BrewSignRPMHandler.allow_build"""
 
     @patch('freshmaker.errata.Errata.advisories_from_event')
     @patch('freshmaker.errata.Errata.builds_signed')
@@ -104,7 +104,7 @@ class TestAllowBuild(unittest.TestCase):
         builds_signed.return_value = False
 
         event = MagicMock()
-        handler = BrewSignRPMHanlder()
+        handler = BrewSignRPMHandler()
         handler.handle(event)
 
         builds_signed.assert_not_called()
@@ -125,7 +125,7 @@ class TestAllowBuild(unittest.TestCase):
         builds_signed.return_value = False
 
         event = MagicMock()
-        handler = BrewSignRPMHanlder()
+        handler = BrewSignRPMHandler()
         handler.handle(event)
 
         builds_signed.assert_called_once()
@@ -181,7 +181,7 @@ class TestBatches(unittest.TestCase):
 
         # Record the batches.
         event = events.BrewSignRPMEvent("123", "openssl-1.1.0-1")
-        handler = BrewSignRPMHanlder()
+        handler = BrewSignRPMHandler()
         handler._record_batches(batches, event)
 
         # Check that the images have proper data in proper db columns.

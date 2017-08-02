@@ -25,7 +25,7 @@ class BaseConfiguration(config.BaseConfiguration):
     ]
 
     HANDLERS = [
-        'freshmaker.handlers.brew:BrewSignRPMHanlder',
+        'freshmaker.handlers.brew:BrewSignRPMHandler',
     ]
 
     KOJI_PROFILE = 'brew'
