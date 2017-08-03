@@ -21,6 +21,10 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
+import json
+import koji
+import time
+
 from itertools import chain
 
 from freshmaker import conf
@@ -33,7 +37,9 @@ from freshmaker.lightblue import LightBlue
 from freshmaker.pulp import Pulp
 from freshmaker.errata import Errata
 from freshmaker.types import ArtifactType, ArtifactBuildState
-import json
+
+from odcs.client.odcs import ODCS
+from odcs.client.odcs import AuthMech
 
 
 class BrewSignRPMHandler(BaseHandler):
@@ -71,9 +77,80 @@ class BrewSignRPMHandler(BaseHandler):
         self._log_batches(batches)
         self._record_batches(batches, event)
 
-        # TODO: build yum repo to contain that signed RPM and start to rebuild
+        repo_url = self._prepare_yum_repo(event)  # noqa
 
         return []
+
+    def _prepare_yum_repo(self, event):
+        """Prepare a yum repo for rebuild
+
+        Run a compose in ODCS to contain required RPMs for rebuilding images
+        later.
+        """
+        odcs = ODCS(conf.odcs_server_url, auth_mech=AuthMech.Kerberos)
+        packages = self._get_packages_for_compose(event.nvr)
+        compose_source = self._get_compose_source(event.nvr)
+
+        if compose_source is None:
+            log.error('Build %s is not the latest build in its all tags.',
+                      event.nvr)
+            return
+
+        log.info('Generate new compose for rebuild: '
+                 'source: %s, source type: %s, packages: %s',
+                 compose_source, 'tag', packages)
+
+        new_compose = odcs.new_compose(compose_source,
+                                       'tag',
+                                       packages=packages)
+        compose_id = new_compose['id']
+        compose_url = '{0}/odcs/{1}/composes/{2}'.format(
+            odcs.server_url.strip('/'), odcs.api_version, compose_id)
+
+        log.info('Waiting for ODCS to finish the compose: %s', compose_url)
+
+        while True:
+            time.sleep(1)
+
+            compose = odcs.get_compose(compose_id)
+            state = compose['state']
+            if state == 0:  # waiting for generating compose
+                log.info('Waiting for generating new compose')
+            elif state == 1:  # generating in progress
+                log.info('ODCS is generating the compose')
+            elif state == 4:  # Failed to generate compose
+                log.error('ODCS fails to generate compose: %s', compose_url)
+                log.error('Please consult ODCS to see what is wrong with it')
+                return
+            elif state == 2:  # Succeed to generate compose
+                log.info('ODCS has finished to generate compose. Continue to rebuild')
+                break
+            else:
+                log.error('Got unexpected compose state {0} from ODCS.'.format(state))
+                return
+
+        log.info('Repo URL containing packages used to rebuild container: %s',
+                 new_compose['result_repo'])
+
+        return new_compose['result_repo']
+
+    def _get_packages_for_compose(self, nvr):
+        """Get RPMs of current build NVR"""
+        with koji_service(conf.koji_profile, log) as session:
+            rpms = session.get_build_rpms(nvr)
+        return list(set([rpm['name'] for rpm in rpms]))
+
+    def _get_compose_source(self, nvr):
+        """Get tag from which to collect packages to compose"""
+        with koji_service(conf.koji_profile, log) as service:
+            tag = [tag['name'] for tag in service.session.listTags(nvr)
+                   if tag['name'].endswith('-candidate')][0]
+            latest_build = service.session.listTagged(
+                tag,
+                latest=True,
+                package=koji.parse_NVR(nvr)['name'])
+            if latest_build and latest_build[0]['nvr'] == nvr:
+                return tag
 
     def _log_batches(self, batches):
         """

@@ -228,6 +228,10 @@ class Config(object):
             'type': str,
             'default': '',
             'desc': 'Password to login Pulp.'},
+        'odcs_server_url': {
+            'type': str,
+            'default': '',
+            'desc': 'Server URL to ODCS'},
     }
 
     def __init__(self, conf_section_obj):

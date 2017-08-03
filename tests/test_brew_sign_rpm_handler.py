@@ -26,7 +26,7 @@ import pytest
 import unittest
 import json
 
-from mock import patch, MagicMock, PropertyMock
+from mock import patch, MagicMock, PropertyMock, Mock
 
 from freshmaker.handlers.brew.sign_rpm import BrewSignRPMHandler
 from freshmaker.errata import ErrataAdvisory
@@ -201,3 +201,154 @@ class TestBatches(unittest.TestCase):
             self.assertEqual(args["commit"], build.name + "_123")
             self.assertEqual(args["parent"],
                              build.dep_on.name if build.dep_on else None)
+
+
+class TestGetPackagesForCompose(unittest.TestCase):
+    """Test BrewSignRPMHandler._get_packages_for_compose"""
+
+    @patch('freshmaker.kojiservice.KojiService.get_build_rpms')
+    def test_get_packages(self, get_build_rpms):
+        get_build_rpms.return_value = [
+            {
+                'id': 4672404,
+                'arch': 'src',
+                'name': 'chkconfig',
+                'release': '1.el7_3.1',
+                'version': '1.7.2',
+                'nvr': 'chkconfig-1.7.2-1.el7_3.1',
+            },
+            {
+                'id': 4672405,
+                'arch': 'ppc',
+                'name': 'chkconfig',
+                'release': '1.el7_3.1',
+                'version': '1.7.2',
+                'nvr': 'chkconfig-1.7.2-1.el7_3.1',
+            },
+            {
+                'id': 4672420,
+                'arch': 'i686',
+                'name': 'chkconfig-debuginfo',
+                'release': '1.el7_3.1',
+                'version': '1.7.2',
+                'nvr': 'chkconfig-debuginfo-1.7.2-1.el7_3.1',
+            }
+        ]
+
+        build_nvr = 'chkconfig-1.7.2-1.el7_3.1'
+        handler = BrewSignRPMHanlder()
+        packages = handler._get_packages_for_compose(build_nvr)
+
+        get_build_rpms.assert_called_once_with(build_nvr)
+
+        self.assertEqual(set(['chkconfig', 'chkconfig-debuginfo']),
+                         set(packages))
+
+
+class TestGetComposeSource(unittest.TestCase):
+    """Test BrewSignRPMHandler._get_compose_source"""
+
+    @patch('freshmaker.kojiservice.KojiService.session', callable=PropertyMock)
+    def test_get_tag(self, session):
+        session.listTags.return_value = [
+            {
+                'id': 10974,
+                'name': 'rhscl-3.0-rhel-6-candidate',
+            },
+            {
+                'id': 11030,
+                'name': 'rhscl-3.0-rhel-6-pending',
+            },
+            {
+                'id': 11425,
+                'name': 'rhscl-3.0-rhel-6-alpha-1.0-set',
+            }
+        ]
+        session.listTagged.return_value = [
+            {
+                'build_id': 568228,
+                'nvr': 'rh-postgresql96-3.0-9.el6',
+            }
+        ]
+
+        handler = BrewSignRPMHanlder()
+        tag = handler._get_compose_source('rh-postgresql96-3.0-9.el6')
+        self.assertEqual('rhscl-3.0-rhel-6-candidate', tag)
+
+    @patch('freshmaker.kojiservice.KojiService.session', callable=PropertyMock)
+    def test_get_None_if_tag_has_new_build(self, session):
+        session.listTags.return_value = [
+            {
+                'id': 10974,
+                'name': 'rhscl-3.0-rhel-6-candidate',
+            },
+            {
+                'id': 11030,
+                'name': 'rhscl-3.0-rhel-6-pending',
+            },
+            {
+                'id': 11425,
+                'name': 'rhscl-3.0-rhel-6-alpha-1.0-set',
+            }
+        ]
+        session.listTagged.return_value = [
+            {
+                'build_id': 568228,
+                'nvr': 'rh-postgresql96-3.0-10.el6',
+            }
+        ]
+
+        handler = BrewSignRPMHanlder()
+        tag = handler._get_compose_source('rh-postgresql96-3.0-9.el6')
+        self.assertEqual(None, tag)
+
+
+class TestPrepareYumRepo(unittest.TestCase):
+    """Test BrewSignRPMHandler._prepare_yum_repo"""
+
+    @patch('freshmaker.handlers.brew.sign_rpm.ODCS')
+    @patch('freshmaker.handlers.brew.sign_rpm.'
+           'BrewSignRPMHanlder._get_packages_for_compose')
+    @patch('freshmaker.handlers.brew.sign_rpm.'
+           'BrewSignRPMHanlder._get_compose_source')
+    @patch('time.sleep')
+    def test_get_repo_url_when_succeed_to_generate_compose(
+            self, sleep, _get_compose_source, _get_packages_for_compose, ODCS):
+        _get_packages_for_compose.return_value = ['httpd', 'httpd-debuginfo']
+        _get_compose_source.return_value = 'rhel-7.2-candidate'
+        ODCS.return_value.new_compose.return_value = {
+            "id": 3,
+            "result_repo": "http://localhost/composes/latest-odcs-3-1/compose/Temporary",
+            "source": "f26",
+            "source_type": 1,
+            "state": 0,
+            "state_name": "wait",
+        }
+        ODCS.return_value.get_compose.return_value = {
+            "id": 3,
+            "result_repo": "http://localhost/composes/latest-odcs-3-1/compose/Temporary",
+            "source": "f26",
+            "source_type": 1,
+            "state": 2,
+            "state_name": "done",
+        }
+
+        event = Mock(nvr='httpd-0.1-1.f26')
+        handler = BrewSignRPMHanlder()
+        repo_url = handler._prepare_yum_repo(event)
+
+        _get_compose_source.assert_called_once_with(event.nvr)
+        _get_packages_for_compose.assert_called_once_with(event.nvr)
+
+        # Ensure new_compose is called to request a new compose
+        ODCS.return_value.new_compose.assert_called_once_with(
+            'rhel-7.2-candidate', 'tag', packages=['httpd', 'httpd-debuginfo'])
+
+        # Ensure get_compose is called once in order to get lates state and see
+        # if it still needs to wait for ODCS
+        ODCS.return_value.get_compose.assert_called_once_with(3)
+
+        # We should get the right repo URL eventually
+        self.assertEqual(
+            'http://localhost/composes/latest-odcs-3-1/compose/Temporary',
+            repo_url)

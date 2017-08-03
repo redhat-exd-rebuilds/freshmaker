@@ -127,6 +127,10 @@ class BaseConfiguration(object):
     #     },
     # }
 
+    # ODCS configs
+    # URL to ODCS to call APIs
+    ODCS_SERVER_URL = ''
+
 
 class DevConfiguration(BaseConfiguration):
     DEBUG = True
