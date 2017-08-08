@@ -20,3 +20,4 @@
 # SOFTWARE.
 
 from .sign_rpm import BrewSignRPMHandler  # noqa
+from .container_task_state_change import BrewContainerTaskStateChangeHandler  # noqa

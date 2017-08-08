@@ -22,10 +22,12 @@ class BaseConfiguration(config.BaseConfiguration):
 
     PARSERS = [
         'freshmaker.parsers.brew.sign_rpm:BrewSignRpmParser',
+        'freshmaker.parsers.brew:BrewTaskStateChangeParser',
     ]
 
     HANDLERS = [
         'freshmaker.handlers.brew:BrewSignRPMHandler',
+        'freshmaker.handlers.brew:BrewContainerTaskStateChangeHandler',
     ]
 
     KOJI_PROFILE = 'brew'

@@ -260,3 +260,21 @@ class BrewSignRPMEvent(BaseEvent):
     @property
     def search_key(self):
         return str(self.nvr)
+
+
+class BrewContainerTaskStateChangeEvent(BaseEvent):
+    """
+    Represents the message sent by Brew when a container task state is changed.
+    """
+    def __init__(self, msg_id, container, branch, target, task_id, old_state, new_state):
+        super(BrewContainerTaskStateChangeEvent, self).__init__(msg_id)
+        self.container = container
+        self.branch = branch
+        self.target = target
+        self.task_id = task_id
+        self.old_state = old_state
+        self.new_state = new_state
+
+    @property
+    def search_key(self):
+        return str(self.task_id)

@@ -1,0 +1,74 @@
+{
+  "username": null, 
+  "source_name": "datanommer", 
+  "certificate": null, 
+  "i": 0, 
+  "timestamp": 1501051181.0, 
+  "msg_id": "ID:messaging-example.com-44140-1499406995819-2:36670:0:0:1", 
+  "crypto": null, 
+  "topic": "/topic/VirtualTopic.eng.brew.task.closed", 
+  "headers": {
+    "content-length": "1313", 
+    "expires": "0", 
+    "old": "OPEN", 
+    "JMS_AMQP_MESSAGE_FORMAT": "0", 
+    "parent": "null", 
+    "JMS_AMQP_NATIVE": "false", 
+    "destination": "/topic/VirtualTopic.eng.brew.task.closed", 
+    "method": "buildContainer", 
+    "priority": "4", 
+    "message-id": "ID:messaging-example.com-44140-1499406995819-2:36670:0:0:1", 
+    "timestamp": "0", 
+    "attribute": "state", 
+    "new": "CLOSED", 
+    "JMS_AMQP_FirstAcquirer": "false", 
+    "type": "TaskStateChange", 
+    "id": "20124784", 
+    "subscription": "/queue/Consumer.client-datanommer.mikeb-dev.VirtualTopic.eng.>"
+  }, 
+  "signature": null, 
+  "source_version": "0.7.0", 
+  "msg": {
+    "info": {
+      "weight": 2.0, 
+      "parent": null, 
+      "completion_time": "2017-07-26 06:39:54.907075", 
+      "start_ts": 1501050630.82726, 
+      "start_time": "2017-07-26 06:30:30.827262", 
+      "request": [
+        "git://dist-git.example.com/rpms/test-product-docker#d3670cde469aca43f1ff6768257420eb80e147db", 
+        "rhel-docker-candidate", 
+        {
+          "scratch": false, 
+          "yum_repourls": null, 
+          "git_branch": "rhel-docker"
+        }
+      ], 
+      "waiting": null, 
+      "awaited": null, 
+      "label": null, 
+      "priority": 20, 
+      "channel_id": 20, 
+      "state": 2, 
+      "create_time": "2017-07-26 06:30:18.225661", 
+      "create_ts": 1501050618.22566, 
+      "owner": 3447, 
+      "host_id": 191, 
+      "method": "buildContainer", 
+      "completion_ts": 1501051194.90707, 
+      "arch": "noarch", 
+      "id": 20124784, 
+      "result": {
+        "repositories": [
+          "docker.example.com:8888/rhel7/test-product-docker:rhel-docker-candidate-10587-20170726063100"
+        ], 
+        "koji_builds": [
+          "1016224"
+        ]
+      }
+    }, 
+    "attribute": "state", 
+    "old": "OPEN", 
+    "new": "FAILED"
+  }
+}
