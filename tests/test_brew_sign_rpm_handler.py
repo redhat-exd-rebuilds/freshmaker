@@ -236,7 +236,7 @@ class TestGetPackagesForCompose(unittest.TestCase):
         ]
 
         build_nvr = 'chkconfig-1.7.2-1.el7_3.1'
-        handler = BrewSignRPMHanlder()
+        handler = BrewSignRPMHandler()
         packages = handler._get_packages_for_compose(build_nvr)
 
         get_build_rpms.assert_called_once_with(build_nvr)
@@ -271,7 +271,7 @@ class TestGetComposeSource(unittest.TestCase):
             }
         ]
 
-        handler = BrewSignRPMHanlder()
+        handler = BrewSignRPMHandler()
         tag = handler._get_compose_source('rh-postgresql96-3.0-9.el6')
         self.assertEqual('rhscl-3.0-rhel-6-candidate', tag)
 
@@ -298,7 +298,7 @@ class TestGetComposeSource(unittest.TestCase):
             }
         ]
 
-        handler = BrewSignRPMHanlder()
+        handler = BrewSignRPMHandler()
         tag = handler._get_compose_source('rh-postgresql96-3.0-9.el6')
         self.assertEqual(None, tag)
 
@@ -308,9 +308,9 @@ class TestPrepareYumRepo(unittest.TestCase):
 
     @patch('freshmaker.handlers.brew.sign_rpm.ODCS')
     @patch('freshmaker.handlers.brew.sign_rpm.'
-           'BrewSignRPMHanlder._get_packages_for_compose')
+           'BrewSignRPMHandler._get_packages_for_compose')
     @patch('freshmaker.handlers.brew.sign_rpm.'
-           'BrewSignRPMHanlder._get_compose_source')
+           'BrewSignRPMHandler._get_compose_source')
     @patch('time.sleep')
     def test_get_repo_url_when_succeed_to_generate_compose(
             self, sleep, _get_compose_source, _get_packages_for_compose, ODCS):
@@ -334,7 +334,7 @@ class TestPrepareYumRepo(unittest.TestCase):
         }
 
         event = Mock(nvr='httpd-0.1-1.f26')
-        handler = BrewSignRPMHanlder()
+        handler = BrewSignRPMHandler()
         repo_url = handler._prepare_yum_repo(event)
 
         _get_compose_source.assert_called_once_with(event.nvr)
