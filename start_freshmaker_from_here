@@ -1,0 +1,14 @@
+#!/bin/bash
+
+export PYTHONPATH=.
+export FRESHMAKER_DEVELOPER_ENV=1
+
+./start_backend_from_here &
+PIDS[0]=$!
+
+trap "kill ${PIDS[*]}" SIGINT
+
+./start_frontend_from_here
+if (($? != 0)); then
+    wait
+fi
