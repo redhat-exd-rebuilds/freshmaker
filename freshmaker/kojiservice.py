@@ -103,6 +103,9 @@ class KojiService(object):
         return self.session.listRPMs(buildID=build_info['id'],
                                      arches=arches)
 
+    def get_build(self, build_nvr):
+        return self.session.getBuild(build_nvr)
+
 
 @contextlib.contextmanager
 def koji_service(profile=None, logger=None):
