@@ -130,6 +130,68 @@ class TestAllowBuild(unittest.TestCase):
 
         builds_signed.assert_called_once()
 
+    @patch('freshmaker.errata.Errata.advisories_from_event')
+    @patch('freshmaker.errata.Errata.builds_signed')
+    @patch(
+        "freshmaker.config.Config.handler_build_whitelist",
+        new_callable=PropertyMock,
+        return_value={
+            "BrewSignRPMHandler": {
+                "image": [{
+                    "advisory_security_impact": [
+                        "Normal", "Important"
+                    ]
+                }]
+            }
+        })
+    def test_allow_security_impact_important_true(
+            self, handler_build_whitelist, builds_signed,
+            advisories_from_event):
+        """
+        Tests that allow_build does not filter out advisories based on
+        advisory_security_impact.
+        """
+        advisories_from_event.return_value = [
+            ErrataAdvisory(123, "RHSA-2017", "REL_PREP", "Important")]
+        builds_signed.return_value = False
+
+        event = MagicMock()
+        handler = BrewSignRPMHandler()
+        handler.handle(event)
+
+        builds_signed.assert_called_once()
+
+    @patch('freshmaker.errata.Errata.advisories_from_event')
+    @patch('freshmaker.errata.Errata.builds_signed')
+    @patch(
+        "freshmaker.config.Config.handler_build_whitelist",
+        new_callable=PropertyMock,
+        return_value={
+            "BrewSignRPMHandler": {
+                "image": [{
+                    "advisory_security_impact": [
+                        "Normal", "Important"
+                    ]
+                }]
+            }
+        })
+    def test_allow_security_impact_important_false(
+            self, handler_build_whitelist, builds_signed,
+            advisories_from_event):
+        """
+        Tests that allow_build dost filter out advisories based on
+        advisory_security_impact.
+        """
+        advisories_from_event.return_value = [
+            ErrataAdvisory(123, "RHSA-2017", "REL_PREP", "None")]
+        builds_signed.return_value = False
+
+        event = MagicMock()
+        handler = BrewSignRPMHandler()
+        handler.handle(event)
+
+        builds_signed.assert_not_called()
+
 
 class TestBatches(unittest.TestCase):
     """Test handling of batches"""

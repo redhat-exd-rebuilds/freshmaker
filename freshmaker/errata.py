@@ -32,13 +32,14 @@ class ErrataAdvisory(object):
     Represents Errata advisory.
     """
 
-    def __init__(self, errata_id, name, state):
+    def __init__(self, errata_id, name, state, security_impact=None):
         """
         Initializes the ErrataAdvisory instance.
         """
         self.errata_id = errata_id
         self.name = name
         self.state = state
+        self.security_impact = security_impact or ""
 
 
 class Errata(object):
@@ -91,9 +92,17 @@ class Errata(object):
             build = self._errata_rest_get("/build/%s" % str(event.nvr))
             if "all_errata" not in build:
                 return []
-            return [
-                ErrataAdvisory(errata["id"], errata["name"], errata["status"])
-                for errata in build["all_errata"]]
+
+            advisories = []
+            for errata in build["all_errata"]:
+                extra_data = self._errata_http_get(
+                    "advisory/%s.json" % str(errata["id"]))
+                advisory = ErrataAdvisory(
+                    errata["id"], errata["name"], errata["status"],
+                    extra_data["security_impact"])
+                advisories.append(advisory)
+
+            return advisories
         else:
             raise ValueError("Unsupported event type")
 

@@ -68,6 +68,8 @@ class MockedErrataAPI(object):
             "all_errata": [{"id": 28484, "name": "RHSA-2017:28484", "status": "QE"}],
             "rpms_signed": True}
 
+        self.advisory_json = {"security_impact": "Important"}
+
     def errata_rest_get(self, endpoint):
         if endpoint.find("build/") != -1:
             nvr = endpoint.split("/")[-1]
@@ -76,6 +78,8 @@ class MockedErrataAPI(object):
     def errata_http_get(self, endpoint):
         if endpoint.endswith("builds.json"):
             return self.builds_json
+        elif endpoint.startswith("advisory/"):
+            return self.advisory_json
 
 
 class TestErrata(unittest.TestCase):
@@ -83,16 +87,18 @@ class TestErrata(unittest.TestCase):
         self.errata = Errata("https://localhost/")
 
     @patch.object(Errata, "_errata_rest_get")
-    def test_advisories_from_event(self, errata_rest_get):
-        MockedErrataAPI(errata_rest_get)
+    @patch.object(Errata, "_errata_http_get")
+    def test_advisories_from_event(self, errata_http_get, errata_rest_get):
+        MockedErrataAPI(errata_rest_get, errata_http_get)
         event = BrewSignRPMEvent("msgid", "libntirpc-1.4.3-4.el7rhgs")
         advisories = self.errata.advisories_from_event(event)
         self.assertEqual(len(advisories), 1)
         self.assertEqual(advisories[0].errata_id, 28484)
 
     @patch.object(Errata, "_errata_rest_get")
-    def test_advisories_from_event_missing_all_errata(self, errata_rest_get):
-        mocked_errata = MockedErrataAPI(errata_rest_get)
+    @patch.object(Errata, "_errata_http_get")
+    def test_advisories_from_event_missing_all_errata(self, errata_http_get, errata_rest_get):
+        mocked_errata = MockedErrataAPI(errata_rest_get, errata_http_get)
         del mocked_errata.builds["libntirpc-1.4.3-4.el7rhgs"]["all_errata"]
 
         event = BrewSignRPMEvent("msgid", "libntirpc-1.4.3-4.el7rhgs")

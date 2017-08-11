@@ -145,7 +145,13 @@ class BaseHandler(object):
         def match_rule(kwargs, rule):
             for key, value in kwargs.items():
                 value_rule = rule.get(key, None)
-                if value_rule and not re.compile(value_rule).match(value):
+                if not value_rule:
+                    continue
+
+                if not isinstance(value_rule, list):
+                    value_rule = [value_rule]
+
+                if not any((re.compile(r).match(value) for r in value_rule)):
                     return False
             return True
 

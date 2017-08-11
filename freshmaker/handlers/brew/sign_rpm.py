@@ -202,8 +202,9 @@ class BrewSignRPMHandler(BaseHandler):
 
         # Filter out advisories which are not allow by configuration
         advisories = [advisory for advisory in advisories
-                      if self.allow_build(ArtifactType.IMAGE,
-                                          advisory_name=advisory.name)]
+                      if self.allow_build(
+                          ArtifactType.IMAGE, advisory_name=advisory.name,
+                          advisory_security_impact=advisory.security_impact)]
         if not advisories:
             log.info("No advisories found suitable for rebuilding Docker "
                      "images")
