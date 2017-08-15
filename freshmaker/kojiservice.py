@@ -22,6 +22,7 @@
 # Written by Chenxiong Qi <cqi@redhat.com>
 
 import contextlib
+from freshmaker import log
 
 
 class KojiService(object):
@@ -99,6 +100,7 @@ class KojiService(object):
         return task_id
 
     def get_build_rpms(self, build_nvr, arches=None):
+        log.info("get_build_rpms %r", build_nvr)
         build_info = self.session.getBuild(build_nvr)
         return self.session.listRPMs(buildID=build_info['id'],
                                      arches=arches)

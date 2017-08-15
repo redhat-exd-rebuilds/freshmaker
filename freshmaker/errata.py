@@ -130,6 +130,17 @@ class Errata(object):
 
         return True
 
+    def get_builds(self, errata_id):
+        builds_per_product = self._errata_http_get(
+            "advisory/%s/builds.json" % str(errata_id))
+
+        # Store NVRs of all builds in advisory to nvrs set.
+        nvrs = set()
+        for builds in builds_per_product.values():
+            for build in builds:
+                nvrs.update(set(build.keys()))
+        return nvrs
+
     def get_pulp_repository_ids(self, errata_id):
         """Get Pulp repository IDs where packages included in errata will end up
 

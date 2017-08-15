@@ -32,7 +32,8 @@ from freshmaker.types import ArtifactType, ArtifactBuildState
 from freshmaker.events import (
     MBSModuleStateChangeEvent, GitModuleMetadataChangeEvent,
     GitRPMSpecChangeEvent, TestingEvent, GitDockerfileChangeEvent,
-    BodhiUpdateCompleteStableEvent, KojiTaskStateChangeEvent, BrewSignRPMEvent)
+    BodhiUpdateCompleteStableEvent, KojiTaskStateChangeEvent, BrewSignRPMEvent,
+    ErrataAdvisoryRPMsSignedEvent)
 
 EVENT_TYPES = {
     MBSModuleStateChangeEvent: 0,
@@ -43,6 +44,7 @@ EVENT_TYPES = {
     BodhiUpdateCompleteStableEvent: 5,
     KojiTaskStateChangeEvent: 6,
     BrewSignRPMEvent: 7,
+    ErrataAdvisoryRPMsSignedEvent: 8,
 }
 
 INVERSE_EVENT_TYPES = {v: k for k, v in EVENT_TYPES.items()}
@@ -63,28 +65,36 @@ class Event(FreshmakerBase):
     # Event type id defined in EVENT_TYPES - ID of class inherited from
     # BaseEvent class - used when searching for events of particular type.
     event_type_id = db.Column(db.Integer, nullable=False)
+    # True when the Event is already released and we do not have to include
+    # it in the future rebuilds of artifacts.
+    released = db.Column(db.Boolean, default=True)
 
     # List of builds associated with this Event.
     builds = relationship("ArtifactBuild", back_populates="event")
 
     @classmethod
-    def create(cls, session, message_id, search_key, event_type):
+    def create(cls, session, message_id, search_key, event_type, released=True):
         if event_type in EVENT_TYPES:
             event_type = EVENT_TYPES[event_type]
         event = cls(
             message_id=message_id,
             search_key=search_key,
-            event_type_id=event_type
+            event_type_id=event_type,
+            released=released,
         )
         session.add(event)
         return event
 
     @classmethod
-    def get_or_create(cls, session, message_id, search_key, event_type):
+    def get_or_create(cls, session, message_id, search_key, event_type, released=True):
         instance = session.query(cls).filter_by(message_id=message_id).first()
         if instance:
             return instance
-        return cls.create(session, message_id, search_key, event_type)
+        return cls.create(session, message_id, search_key, event_type, released)
+
+    @classmethod
+    def get_unreleased(cls, session):
+        return session.query(cls).filter_by(released=False).all()
 
     @property
     def event_type(self):
@@ -99,7 +109,7 @@ class Event(FreshmakerBase):
             "message_id": self.message_id,
             "search_key": self.search_key,
             "event_type_id": self.event_type_id,
-            "builds": [b.id for b in self.builds],
+            "builds": [b.json() for b in self.builds],
         }
 
 
@@ -168,7 +178,10 @@ class ArtifactBuild(FreshmakerBase):
             "id": self.id,
             "name": self.name,
             "type": self.type,
+            "type_name": ArtifactType(self.type).name,
             "state": self.state,
+            "state_name": ArtifactBuildState(self.state).name,
+            "dep_on": self.dep_on.name if self.dep_on else None,
             "time_submitted": self.time_submitted,
             "time_completed": self.time_completed,
             "event_id": self.event_id,

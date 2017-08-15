@@ -232,6 +232,10 @@ class Config(object):
             'type': str,
             'default': '',
             'desc': 'Server URL to ODCS'},
+        'odcs_verify_ssl': {
+            'type': bool,
+            'default': True,
+            'desc': 'Whether to enable SSL verification over HTTP with ODCS.'},
     }
 
     def __init__(self, conf_section_obj):

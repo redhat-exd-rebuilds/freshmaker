@@ -248,6 +248,29 @@ class KojiTaskStateChangeEvent(BaseEvent):
         self.task_id = task_id
         self.task_state = task_state
 
+class ErrataAdvisoryStateChangedEvent(BaseEvent):
+    """
+    Represents change od Errata Advisory status.
+    """
+
+    def __init__(self, msg_id, errata_id, state):
+        super(ErrataAdvisoryStateChangedEvent, self).__init__(msg_id)
+        self.errata_id = errata_id
+        self.state = state
+
+class ErrataAdvisoryRPMsSignedEvent(BaseEvent):
+    """
+    Event when all RPMs in Errata advisory are signed.
+    """
+    def __init__(self, msg_id, errata_name, errata_id, security_impact):
+        super(ErrataAdvisoryRPMsSignedEvent, self).__init__(msg_id)
+        self.errata_name = errata_name
+        self.errata_id = errata_id
+        self.security_impact = security_impact
+
+    @property
+    def search_key(self):
+        return str(self.errata_id)
 
 class BrewSignRPMEvent(BaseEvent):
     """

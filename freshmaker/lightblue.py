@@ -130,7 +130,7 @@ class ContainerImage(dict):
         srpm_nevra = None
         if "parsed_data" in self and "rpm_manifest" in self["parsed_data"]:
             for rpm in self["parsed_data"]["rpm_manifest"]:
-                if rpm["srpm_name"] == srpm_name:
+                if "srpm_name" in rpm and rpm["srpm_name"] == srpm_name:
                     srpm_nevra = rpm['srpm_nevra']
                     break
 
