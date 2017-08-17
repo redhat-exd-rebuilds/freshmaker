@@ -173,7 +173,7 @@ class TestViews(unittest.TestCase):
         self.assertEqual(data['message_id'], '2017-00000000-0000-0000-0000-000000000001')
         self.assertEqual(data['search_key'], 'RHSA-2018-101')
         self.assertEqual(data['event_type_id'], models.EVENT_TYPES[events.TestingEvent])
-        self.assertEqual(data['builds'], [1, 2, 3])
+        self.assertEqual(len(data['builds']), 3)
 
     def test_query_events(self):
         resp = self.client.get('/freshmaker/1/events/')

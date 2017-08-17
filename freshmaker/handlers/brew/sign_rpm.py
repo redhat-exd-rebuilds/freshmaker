@@ -21,26 +21,12 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
-import json
-import koji
-import time
-
-from itertools import chain
-
 from freshmaker import conf
 from freshmaker import log
-from freshmaker import db
 from freshmaker.events import BrewSignRPMEvent, ErrataAdvisoryRPMsSignedEvent
 from freshmaker.handlers import BaseHandler
-from freshmaker.kojiservice import koji_service
-from freshmaker.lightblue import LightBlue
-from freshmaker.pulp import Pulp
 from freshmaker.errata import Errata
-from freshmaker.types import ArtifactType, ArtifactBuildState
-from freshmaker.models import Event
-
-from odcs.client.odcs import ODCS
-from odcs.client.odcs import AuthMech
+from freshmaker.types import ArtifactType
 
 
 class BrewSignRPMHandler(BaseHandler):

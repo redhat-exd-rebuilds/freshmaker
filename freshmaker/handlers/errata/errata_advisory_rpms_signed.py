@@ -26,8 +26,6 @@ import json
 import koji
 import time
 
-from itertools import chain
-
 from freshmaker import conf
 from freshmaker import log
 from freshmaker import db
@@ -79,7 +77,8 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
         # ErrataAdvisoryRPMsSignedEvent event.
         builds = self._record_images_to_rebuild(db_event, event)
         if not builds:
-            log.info('Not found docker images to rebuild.')
+            log.info('No container images to rebuild for advisory %r',
+                     event.errata_name)
             return []
 
         # Generate the ODCS compose with RPMs from the current advisory.
@@ -224,14 +223,21 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
         while len(printed) != len(builds.values()):
             log.info('   Batch %d:', batch)
             for build in builds.values():
-                if (((build.dep_on and build.dep_on.name in printed)
-                        or (not build.dep_on and batch == 0))
-                        and not build.name in printed):
+                # Print build only if:
+                # a) It depends on other build, but this dependency has not
+                #    been printed yet or ...
+                # b) ... it does not depend on other build and we are printing
+                #   batch 0 - this handles the base images
+                # In call cases, print only builds which have not been printed
+                # so far.
+                if (build.name not in printed and
+                        ((build.dep_on and build.dep_on.name in printed) or
+                         (not build.dep_on and batch == 0))):
                     args = json.loads(build.build_args)
                     based_on = "based on %s" % args["parent"] \
                         if args["parent"] else "base image"
                     log.info('      - %s#%s (%s)' %
-                            (args["repository"], args["commit"], based_on))
+                             (args["repository"], args["commit"], based_on))
                     printed.append(build.name)
 
             batch += 1
@@ -250,8 +256,8 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
         for ev in Event.get_unreleased(db.session):
             for build in ev.builds:
                 # Skip non IMAGE builds
-                if (build.type != ArtifactType.IMAGE.value
-                        or ev.message_id == db_event.message_id):
+                if (build.type != ArtifactType.IMAGE.value or
+                        ev.message_id == db_event.message_id):
                     continue
 
                 if build.name in builds:

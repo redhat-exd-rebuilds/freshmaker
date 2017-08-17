@@ -67,6 +67,8 @@ class Event(FreshmakerBase):
     event_type_id = db.Column(db.Integer, nullable=False)
     # True when the Event is already released and we do not have to include
     # it in the future rebuilds of artifacts.
+    # This is currently only used for internal Docker images rebuilds, but in
+    # the future might be used even for modules or Fedora Docker images.
     released = db.Column(db.Boolean, default=True)
 
     # List of builds associated with this Event.
