@@ -75,7 +75,7 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
 
         # Get and record all images to rebuild based on the current
         # ErrataAdvisoryRPMsSignedEvent event.
-        builds = self._record_images_to_rebuild(db_event, event)
+        builds = self._find_and_record_images_to_rebuild(db_event, event)
         if not builds:
             log.info('No container images to rebuild for advisory %r',
                      event.errata_name)
@@ -108,7 +108,8 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
                 if ev in seen_extra_events:
                     continue
                 seen_extra_events.append(ev)
-                builds = self._record_images_to_rebuild(ev, event, builds)
+                builds = self._find_and_record_images_to_rebuild(
+                    ev, event, builds)
                 repo_urls.append(self._prepare_yum_repo(ev))
 
         # Remove duplicates from repo_urls.
@@ -215,7 +216,7 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
         """
         Logs the information about images to rebuilt using log.info(...).
         :param builds dict: list of docker images to build as returned by
-            _record_images_to_rebuild(...).
+            _find_and_record_images_to_rebuild(...).
         """
         log.info('Found docker images to rebuild in following order:')
         batch = 0
@@ -245,12 +246,12 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
     def _find_events_to_include(self, db_event, builds):
         """
         Find out all unreleased events which built some image which is also
-        planned to be build as part of current image rebuild.
+        planned to be built as part of current image rebuild.
 
         :param db_event Event: Database representation of
             ErrataAdvisoryRPMsSignedEvent.
         :param builds dict: list of docker images to build as returned by
-            _record_images_to_rebuild(...).
+            _find_and_record_images_to_rebuild(...).
         """
         events_to_include = []
         for ev in Event.get_unreleased(db.session):
@@ -269,14 +270,23 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
     def _record_batches(self, batches, event, builds=None):
         """
         Records the images from batches to database.
-        :param batches list: Output of _find_images_to_rebuild(...).
-        :param event ErrataAdvisoryRPMsSignedEvent: The main event this handler
-            is currently handling.
-        :param builds dict: list of docker images to build as returned by
-            _record_images_to_rebuild(...).
-        """
 
-        # Used as tmp dict with {brew_buil_id: ArtifactBuild, ...} mapping.
+        :param batches list: Output of LightBlue._find_images_to_rebuild(...).
+        :param event ErrataAdvisoryRPMsSignedEvent: The event this handler
+            is currently handling.
+        :param builds dict: mappings from docker image build NVR to
+            corresponding ArtifactBuild object, e.g.
+            ``{brew_build_nvr: ArtifactBuild, ...}``. Previous builds returned
+            from this method can be passed to this call to be extended by
+            adding a new mappings after docker image is stored into database.
+            For the first time to call this method, builds could be None.
+        :return: a mapping between docker image build NVR and
+            corresponding ArtifactBuild object representing a future rebuild of
+            that docker image. It is extended by including those docker images
+            stored into database.
+        :rtype: dict
+        """
+        # Used as tmp dict with {brew_build_nvr: ArtifactBuild, ...} mapping.
         builds = builds or {}
 
         for batch in batches:
@@ -305,17 +315,20 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
 
         return builds
 
-    def _record_images_to_rebuild(self, db_event, event, builds=None):
+    def _find_and_record_images_to_rebuild(self, db_event, event, builds=None):
         """
-        Finds and records to DB the list of Docker images to rebuild based
-        on the particular ErrataAdvisoryRPMsSignedEvent.
+        Finds docker images to rebuild based on the particular
+        ErrataAdvisoryRPMsSignedEvent and records them into database.
 
         :param db_event Event: Database representation of
             ErrataAdvisoryRPMsSignedEvent.
         :param event ErrataAdvisoryRPMsSignedEvent: The main event this handler
-            is currently handling.
+            is currently handling. Used to store found docker images to
+            database.
         :param builds dict: list of docker images to build as returned by
-            previous calls of _record_images_to_rebuild(...).
+            previous calls of _find_and_record_images_to_rebuild(...).
+        :return: mappings extended by and returned from ``_record_batches``.
+        :rtype: dict
         """
 
         errata = Errata(conf.errata_tool_server_url)
@@ -339,8 +352,8 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
                        cert=conf.lightblue_certificate,
                        private_key=conf.lightblue_private_key)
 
-        # For each RPM build in Errata advisory, find the list of Docker
-        # images containing this RPM and record it to DB.
+        # For each RPM package in Errata advisory, find Docker images
+        # containing this package and record those images into database.
         builds = builds or {}
         nvrs = errata.get_builds(errata_id)
         for nvr in nvrs:

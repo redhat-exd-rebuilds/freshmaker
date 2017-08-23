@@ -101,7 +101,7 @@ class TestAllowBuild(unittest.TestCase):
         db.session.commit()
 
     @patch("freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler."
-           "_record_images_to_rebuild", return_value=[])
+           "_find_and_record_images_to_rebuild", return_value=[])
     @patch("freshmaker.config.Config.handler_build_whitelist",
            new_callable=PropertyMock, return_value={
                "ErrataAdvisoryRPMsSignedHandler": {"image": [{"advisory_name": "RHSA-.*"}]}})
@@ -116,7 +116,7 @@ class TestAllowBuild(unittest.TestCase):
         record_images.assert_not_called()
 
     @patch("freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler."
-           "_record_images_to_rebuild", return_value=[])
+           "_find_and_record_images_to_rebuild", return_value=[])
     @patch("freshmaker.config.Config.handler_build_whitelist",
            new_callable=PropertyMock, return_value={
                "ErrataAdvisoryRPMsSignedHandler": {"image": [{"advisory_name": "RHSA-.*"}]}})
@@ -132,7 +132,7 @@ class TestAllowBuild(unittest.TestCase):
         record_images.assert_called_once()
 
     @patch("freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler."
-           "_record_images_to_rebuild", return_value=[])
+           "_find_and_record_images_to_rebuild", return_value=[])
     @patch(
         "freshmaker.config.Config.handler_build_whitelist",
         new_callable=PropertyMock,
@@ -159,7 +159,7 @@ class TestAllowBuild(unittest.TestCase):
         record_images.assert_called_once()
 
     @patch("freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler."
-           "_record_images_to_rebuild", return_value=[])
+           "_find_and_record_images_to_rebuild", return_value=[])
     @patch(
         "freshmaker.config.Config.handler_build_whitelist",
         new_callable=PropertyMock,

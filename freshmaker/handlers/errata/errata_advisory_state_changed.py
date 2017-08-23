@@ -28,7 +28,15 @@ from freshmaker.handlers import BaseHandler
 
 
 class ErrataAdvisoryStateChangedHandler(BaseHandler):
-    """Rebuild container when a dependecy container is built in Brew"""
+    """Mark Errata advisory as released
+
+    When an advisory state is changed to SHIPPED_LIVE, mark it as released in
+    associated event object of ``ErrataAdvisoryStateChangedHandler``.
+
+    This is used to avoiding generating YUM repository to include RPMs
+    inlcuded in a SHIPPED_LIVE advisory, because at that state, RPMs will be
+    available in official YUM repositories.
+    """
 
     name = 'ErrataAdvisoryStateChangedHandler'
 
@@ -36,16 +44,12 @@ class ErrataAdvisoryStateChangedHandler(BaseHandler):
         return isinstance(event, ErrataAdvisoryStateChangedEvent)
 
     def handle(self, event):
-        """
-        When build container task state changed in brew, update build state in db and
-        rebuild containers depend on the success build as necessary.
-        """
-
         errata_id = event.errata_id
         state = event.state
         if state != "SHIPPED_LIVE":
-            log.debug("Ignoring Errata advisory %d state change to %s, "
-                      "because it is not SHIPPED_LIVE", errata_id, state)
+            log.debug("Skipping Errata advisory %d to be marked as released, "
+                      "because its state is %s rather than SHIPPED_LIVE.",
+                      errata_id, state)
             return []
 
         # check db to see whether this advisory exists in db
