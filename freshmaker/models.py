@@ -133,20 +133,24 @@ class ArtifactBuild(FreshmakerBase):
     event_id = db.Column(db.Integer, db.ForeignKey('events.id'))
     event = relationship("Event", back_populates="builds")
 
-    # Id of a build in the build system
+    # Id of corresponding real build in external build system. Currently, it
+    # could be ID of a build in MBS or Koji, maybe others in the future.
+    # build_id may be NULL, which means this build has not been built in
+    # external build system.
     build_id = db.Column(db.Integer)
 
     # Build args in json format.
     build_args = db.Column(db.String, nullable=True)
 
     @classmethod
-    def create(cls, session, event, name, type, build_id, dep_on=None, state=None):
+    def create(cls, session, event, name, type,
+               build_id=None, dep_on=None, state=None):
         now = datetime.utcnow()
         build = cls(
             name=name,
             type=type,
             event=event,
-            state=state or "build",
+            state=state or ArtifactBuildState.BUILD.value,
             build_id=build_id,
             time_submitted=now,
             dep_on=dep_on

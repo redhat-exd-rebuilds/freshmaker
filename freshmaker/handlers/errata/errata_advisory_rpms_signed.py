@@ -301,8 +301,9 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
                     if image["parent"] else None
                 dep_on = builds[parent_name] if parent_name in builds else None
                 build = self.record_build(
-                    event, name, ArtifactType.IMAGE, 0, dep_on,
-                    ArtifactBuildState.PLANNED.value)
+                    event, name, ArtifactType.IMAGE,
+                    dep_on=dep_on,
+                    state=ArtifactBuildState.PLANNED.value)
 
                 build_args = {}
                 build_args["repository"] = image["repository"]
