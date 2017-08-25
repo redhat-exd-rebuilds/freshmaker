@@ -132,6 +132,71 @@ class TestContainerImageObject(unittest.TestCase):
         self.assertEqual('1233829', image['_id'])
         self.assertEqual('20151210T10:09:35.000-0500', image['brew']['completion_date'])
 
+    def test_resolve_commit(self):
+        image = ContainerImage.create({
+            '_id': '1233829',
+            'brew': {
+                'completion_date': u'20170421T04:27:51.000-0400',
+                'build': 'package-name-1-4-12.10',
+                'package': 'package-name-1'
+            },
+            'parsed_data': {
+                'files': [
+                    {
+                        'key': 'buildfile',
+                        'content_url': 'http://git.repo.com/cgit/rpms/repo-1/plain/Dockerfile?id=commit_hash1',
+                        'filename': u'Dockerfile'
+                    }
+                ],
+                'rpm_manifest': [
+                    {
+                        "srpm_name": "openssl",
+                        "srpm_nevra": "openssl-0:1.2.3-1.src"
+                    },
+                    {
+                        "srpm_name": "tespackage",
+                        "srpm_nevra": "testpackage-10:1.2.3-1.src"
+                    }
+                ]
+            }
+        })
+
+        image.resolve_commit("openssl")
+        self.assertEqual(image["repository"], "rpms/repo-1")
+        self.assertEqual(image["commit"], "commit_hash1")
+        self.assertEqual(image["srpm_nevra"], "openssl-0:1.2.3-1.src")
+
+    @patch('freshmaker.kojiservice.KojiService.get_build')
+    def test_resolve_commit_koji_fallback(self, get_build):
+        image = ContainerImage.create({
+            '_id': '1233829',
+            'brew': {
+                'completion_date': u'20170421T04:27:51.000-0400',
+                'build': 'package-name-1-4-12.10',
+                'package': 'package-name-1'
+            },
+            'parsed_data': {
+                'rpm_manifest': [
+                    {
+                        "srpm_name": "openssl",
+                        "srpm_nevra": "openssl-0:1.2.3-1.src"
+                    },
+                    {
+                        "srpm_name": "tespackage",
+                        "srpm_nevra": "testpackage-10:1.2.3-1.src"
+                    }
+                ]
+            }
+        })
+
+        get_build.return_value = {
+            "source": "git://example.com/rpms/repo-1#commit_hash1"}
+
+        image.resolve_commit("openssl")
+        self.assertEqual(image["repository"], "rpms/repo-1")
+        self.assertEqual(image["commit"], "commit_hash1")
+        self.assertEqual(image["srpm_nevra"], "openssl-0:1.2.3-1.src")
+
 
 class TestContainerRepository(unittest.TestCase):
 

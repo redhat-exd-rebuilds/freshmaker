@@ -29,7 +29,8 @@ import six
 
 from six.moves import http_client
 import concurrent.futures
-from freshmaker import log
+from freshmaker import log, conf
+from freshmaker.kojiservice import koji_service
 
 
 class LightBlueError(Exception):
@@ -100,6 +101,8 @@ class ContainerRepository(dict):
 class ContainerImage(dict):
     """Represent a container image"""
 
+    KOJI_BUILDS_CACHE = {}
+
     @classmethod
     def create(cls, data):
         image = cls()
@@ -140,6 +143,30 @@ class ContainerImage(dict):
             dockerfile, _, commit = dockerfile_url.partition("?id=")
             _, _, reponame = dockerfile.partition("/cgit/")
             reponame = reponame.replace("/plain/Dockerfile", "")
+
+        # If we cannot find reponame and commit in the Lightblue data,
+        # fallback to Koji to get a Koji build based on the ["brew"]["build"].
+        if not reponame or not commit:
+            nvr = self["brew"]["build"]
+            if nvr in ContainerImage.KOJI_BUILDS_CACHE:
+                reponame, commit = ContainerImage.KOJI_BUILDS_CACHE[nvr]
+            else:
+                with koji_service(conf.koji_profile, log) as session:
+                    build = session.get_build(nvr)
+                    if build:
+                        source = build["source"]
+                        if source is None:
+                            brew_task = session.getTaskRequest(
+                                build['task_id'])
+                            source = brew_task[0]
+
+                        m = re.match(r".*/(?P<namespace>.*)/(?P<container>.*)#(?P<commit>.*)", source)
+                        namespace = m.group("namespace")
+                        container = m.group("container")
+                        reponame = namespace + "/" + container
+                        commit = m.group("commit")
+            ContainerImage.KOJI_BUILDS_CACHE[nvr] = (reponame, commit)
+
         data = {"repository": reponame, "commit": commit,
                 "srpm_nevra": srpm_nevra}
         self.update(data)
