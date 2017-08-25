@@ -150,18 +150,17 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
             else:
                 compose_source = source
 
-        odcs = ODCS(conf.odcs_server_url, auth_mech=AuthMech.Kerberos,
-                    verify_ssl=conf.odcs_verify_ssl)
-
         if compose_source is None:
-            log.error('Builds for errata %d are not the latest build in its '
-                      'all tags.', errata_id)
+            log.error('None of builds %s of advisory %d is the latest build in'
+                      ' its candidate tag.', builds, errata_id)
             return
 
         log.info('Generate new compose for rebuild: '
                  'source: %s, source type: %s, packages: %s',
                  compose_source, 'tag', packages)
 
+        odcs = ODCS(conf.odcs_server_url, auth_mech=AuthMech.Kerberos,
+                    verify_ssl=conf.odcs_verify_ssl)
         new_compose = odcs.new_compose(compose_source,
                                        'tag',
                                        packages=packages)
@@ -195,13 +194,29 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
         return new_compose['result_repo']
 
     def _get_packages_for_compose(self, nvr):
-        """Get RPMs of current build NVR"""
+        """Get RPMs of current build NVR
+
+        :param str nvr: build NVR.
+        :return: list of RPM names built from given build.
+        :rtype: list
+        """
         with koji_service(conf.koji_profile, log) as session:
             rpms = session.get_build_rpms(nvr)
         return list(set([rpm['name'] for rpm in rpms]))
 
     def _get_compose_source(self, nvr):
-        """Get tag from which to collect packages to compose"""
+        """Get tag from which to collect packages to compose
+
+        Try to find *-candidate tag from given build, the NVR. Whatever a
+        release tag is tagged to the given build, a candidate tag will always
+        be usable for gathering RPMs from Brew since it is the first tag must
+        be tagged when package is built in Brew for the first time.
+
+        :param str nvr: build NVR used to find correct tag.
+        :return: found tag. None is returned if build is not the latest build
+            of found tag.
+        :rtype: str
+        """
         with koji_service(conf.koji_profile, log) as service:
             tag = [tag['name'] for tag in service.session.listTags(nvr)
                    if tag['name'].endswith('-candidate')][0]
