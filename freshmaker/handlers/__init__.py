@@ -27,6 +27,7 @@ import re
 from freshmaker import conf, log, db, models
 from freshmaker.mbs import MBS
 from freshmaker.kojiservice import koji_service
+from krbcontext import krbContext
 
 
 class BaseHandler(object):
@@ -53,6 +54,23 @@ class BaseHandler(object):
         generate internal events for other handlers in Freshmaker.
         """
         raise NotImplementedError()
+
+    @property
+    def krb_context(self):
+        if conf.krb_auth_use_keytab:
+            krb_ctx_opts = {
+                'using_keytab': conf.krb_auth_use_keytab,
+                'principal': conf.krb_auth_principal,
+                'keytab_file': conf.krb_auth_client_keytab,
+                'ccache_file': conf.krb_auth_ccache_file,
+            }
+        else:
+            krb_ctx_opts = {
+                'principal': conf.krb_auth_principal,
+                'ccache_file': conf.krb_auth_ccache_file,
+            }
+
+        return krbContext(**krb_ctx_opts)
 
     def build_module(self, name, branch, rev):
         """
@@ -81,7 +99,9 @@ class BaseHandler(object):
         with koji_service(profile=conf.koji_profile, logger=log) as service:
             log.debug('Logging into %s with Kerberos authentication.', service.server)
             proxyuser = conf.koji_build_owner if conf.koji_proxyuser else None
-            service.krb_login(proxyuser=proxyuser)
+
+            with self.krb_context:
+                service.krb_login(proxyuser=proxyuser)
 
             if not service.logged_in:
                 log.error('Could not login server %s', service.server)

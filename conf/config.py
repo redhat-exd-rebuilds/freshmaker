@@ -1,20 +1,20 @@
 # -*- coding: utf-8 -*-
 
-from os import path
+import os
 
 
 # FIXME: workaround for this moment till confdir, dbdir (installdir etc.) are
 # declared properly somewhere/somehow
-confdir = path.abspath(path.dirname(__file__))
+confdir = os.path.abspath(os.path.dirname(__file__))
 # use parent dir as dbdir else fallback to current dir
-dbdir = path.abspath(path.join(confdir, '..')) if confdir.endswith('conf') \
+dbdir = os.path.abspath(os.path.join(confdir, '..')) if confdir.endswith('conf') \
     else confdir
 
 
 class BaseConfiguration(object):
     # Make this random (used to generate session keys)
     SECRET_KEY = '74d9e9f9cd40e66fc6c4c2e9987dce48df3ce98542529fd0'
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///{0}'.format(path.join(
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///{0}'.format(os.path.join(
         dbdir, 'freshmaker.db'))
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
@@ -131,6 +131,22 @@ class BaseConfiguration(object):
     # URL to ODCS to call APIs
     ODCS_SERVER_URL = ''
 
+    # Kerberos authentication Settings used to authenticated freshmaker itself
+    # by other services
+
+    # Whether to use keytab to acquire credential cache. keytab should be used
+    # in a non-devel environment.
+    KRB_AUTH_USE_KEYTAB = True
+    # Principal used to acquire credential cache. When using a client keytab,
+    # this value must be present in that keytab file. Otherwise, principal must
+    # match the one in specified ccache file.
+    KRB_AUTH_PRINCIPAL = ''
+    # Path to freshmaker's client keytab file.
+    KRB_AUTH_CLIENT_KEYTAB = ''
+    # Path to credential cache file. This optional could be None when not using
+    # a client keytab to acquire credential.
+    KRB_AUTH_CCACHE_FILE = '/tmp/freshmaker_cc_{}'.format(os.getpid())
+
 
 class DevConfiguration(BaseConfiguration):
     DEBUG = True
@@ -147,6 +163,14 @@ class DevConfiguration(BaseConfiguration):
 
     LIGHTBLUE_VERIFY_SSL = False
 
+    # During development, we usually don't need a client keytab to acquire
+    # credential. Instead, kinit in default ccache with personal principal
+    # often.
+    KRB_AUTH_USE_KEYTAB = False
+    KRB_AUTH_PRINCIPAL = ''  # Should be in form name@REAL
+    # Use the default ccache
+    KRB_AUTH_CCACHE_FILE = None
+
 
 class TestConfiguration(BaseConfiguration):
     LOG_BACKEND = 'console'
@@ -154,7 +178,7 @@ class TestConfiguration(BaseConfiguration):
     DEBUG = True
 
     SQLALCHEMY_DATABASE_URI = 'sqlite:///{0}'.format(
-        path.join(dbdir, 'tests', 'test_freshmaker.db'))
+        os.path.join(dbdir, 'tests', 'test_freshmaker.db'))
 
     MESSAGING = 'in_memory'
     PDC_URL = 'http://pdc.fedoraproject.org/rest_api/v1'
