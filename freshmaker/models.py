@@ -74,6 +74,11 @@ class Event(FreshmakerBase):
     # List of builds associated with this Event.
     builds = relationship("ArtifactBuild", back_populates="event")
 
+    compose_id = db.Column(
+        db.Integer,
+        default=None,
+        doc='Used to include new version packages to rebuild docker images')
+
     @classmethod
     def create(cls, session, message_id, search_key, event_type, released=True):
         if event_type in EVENT_TYPES:
@@ -88,8 +93,12 @@ class Event(FreshmakerBase):
         return event
 
     @classmethod
+    def get(cls, session, message_id):
+        return session.query(cls).filter_by(message_id=message_id).first()
+
+    @classmethod
     def get_or_create(cls, session, message_id, search_key, event_type, released=True):
-        instance = session.query(cls).filter_by(message_id=message_id).first()
+        instance = cls.get(session, message_id)
         if instance:
             return instance
         return cls.create(session, message_id, search_key, event_type, released)

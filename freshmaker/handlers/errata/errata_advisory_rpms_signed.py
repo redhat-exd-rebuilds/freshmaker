@@ -166,6 +166,10 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
                                        packages=packages)
         compose_id = new_compose['id']
 
+        rebuild_event = Event.get(db.session, db_event.msg_id)
+        rebuild_event.compose_id = compose_id
+        db.session.commit()
+
         log.info('Waiting for ODCS to finish the compose: %d', compose_id)
 
         while True:

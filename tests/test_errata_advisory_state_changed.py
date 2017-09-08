@@ -360,6 +360,19 @@ class TestGetComposeSource(unittest.TestCase):
 class TestPrepareYumRepo(unittest.TestCase):
     """Test ErrataAdvisoryRPMsSignedHandler._prepare_yum_repo"""
 
+    def setUp(self):
+        db.session.remove()
+        db.drop_all()
+        db.create_all()
+        db.session.commit()
+
+        Event.create(db.session, 'msg-id', 'nvr', 100)
+
+    def tearDown(self):
+        db.session.remove()
+        db.drop_all()
+        db.session.commit()
+
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.ODCS')
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.'
            'ErrataAdvisoryRPMsSignedHandler._get_packages_for_compose')
@@ -391,9 +404,13 @@ class TestPrepareYumRepo(unittest.TestCase):
 
         errata.return_value.get_builds.return_value = set(["httpd-2.4.15-1.f27"])
 
-        event = Mock(search_key=12345)
+        event = Mock(msg_id='msg-id', search_key=12345)
         handler = ErrataAdvisoryRPMsSignedHandler()
         repo_url = handler._prepare_yum_repo(event)
+
+        rebuild_event = db.session.query(Event).filter(
+            Event.message_id == event.msg_id).first()
+        self.assertEqual(3, rebuild_event.compose_id)
 
         _get_compose_source.assert_called_once_with("httpd-2.4.15-1.f27")
         _get_packages_for_compose.assert_called_once_with("httpd-2.4.15-1.f27")
