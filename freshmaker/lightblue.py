@@ -416,9 +416,9 @@ class LightBlue(object):
     def find_unpublished_image_for_build(self, build):
         """
         Returns the unpublished variant of Docker image specified by `build`
-        brew build ID.
+        Brew build N-V-R.
 
-        :param build str: Brew build id.
+        :param str build: Brew build N-V-R.
         :return: Unpublished container image.
         :rtype: ContainerImage.
         """
@@ -518,6 +518,7 @@ class LightBlue(object):
     def get_parent_image(self, top_layer, expected_layer_count):
         """
         Find parent image by layers
+
         Args:
             top_layer: parent's top most layer (parsed_data.layers[1])
             expected_layer_count: parent should has one less layer than child
@@ -626,6 +627,8 @@ class LightBlue(object):
             self, srpm_name, content_sets, published=True, deprecated=False,
             release_category="Generally Available"):
         """
+        Find images to rebuild through image build layers
+
         Returns the list of sub-lists in which each sub-list contains
         ContainerImage instances which can be built in parallel. Sub-list N+1
         contains images which depend on images from sub-list N, so building any
