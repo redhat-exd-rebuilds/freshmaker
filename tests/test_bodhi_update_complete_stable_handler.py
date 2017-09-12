@@ -143,9 +143,14 @@ class BodhiUpdateCompleteStableHandlerTest(helpers.FreshmakerTestCase):
         self.assertTrue(handler.can_handle(event))
         handler.handle(event)
 
-        self.assertEqual(handler.build_container.call_args_list,
-                         [mock.call('testimage1', 'f25', 'c123'),
-                          mock.call('testimage2', 'f25', 'c456')])
+        self.assertEqual(
+            handler.build_container.call_args_list,
+            [mock.call(
+                'git://pkgs.fedoraproject.org/container/testimage1.git?#c123',
+                'f25', 'f25-container-candidate'),
+             mock.call(
+                'git://pkgs.fedoraproject.org/container/testimage2.git?#c456',
+                'f25', 'f25-container-candidate')])
 
         events = models.Event.query.all()
         self.assertEqual(len(events), 1)

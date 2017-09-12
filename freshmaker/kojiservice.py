@@ -71,20 +71,25 @@ class KojiService(object):
     def logout(self):
         self.session.logout()
 
-    def build_container(self, source_url, branch,
-                        namespace=None, scratch=None, repo_urls=None):
+    def build_container(self, source_url, branch, target,
+                        scratch=None, repo_urls=None, isolated=False,
+                        release=None, koji_parent_build=None):
         """Build container by buildContainer"""
 
-        build_target = '{}-{}-candidate'.format(
-            'rawhide' if branch == 'master' else branch,
-            'container' if namespace is None else namespace)
-
+        build_target = target
         build_opts = {
             'scratch': False if scratch is None else True,
             'git_branch': branch,
         }
+
         if repo_urls:
             build_opts['yum_repourls'] = repo_urls
+        if isolated:
+            build_opts['isolated'] = True
+        if koji_parent_build:
+            build_opts['koji_parent_build'] = koji_parent_build
+        if release:
+            build_opts['release'] = release
 
         if self._logger:
             self._logger.debug('Build from target: %s', build_target)
@@ -106,7 +111,12 @@ class KojiService(object):
                                      arches=arches)
 
     def get_build(self, build_nvr):
+        log.info("get_build %r", build_nvr)
         return self.session.getBuild(build_nvr)
+
+    def get_task_request(self, task_id):
+        log.info("get_build %r", task_id)
+        return self.session.getTaskRequest(task_id)
 
 
 @contextlib.contextmanager

@@ -83,8 +83,9 @@ class BaseHandler(object):
         mbs = MBS(conf)
         return mbs.build_module(name, branch, rev)
 
-    def build_container(self, name, branch, rev,
-                        namespace='container', repo_urls=None):
+    def build_container(self, scm_url, branch, target,
+                        repo_urls=None, isolated=False,
+                        release=None, koji_parent_build=None):
         """
         Build a container in Koji.
 
@@ -107,15 +108,15 @@ class BaseHandler(object):
                 log.error('Could not login server %s', service.server)
                 return None
 
-            build_source = "{}/{}/{}.git?#{}".format(
-                conf.git_base_url, namespace, name, rev)
+            log.debug('Building container from source: %s', scm_url)
 
-            log.debug('Building container from source: %s', build_source)
-
-            return service.build_container(build_source,
+            return service.build_container(scm_url,
                                            branch,
+                                           target,
                                            repo_urls=repo_urls,
-                                           namespace=namespace,
+                                           isolated=isolated,
+                                           release=release,
+                                           koji_parent_build=koji_parent_build,
                                            scratch=conf.koji_container_scratch_build)
 
     def record_build(self, event, name, artifact_type,

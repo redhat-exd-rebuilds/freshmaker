@@ -60,7 +60,13 @@ class BodhiUpdateCompleteStableHandler(BaseHandler):
                 repo_url = '{}/{}/{}'.format(conf.git_base_url, 'container', name)
                 rev = utils.get_commit_hash(repo_url, branch=branch, logger=log)
 
-                task_id = self.build_container(name, branch, rev)
+                scm_url = "{}/{}/{}.git?#{}".format(
+                    conf.git_base_url, 'container', name, rev)
+
+                build_target = '{}-container-candidate'.format(
+                    'rawhide' if branch == 'master' else branch)
+
+                task_id = self.build_container(scm_url, branch, build_target)
                 if task_id is not None:
                     self.record_build(event, container['name'], ArtifactType.IMAGE, task_id)
             except:

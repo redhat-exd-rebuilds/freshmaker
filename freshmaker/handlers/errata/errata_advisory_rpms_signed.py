@@ -121,9 +121,61 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
         for url in repo_urls:
             log.info("   - %s", url)
 
-        # TODO: Rebuild first batch.
+        # Build first batch of images.
+        self._build_first_batch(db_event)
 
         return []
+
+    def _build_first_batch(self, db_event):
+        """
+        Rebuilds all the parents images - images in the first batch which don't
+        depend on other images.
+        """
+
+        rebuild_event = Event.get(db.session, db_event.message_id)
+        odcs = ODCS(conf.odcs_server_url, auth_mech=AuthMech.Kerberos,
+                    verify_ssl=conf.odcs_verify_ssl)
+        compose = odcs.get_compose(rebuild_event.compose_id)
+        # TODO: Add other repofiles from "extra events"
+        repo_urls = [compose["result_repofile"]]
+
+        for build in rebuild_event.builds:
+            if build.dep_on:
+                continue
+
+            if build.state != ArtifactBuildState.PLANNED.value:
+                log.error("Trying to build first batch of container images, "
+                          "but build %r is not in PLANNED state", build)
+                continue
+
+            if not build.build_args:
+                log.error("Cannot rebuild container image %r, build_args not "
+                          "defined", build)
+                continue
+
+            args = json.loads(build.build_args)
+
+            if not args["parent"]:
+                log.error("Base image %r should be rebuild, but this is not "
+                          "supported yet", build)
+                continue
+
+            parent = args["parent"]
+            scm_url = "%s/%s#%s" % (conf.git_base_url, args["repository"],
+                                    args["commit"])
+            release = build.name.split("-")[-1] + "." + str(int(time.time()))
+            # According to Luiz from OSBS team, it is OK to use "unknown" if
+            # we don't know the branch name. TODO: Get the branch name from
+            # Koji in lightblue.py.
+            branch = "unknown"
+            target = args["target"]
+
+            build.build_id = self.build_container(
+                scm_url, branch, target, repo_urls=repo_urls, isolated=True,
+                release=release, koji_parent_build=parent)
+            build.state = ArtifactBuildState.BUILD.value
+            db.session.add(build)
+            db.session.commit()
 
     def _prepare_yum_repo(self, db_event):
         """
@@ -328,6 +380,7 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
                 build_args["repository"] = image["repository"]
                 build_args["commit"] = image["commit"]
                 build_args["parent"] = parent_name
+                build_args["target"] = image["target"]
                 build.build_args = json.dumps(build_args)
                 db.session.commit()
 
