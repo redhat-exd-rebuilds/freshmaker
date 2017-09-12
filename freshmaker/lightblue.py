@@ -454,29 +454,19 @@ class LightBlue(object):
             return None
         return images[0]
 
-    def get_parent_image_with_package(
-            self, srpm_name, top_layer, expected_layer_count):
+    def get_image_by_layer(self, top_layer, build_layers_count,
+                           srpm_name=None):
         """
-        Find parent image by layers.
+        Find parent image by layer from either published repository or not
 
-        Docker images are layered and those layers are identified by its
-        checksum in the ContainerImage["parsed_data"]["layers"] list.
-        The first layer defined there is the layer defining the image
-        itself, the second layer is the layer defining its parent, and so on.
+        :param str top_layer: the hash string representing an built image,
+            which is usually the top layer in ``parsed_data.layers`` list.
+        :param int build_layers_count: the number of build layers an image has.
+        :param str srpm_name: name of the package. it is optional. if
+            specified, will find image that also contains this package.
 
-        To find the parent image P of image X, we therefore have to search for
-        an image which has P.parsed_data.layers[0] equal to
-        X.parsed_data.layers[1]. However, query like this is not possible, so
-        we search for any image containing the layer X.parsed_data.layers[1],
-        but further limit the query to return only image which have the count
-        of the layers equal to `expected_layer_count`.
-
-        :param srpm_name str: Name of the package which should be included in
-            the rpm manifest of returned image.
-        :param top_layer str: parent's top most layer (parsed_data.layers[1]).
-        :param expected_layer_count str: parent should has one less layer
-            than child (len(parsed_data.layers) - 1)
-        :return: parent ContainerImage object
+        :return: parent ContainerImage object. None is returned if no image is
+            found.
         :rtype: ContainerImage
         """
         query = {
@@ -486,22 +476,23 @@ class LightBlue(object):
                     {
                         "field": "parsed_data.layers#",
                         "op": "$eq",
-                        "rvalue": expected_layer_count
+                        "rvalue": build_layers_count
                     },
                     {
                         "field": "parsed_data.layers.*",
                         "op": "$eq",
                         "rvalue": top_layer
                     },
-                    {
-                        "field": "parsed_data.rpm_manifest.*.srpm_name",
-                        "op": "=",
-                        "rvalue": srpm_name
-                    }
                 ],
             },
             "projection": self._get_default_projection()
         }
+        if srpm_name:
+            query['query']['$and'].append({
+                "field": "parsed_data.rpm_manifest.*.srpm_name",
+                "op": "=",
+                "rvalue": srpm_name
+            })
 
         images = self.find_container_images(query)
         if not images:
@@ -513,47 +504,6 @@ class LightBlue(object):
                     if repository['published']:
                         return image
 
-        return images[0]
-
-    def get_parent_image(self, top_layer, expected_layer_count):
-        """
-        Find parent image by layers
-
-        Args:
-            top_layer: parent's top most layer (parsed_data.layers[1])
-            expected_layer_count: parent should has one less layer than child
-                                  (len(parsed_data.layers) -1)
-
-        Returns: parent containerImage object
-        """
-        query = {
-            "objectType": "containerImage",
-            "query": {
-                "$and": [
-                    {
-                        "field": "parsed_data.layers#",
-                        "op": "$eq",
-                        "rvalue": expected_layer_count
-                    },
-                    {
-                        "field": "parsed_data.layers.*",
-                        "op": "$eq",
-                        "rvalue": top_layer
-                    },
-                ],
-            },
-            "projection": self._get_default_projection()
-        }
-
-        images = self.find_container_images(query)
-        if not images:
-            return None
-        for image in images:
-            # we should prefer published image
-            if 'repositories' in image:
-                for repository in image['repositories']:
-                    if repository['published']:
-                        return image
         return images[0]
 
     def find_parent_images_with_package(self, srpm_name, layers):
@@ -565,14 +515,41 @@ class LightBlue(object):
         The first item in the list is direct parent of the image in question.
         The last item in the list is the top level parent of the image in
         question.
+
+        Docker images are layered and those layers are identified by its
+        checksum in the ContainerImage["parsed_data"]["layers"] list.
+        The first layer defined there is the layer defining the image
+        itself, the second layer is the layer defining its parent, and so on.
+
+        To find the parent image P of image X, we therefore have to search for
+        an image which has P.parsed_data.layers[0] equal to
+        X.parsed_data.layers[1]. However, query like this is not possible, so
+        we search for any image containing the layer X.parsed_data.layers[1],
+        but further limit the query to return only image which have the count
+        of the layers equal to `build_layers_count`. For example, layers of an
+        image
+
+        [
+           "sha256:3341bdf...b8e36168", <- layer of this image
+           "sha256:5fc16d0...0e4e587e", <- probably the first parent image A
+           "sha256:5d181d2...e6ad6992",
+           "sha256:274f5cd...ff8fd6e7", <- parent image of parent image A
+           "sha256:3ca89ba...b0ecae0e",
+           "sha256:77ed333...a44a147a",
+           "sha256:e2ec004...4c1fc873"
+        ]
+
+        Parent images will be retrieved though these layers from top to bottom.
         """
         images = []
 
-        for idx, layer in enumerate(layers[1:]):
+        for idx, parent_top_layer in enumerate(layers[1:]):
             # `len(layers) - 1 - idx`. We decrement 1, because we skip the
             # first layer in for loop.
-            image = self.get_parent_image_with_package(
-                srpm_name, layer, len(layers) - 1 - idx)
+            parent_build_layers_count = len(layers) - 1 - idx
+            image = self.get_image_by_layer(parent_top_layer,
+                                            parent_build_layers_count,
+                                            srpm_name=srpm_name)
             if image:
                 image.resolve_commit(srpm_name)
 
@@ -584,8 +561,8 @@ class LightBlue(object):
                     # We still want to set the parent of the last image with
                     # the package so we know against which image it has been
                     # built.
-                    parent = self.get_parent_image(
-                        layer, len(layers) - 1 - idx)
+                    parent = self.get_image_by_layer(parent_top_layer,
+                                                     parent_build_layers_count)
                     if parent:
                         parent.resolve_commit(srpm_name)
                     images[-1]['parent'] = parent
@@ -646,7 +623,6 @@ class LightBlue(object):
             """
             Find out parent images to rebuild, helper called from threadpool.
             """
-
             unpublished = self.find_unpublished_image_for_build(
                 image['brew']['build'])
             if not unpublished:
@@ -658,7 +634,7 @@ class LightBlue(object):
             if rebuild_list:
                 image['parent'] = rebuild_list[0]
             else:
-                parent = self.get_parent_image(layers[1], len(layers) - 1)
+                parent = self.get_image_by_layer(layers[1], len(layers) - 1)
                 if parent:
                     parent.resolve_commit(srpm_name)
                 image['parent'] = parent
