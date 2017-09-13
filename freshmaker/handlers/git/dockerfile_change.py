@@ -21,7 +21,7 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
-from freshmaker import log
+from freshmaker import log, conf
 from freshmaker.types import ArtifactType
 from freshmaker.handlers import BaseHandler
 from freshmaker.events import GitDockerfileChangeEvent
@@ -45,8 +45,16 @@ class GitDockerfileChangeHandler(BaseHandler):
             return []
 
         try:
-            task_id = self.build_container(event.container, event.branch, event.rev)
+            name = event.container
+            branch = event.branch
+            rev = event.rev
+            scm_url = "{}/{}/{}.git?#{}".format(
+                conf.git_base_url, 'container', name, rev)
 
+            build_target = '{}-container-candidate'.format(
+                'rawhide' if branch == 'master' else branch)
+
+            task_id = self.build_container(scm_url, branch, build_target)
             if task_id is not None:
                 self.record_build(event, event.container, ArtifactType.IMAGE, task_id)
 

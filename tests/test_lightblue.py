@@ -132,42 +132,9 @@ class TestContainerImageObject(unittest.TestCase):
         self.assertEqual('1233829', image['_id'])
         self.assertEqual('20151210T10:09:35.000-0500', image['brew']['completion_date'])
 
-    def test_resolve_commit(self):
-        image = ContainerImage.create({
-            '_id': '1233829',
-            'brew': {
-                'completion_date': u'20170421T04:27:51.000-0400',
-                'build': 'package-name-1-4-12.10',
-                'package': 'package-name-1'
-            },
-            'parsed_data': {
-                'files': [
-                    {
-                        'key': 'buildfile',
-                        'content_url': 'http://git.repo.com/cgit/rpms/repo-1/plain/Dockerfile?id=commit_hash1',
-                        'filename': u'Dockerfile'
-                    }
-                ],
-                'rpm_manifest': [
-                    {
-                        "srpm_name": "openssl",
-                        "srpm_nevra": "openssl-0:1.2.3-1.src"
-                    },
-                    {
-                        "srpm_name": "tespackage",
-                        "srpm_nevra": "testpackage-10:1.2.3-1.src"
-                    }
-                ]
-            }
-        })
-
-        image.resolve_commit("openssl")
-        self.assertEqual(image["repository"], "rpms/repo-1")
-        self.assertEqual(image["commit"], "commit_hash1")
-        self.assertEqual(image["srpm_nevra"], "openssl-0:1.2.3-1.src")
-
     @patch('freshmaker.kojiservice.KojiService.get_build')
-    def test_resolve_commit_koji_fallback(self, get_build):
+    @patch('freshmaker.kojiservice.KojiService.get_task_request')
+    def test_resolve_commit_koji_fallback(self, get_task_request, get_build):
         image = ContainerImage.create({
             '_id': '1233829',
             'brew': {
@@ -189,12 +156,14 @@ class TestContainerImageObject(unittest.TestCase):
             }
         })
 
-        get_build.return_value = {
-            "source": "git://example.com/rpms/repo-1#commit_hash1"}
+        get_build.return_value = {"task_id": 123456}
+        get_task_request.return_value = [
+            "git://example.com/rpms/repo-1#commit_hash1", "target1"]
 
         image.resolve_commit("openssl")
         self.assertEqual(image["repository"], "rpms/repo-1")
         self.assertEqual(image["commit"], "commit_hash1")
+        self.assertEqual(image["target"], "target1")
         self.assertEqual(image["srpm_nevra"], "openssl-0:1.2.3-1.src")
 
 
@@ -217,6 +186,9 @@ class TestContainerRepository(unittest.TestCase):
 class TestQueryEntityFromLightBlue(unittest.TestCase):
 
     def setUp(self):
+        # Clear the ContainerImage Koji cache.
+        ContainerImage.KOJI_BUILDS_CACHE = {}
+
         self.fake_server_url = 'lightblue.localhost'
         self.fake_cert_file = 'path/to/cert'
         self.fake_private_key = 'path/to/private-key'
@@ -269,7 +241,7 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                     'files': [
                         {
                             'key': 'buildfile',
-                            'content_url': 'http://git.repo.com/cgit/ns/repo-2/plain/Dockerfile?id=commit_hash2',
+                            'content_url': 'http://git.repo.com/cgit/rpms/repo-2/plain/Dockerfile?id=commit_hash2',
                             'filename': 'Dockerfile'
                         },
                         {
@@ -291,9 +263,17 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                 }
             },
         ]
+
         self.fake_container_images = [
             ContainerImage.create(data)
             for data in self.fake_images_with_parsed_data]
+
+        self.fake_koji_builds = [{"task_id": 123456}, {"task_id": 654321}]
+        self.fake_koji_task_requests = [
+            ["git://pkgs.devel.redhat.com/rpms/repo-1#commit_hash1",
+             "target1"],
+            ["git://pkgs.devel.redhat.com/rpms/repo-2#commit_hash2",
+             "target2"]]
 
     @patch('freshmaker.lightblue.requests.post')
     def test_find_container_images(self, post):
@@ -561,14 +541,18 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
 
     @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @patch('freshmaker.kojiservice.KojiService.get_build')
+    @patch('freshmaker.kojiservice.KojiService.get_task_request')
     @patch('os.path.exists')
-    def test_images_with_content_set_packages(self, exists,
-                                              cont_images,
+    def test_images_with_content_set_packages(self, exists, koji_task_request,
+                                              koji_get_build, cont_images,
                                               cont_repos):
 
         exists.return_value = True
         cont_repos.return_value = self.fake_repositories_with_content_sets
         cont_images.return_value = self.fake_container_images
+        koji_task_request.side_effect = self.fake_koji_task_requests
+        koji_get_build.side_effect = self.fake_koji_builds
 
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
@@ -583,6 +567,7 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                                  "repository": "rpms/repo-1",
                                  "commit": "commit_hash1",
                                  "srpm_nevra": "openssl-0:1.2.3-1.src",
+                                 "target": "target1",
                                  "brew": {
                                      "completion_date": u"20170421T04:27:51.000-0400",
                                      "build": "package-name-1-4-12.10",
@@ -609,9 +594,10 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                                  }
                              },
                              {
-                                 "repository": "ns/repo-2",
+                                 "repository": "rpms/repo-2",
                                  "commit": "commit_hash2",
                                  "srpm_nevra": "openssl-1:1.2.3-1.src",
+                                 "target": "target2",
                                  "brew": {
                                      "completion_date": u"20170421T04:27:51.000-0400",
                                      "build": "package-name-2-4-12.10",
@@ -621,7 +607,7 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                                      'files': [
                                          {
                                              'key': 'buildfile',
-                                             'content_url': 'http://git.repo.com/cgit/ns/repo-2/plain/Dockerfile?id=commit_hash2',
+                                             'content_url': 'http://git.repo.com/cgit/rpms/repo-2/plain/Dockerfile?id=commit_hash2',
                                              'filename': 'Dockerfile'
                                          },
                                          {
