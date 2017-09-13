@@ -22,15 +22,21 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
+import json
 
 from mock import patch
 from unittest import TestCase
 
-from freshmaker.handlers import BaseHandler
+from freshmaker import db
+from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
+from freshmaker.handlers import ContainerBuildHandler
+from freshmaker.models import ArtifactBuild
+from freshmaker.models import ArtifactBuildState
+from freshmaker.models import Event
 
 
-class MyHandler(BaseHandler):
-    """Handler for running tests to test things defined in BaseHandler"""
+class MyHandler(ContainerBuildHandler):
+    """Handler for running tests to test things defined in parents"""
 
     def can_handle(self, event):
         """Implement BaseHandler method"""
@@ -81,3 +87,78 @@ class TestKrbContextPreparedForBuildContainer(TestCase):
             principal='somebody@REALM',
             ccache_file='/tmp/freshmaker_cc',
         )
+
+
+class AnyStringWith(str):
+    def __eq__(self, other):
+        return self in other
+
+
+class TestBuildFirstBatch(TestCase):
+    """Test ErrataAdvisoryRPMsSignedHandler._build_first_batch"""
+
+    def setUp(self):
+        db.session.remove()
+        db.drop_all()
+        db.create_all()
+        db.session.commit()
+
+        build_args = json.dumps({
+            "parent": "nvr",
+            "repository": "repo",
+            "target": "target",
+            "commit": "hash",
+            "yum_repourl": "http://localhost/composes/latest-odcs-3-1/compose/"
+                           "Temporary/odcs-3.repo",
+        })
+
+        self.db_event = Event.get_or_create(
+            db.session, "msg1", "current_event", ErrataAdvisoryRPMsSignedEvent,
+            released=False)
+        self.db_event.compose_id = 3
+        p1 = ArtifactBuild.create(db.session, self.db_event, "parent1-1-4",
+                                  "image",
+                                  state=ArtifactBuildState.PLANNED.value)
+        p1.build_args = build_args
+        b = ArtifactBuild.create(db.session, self.db_event,
+                                 "parent1_child1", "image",
+                                 state=ArtifactBuildState.PLANNED.value,
+                                 dep_on=p1)
+        b.build_args = build_args
+        b = ArtifactBuild.create(db.session, self.db_event, "parent3", "image",
+                                 state=ArtifactBuildState.BUILD.value)
+        b.build_args = build_args
+        db.session.commit()
+
+    def tearDown(self):
+        db.session.remove()
+        db.drop_all()
+        db.session.commit()
+
+    @patch('koji.ClientSession')
+    @patch('freshmaker.handlers.krbContext')
+    def test_build_first_batch(self, krb, ClientSession):
+        """
+        Tests that only PLANNED images without a parent are submitted to
+        build system.
+        """
+        mock_session = ClientSession.return_value
+        mock_session.buildContainer.return_value = 123
+
+        handler = MyHandler()
+        handler._build_first_batch(self.db_event)
+
+        mock_session.buildContainer.assert_called_once_with(
+            'git://pkgs.fedoraproject.org/repo#hash',
+            'target',
+            {'scratch': True, 'isolated': True, 'koji_parent_build': u'nvr',
+             'git_branch': 'unknown', 'release': AnyStringWith('4.'),
+             'yum_repourls': [
+                 'http://localhost/composes/latest-odcs-3-1/compose/Temporary/odcs-3.repo']})
+
+        db.session.refresh(self.db_event)
+        for build in self.db_event.builds:
+            if build.name == "parent1-1-4":
+                self.assertEqual(build.build_id, 123)
+            else:
+                self.assertEqual(build.build_id, None)

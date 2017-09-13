@@ -304,3 +304,11 @@ class BrewContainerTaskStateChangeEvent(BaseEvent):
     @property
     def search_key(self):
         return str(self.task_id)
+
+
+class ODCSComposeStateChangeEvent(BaseEvent):
+    """Represent a compose' state change event from ODCS"""
+
+    def __init__(self, msg_id, compose):
+        self.msg_id = msg_id
+        self.compose = compose

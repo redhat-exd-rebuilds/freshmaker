@@ -22,11 +22,15 @@
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
 import abc
+import json
 import re
+import time
 
 from freshmaker import conf, log, db, models
-from freshmaker.mbs import MBS
 from freshmaker.kojiservice import koji_service
+from freshmaker.mbs import MBS
+from freshmaker.models import ArtifactBuildState
+from freshmaker.models import Event
 from krbcontext import krbContext
 
 
@@ -82,42 +86,6 @@ class BaseHandler(object):
         """
         mbs = MBS(conf)
         return mbs.build_module(name, branch, rev)
-
-    def build_container(self, scm_url, branch, target,
-                        repo_urls=None, isolated=False,
-                        release=None, koji_parent_build=None):
-        """
-        Build a container in Koji.
-
-        :param str name: container name.
-        :param str branch: container branch.
-        :param str rev: revision.
-        :param str namespace: namespace of container in dist-git. By default,
-            it is container.
-        :return: task id returned from Koji buildContainer API.
-        :rtype: int
-        """
-        with koji_service(profile=conf.koji_profile, logger=log) as service:
-            log.debug('Logging into %s with Kerberos authentication.', service.server)
-            proxyuser = conf.koji_build_owner if conf.koji_proxyuser else None
-
-            with self.krb_context:
-                service.krb_login(proxyuser=proxyuser)
-
-            if not service.logged_in:
-                log.error('Could not login server %s', service.server)
-                return None
-
-            log.debug('Building container from source: %s', scm_url)
-
-            return service.build_container(scm_url,
-                                           branch,
-                                           target,
-                                           repo_urls=repo_urls,
-                                           isolated=isolated,
-                                           release=release,
-                                           koji_parent_build=koji_parent_build,
-                                           scratch=conf.koji_container_scratch_build)
 
     def record_build(self, event, name, artifact_type,
                      build_id=None, dep_on=None, state=None):
@@ -200,3 +168,92 @@ class BaseHandler(object):
                       handler_name, artifact_type.name.lower(), str(exc))
             return True
         return in_whitelist and not in_blacklist
+
+
+class ContainerBuildHandler(BaseHandler):
+    """Handler for building containers"""
+
+    def build_container(self, scm_url, branch, target,
+                        repo_urls=None, isolated=False,
+                        release=None, koji_parent_build=None):
+        """
+        Build a container in Koji.
+
+        :param str name: container name.
+        :param str branch: container branch.
+        :param str rev: revision.
+        :param str namespace: namespace of container in dist-git. By default,
+            it is container.
+        :return: task id returned from Koji buildContainer API.
+        :rtype: int
+        """
+        with koji_service(profile=conf.koji_profile, logger=log) as service:
+            log.debug('Logging into %s with Kerberos authentication.',
+                      service.server)
+
+            proxyuser = conf.koji_build_owner if conf.koji_proxyuser else None
+
+            with self.krb_context:
+                service.krb_login(proxyuser=proxyuser)
+
+            if not service.logged_in:
+                log.error('Could not login server %s', service.server)
+                return None
+
+            log.debug('Building container from source: %s', scm_url)
+
+            return service.build_container(scm_url,
+                                           branch,
+                                           target,
+                                           repo_urls=repo_urls,
+                                           isolated=isolated,
+                                           release=release,
+                                           koji_parent_build=koji_parent_build,
+                                           scratch=conf.koji_container_scratch_build)
+
+    def _build_first_batch(self, db_event):
+        """
+        Rebuilds all the parents images - images in the first batch which don't
+        depend on other images.
+        """
+
+        rebuild_event = Event.get(db.session, db_event.message_id)
+        # TODO: Add other repofiles from "extra events"
+
+        for build in rebuild_event.builds:
+            if build.dep_on:
+                continue
+
+            if build.state != ArtifactBuildState.PLANNED.value:
+                log.error("Trying to build first batch of container images, "
+                          "but build %r is not in PLANNED state", build)
+                continue
+
+            if not build.build_args:
+                log.error("Cannot rebuild container image %r, build_args not "
+                          "defined", build)
+                continue
+
+            args = json.loads(build.build_args)
+
+            if not args["parent"]:
+                log.error("Base image %r should be rebuild, but this is not "
+                          "supported yet", build)
+                continue
+
+            parent = args["parent"]
+            scm_url = "%s/%s#%s" % (conf.git_base_url, args["repository"],
+                                    args["commit"])
+            release = build.name.split("-")[-1] + "." + str(int(time.time()))
+            # According to Luiz from OSBS team, it is OK to use "unknown" if
+            # we don't know the branch name. TODO: Get the branch name from
+            # Koji in lightblue.py.
+            branch = "unknown"
+            target = args["target"]
+
+            build.build_id = self.build_container(
+                scm_url, branch, target, repo_urls=[args['yum_repourl']],
+                isolated=True, release=release, koji_parent_build=parent)
+            build.state = ArtifactBuildState.BUILD.value
+            db.session.add(build)
+            db.session.commit()

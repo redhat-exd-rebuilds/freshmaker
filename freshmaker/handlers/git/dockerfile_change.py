@@ -23,11 +23,11 @@
 
 from freshmaker import log, conf
 from freshmaker.types import ArtifactType
-from freshmaker.handlers import BaseHandler
+from freshmaker.handlers import ContainerBuildHandler
 from freshmaker.events import GitDockerfileChangeEvent
 
 
-class GitDockerfileChangeHandler(BaseHandler):
+class GitDockerfileChangeHandler(ContainerBuildHandler):
     name = 'GitDockerfileChangeHandler'
 
     def can_handle(self, event):
