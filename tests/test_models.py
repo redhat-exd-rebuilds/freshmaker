@@ -75,3 +75,16 @@ class TestModels(unittest.TestCase):
         self.assertEqual(build2.get_root_dep_on(), build1)
         self.assertEqual(build3.get_root_dep_on(), build1)
         self.assertEqual(build4.get_root_dep_on(), build1)
+
+    def test_event_dependencies(self):
+        event = Event.create(db.session, "test_msg_id", "test", events.TestingEvent)
+        db.session.commit()
+        self.assertEqual(event.event_dependencies, [])
+
+        event1 = Event.create(db.session, "test_msg_id2", "test2", events.TestingEvent)
+        db.session.commit()
+        event.add_event_dependency(db.session, event1)
+        db.session.commit()
+        self.assertEqual(event.event_dependencies, [event1])
+        self.assertEqual(event.event_dependencies[0].search_key, "test2")
+        self.assertEqual(event1.event_dependencies, [])
