@@ -552,6 +552,14 @@ class LightBlue(object):
                     # built.
                     parent = self.get_image_by_layer(parent_top_layer,
                                                      parent_build_layers_count)
+
+                    children_image_layers_count = parent_build_layers_count + 1
+                    if parent is None and children_image_layers_count > 2:
+                        log.error(
+                            'No parent image is found from LightBlue, whose '
+                            'top layer is %s and which has %d layers',
+                            parent_top_layer, parent_build_layers_count)
+
                     if parent:
                         parent.resolve_commit(srpm_name)
                     images[-1]['parent'] = parent
