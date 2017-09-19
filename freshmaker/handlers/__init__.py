@@ -33,6 +33,9 @@ from freshmaker.models import ArtifactBuildState
 from freshmaker.models import Event
 from krbcontext import krbContext
 
+from freshmaker.odcsclient import ODCS
+from freshmaker.odcsclient import AuthMech
+
 
 class BaseHandler(object):
     """
@@ -218,7 +221,19 @@ class ContainerBuildHandler(BaseHandler):
         """
 
         rebuild_event = Event.get(db.session, db_event.message_id)
-        # TODO: Add other repofiles from "extra events"
+
+        # Get compose ids of ODCS composes of all event dependencies.
+        compose_ids = [rebuild_event.compose_id]
+        for event in rebuild_event.event_dependencies:
+            compose_ids.append(event.compose_id)
+
+        # Use compose ids to get the repofile URLs.
+        repo_urls = []
+        for compose_id in compose_ids:
+            odcs = ODCS(conf.odcs_server_url, auth_mech=AuthMech.Kerberos,
+                        verify_ssl=conf.odcs_verify_ssl)
+            compose = odcs.get_compose(compose_id)
+            repo_urls.append(compose["result_repofile"])
 
         for build in rebuild_event.builds:
             if build.dep_on:
@@ -252,7 +267,7 @@ class ContainerBuildHandler(BaseHandler):
             target = args["target"]
 
             build.build_id = self.build_container(
-                scm_url, branch, target, repo_urls=[args['yum_repourl']],
+                scm_url, branch, target, repo_urls=repo_urls,
                 isolated=True, release=release, koji_parent_build=parent)
             build.state = ArtifactBuildState.BUILD.value
             db.session.add(build)

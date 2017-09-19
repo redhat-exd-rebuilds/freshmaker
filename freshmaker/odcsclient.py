@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2016  Red Hat, Inc.
+# Copyright (c) 2017  Red Hat, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -8,8 +8,8 @@
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -18,5 +18,15 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+#
+# Written by Jan Kaluza <jkaluza@redhat.com>
 
-from .compose_state_change import ComposeStateChangeHandler  # noqa
+# We have name conflict between two modules here:
+#  - "odcs" module provided by python2-odcs-client
+#  - "odcs" submodule in freshmaker.handlers.odcs
+#
+# Unfortunatelly we want to use "odcs" provided by python2-odcs-client
+# in freshmaker.handlers __init__.py. We cannot  "import odcs" there, because
+# it would import freshmaker.handlers.odcs, so instead, we import it here
+# and in freshmaker.handler do "from freshmaker.odcsclient import ODCS".
+from odcs.client.odcs import * # noqa

@@ -632,8 +632,14 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
 
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('os.path.exists')
-    def test_parent_images_with_package(self, exists, cont_images):
+    @patch('freshmaker.kojiservice.KojiService.get_build')
+    @patch('freshmaker.kojiservice.KojiService.get_task_request')
+    def test_parent_images_with_package(self, get_task_request, get_build,
+                                        exists, cont_images):
 
+        get_build.return_value = {"task_id": 123456}
+        get_task_request.return_value = [
+            "git://example.com/rpms/repo-1#commit_hash1", "target1"]
         exists.return_value = True
         cont_images.side_effect = [self.fake_container_images, [],
                                    self.fake_container_images]

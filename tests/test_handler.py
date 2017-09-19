@@ -135,13 +135,23 @@ class TestBuildFirstBatch(TestCase):
         db.drop_all()
         db.session.commit()
 
+    @patch('freshmaker.handlers.ODCS')
     @patch('koji.ClientSession')
     @patch('freshmaker.handlers.krbContext')
-    def test_build_first_batch(self, krb, ClientSession):
+    def test_build_first_batch(self, krb, ClientSession, ODCS):
         """
         Tests that only PLANNED images without a parent are submitted to
         build system.
         """
+        ODCS.return_value.get_compose.return_value = {
+            "id": 3,
+            "result_repo": "http://localhost/composes/latest-odcs-3-1/compose/Temporary",
+            "result_repofile": "http://localhost/composes/latest-odcs-3-1/compose/Temporary/odcs-3.repo",
+            "source": "f26",
+            "source_type": 1,
+            "state": 2,
+            "state_name": "done",
+        }
         mock_session = ClientSession.return_value
         mock_session.buildContainer.return_value = 123
 
@@ -155,6 +165,61 @@ class TestBuildFirstBatch(TestCase):
              'git_branch': 'unknown', 'release': AnyStringWith('4.'),
              'yum_repourls': [
                  'http://localhost/composes/latest-odcs-3-1/compose/Temporary/odcs-3.repo']})
+
+        db.session.refresh(self.db_event)
+        for build in self.db_event.builds:
+            if build.name == "parent1-1-4":
+                self.assertEqual(build.build_id, 123)
+            else:
+                self.assertEqual(build.build_id, None)
+
+    @patch('freshmaker.handlers.ODCS')
+    @patch('koji.ClientSession')
+    @patch('freshmaker.handlers.krbContext')
+    def test_build_first_batch_extra_events(self, krb, ClientSession, ODCS):
+        """
+        Tests that only PLANNED images without a parent are submitted to
+        build system.
+        """
+        ODCS.return_value.get_compose.side_effect = [{
+            "id": 3,
+            "result_repo": "http://localhost/composes/latest-odcs-3-1/compose/Temporary",
+            "result_repofile": "http://localhost/composes/latest-odcs-3-1/compose/Temporary/odcs-3.repo",
+            "source": "f26",
+            "source_type": 1,
+            "state": 2,
+            "state_name": "done",
+        }, {
+            "id": 4,
+            "result_repo": "http://localhost/composes/latest-odcs-4-1/compose/Temporary",
+            "result_repofile": "http://localhost/composes/latest-odcs-4-1/compose/Temporary/odcs-4.repo",
+            "source": "f26",
+            "source_type": 1,
+            "state": 2,
+            "state_name": "done",
+        }]
+        mock_session = ClientSession.return_value
+        mock_session.buildContainer.return_value = 123
+
+        db_event2 = Event.get_or_create(
+            db.session, "msg2", "current_event", ErrataAdvisoryRPMsSignedEvent,
+            released=False)
+        db_event2.compose_id = 4
+        db.session.commit()
+        self.db_event.add_event_dependency(db.session, db_event2)
+        db.session.commit()
+
+        handler = MyHandler()
+        handler._build_first_batch(self.db_event)
+
+        mock_session.buildContainer.assert_called_once_with(
+            'git://pkgs.fedoraproject.org/repo#hash',
+            'target',
+            {'scratch': True, 'isolated': True, 'koji_parent_build': u'nvr',
+             'git_branch': 'unknown', 'release': AnyStringWith('4.'),
+             'yum_repourls': [
+                 'http://localhost/composes/latest-odcs-3-1/compose/Temporary/odcs-3.repo',
+                 'http://localhost/composes/latest-odcs-4-1/compose/Temporary/odcs-4.repo']})
 
         db.session.refresh(self.db_event)
         for build in self.db_event.builds:

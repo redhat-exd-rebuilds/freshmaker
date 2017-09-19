@@ -111,6 +111,20 @@ class Event(FreshmakerBase):
     def event_type(self):
         return INVERSE_EVENT_TYPES[self.event_type_id]
 
+    def add_event_dependency(self, session, event):
+        dep = EventDependency(event_id=self.id,
+                              event_dependency_id=event.id)
+        session.add(dep)
+
+    @property
+    def event_dependencies(self):
+        events = []
+        deps = EventDependency.query.filter_by(event_id=self.id).all()
+        for dep in deps:
+            events.append(Event.query.filter_by(
+                id=dep.event_dependency_id).first())
+        return events
+
     def __repr__(self):
         return "<Event %s, %r, %s>" % (self.message_id, self.event_type, self.search_key)
 
@@ -122,6 +136,13 @@ class Event(FreshmakerBase):
             "event_type_id": self.event_type_id,
             "builds": [b.json() for b in self.builds],
         }
+
+
+class EventDependency(FreshmakerBase):
+    __tablename__ = "event_dependencies"
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=False)
+    event_dependency_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=False)
 
 
 class ArtifactBuild(FreshmakerBase):

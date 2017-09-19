@@ -107,10 +107,12 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
                 if ev in seen_extra_events:
                     continue
                 seen_extra_events.append(ev)
+                db_event.add_event_dependency(db.session, ev)
                 builds = self._find_and_record_images_to_rebuild(
                     ev, event, builds)
                 repo_urls.append(self._prepare_yum_repo(ev))
 
+        db.session.commit()
         # Remove duplicates from repo_urls.
         repo_urls = list(set(repo_urls))
 
@@ -169,12 +171,6 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
 
         rebuild_event = Event.get(db.session, db_event.msg_id)
         rebuild_event.compose_id = compose_id
-        # Save YUM repo URL for saving time to retrieve compose from ODCS again
-        # when start to rebuild images.
-        for build in rebuild_event.builds:
-            data = json.loads(build.build_args)
-            data['yum_repourl'] = yum_repourl
-            build.build_args = json.dumps(data)
         db.session.commit()
 
         return yum_repourl
