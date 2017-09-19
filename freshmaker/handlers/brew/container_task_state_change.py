@@ -23,11 +23,11 @@ from freshmaker import log
 from freshmaker import db
 from freshmaker.events import BrewContainerTaskStateChangeEvent
 from freshmaker.models import ArtifactBuild
-from freshmaker.handlers import BaseHandler
+from freshmaker.handlers import ContainerBuildHandler
 from freshmaker.types import ArtifactType, ArtifactBuildState
 
 
-class BrewContainerTaskStateChangeHandler(BaseHandler):
+class BrewContainerTaskStateChangeHandler(ContainerBuildHandler):
     """Rebuild container when a dependecy container is built in Brew"""
 
     name = 'BrewContainerTaskStateChangeHandler'
@@ -59,6 +59,7 @@ class BrewContainerTaskStateChangeHandler(BaseHandler):
                 planned_builds = db.session.query(ArtifactBuild).filter_by(type=ArtifactType.IMAGE.value,
                                                                            state=ArtifactBuildState.PLANNED.value,
                                                                            dep_on=found_build).all()
+                repo_urls = self.get_repo_urls(found_build.event)
                 for build in planned_builds:
-                    # TODO: enable rebuild for these containers
-                    log.info("Build %s depends on build %s" % (str(build), str(found_build)))
+                    log.info("Build %r depends on build %r" % (build, found_build))
+                    self.build_image_artifact_build(build, repo_urls)

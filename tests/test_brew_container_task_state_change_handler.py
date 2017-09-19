@@ -62,11 +62,13 @@ class TestBrewContainerTaskStateChangeHandler(helpers.FreshmakerTestCase):
         event = self.get_event_from_msg(get_fedmsg('brew_container_task_failed'))
         self.assertTrue(self.handler.can_handle(event))
 
-    @mock.patch('freshmaker.handlers.brew.container_task_state_change.log')
-    def test_build_containers_when_dependency_container_is_built(self, log):
+    @mock.patch('freshmaker.handlers.ContainerBuildHandler.build_image_artifact_build')
+    @mock.patch('freshmaker.handlers.ContainerBuildHandler.get_repo_urls')
+    def test_build_containers_when_dependency_container_is_built(self, repo_urls, build_image):
         """
         Tests when dependency container is built, rebuild containers depend on it.
         """
+        repo_urls.return_value = ["url"]
         e1 = models.Event.create(db.session, "test_msg_id", "RHSA-2018-001", events.TestingEvent)
         event = self.get_event_from_msg(get_fedmsg('brew_container_task_closed'))
 
@@ -82,17 +84,18 @@ class TestBrewContainerTaskStateChangeHandler(helpers.FreshmakerTestCase):
         self.handler.handle(event)
         self.assertEqual(base_build.state, ArtifactBuildState.DONE.value)
         # we only log the builds at this moment
-        log.info.assert_has_calls([
-            mock.call('Build %s depends on build %s' % (str(build_0), str(base_build))),
-            mock.call('Build %s depends on build %s' % (str(build_1), str(base_build))),
-            mock.call('Build %s depends on build %s' % (str(build_2), str(base_build))),
+        build_image.assert_has_calls([
+            mock.call(build_0, ['url']), mock.call(build_1, ['url']),
+            mock.call(build_2, ['url']),
         ])
 
-    @mock.patch('freshmaker.handlers.brew.container_task_state_change.log')
-    def test_not_build_containers_when_dependency_container_build_task_failed(self, log):
+    @mock.patch('freshmaker.handlers.ContainerBuildHandler.build_image_artifact_build')
+    @mock.patch('freshmaker.handlers.ContainerBuildHandler.get_repo_urls')
+    def test_not_build_containers_when_dependency_container_build_task_failed(self, repo_urls, build_image):
         """
         Tests when dependency container build task failed in brew, only update build state in db.
         """
+        repo_urls.return_value = ["url"]
         e1 = models.Event.create(db.session, "test_msg_id", "RHSA-2018-001", events.TestingEvent)
         event = self.get_event_from_msg(get_fedmsg('brew_container_task_failed'))
 
@@ -102,7 +105,7 @@ class TestBrewContainerTaskStateChangeHandler(helpers.FreshmakerTestCase):
                                     dep_on=base_build, state=ArtifactBuildState.PLANNED.value)
         self.handler.handle(event)
         self.assertEqual(base_build.state, ArtifactBuildState.FAILED.value)
-        log.info.assert_not_called()
+        build_image.assert_not_called()
 
 
 if __name__ == '__main__':
