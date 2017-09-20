@@ -178,15 +178,19 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
             source = self._get_compose_source(nvr)
             if compose_source and compose_source != source:
                 # TODO: Handle this by generating two ODCS composes
-                log.error("Packages for errata advisory %d found in multiple "
-                          "different tags", errata_id)
+                db_event.builds_transition(
+                    ArtifactBuildState.FAILED.value, "Packages for errata "
+                    "advisory %d found in multiple different tags."
+                    % (errata_id))
                 return
             else:
                 compose_source = source
 
         if compose_source is None:
-            log.error('None of builds %s of advisory %d is the latest build in'
-                      ' its candidate tag.', builds, errata_id)
+            db_event.builds_transition(
+                ArtifactBuildState.FAILED.value, 'None of builds %s of '
+                'advisory %d is the latest build in its candidate tag.'
+                % (builds, errata_id))
             return
 
         log.info('Generate new compose for rebuild: '

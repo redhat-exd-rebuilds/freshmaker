@@ -49,9 +49,13 @@ class BrewContainerTaskStateChangeHandler(ContainerBuildHandler):
         if found_build is not None:
             # update build state in db
             if event.new_state == 'CLOSED':
-                found_build.state = ArtifactBuildState.DONE.value
+                found_build.transition(
+                    ArtifactBuildState.DONE.value,
+                    "Built successfully.")
             if event.new_state == 'FAILED':
-                found_build.state = ArtifactBuildState.FAILED.value
+                found_build.transition(
+                    ArtifactBuildState.FAILED.value,
+                    "Failed to build in Koji.")
             db.session.commit()
 
             if found_build.state == ArtifactBuildState.DONE.value:

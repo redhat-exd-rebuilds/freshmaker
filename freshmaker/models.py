@@ -27,7 +27,7 @@
 from datetime import datetime
 from sqlalchemy.orm import (validates, relationship)
 
-from freshmaker import db
+from freshmaker import db, log
 from freshmaker.types import ArtifactType, ArtifactBuildState
 from freshmaker.events import (
     MBSModuleStateChangeEvent, GitModuleMetadataChangeEvent,
@@ -125,6 +125,21 @@ class Event(FreshmakerBase):
                 id=dep.event_dependency_id).first())
         return events
 
+    def has_all_builds_in_state(self, state):
+        """
+        Returns True when all builds are in the given `state`.
+        """
+        return db.session.query(ArtifactBuild).filter_by(
+            event_id=self.id).filter(state != state).count() == 0
+
+    def builds_transition(self, state, reason):
+        """
+        Calls transition(state, reason) for all builds associated whit this
+        event.
+        """
+        for build in self.builds:
+            build.transition(state, reason)
+
     def __repr__(self):
         return "<Event %s, %r, %s>" % (self.message_id, self.event_type, self.search_key)
 
@@ -151,6 +166,7 @@ class ArtifactBuild(FreshmakerBase):
     name = db.Column(db.String, nullable=False)
     type = db.Column(db.Integer)
     state = db.Column(db.Integer, nullable=False)
+    state_reason = db.Column(db.String, nullable=True)
     time_submitted = db.Column(db.DateTime, nullable=False)
     time_completed = db.Column(db.DateTime)
 
@@ -204,6 +220,48 @@ class ArtifactBuild(FreshmakerBase):
             return ArtifactType[field.upper()].value
         raise ValueError("%s: %s, not in %r" % (key, field, list(ArtifactType)))
 
+    def depending_artifact_builds(self):
+        """
+        Returns list of artifact builds depending on this one.
+        """
+        return ArtifactBuild.query.filter_by(dep_on_id=self.id).all()
+
+    def transition(self, state, state_reason):
+        """
+        Sets the state and state_reason of this ArtifactBuild.
+
+        :param state: ArtifactBuildState value
+        :param state_reason: Reason why this state has been set.
+        """
+
+        # Log the state and state_reason
+        if state == ArtifactBuildState.FAILED.value:
+            log_fnc = log.error
+        else:
+            log_fnc = log.info
+        log_fnc("Artifact build %r moved to state %s, %r" % (
+            self, ArtifactBuildState(state).name, state_reason))
+
+        if self.state == state:
+            return
+
+        self.state = state
+        self.state_reason = state_reason
+        if self.state in [ArtifactBuildState.DONE.value,
+                          ArtifactBuildState.FAILED.value,
+                          ArtifactBuildState.CANCELED.value]:
+            self.time_completed = datetime.utcnow()
+
+        # For FAILED/CANCELED states, move also all the artifacts depending
+        # on this one to FAILED/CANCELED state, because there is no way we
+        # can rebuild them.
+        if self.state in [ArtifactBuildState.FAILED.value,
+                          ArtifactBuildState.CANCELED.value]:
+            for build in self.depending_artifact_builds():
+                build.transition(
+                    self.state, "Cannot build artifact, because its "
+                    "dependency cannot be built.")
+
     def __repr__(self):
         return "<ArtifactBuild %s, type %s, state %s, event %s>" % (
             self.name, ArtifactType(self.type).name,
@@ -217,6 +275,7 @@ class ArtifactBuild(FreshmakerBase):
             "type_name": ArtifactType(self.type).name,
             "state": self.state,
             "state_name": ArtifactBuildState(self.state).name,
+            "state_reason": self.state_reason,
             "dep_on": self.dep_on.name if self.dep_on else None,
             "time_submitted": self.time_submitted,
             "time_completed": self.time_completed,

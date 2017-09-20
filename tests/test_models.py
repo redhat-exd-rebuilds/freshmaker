@@ -24,6 +24,7 @@ import unittest
 
 from freshmaker import db, events
 from freshmaker.models import Event, ArtifactBuild
+from freshmaker.types import ArtifactBuildState
 
 
 class TestModels(unittest.TestCase):
@@ -88,3 +89,55 @@ class TestModels(unittest.TestCase):
         self.assertEqual(event.event_dependencies, [event1])
         self.assertEqual(event.event_dependencies[0].search_key, "test2")
         self.assertEqual(event1.event_dependencies, [])
+
+    def test_depending_artifact_builds(self):
+        event = Event.create(db.session, "test_msg_id", "test", events.TestingEvent)
+        parent = ArtifactBuild.create(db.session, event, "parent", "module", 1234)
+        build2 = ArtifactBuild.create(db.session, event, "mksh", "module", 1235, parent)
+        build3 = ArtifactBuild.create(db.session, event, "runtime", "module", 1236, parent)
+        ArtifactBuild.create(db.session, event, "perl-runtime", "module", 1237)
+        db.session.commit()
+
+        deps = set(parent.depending_artifact_builds())
+        self.assertEqual(deps, set([build2, build3]))
+
+    def test_build_transition_recursion(self):
+        for state in [ArtifactBuildState.FAILED.value,
+                      ArtifactBuildState.CANCELED.value]:
+            event = Event.create(db.session, "test_msg_id", "test", events.TestingEvent)
+            build1 = ArtifactBuild.create(db.session, event, "ed", "module", 1234)
+            build2 = ArtifactBuild.create(db.session, event, "mksh", "module", 1235, build1)
+            build3 = ArtifactBuild.create(db.session, event, "runtime", "module", 1236, build2)
+            build4 = ArtifactBuild.create(db.session, event, "perl-runtime", "module", 1237)
+            db.session.commit()
+
+            build1.transition(state, "reason")
+            self.assertEqual(build1.state, state)
+            self.assertEqual(build1.state_reason, "reason")
+
+            for build in [build2, build3]:
+                self.assertEqual(build.state, state)
+                self.assertEqual(
+                    build.state_reason, "Cannot build artifact, because its "
+                    "dependency cannot be built.")
+
+            self.assertEqual(build4.state, ArtifactBuildState.BUILD.value)
+            self.assertEqual(build4.state_reason, None)
+
+    def test_build_transition_recursion_not_done_for_ok_states(self):
+        for state in [ArtifactBuildState.DONE.value,
+                      ArtifactBuildState.PLANNED.value]:
+            event = Event.create(db.session, "test_msg_id", "test", events.TestingEvent)
+            build1 = ArtifactBuild.create(db.session, event, "ed", "module", 1234)
+            build2 = ArtifactBuild.create(db.session, event, "mksh", "module", 1235, build1)
+            build3 = ArtifactBuild.create(db.session, event, "runtime", "module", 1236, build2)
+            build4 = ArtifactBuild.create(db.session, event, "perl-runtime", "module", 1237)
+            db.session.commit()
+
+            build1.transition(state, "reason")
+            self.assertEqual(build1.state, state)
+            self.assertEqual(build1.state_reason, "reason")
+
+            for build in [build2, build3, build4]:
+                self.assertEqual(build4.state, ArtifactBuildState.BUILD.value)
+                self.assertEqual(build4.state_reason, None)

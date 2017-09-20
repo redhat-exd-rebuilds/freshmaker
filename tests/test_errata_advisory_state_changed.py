@@ -24,7 +24,7 @@
 import unittest
 import json
 
-from mock import patch, MagicMock, PropertyMock, Mock
+from mock import patch, MagicMock, PropertyMock
 
 from freshmaker.handlers.errata import ErrataAdvisoryRPMsSignedHandler
 from freshmaker.handlers.errata import ErrataAdvisoryStateChangedHandler
@@ -367,7 +367,11 @@ class TestPrepareYumRepo(unittest.TestCase):
         db.create_all()
         db.session.commit()
 
-        Event.create(db.session, 'msg-id', 'nvr', 100)
+        self.ev = Event.create(db.session, 'msg-id', '123', 100)
+        ArtifactBuild.create(
+            db.session, self.ev, "parent", "image",
+            state=ArtifactBuildState.PLANNED.value)
+        db.session.commit()
 
     def tearDown(self):
         db.session.remove()
@@ -400,13 +404,11 @@ class TestPrepareYumRepo(unittest.TestCase):
 
         errata.return_value.get_builds.return_value = set(["httpd-2.4.15-1.f27"])
 
-        event = Mock(message_id='msg-id', search_key=12345)
         handler = ErrataAdvisoryRPMsSignedHandler()
-        repo_url = handler._prepare_yum_repo(event)
+        repo_url = handler._prepare_yum_repo(self.ev)
 
-        rebuild_event = db.session.query(Event).filter(
-            Event.message_id == event.message_id).first()
-        self.assertEqual(3, rebuild_event.compose_id)
+        db.session.refresh(self.ev)
+        self.assertEqual(3, self.ev.compose_id)
 
         _get_compose_source.assert_called_once_with("httpd-2.4.15-1.f27")
         _get_packages_for_compose.assert_called_once_with("httpd-2.4.15-1.f27")
@@ -419,6 +421,67 @@ class TestPrepareYumRepo(unittest.TestCase):
         self.assertEqual(
             "http://localhost/composes/latest-odcs-3-1/compose/Temporary/odcs-3.repo",
             repo_url)
+
+    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.ODCS')
+    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.'
+           'ErrataAdvisoryRPMsSignedHandler._get_packages_for_compose')
+    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.'
+           'ErrataAdvisoryRPMsSignedHandler._get_compose_source')
+    @patch('time.sleep')
+    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.Errata')
+    @patch('freshmaker.handlers.BaseHandler.krb_context',
+           new_callable=PropertyMock)
+    def test_get_repo_url_packages_in_multiple_tags(
+            self, krb_context, errata, sleep, _get_compose_source,
+            _get_packages_for_compose, ODCS):
+        _get_packages_for_compose.return_value = ['httpd', 'httpd-debuginfo']
+        _get_compose_source.side_effect = [
+            'rhel-7.2-candidate', 'rhel-7.7-candidate']
+
+        errata.return_value.get_builds.return_value = [
+            set(["httpd-2.4.15-1.f27"]), set(["foo-2.4.15-1.f27"])]
+
+        handler = ErrataAdvisoryRPMsSignedHandler()
+        repo_url = handler._prepare_yum_repo(self.ev)
+
+        ODCS.return_value.new_compose.assert_not_called()
+        self.assertEqual(repo_url, None)
+
+        db.session.refresh(self.ev)
+        for build in self.ev.builds:
+            self.assertEqual(build.state, ArtifactBuildState.FAILED.value)
+            self.assertEqual(build.state_reason, "Packages for errata "
+                             "advisory 123 found in multiple different tags.")
+
+    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.ODCS')
+    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.'
+           'ErrataAdvisoryRPMsSignedHandler._get_packages_for_compose')
+    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.'
+           'ErrataAdvisoryRPMsSignedHandler._get_compose_source')
+    @patch('time.sleep')
+    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.Errata')
+    @patch('freshmaker.handlers.BaseHandler.krb_context',
+           new_callable=PropertyMock)
+    def test_get_repo_url_packages_not_found_in_tag(
+            self, krb_context, errata, sleep, _get_compose_source,
+            _get_packages_for_compose, ODCS):
+        _get_packages_for_compose.return_value = ['httpd', 'httpd-debuginfo']
+        _get_compose_source.return_value = None
+
+        errata.return_value.get_builds.return_value = [
+            set(["httpd-2.4.15-1.f27"]), set(["foo-2.4.15-1.f27"])]
+
+        handler = ErrataAdvisoryRPMsSignedHandler()
+        repo_url = handler._prepare_yum_repo(self.ev)
+
+        ODCS.return_value.new_compose.assert_not_called()
+        self.assertEqual(repo_url, None)
+
+        db.session.refresh(self.ev)
+        for build in self.ev.builds:
+            self.assertEqual(build.state, ArtifactBuildState.FAILED.value)
+            self.assertTrue(build.state_reason.endswith(
+                "of advisory 123 is the latest build in its candidate tag."))
 
 
 class TestFindEventsToInclude(unittest.TestCase):

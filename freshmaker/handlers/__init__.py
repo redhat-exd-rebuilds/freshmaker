@@ -232,20 +232,23 @@ class ContainerBuildHandler(BaseHandler):
         :return: Koji build id.
         """
         if build.state != ArtifactBuildState.PLANNED.value:
-            log.error("Trying to build %r container image, "
-                      "but build it is not in PLANNED state", build)
+            build.transition(
+                ArtifactBuildState.FAILED.value,
+                "Container image build is not in PLANNED state.")
             return
 
         if not build.build_args:
-            log.error("Cannot rebuild container image %r, build_args not "
-                      "defined", build)
+            build.transition(
+                ArtifactBuildState.FAILED.value,
+                "Container image does not have 'build_args' filled in.")
             return
 
         args = json.loads(build.build_args)
         if not args["parent"]:
             # TODO: Rebuild base image.
-            log.error("Base image %r should be rebuild, but this is not "
-                      "supported yet", build)
+            build.transition(
+                ArtifactBuildState.FAILED.value,
+                "Rebuild of container base image is not supported yet.")
             return
 
         scm_url = "%s/%s#%s" % (conf.git_base_url, args["repository"],
@@ -298,6 +301,13 @@ class ContainerBuildHandler(BaseHandler):
 
         for build in builds:
             build.build_id = self.build_image_artifact_build(build, repo_urls)
-            build.state = ArtifactBuildState.BUILD.value
+            if build.build_id:
+                build.transition(
+                    ArtifactBuildState.BUILD.value,
+                    "Building container image in Koji.")
+            else:
+                build.transition(
+                    ArtifactBuildState.FAILED.value,
+                    "Error while building container image in Koji.")
             db.session.add(build)
             db.session.commit()
