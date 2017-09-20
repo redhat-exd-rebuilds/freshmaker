@@ -163,9 +163,9 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
 
         odcs = ODCS(conf.odcs_server_url, auth_mech=AuthMech.Kerberos,
                     verify_ssl=conf.odcs_verify_ssl)
-        new_compose = odcs.new_compose(compose_source,
-                                       'tag',
-                                       packages=packages)
+        with self.krb_context:
+            new_compose = odcs.new_compose(
+                compose_source, 'tag', packages=packages)
         compose_id = new_compose['id']
         yum_repourl = new_compose['result_repofile']
 

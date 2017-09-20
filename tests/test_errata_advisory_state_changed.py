@@ -380,8 +380,10 @@ class TestPrepareYumRepo(unittest.TestCase):
            'ErrataAdvisoryRPMsSignedHandler._get_compose_source')
     @patch('time.sleep')
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.Errata')
+    @patch('freshmaker.handlers.BaseHandler.krb_context',
+           new_callable=PropertyMock)
     def test_get_repo_url_when_succeed_to_generate_compose(
-            self, errata, sleep, _get_compose_source,
+            self, krb_context, errata, sleep, _get_compose_source,
             _get_packages_for_compose, ODCS):
         _get_packages_for_compose.return_value = ['httpd', 'httpd-debuginfo']
         _get_compose_source.return_value = 'rhel-7.2-candidate'
