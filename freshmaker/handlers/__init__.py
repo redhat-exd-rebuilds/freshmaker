@@ -30,7 +30,8 @@ from freshmaker import conf, log, db, models
 from freshmaker.kojiservice import koji_service
 from freshmaker.mbs import MBS
 from freshmaker.models import ArtifactBuildState
-from freshmaker.models import Event
+from freshmaker.types import ArtifactType
+from freshmaker.models import ArtifactBuild, Event
 from krbcontext import krbContext
 
 from freshmaker.odcsclient import ODCS
@@ -203,7 +204,9 @@ class ContainerBuildHandler(BaseHandler):
                 log.error('Could not login server %s', service.server)
                 return None
 
-            log.debug('Building container from source: %s', scm_url)
+            log.info('Building container from source: %s, '
+                     'release=%r, parent=%r, target=%r',
+                     scm_url, release, koji_parent_build, target)
 
             return service.build_container(scm_url,
                                            branch,
@@ -214,12 +217,50 @@ class ContainerBuildHandler(BaseHandler):
                                            koji_parent_build=koji_parent_build,
                                            scratch=conf.koji_container_scratch_build)
 
-    def _build_first_batch(self, db_event):
+    def build_image_artifact_build(self, build, repo_urls=[]):
         """
-        Rebuilds all the parents images - images in the first batch which don't
-        depend on other images.
-        """
+        Submits ArtifactBuild of 'image' type to Koji.
 
+        :param build: ArtifactBuild of 'image' type.
+        :rtype: number
+        :return: Koji build id.
+        """
+        if build.state != ArtifactBuildState.PLANNED.value:
+            log.error("Trying to build %r container image, "
+                      "but build it is not in PLANNED state", build)
+            return
+
+        if not build.build_args:
+            log.error("Cannot rebuild container image %r, build_args not "
+                      "defined", build)
+            return
+
+        args = json.loads(build.build_args)
+        if not args["parent"]:
+            # TODO: Rebuild base image.
+            log.error("Base image %r should be rebuild, but this is not "
+                      "supported yet", build)
+            return
+
+        parent = args["parent"]
+        scm_url = "%s/%s#%s" % (conf.git_base_url, args["repository"],
+                                args["commit"])
+        release = build.name.split("-")[-1] + "." + str(int(time.time()))
+        # According to Luiz from OSBS team, it is OK to use "unknown" if
+        # we don't know the branch name. TODO: Get the branch name from
+        # Koji in lightblue.py.
+        branch = "unknown"
+        target = args["target"]
+
+        return self.build_container(
+            scm_url, branch, target, repo_urls=repo_urls,
+            isolated=True, release=release, koji_parent_build=parent)
+
+    def get_repo_urls(self, db_event):
+        """
+        Returns list of URLs to ODCS repositories which should be used
+        to rebuild the container image for this event.
+        """
         rebuild_event = Event.get(db.session, db_event.message_id)
 
         # Get compose ids of ODCS composes of all event dependencies.
@@ -234,41 +275,22 @@ class ContainerBuildHandler(BaseHandler):
                         verify_ssl=conf.odcs_verify_ssl)
             compose = odcs.get_compose(compose_id)
             repo_urls.append(compose["result_repofile"])
+        return repo_urls
 
-        for build in rebuild_event.builds:
-            if build.dep_on:
-                continue
+    def _build_first_batch(self, db_event):
+        """
+        Rebuilds all the parents images - images in the first batch which don't
+        depend on other images.
+        """
 
-            if build.state != ArtifactBuildState.PLANNED.value:
-                log.error("Trying to build first batch of container images, "
-                          "but build %r is not in PLANNED state", build)
-                continue
+        repo_urls = self.get_repo_urls(db_event)
 
-            if not build.build_args:
-                log.error("Cannot rebuild container image %r, build_args not "
-                          "defined", build)
-                continue
+        builds = db.session.query(ArtifactBuild).filter_by(
+            type=ArtifactType.IMAGE.value, event_id=db_event.id,
+            dep_on=None).all()
 
-            args = json.loads(build.build_args)
-
-            if not args["parent"]:
-                log.error("Base image %r should be rebuild, but this is not "
-                          "supported yet", build)
-                continue
-
-            parent = args["parent"]
-            scm_url = "%s/%s#%s" % (conf.git_base_url, args["repository"],
-                                    args["commit"])
-            release = build.name.split("-")[-1] + "." + str(int(time.time()))
-            # According to Luiz from OSBS team, it is OK to use "unknown" if
-            # we don't know the branch name. TODO: Get the branch name from
-            # Koji in lightblue.py.
-            branch = "unknown"
-            target = args["target"]
-
-            build.build_id = self.build_container(
-                scm_url, branch, target, repo_urls=repo_urls,
-                isolated=True, release=release, koji_parent_build=parent)
+        for build in builds:
+            build.build_id = self.build_image_artifact_build(build, repo_urls)
             build.state = ArtifactBuildState.BUILD.value
             db.session.add(build)
             db.session.commit()
