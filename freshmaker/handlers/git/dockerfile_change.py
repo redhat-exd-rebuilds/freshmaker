@@ -21,6 +21,8 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
+import koji
+
 from freshmaker import log, conf
 from freshmaker.types import ArtifactType
 from freshmaker.handlers import ContainerBuildHandler
@@ -35,8 +37,6 @@ class GitDockerfileChangeHandler(ContainerBuildHandler):
 
     def handle(self, event):
         """Rebuild docker image"""
-        import koji
-
         log.info('Start to rebuild docker image %s.', event.container)
 
         if not self.allow_build(ArtifactType.IMAGE, name=event.container, branch=event.branch):

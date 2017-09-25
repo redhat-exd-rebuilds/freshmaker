@@ -23,8 +23,6 @@
 import unittest
 
 import fedmsg.config
-import pytest
-import six
 
 from mock import patch
 from mock import MagicMock
@@ -60,7 +58,6 @@ class BaseTestCase(unittest.TestCase):
         consumer.consume(msg)
 
 
-@pytest.mark.skipif(six.PY3, reason='koji does not work in Python 3')
 class GitDockerfileChangeHandlerTest(BaseTestCase):
 
     @patch('koji.read_config')

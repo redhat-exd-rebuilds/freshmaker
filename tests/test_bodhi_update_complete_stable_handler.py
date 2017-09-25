@@ -22,8 +22,6 @@
 
 import mock
 import os
-import pytest
-import six
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))  # noqa
@@ -90,7 +88,6 @@ def mock_get_release_component_by_id(id):
     return mock_release_components[id]
 
 
-@pytest.mark.skipif(six.PY3, reason='koji does not work in Python 3')
 class BodhiUpdateCompleteStableHandlerTest(helpers.FreshmakerTestCase):
     def setUp(self):
         db.session.remove()
@@ -277,5 +274,5 @@ class BodhiUpdateCompleteStableHandlerTest(helpers.FreshmakerTestCase):
 
         self.assertEqual(5, len(rpms))
 
-        rpm = filter(lambda item: item['id'] == 9515681, rpms)
+        rpm = list(filter(lambda item: item['id'] == 9515681, rpms))
         self.assertEqual(1, len(rpm))

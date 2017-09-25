@@ -21,8 +21,6 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
-import six
-import pytest
 import unittest
 import json
 
@@ -36,7 +34,6 @@ from freshmaker.models import Event, ArtifactBuild
 from freshmaker.types import ArtifactBuildState, ArtifactType
 
 
-@pytest.mark.skipif(six.PY3, reason='koji does not work in Python 3')
 class TestFindBuildSrpmName(unittest.TestCase):
     """Test ErrataAdvisoryRPMsSignedHandler._find_build_srpm_name"""
 

@@ -21,6 +21,8 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
+import koji
+
 import contextlib
 from freshmaker import log
 
@@ -36,8 +38,6 @@ class KojiService(object):
     """
 
     def __init__(self, profile=None, logger=None):
-        import koji
-
         self._config = koji.read_config(profile or 'koji')
         self._logger = logger
 
@@ -55,7 +55,6 @@ class KojiService(object):
 
     @property
     def session(self):
-        import koji
         if not hasattr(self, '_session'):
             self._session = koji.ClientSession(self.config['server'],
                                                {'krb_rdns': self.config['krb_rdns']})
