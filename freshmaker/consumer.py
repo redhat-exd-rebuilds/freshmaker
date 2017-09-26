@@ -110,6 +110,17 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
             raise ValueError(
                 'The messaging format "{}" is not supported'.format(conf.messaging))
 
+        # Fallback to message['headers']['message-id'] if msg_id not defined.
+        if ('msg_id' not in message and
+                'headers' in message and
+                "message-id" in message['headers']):
+            message['msg_id'] = message['headers']['message-id']
+
+        if 'msg_id' not in message:
+            raise ValueError(
+                'Received message does not contain "msg_id" or "message-id": '
+                '%r' % (message))
+
         return events.BaseEvent.from_fedmsg(message['topic'], message)
 
     def process_event(self, msg):
