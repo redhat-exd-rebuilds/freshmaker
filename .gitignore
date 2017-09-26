@@ -7,3 +7,4 @@
 /freshmaker.egg-info/
 *swp
 tests/test_freshmaker.db
+freshmaker.db
