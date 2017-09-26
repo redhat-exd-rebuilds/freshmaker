@@ -200,7 +200,8 @@ class TestBatches(unittest.TestCase):
         if parent:
             parent = {"brew": {"build": parent}}
         return {'brew': {'build': build}, 'repository': build + '_repo',
-                'commit': build + '_123', 'parent': parent, "target": "t1"}
+                'commit': build + '_123', 'parent': parent, "target": "t1",
+                'git_branch': 'mybranch'}
 
     def test_batches_records(self):
         """
@@ -396,12 +397,12 @@ class TestPrepareYumRepo(unittest.TestCase):
 
         errata.return_value.get_builds.return_value = set(["httpd-2.4.15-1.f27"])
 
-        event = Mock(msg_id='msg-id', search_key=12345)
+        event = Mock(message_id='msg-id', search_key=12345)
         handler = ErrataAdvisoryRPMsSignedHandler()
         repo_url = handler._prepare_yum_repo(event)
 
         rebuild_event = db.session.query(Event).filter(
-            Event.message_id == event.msg_id).first()
+            Event.message_id == event.message_id).first()
         self.assertEqual(3, rebuild_event.compose_id)
 
         _get_compose_source.assert_called_once_with("httpd-2.4.15-1.f27")

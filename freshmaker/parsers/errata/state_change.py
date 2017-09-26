@@ -29,7 +29,7 @@ class ErrataAdvisoryStateChangedParser(BaseParser):
     """
 
     name = "ErrataAdvisoryStateChangedParser"
-    topic_suffixes = ["eng.errata.activity.status"]
+    topic_suffixes = ["errata.activity.status"]
 
     def can_parse(self, topic, msg):
         return any([topic.endswith(s) for s in self.topic_suffixes])

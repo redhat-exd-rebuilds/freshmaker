@@ -158,7 +158,7 @@ class TestContainerImageObject(unittest.TestCase):
 
         get_build.return_value = {"task_id": 123456}
         get_task_request.return_value = [
-            "git://example.com/rpms/repo-1#commit_hash1", "target1"]
+            "git://example.com/rpms/repo-1#commit_hash1", "target1", {}]
 
         image.resolve_commit("openssl")
         self.assertEqual(image["repository"], "rpms/repo-1")
@@ -271,9 +271,9 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
         self.fake_koji_builds = [{"task_id": 123456}, {"task_id": 654321}]
         self.fake_koji_task_requests = [
             ["git://pkgs.devel.redhat.com/rpms/repo-1#commit_hash1",
-             "target1"],
+             "target1", {"git_branch": "mybranch"}],
             ["git://pkgs.devel.redhat.com/rpms/repo-2#commit_hash2",
-             "target2"]]
+             "target2", {"git_branch": "mybranch"}]]
 
     @patch('freshmaker.lightblue.requests.post')
     def test_find_container_images(self, post):
@@ -568,6 +568,7 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                                  "commit": "commit_hash1",
                                  "srpm_nevra": "openssl-0:1.2.3-1.src",
                                  "target": "target1",
+                                 "git_branch": "mybranch",
                                  "brew": {
                                      "completion_date": u"20170421T04:27:51.000-0400",
                                      "build": "package-name-1-4-12.10",
@@ -598,6 +599,7 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                                  "commit": "commit_hash2",
                                  "srpm_nevra": "openssl-1:1.2.3-1.src",
                                  "target": "target2",
+                                 "git_branch": "mybranch",
                                  "brew": {
                                      "completion_date": u"20170421T04:27:51.000-0400",
                                      "build": "package-name-2-4-12.10",
@@ -639,7 +641,7 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
 
         get_build.return_value = {"task_id": 123456}
         get_task_request.return_value = [
-            "git://example.com/rpms/repo-1#commit_hash1", "target1"]
+            "git://example.com/rpms/repo-1#commit_hash1", "target1", {}]
         exists.return_value = True
         cont_images.side_effect = [self.fake_container_images, [],
                                    self.fake_container_images]

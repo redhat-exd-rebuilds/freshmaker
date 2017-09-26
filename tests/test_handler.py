@@ -108,6 +108,7 @@ class TestBuildFirstBatch(TestCase):
             "repository": "repo",
             "target": "target",
             "commit": "hash",
+            "branch": "mybranch",
             "yum_repourl": "http://localhost/composes/latest-odcs-3-1/compose/"
                            "Temporary/odcs-3.repo",
         })
@@ -162,7 +163,7 @@ class TestBuildFirstBatch(TestCase):
             'git://pkgs.fedoraproject.org/repo#hash',
             'target',
             {'scratch': True, 'isolated': True, 'koji_parent_build': u'nvr',
-             'git_branch': 'unknown', 'release': AnyStringWith('4.'),
+             'git_branch': 'mybranch', 'release': AnyStringWith('4.'),
              'yum_repourls': [
                  'http://localhost/composes/latest-odcs-3-1/compose/Temporary/odcs-3.repo']})
 
@@ -216,7 +217,7 @@ class TestBuildFirstBatch(TestCase):
             'git://pkgs.fedoraproject.org/repo#hash',
             'target',
             {'scratch': True, 'isolated': True, 'koji_parent_build': u'nvr',
-             'git_branch': 'unknown', 'release': AnyStringWith('4.'),
+             'git_branch': 'mybranch', 'release': AnyStringWith('4.'),
              'yum_repourls': [
                  'http://localhost/composes/latest-odcs-3-1/compose/Temporary/odcs-3.repo',
                  'http://localhost/composes/latest-odcs-4-1/compose/Temporary/odcs-4.repo']})

@@ -29,7 +29,7 @@ class BrewSignRpmParser(BaseParser):
     """Parser parsing message from Brew"""
 
     name = "BrewSignRpmParser"
-    topic_suffixes = ["eng.brew.sign.rpm"]
+    topic_suffixes = ["brew.sign.rpm"]
 
     def can_parse(self, topic, msg):
         return any([topic.endswith(s) for s in self.topic_suffixes])

@@ -57,7 +57,7 @@ class KojiService(object):
     def session(self):
         if not hasattr(self, '_session'):
             self._session = koji.ClientSession(self.config['server'],
-                                               {'krb_rdns': self.config['krb_rdns']})
+                                               self.config)
         return self._session
 
     def krb_login(self, proxyuser=None):
@@ -77,7 +77,7 @@ class KojiService(object):
 
         build_target = target
         build_opts = {
-            'scratch': False if scratch is None else True,
+            'scratch': False if scratch is None else scratch,
             'git_branch': branch,
         }
 
@@ -114,7 +114,7 @@ class KojiService(object):
         return self.session.getBuild(build_nvr)
 
     def get_task_request(self, task_id):
-        log.info("get_build %r", task_id)
+        log.info("get_task_request %r", task_id)
         return self.session.getTaskRequest(task_id)
 
 

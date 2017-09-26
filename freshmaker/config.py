@@ -66,6 +66,7 @@ def init_config(app):
     # package -> /conf/config.py.
 
     elif ('FRESHMAKER_DEVELOPER_ENV' in os.environ and
+          'FRESHMAKER_CONFIG_FILE' not in os.environ and
           os.environ['FRESHMAKER_DEVELOPER_ENV'].lower() in ('1', 'on', 'true', 'y', 'yes')):
         config_section = 'DevConfiguration'
         if 'FRESHMAKER_CONFIG_FILE' in os.environ:
