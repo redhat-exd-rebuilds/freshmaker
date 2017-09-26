@@ -82,7 +82,7 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
 
         # Generate the ODCS compose with RPMs from the current advisory.
         repo_urls = []
-        repo_urls.append(self._prepare_yum_repo(event))  # noqa
+        repo_urls.append(self._prepare_yum_repo(db_event))  # noqa
 
         # Find out extra events we want to include. These are advisories
         # which are not released yet and touches some Docker images which
@@ -121,9 +121,6 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
         log.info("Following repositories will be used for the rebuild:")
         for url in repo_urls:
             log.info("   - %s", url)
-
-        # Build first batch of images.
-        self._build_first_batch(db_event)
 
         return []
 
@@ -169,7 +166,7 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
         compose_id = new_compose['id']
         yum_repourl = new_compose['result_repofile']
 
-        rebuild_event = Event.get(db.session, db_event.msg_id)
+        rebuild_event = Event.get(db.session, db_event.message_id)
         rebuild_event.compose_id = compose_id
         db.session.commit()
 
@@ -307,6 +304,7 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
                 build_args["commit"] = image["commit"]
                 build_args["parent"] = parent_name
                 build_args["target"] = image["target"]
+                build_args["branch"] = image["git_branch"]
                 build.build_args = json.dumps(build_args)
                 db.session.commit()
 

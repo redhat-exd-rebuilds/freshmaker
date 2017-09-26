@@ -242,15 +242,16 @@ class ContainerBuildHandler(BaseHandler):
                       "supported yet", build)
             return
 
-        parent = args["parent"]
         scm_url = "%s/%s#%s" % (conf.git_base_url, args["repository"],
                                 args["commit"])
-        release = build.name.split("-")[-1] + "." + str(int(time.time()))
-        # According to Luiz from OSBS team, it is OK to use "unknown" if
-        # we don't know the branch name. TODO: Get the branch name from
-        # Koji in lightblue.py.
-        branch = "unknown"
+        branch = args["branch"]
         target = args["target"]
+        parent = args["parent"]
+
+        # Set release from XX.YY to XX.$timestamp
+        version_release = build.name.split("-")[-1]
+        version = version_release.split(".")[0]
+        release = str(version) + "." + str(int(time.time()))
 
         return self.build_container(
             scm_url, branch, target, repo_urls=repo_urls,

@@ -133,6 +133,7 @@ class ContainerImage(dict):
         reponame = None
         commit = None
         target = None
+        git_branch = None
 
         # Find the repository name, commit id and koji target form the Koji
         # build.
@@ -142,22 +143,43 @@ class ContainerImage(dict):
         else:
             with koji_service(conf.koji_profile, log) as session:
                 build = session.get_build(nvr)
-                if build:
-                    brew_task = session.get_task_request(
-                        build['task_id'])
-                    source = brew_task[0]
-                    target = brew_task[1]
+                if not build:
+                    err = "Cannot find Koji build with nvr %s in Koji." % nvr
+                    log.error(err)
+                    raise ValueError(err)
 
-                    m = re.match(r".*/(?P<namespace>.*)/(?P<container>.*)#(?P<commit>.*)", source)
-                    if m:
-                        namespace = m.group("namespace")
-                        container = m.group("container")
-                        reponame = namespace + "/" + container
-                        commit = m.group("commit")
+                if not build['task_id']:
+                    if ("extra" in build and
+                            "container_koji_task_id" in build["extra"] and
+                            build["extra"]["container_koji_task_id"]):
+                        build['task_id'] = \
+                            build["extra"]['container_koji_task_id']
+                    else:
+                        err = "Cannot find task_id or container_koji_task_id " \
+                              "in the Koji build %r" % build
+                        log.error(err)
+                        raise ValueError(err)
+
+                brew_task = session.get_task_request(
+                    build['task_id'])
+                source = brew_task[0]
+                target = brew_task[1]
+                extra_data = brew_task[2]
+                if "git_branch" in extra_data:
+                    git_branch = extra_data["git_branch"]
+                else:
+                    git_branch = "unknown"
+
+                m = re.match(r".*/(?P<namespace>.*)/(?P<container>.*)#(?P<commit>.*)", source)
+                if m:
+                    namespace = m.group("namespace")
+                    container = m.group("container")
+                    reponame = namespace + "/" + container
+                    commit = m.group("commit")
         ContainerImage.KOJI_BUILDS_CACHE[nvr] = (reponame, commit, target)
 
         data = {"repository": reponame, "commit": commit, "target": target,
-                "srpm_nevra": srpm_nevra}
+                "srpm_nevra": srpm_nevra, "git_branch": git_branch}
         self.update(data)
 
 

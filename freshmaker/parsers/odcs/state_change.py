@@ -27,7 +27,7 @@ class ComposeStateChangeParser(BaseParser):
     """Parser parsing odcs.compose.state.change"""
 
     name = "ComposeStateChangeEvent"
-    topic_suffixes = ["eng.odcs.compose.state.change"]
+    topic_suffixes = ["odcs.state.change"]
 
     def can_parse(self, topic, msg):
         return any([topic.endswith(s) for s in self.topic_suffixes])

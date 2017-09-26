@@ -34,7 +34,7 @@ class BrewTaskStateChangeParser(BaseParser):
     """
 
     name = "BrewTaskStateChangeParser"
-    topic_suffixes = ["eng.brew.task.closed", 'eng.brew.task.failed']
+    topic_suffixes = ["brew.task.closed", 'brew.task.failed']
 
     def can_parse(self, topic, msg):
         return any([topic.endswith(s) for s in self.topic_suffixes])
