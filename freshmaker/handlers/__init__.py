@@ -197,10 +197,12 @@ class ContainerBuildHandler(BaseHandler):
 
             proxyuser = conf.koji_build_owner if conf.koji_proxyuser else None
 
+
             with self.krb_context:
                 service.krb_login(proxyuser=proxyuser)
 
-            if not service.logged_in:
+            # We are not logged in in dry run mode...
+            if not conf.dry_run and not service.logged_in:
                 log.error('Could not login server %s', service.server)
                 return None
 

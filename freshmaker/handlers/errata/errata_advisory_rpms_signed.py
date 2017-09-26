@@ -29,6 +29,7 @@ from freshmaker import conf
 from freshmaker import log
 from freshmaker import db
 from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
+from freshmaker.events import ODCSComposeStateChangeEvent
 from freshmaker.handlers import BaseHandler
 from freshmaker.kojiservice import koji_service
 from freshmaker.lightblue import LightBlue
@@ -36,9 +37,11 @@ from freshmaker.pulp import Pulp
 from freshmaker.errata import Errata
 from freshmaker.types import ArtifactType, ArtifactBuildState
 from freshmaker.models import Event
+from freshmaker.consumer import work_queue_put
 
 from odcs.client.odcs import ODCS
 from odcs.client.odcs import AuthMech
+from odcs.common.types import COMPOSE_STATES
 
 
 class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
@@ -48,6 +51,9 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
     """
 
     name = 'ErrataAdvisoryRPMsSignedHandler'
+
+    # Used to generate incremental compose id in dry run mode.
+    _FAKE_COMPOSE_ID = 1
 
     def can_handle(self, event):
         return isinstance(event, ErrataAdvisoryRPMsSignedEvent)
@@ -160,9 +166,27 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
 
         odcs = ODCS(conf.odcs_server_url, auth_mech=AuthMech.Kerberos,
                     verify_ssl=conf.odcs_verify_ssl)
-        with self.krb_context:
-            new_compose = odcs.new_compose(
-                compose_source, 'tag', packages=packages)
+        if not conf.dry_run:
+            with self.krb_context:
+                new_compose = odcs.new_compose(
+                    compose_source, 'tag', packages=packages)
+        else:
+            log.info("DRY RUN: Calling fake odcs.new_compose with args: %r",
+                     (compose_source, 'tag', packages))
+
+            ErrataAdvisoryRPMsSignedHandler._FAKE_COMPOSE_ID += 1
+
+            new_compose = {}
+            new_compose['id'] = ErrataAdvisoryRPMsSignedHandler._FAKE_COMPOSE_ID
+            new_compose['result_repofile'] = "http://localhost/%d.repo" % (
+                new_compose['id'])
+            new_compose['state'] = COMPOSE_STATES['done']
+
+            event = ODCSComposeStateChangeEvent(
+                "fake_compose_msg", new_compose)
+            log.info("Injecting fake event: %r", event)
+            work_queue_put(event)
+
         compose_id = new_compose['id']
         yum_repourl = new_compose['result_repofile']
 

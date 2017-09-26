@@ -24,7 +24,10 @@
 import koji
 
 import contextlib
-from freshmaker import log
+import re
+from freshmaker import log, conf
+from freshmaker.consumer import work_queue_put
+from freshmaker.events import BrewContainerTaskStateChangeEvent
 
 
 class KojiService(object):
@@ -37,9 +40,11 @@ class KojiService(object):
     As a wrapper of Koji API, new APIs could be added as well.
     """
 
-    def __init__(self, profile=None, logger=None):
+    # Used to generate incremental task id in dry run mode.
+    _FAKE_TASK_ID = 1
+
+    def __init__(self, profile=None):
         self._config = koji.read_config(profile or 'koji')
-        self._logger = logger
 
     @property
     def config(self):
@@ -61,7 +66,11 @@ class KojiService(object):
         return self._session
 
     def krb_login(self, proxyuser=None):
-        self.session.krb_login(proxyuser=proxyuser)
+        # No need to login on dry run, this makes dry run much faster.
+        if not conf.dry_run:
+            self.session.krb_login(proxyuser=proxyuser)
+        else:
+            log.info("DRY RUN: Skipping login in dry run mode.")
 
     @property
     def logged_in(self):
@@ -90,16 +99,30 @@ class KojiService(object):
         if release:
             build_opts['release'] = release
 
-        if self._logger:
-            self._logger.debug('Build from target: %s', build_target)
-            self._logger.debug('Build options: %s', build_opts)
+        log.debug('Build from target: %s', build_target)
+        log.debug('Build options: %s', build_opts)
 
-        task_id = self.session.buildContainer(source_url, build_target, build_opts)
+        if not conf.dry_run:
+            task_id = self.session.buildContainer(source_url, build_target, build_opts)
+        else:
+            log.info("DRY RUN: Calling fake buildContainer with args: %r",
+                     (source_url, build_target, build_opts))
+            KojiService._FAKE_TASK_ID += 1
+            task_id = KojiService._FAKE_TASK_ID
 
-        if self._logger:
-            self._logger.info('Task %s is created to build docker image for %s',
-                              task_id, source_url)
-            self._logger.info('Task info: %s/taskinfo?taskID=%s', self.weburl, task_id)
+            m = re.match(r".*/(?P<container>[^#]*)", source_url)
+            container = m.group('container')
+            event = BrewContainerTaskStateChangeEvent(
+                "fake_koji_msg_%d" % task_id, container, branch, target,
+                task_id, "BUILDING", "CLOSED")
+
+            log.info("DRY RUN: Injecting fake event: %r", event)
+
+            work_queue_put(event)
+
+        log.info('Task %s is created to build docker image for %s',
+                 task_id, source_url)
+        log.info('Task info: %s/taskinfo?taskID=%s', self.weburl, task_id)
 
         return task_id
 
@@ -135,7 +158,7 @@ def koji_service(profile=None, logger=None):
         with KojiService(koji='stg', logger=logger) as service:
             ...
     """
-    service = KojiService(profile=profile, logger=logger)
+    service = KojiService(profile=profile)
     try:
         yield service
     finally:

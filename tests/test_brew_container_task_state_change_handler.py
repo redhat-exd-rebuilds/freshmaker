@@ -68,6 +68,7 @@ class TestBrewContainerTaskStateChangeHandler(helpers.FreshmakerTestCase):
         """
         Tests when dependency container is built, rebuild containers depend on it.
         """
+        build_image.side_effect = [1, 2, 3]
         repo_urls.return_value = ["url"]
         e1 = models.Event.create(db.session, "test_msg_id", "RHSA-2018-001", events.TestingEvent)
         event = self.get_event_from_msg(get_fedmsg('brew_container_task_closed'))
@@ -83,11 +84,14 @@ class TestBrewContainerTaskStateChangeHandler(helpers.FreshmakerTestCase):
 
         self.handler.handle(event)
         self.assertEqual(base_build.state, ArtifactBuildState.DONE.value)
-        # we only log the builds at this moment
         build_image.assert_has_calls([
             mock.call(build_0, ['url']), mock.call(build_1, ['url']),
             mock.call(build_2, ['url']),
         ])
+
+        self.assertEqual(build_0.build_id, 1)
+        self.assertEqual(build_1.build_id, 2)
+        self.assertEqual(build_2.build_id, 3)
 
     @mock.patch('freshmaker.handlers.ContainerBuildHandler.build_image_artifact_build')
     @mock.patch('freshmaker.handlers.ContainerBuildHandler.get_repo_urls')

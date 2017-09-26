@@ -187,6 +187,14 @@ class Config(object):
             'type': str,
             'default': '',
             'desc': 'Build owner.'},
+        'dry_run': {
+            'type': bool,
+            'default': False,
+            'desc': 'When True, no builds will be submitted and only log '
+                    'messages will be logged instead. Freshmaker will also '
+                    'generate fake "build succeeded" events to mark fake '
+                    'artifact rebuild as done.',
+        },
         'handler_build_whitelist': {
             'type': dict,
             'default': {},
