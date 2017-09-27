@@ -199,12 +199,12 @@ class TestBatches(unittest.TestCase):
         db.drop_all()
         db.session.commit()
 
-    def _mock_build(self, build, parent=None):
+    def _mock_build(self, build, parent=None, error=None):
         if parent:
             parent = {"brew": {"build": parent}}
         return {'brew': {'build': build}, 'repository': build + '_repo',
                 'commit': build + '_123', 'parent': parent, "target": "t1",
-                'git_branch': 'mybranch'}
+                'git_branch': 'mybranch', "error": error}
 
     def test_batches_records(self):
         """
@@ -219,7 +219,7 @@ class TestBatches(unittest.TestCase):
         #   |- child2_parent2
         #     |- child2_parent1
         #       |- child2
-        batches = [[self._mock_build("shared_parent")],
+        batches = [[self._mock_build("shared_parent", error="Fail")],
                    [self._mock_build("child1_parent3", "shared_parent"),
                     self._mock_build("child2_parent2", "shared_parent")],
                    [self._mock_build("child1_parent2", "child1_parent3"),
@@ -242,7 +242,12 @@ class TestBatches(unittest.TestCase):
         # Check that the images have proper data in proper db columns.
         e = db.session.query(Event).filter(Event.id == 1).one()
         for build in e.builds:
-            self.assertEqual(build.state, ArtifactBuildState.PLANNED.value)
+            # shared-parent is in FAILED state, because LB failed to resolve
+            # it.
+            if build.name == "shared_parent":
+                self.assertEqual(build.state, ArtifactBuildState.FAILED.value)
+            else:
+                self.assertEqual(build.state, ArtifactBuildState.PLANNED.value)
             self.assertEqual(build.type, ArtifactType.IMAGE.value)
 
             image = images[build.name]

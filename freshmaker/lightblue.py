@@ -26,6 +26,7 @@ import os
 import re
 import requests
 import six
+import dogpile.cache
 
 from six.moves import http_client
 import concurrent.futures
@@ -101,7 +102,7 @@ class ContainerRepository(dict):
 class ContainerImage(dict):
     """Represent a container image"""
 
-    KOJI_BUILDS_CACHE = {}
+    region = dogpile.cache.make_region().configure(conf.dogpile_cache_backend)
 
     @classmethod
     def create(cls, data):
@@ -111,6 +112,57 @@ class ContainerImage(dict):
 
     def __hash__(self):
         return hash((self['brew']['build']))
+
+    @region.cache_on_arguments()
+    def _get_additional_data_from_koji(self, nvr):
+        """
+        Finds the build defined by `nvr` in Koji and returns dict with
+        additional information about this build including "repository",
+        "commit", "target" and "git_branch".
+
+        In case of lookup error, the "error" will be set to error string.
+        """
+        data = {"repository": None, "commit": None, "target": None,
+                "git_branch": None, "error": None}
+
+        with koji_service(conf.koji_profile, log) as session:
+            build = session.get_build(nvr)
+            if not build:
+                err = "Cannot find Koji build with nvr %s in Koji." % nvr
+                log.error(err)
+                data["error"] = err
+                return data
+
+            if 'task_id' not in build or not build['task_id']:
+                if ("extra" in build and
+                        "container_koji_task_id" in build["extra"] and
+                        build["extra"]["container_koji_task_id"]):
+                    build['task_id'] = build["extra"]['container_koji_task_id']
+                else:
+                    err = "Cannot find task_id or container_koji_task_id " \
+                          "in the Koji build %r" % build
+                    log.error(err)
+                    data["error"] = err
+                    return data
+
+            brew_task = session.get_task_request(
+                build['task_id'])
+            source = brew_task[0]
+            data["target"] = brew_task[1]
+            extra_data = brew_task[2]
+            if "git_branch" in extra_data:
+                data["git_branch"] = extra_data["git_branch"]
+            else:
+                data["git_branch"] = "unknown"
+
+            m = re.match(r".*/(?P<namespace>.*)/(?P<container>.*)#(?P<commit>.*)", source)
+            if m:
+                namespace = m.group("namespace")
+                container = m.group("container")
+                data["repository"] = namespace + "/" + container
+                data["commit"] = m.group("commit")
+
+        return data
 
     def resolve_commit(self, srpm_name):
         """
@@ -130,56 +182,10 @@ class ContainerImage(dict):
                     srpm_nevra = rpm['srpm_nevra']
                     break
 
-        reponame = None
-        commit = None
-        target = None
-        git_branch = None
-
-        # Find the repository name, commit id and koji target form the Koji
-        # build.
+        # Find the additional data for Container build in Koji.
         nvr = self["brew"]["build"]
-        if nvr in ContainerImage.KOJI_BUILDS_CACHE:
-            reponame, commit, target = ContainerImage.KOJI_BUILDS_CACHE[nvr]
-        else:
-            with koji_service(conf.koji_profile, log) as session:
-                build = session.get_build(nvr)
-                if not build:
-                    err = "Cannot find Koji build with nvr %s in Koji." % nvr
-                    log.error(err)
-                    raise ValueError(err)
-
-                if not build['task_id']:
-                    if ("extra" in build and
-                            "container_koji_task_id" in build["extra"] and
-                            build["extra"]["container_koji_task_id"]):
-                        build['task_id'] = \
-                            build["extra"]['container_koji_task_id']
-                    else:
-                        err = "Cannot find task_id or container_koji_task_id " \
-                              "in the Koji build %r" % build
-                        log.error(err)
-                        raise ValueError(err)
-
-                brew_task = session.get_task_request(
-                    build['task_id'])
-                source = brew_task[0]
-                target = brew_task[1]
-                extra_data = brew_task[2]
-                if "git_branch" in extra_data:
-                    git_branch = extra_data["git_branch"]
-                else:
-                    git_branch = "unknown"
-
-                m = re.match(r".*/(?P<namespace>.*)/(?P<container>.*)#(?P<commit>.*)", source)
-                if m:
-                    namespace = m.group("namespace")
-                    container = m.group("container")
-                    reponame = namespace + "/" + container
-                    commit = m.group("commit")
-        ContainerImage.KOJI_BUILDS_CACHE[nvr] = (reponame, commit, target)
-
-        data = {"repository": reponame, "commit": commit, "target": target,
-                "srpm_nevra": srpm_nevra, "git_branch": git_branch}
+        data = self._get_additional_data_from_koji(nvr)
+        data["srpm_nevra"] = srpm_nevra
         self.update(data)
 
 

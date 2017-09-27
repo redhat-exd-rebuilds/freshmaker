@@ -338,10 +338,19 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
                 parent_name = image["parent"]["brew"]["build"] \
                     if image["parent"] else None
                 dep_on = builds[parent_name] if parent_name in builds else None
+
+                if "error" in image and image["error"]:
+                    #state_reason = image["error"]
+                    state = ArtifactBuildState.FAILED.value
+                else:
+                    #state_reason = ""
+                    state = ArtifactBuildState.PLANNED.value
+
+                # TODO: Set state_reason, waiting on PR#88
                 build = self.record_build(
                     event, name, ArtifactType.IMAGE,
                     dep_on=dep_on,
-                    state=ArtifactBuildState.PLANNED.value)
+                    state=state)
 
                 build_args = {}
                 build_args["repository"] = image["repository"]

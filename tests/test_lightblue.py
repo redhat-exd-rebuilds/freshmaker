@@ -167,6 +167,77 @@ class TestContainerImageObject(unittest.TestCase):
         self.assertEqual(image["srpm_nevra"], "openssl-0:1.2.3-1.src")
 
 
+    @patch('freshmaker.kojiservice.KojiService.get_build')
+    @patch('freshmaker.kojiservice.KojiService.get_task_request')
+    def test_resolve_commit_no_koji_build(self, get_task_request, get_build):
+        image = ContainerImage.create({
+            '_id': '1233829',
+            'brew': {
+                'completion_date': u'20170421T04:27:51.000-0400',
+                'build': 'package-name-1-4-12.10',
+                'package': 'package-name-1'
+            },
+            'parsed_data': {
+                'rpm_manifest': [
+                    {
+                        "srpm_name": "openssl",
+                        "srpm_nevra": "openssl-0:1.2.3-1.src"
+                    },
+                    {
+                        "srpm_name": "tespackage",
+                        "srpm_nevra": "testpackage-10:1.2.3-1.src"
+                    }
+                ]
+            }
+        })
+
+        get_build.return_value = {}
+
+        image.resolve_commit("openssl")
+        self.assertEqual(image["repository"], None)
+        self.assertEqual(image["commit"], None)
+        self.assertEqual(image["target"], None)
+        self.assertEqual(image["srpm_nevra"], "openssl-0:1.2.3-1.src")
+        self.assertEqual(
+            image["error"],
+            "Cannot find Koji build with nvr package-name-1-4-12.10 in Koji.")
+
+    @patch('freshmaker.kojiservice.KojiService.get_build')
+    @patch('freshmaker.kojiservice.KojiService.get_task_request')
+    def test_resolve_commit_no_task_id(self, get_task_request, get_build):
+        image = ContainerImage.create({
+            '_id': '1233829',
+            'brew': {
+                'completion_date': u'20170421T04:27:51.000-0400',
+                'build': 'package-name-1-4-12.10',
+                'package': 'package-name-1'
+            },
+            'parsed_data': {
+                'rpm_manifest': [
+                    {
+                        "srpm_name": "openssl",
+                        "srpm_nevra": "openssl-0:1.2.3-1.src"
+                    },
+                    {
+                        "srpm_name": "tespackage",
+                        "srpm_nevra": "testpackage-10:1.2.3-1.src"
+                    }
+                ]
+            }
+        })
+
+        get_build.return_value = {"task_id": None}
+
+        image.resolve_commit("openssl")
+        self.assertEqual(image["repository"], None)
+        self.assertEqual(image["commit"], None)
+        self.assertEqual(image["target"], None)
+        self.assertEqual(image["srpm_nevra"], "openssl-0:1.2.3-1.src")
+        self.assertEqual(
+            image["error"],
+            "Cannot find task_id or container_koji_task_id in the Koji build "
+            "{'task_id': None}")
+
 class TestContainerRepository(unittest.TestCase):
 
     def test_create(self):
@@ -569,6 +640,7 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                                  "srpm_nevra": "openssl-0:1.2.3-1.src",
                                  "target": "target1",
                                  "git_branch": "mybranch",
+                                 "error": None,
                                  "brew": {
                                      "completion_date": u"20170421T04:27:51.000-0400",
                                      "build": "package-name-1-4-12.10",
@@ -600,6 +672,7 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                                  "srpm_nevra": "openssl-1:1.2.3-1.src",
                                  "target": "target2",
                                  "git_branch": "mybranch",
+                                 "error": None,
                                  "brew": {
                                      "completion_date": u"20170421T04:27:51.000-0400",
                                      "build": "package-name-2-4-12.10",
