@@ -134,9 +134,14 @@ class BaseHandler(object):
         in_whitelist = True
         in_blacklist = False
 
+        # Global rules
+        whitelist_rules = conf.handler_build_whitelist.get("global", {})
+        blacklist_rules = conf.handler_build_blacklist.get("global", {})
+
+        # This handler rules
         handler_name = self.name
-        whitelist_rules = conf.handler_build_whitelist.get(handler_name, {})
-        blacklist_rules = conf.handler_build_blacklist.get(handler_name, {})
+        whitelist_rules.update(conf.handler_build_whitelist.get(handler_name, {}))
+        blacklist_rules.update(conf.handler_build_blacklist.get(handler_name, {}))
 
         def match_rule(kwargs, rule):
             for key, value in kwargs.items():
