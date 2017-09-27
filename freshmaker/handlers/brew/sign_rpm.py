@@ -100,7 +100,7 @@ class BrewSignRPMHandler(BaseHandler):
                 event.msg_id + "." + str(advisory.name), advisory.name,
                 advisory.errata_id, advisory.security_impact)
             db_event = Event.create(
-                db.session, event.msg_id, new_event.search_key,
+                db.session, new_event.msg_id, new_event.search_key,
                 new_event.__class__, released=False)
             db.session.add(db_event)
             new_events.append(new_event)
