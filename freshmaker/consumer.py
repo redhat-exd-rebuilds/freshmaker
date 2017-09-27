@@ -94,7 +94,8 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
             msg = self.get_abstracted_msg(message['body'])
 
         if not msg:
-            log.debug("Received unparsed message: %r", message)
+            # Logging is done in get_abstracted_msg, because we know
+            # the msg_id there...
             return
 
         # Primary work is done here.
@@ -123,7 +124,12 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
                 'Received message does not contain "msg_id" or "message-id": '
                 '%r' % (message))
 
-        return events.BaseEvent.from_fedmsg(message['topic'], message)
+        msg = events.BaseEvent.from_fedmsg(message['topic'], message)
+        if not msg:
+            log.debug("No BaseEvent subclass defined for message with id %s",
+                      message["msg_id"])
+
+        return msg
 
     def process_event(self, msg):
         log.debug('Received a message with an ID of "{0}" and of type "{1}"'
