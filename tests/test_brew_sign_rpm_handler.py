@@ -27,10 +27,22 @@ from mock import patch, MagicMock, PropertyMock
 
 from freshmaker.handlers.brew.sign_rpm import BrewSignRPMHandler
 from freshmaker.errata import ErrataAdvisory
+from freshmaker import db
 
 
 class TestBrewSignHandler(unittest.TestCase):
     """Test BrewSignRPMHandler.handle"""
+
+    def setUp(self):
+        db.session.remove()
+        db.drop_all()
+        db.create_all()
+        db.session.commit()
+
+    def tearDown(self):
+        db.session.remove()
+        db.drop_all()
+        db.session.commit()
 
     @patch('freshmaker.errata.Errata.advisories_from_event')
     @patch('freshmaker.errata.Errata.builds_signed')
@@ -47,6 +59,7 @@ class TestBrewSignHandler(unittest.TestCase):
         builds_signed.return_value = True
 
         event = MagicMock()
+        event.msg_id = "msg_123"
         handler = BrewSignRPMHandler()
         ret = handler.handle(event)
 
@@ -156,4 +169,31 @@ class TestBrewSignHandler(unittest.TestCase):
         handler = BrewSignRPMHandler()
         handler.handle(event)
 
+        builds_signed.assert_not_called()
+
+    @patch('freshmaker.errata.Errata.advisories_from_event')
+    @patch('freshmaker.errata.Errata.builds_signed')
+    @patch("freshmaker.config.Config.handler_build_whitelist",
+           new_callable=PropertyMock, return_value={
+               "BrewSignRPMHandler": {"image": [{"advisory_name": "RHSA-.*"}]}})
+    def test_do_not_create_already_handled_event(
+            self, handler_build_whitelist, builds_signed,
+            advisories_from_event):
+        """
+        Tests that BrewSignRPMHandler don't return Event which already exists
+        in Freshmaker DB.
+        """
+        builds_signed.return_value = True
+        advisories_from_event.return_value = [
+            ErrataAdvisory(123, "RHSA-2017", "REL_PREP")]
+
+        event = MagicMock()
+        event.msg_id = "msg_123"
+        handler = BrewSignRPMHandler()
+        handler.handle(event)
+
+        builds_signed.assert_called_once()
+        builds_signed.reset_mock()
+
+        handler.handle(event)
         builds_signed.assert_not_called()
