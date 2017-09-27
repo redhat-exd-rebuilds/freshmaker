@@ -23,10 +23,12 @@
 
 from freshmaker import conf
 from freshmaker import log
+from freshmaker import db
 from freshmaker.events import BrewSignRPMEvent, ErrataAdvisoryRPMsSignedEvent
 from freshmaker.handlers import BaseHandler
 from freshmaker.errata import Errata
 from freshmaker.types import ArtifactType
+from freshmaker.models import Event
 
 
 class BrewSignRPMHandler(BaseHandler):
@@ -41,7 +43,29 @@ class BrewSignRPMHandler(BaseHandler):
     def can_handle(self, event):
         return isinstance(event, BrewSignRPMEvent)
 
+    def _filter_out_existing_advisories(self, advisories):
+        """
+        Filter out all advisories which have been already handled by
+        Freshmaker.
+
+        :param advisories: List of ErrataAdvisory instances.
+        :rtype: List of ErrataAdvisory
+        :return: List of ErrataAdvisory instances without already handled
+                 advisories.
+        """
+        ret = []
+        for advisory in advisories:
+            if (db.session.query(Event).filter_by(
+                    search_key=str(advisory.errata_id)).count() != 0):
+                log.info("Skipping advisory %s (%d), already handled by "
+                         "Freshmaker", advisory.name, advisory.errata_id)
+                continue
+            ret.append(advisory)
+        return ret
+
     def handle(self, event):
+        log.info("Finding out all advisories including %s", event.nvr)
+
         # When get a signed RPM, first step is to find out advisories
         # containing that RPM and ensure all builds are signed.
         errata = Errata(conf.errata_tool_server_url)
@@ -52,6 +76,10 @@ class BrewSignRPMHandler(BaseHandler):
                       if self.allow_build(
                           ArtifactType.IMAGE, advisory_name=advisory.name,
                           advisory_security_impact=advisory.security_impact)]
+
+        # Filter out advisories which are already in Freshmaker DB.
+        advisories = self._filter_out_existing_advisories(advisories)
+
         if not advisories:
             log.info("No advisories found suitable for rebuilding Docker "
                      "images")
@@ -71,5 +99,10 @@ class BrewSignRPMHandler(BaseHandler):
             new_event = ErrataAdvisoryRPMsSignedEvent(
                 event.msg_id + "." + str(advisory.name), advisory.name,
                 advisory.errata_id, advisory.security_impact)
+            db_event = Event.create(
+                db.session, event.msg_id, new_event.search_key,
+                new_event.__class__, released=False)
+            db.session.add(db_event)
             new_events.append(new_event)
+        db.session.commit()
         return new_events
