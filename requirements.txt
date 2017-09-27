@@ -22,3 +22,4 @@ requests
 enum34 ; python_version <= '2.7'
 odcs[client]
 krbcontext
+dogpile.cache

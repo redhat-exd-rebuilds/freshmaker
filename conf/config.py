@@ -193,6 +193,9 @@ class TestConfiguration(BaseConfiguration):
     LIGHTBLUE_SERVER_URL = ''  # replace with real dev server url
     LIGHTBLUE_VERIFY_SSL = False
 
+    # Disable caching for tests
+    DOGPILE_CACHE_BACKEND = "dogpile.cache.null"
+
 
 class ProdConfiguration(BaseConfiguration):
     pass
