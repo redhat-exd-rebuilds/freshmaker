@@ -148,5 +148,6 @@ class ParseBrewSignRPMEventTest(ConsumerBaseTest):
 
         self.assertRaises(ValueError, consumer.get_abstracted_msg, msg)
 
+
 if __name__ == '__main__':
     unittest.main()

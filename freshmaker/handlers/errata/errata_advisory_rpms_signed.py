@@ -130,6 +130,35 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
 
         return []
 
+    def _fake_odcs_new_compose(self, compose_source, tag, packages=None):
+        """
+        Fake KojiSession.buildContainer method used dry run mode.
+
+        Logs the arguments and emits ErrataAdvisoryRPMsSignedHandler of
+        "done" state.
+
+        :rtype: dict
+        :return: Fake odcs.new_compose dict.
+        """
+        log.info("DRY RUN: Calling fake odcs.new_compose with args: %r",
+                 (compose_source, tag, packages))
+
+        # Generate the new_compose dict.
+        ErrataAdvisoryRPMsSignedHandler._FAKE_COMPOSE_ID += 1
+        new_compose = {}
+        new_compose['id'] = ErrataAdvisoryRPMsSignedHandler._FAKE_COMPOSE_ID
+        new_compose['result_repofile'] = "http://localhost/%d.repo" % (
+            new_compose['id'])
+        new_compose['state'] = COMPOSE_STATES['done']
+
+        # Generate and inject the ODCSComposeStateChangeEvent event.
+        event = ODCSComposeStateChangeEvent(
+            "fake_compose_msg", new_compose)
+        log.info("Injecting fake event: %r", event)
+        work_queue_put(event)
+
+        return new_compose
+
     def _prepare_yum_repo(self, db_event):
         """
         Prepare a yum repo for rebuild
@@ -171,21 +200,8 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
                 new_compose = odcs.new_compose(
                     compose_source, 'tag', packages=packages)
         else:
-            log.info("DRY RUN: Calling fake odcs.new_compose with args: %r",
-                     (compose_source, 'tag', packages))
-
-            ErrataAdvisoryRPMsSignedHandler._FAKE_COMPOSE_ID += 1
-
-            new_compose = {}
-            new_compose['id'] = ErrataAdvisoryRPMsSignedHandler._FAKE_COMPOSE_ID
-            new_compose['result_repofile'] = "http://localhost/%d.repo" % (
-                new_compose['id'])
-            new_compose['state'] = COMPOSE_STATES['done']
-
-            event = ODCSComposeStateChangeEvent(
-                "fake_compose_msg", new_compose)
-            log.info("Injecting fake event: %r", event)
-            work_queue_put(event)
+            new_compose = self._fake_odcs_new_compose(
+                compose_source, 'tag', packages=packages)
 
         compose_id = new_compose['id']
         yum_repourl = new_compose['result_repofile']

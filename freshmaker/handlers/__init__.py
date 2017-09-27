@@ -197,7 +197,6 @@ class ContainerBuildHandler(BaseHandler):
 
             proxyuser = conf.koji_build_owner if conf.koji_proxyuser else None
 
-
             with self.krb_context:
                 service.krb_login(proxyuser=proxyuser)
 

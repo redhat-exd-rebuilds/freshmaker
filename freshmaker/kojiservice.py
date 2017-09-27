@@ -79,6 +79,37 @@ class KojiService(object):
     def logout(self):
         self.session.logout()
 
+    def _fake_build_container(self, source_url, build_target, build_opts):
+        """
+        Fake KojiSession.buildContainer method used dry run mode.
+
+        Logs the arguments and emits BrewContainerTaskStateChangeEvent of
+        CLOSED state.
+
+        :rtype: number
+        :return: Fake task_id.
+        """
+        log.info("DRY RUN: Calling fake buildContainer with args: %r",
+                 (source_url, build_target, build_opts))
+
+        # Get the task_id
+        KojiService._FAKE_TASK_ID += 1
+        task_id = KojiService._FAKE_TASK_ID
+
+        # Parse the source_url to get the name of container and generate
+        # fake event.
+        m = re.match(r".*/(?P<container>[^#]*)", source_url)
+        container = m.group('container')
+        event = BrewContainerTaskStateChangeEvent(
+            "fake_koji_msg_%d" % task_id, container, build_opts["git_branch"],
+            build_target, task_id, "BUILDING", "CLOSED")
+
+        # Inject the fake event.
+        log.info("DRY RUN: Injecting fake event: %r", event)
+        work_queue_put(event)
+
+        return task_id
+
     def build_container(self, source_url, branch, target,
                         scratch=None, repo_urls=None, isolated=False,
                         release=None, koji_parent_build=None):
@@ -103,22 +134,11 @@ class KojiService(object):
         log.debug('Build options: %s', build_opts)
 
         if not conf.dry_run:
-            task_id = self.session.buildContainer(source_url, build_target, build_opts)
+            task_id = self.session.buildContainer(source_url, build_target,
+                                                  build_opts)
         else:
-            log.info("DRY RUN: Calling fake buildContainer with args: %r",
-                     (source_url, build_target, build_opts))
-            KojiService._FAKE_TASK_ID += 1
-            task_id = KojiService._FAKE_TASK_ID
-
-            m = re.match(r".*/(?P<container>[^#]*)", source_url)
-            container = m.group('container')
-            event = BrewContainerTaskStateChangeEvent(
-                "fake_koji_msg_%d" % task_id, container, branch, target,
-                task_id, "BUILDING", "CLOSED")
-
-            log.info("DRY RUN: Injecting fake event: %r", event)
-
-            work_queue_put(event)
+            task_id = self._fake_build_container(source_url, build_target,
+                                                 build_opts)
 
         log.info('Task %s is created to build docker image for %s',
                  task_id, source_url)

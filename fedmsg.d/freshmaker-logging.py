@@ -1,8 +1,13 @@
 config = dict(
     logging=dict(
         loggers=dict(
-            # Quiet this guy down...
+            # Quiet these guys down...
             requests={
+                "level": "WARNING",
+                "propagate": True,
+                "handlers": ["console"],
+            },
+            requests_kerberos={
                 "level": "WARNING",
                 "propagate": True,
                 "handlers": ["console"],
