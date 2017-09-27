@@ -24,7 +24,7 @@
 import requests
 from requests_kerberos import HTTPKerberosAuth
 
-from freshmaker.events import BrewSignRPMEvent
+from freshmaker.events import BrewSignRPMEvent, ErrataAdvisoryStateChangedEvent
 
 
 class ErrataAdvisory(object):
@@ -103,6 +103,13 @@ class Errata(object):
                 advisories.append(advisory)
 
             return advisories
+        elif isinstance(event, ErrataAdvisoryStateChangedEvent):
+            data = self._errata_http_get(
+                "advisory/%s.json" % str(event.errata_id))
+            advisory = ErrataAdvisory(
+                data["id"], data["advisory_name"], data["status"],
+                data["security_impact"])
+            return [advisory]
         else:
             raise ValueError("Unsupported event type")
 

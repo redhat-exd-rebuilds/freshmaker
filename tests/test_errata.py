@@ -25,7 +25,8 @@ import unittest
 from mock import patch
 
 from freshmaker.errata import Errata
-from freshmaker.events import BrewSignRPMEvent, GitRPMSpecChangeEvent
+from freshmaker.events import (
+    BrewSignRPMEvent, GitRPMSpecChangeEvent, ErrataAdvisoryStateChangedEvent)
 
 
 class MockedErrataAPI(object):
@@ -68,7 +69,11 @@ class MockedErrataAPI(object):
             "all_errata": [{"id": 28484, "name": "RHSA-2017:28484", "status": "QE"}],
             "rpms_signed": True}
 
-        self.advisory_json = {"security_impact": "Important"}
+        self.advisory_json = {
+            "id": 28484,
+            "advisory_name": "RHSA-2017:28484",
+            "status": "QE",
+            "security_impact": "Important"}
 
     def errata_rest_get(self, endpoint):
         if endpoint.find("build/") != -1:
@@ -109,6 +114,16 @@ class TestErrata(unittest.TestCase):
         event = GitRPMSpecChangeEvent("msgid", "libntirpc", "master", "foo")
         with self.assertRaises(ValueError):
             self.errata.advisories_from_event(event)
+
+    @patch.object(Errata, "_errata_rest_get")
+    @patch.object(Errata, "_errata_http_get")
+    def test_advisories_from_event_errata_state_change_event(
+            self, errata_http_get, errata_rest_get):
+        MockedErrataAPI(errata_rest_get, errata_http_get)
+        event = ErrataAdvisoryStateChangedEvent("msgid", 28484, "SHIPPED_LIVE")
+        advisories = self.errata.advisories_from_event(event)
+        self.assertEqual(len(advisories), 1)
+        self.assertEqual(advisories[0].errata_id, 28484)
 
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")

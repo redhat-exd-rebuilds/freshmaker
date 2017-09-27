@@ -27,7 +27,10 @@ import json
 from mock import patch, MagicMock, PropertyMock, Mock
 
 from freshmaker.handlers.errata import ErrataAdvisoryRPMsSignedHandler
+from freshmaker.handlers.errata import ErrataAdvisoryStateChangedHandler
 from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
+from freshmaker.events import ErrataAdvisoryStateChangedEvent
+from freshmaker.errata import ErrataAdvisory
 
 from freshmaker import db, events
 from freshmaker.models import Event, ArtifactBuild
@@ -462,3 +465,110 @@ class TestFindEventsToInclude(unittest.TestCase):
 
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0].search_key, "old_event_foo")
+
+
+class TestErrataAdvisoryStateChangedHandler(unittest.TestCase):
+
+    def setUp(self):
+        db.session.remove()
+        db.drop_all()
+        db.create_all()
+        db.session.commit()
+
+    def tearDown(self):
+        db.session.remove()
+        db.drop_all()
+        db.session.commit()
+
+    @patch('freshmaker.errata.Errata.advisories_from_event')
+    def test_rebuild_if_not_exists(self, advisories_from_event):
+        handler = ErrataAdvisoryStateChangedHandler()
+
+        for state in ["REL_PREP", "PUSH_READY", "IN_PUSH", "SHIPPED_LIVE"]:
+            advisories_from_event.return_value = [
+                ErrataAdvisory(123, "RHSA-2017", state, "Critical")]
+            ev = ErrataAdvisoryStateChangedEvent("msg123", 123, state)
+            ret = handler.handle(ev)
+
+            self.assertEqual(len(ret), 1)
+            self.assertEqual(ret[0].errata_id, 123)
+            self.assertEqual(ret[0].security_impact, "Critical")
+            self.assertEqual(ret[0].errata_name, "RHSA-2017")
+
+    @patch('freshmaker.errata.Errata.advisories_from_event')
+    def test_rebuild_if_not_exists_unknown_states(
+            self, advisories_from_event):
+        handler = ErrataAdvisoryStateChangedHandler()
+
+        for state in ["NEW_FILES", "QE", "UNKNOWN"]:
+            advisories_from_event.return_value = [
+                ErrataAdvisory(123, "RHSA-2017", state, "Critical")]
+            ev = ErrataAdvisoryStateChangedEvent("msg123", 123, state)
+            ret = handler.handle(ev)
+
+            self.assertEqual(len(ret), 0)
+
+    @patch('freshmaker.errata.Errata.advisories_from_event')
+    def test_rebuild_if_not_exists_already_exists(
+            self, advisories_from_event):
+        handler = ErrataAdvisoryStateChangedHandler()
+
+        Event.create(
+            db.session, "msg124", "123", ErrataAdvisoryRPMsSignedEvent)
+        db.session.commit()
+
+        for state in ["REL_PREP", "PUSH_READY", "IN_PUSH", "SHIPPED_LIVE"]:
+            advisories_from_event.return_value = [
+                ErrataAdvisory(123, "RHSA-2017", state, "Critical")]
+            ev = ErrataAdvisoryStateChangedEvent("msg123", 123, state)
+            ret = handler.handle(ev)
+
+            self.assertEqual(len(ret), 0)
+
+    @patch('freshmaker.errata.Errata.advisories_from_event')
+    def test_rebuild_if_not_exists_unknown_errata_id(
+            self, advisories_from_event):
+        advisories_from_event.return_value = []
+        handler = ErrataAdvisoryStateChangedHandler()
+
+        for state in ["REL_PREP", "PUSH_READY", "IN_PUSH", "SHIPPED_LIVE"]:
+            ev = ErrataAdvisoryStateChangedEvent("msg123", 123, state)
+            ret = handler.handle(ev)
+
+            self.assertEqual(len(ret), 0)
+
+    def test_mark_as_released(self):
+        db_event = Event.create(
+            db.session, "msg124", "123", ErrataAdvisoryRPMsSignedEvent, False)
+        db.session.commit()
+
+        self.assertEqual(db_event.released, False)
+
+        ev = ErrataAdvisoryStateChangedEvent("msg123", 123, "SHIPPED_LIVE")
+
+        handler = ErrataAdvisoryStateChangedHandler()
+        handler.handle(ev)
+
+        db.session.refresh(db_event)
+        self.assertEqual(db_event.released, True)
+
+    def test_mark_as_released_wrong_advisory_status(self):
+        db_event = Event.create(
+            db.session, "msg124", "123", ErrataAdvisoryRPMsSignedEvent, False)
+        db.session.commit()
+
+        for state in ["NEW_FILES", "QE", "REL_PREP", "PUSH_READY", "IN_PUSH"]:
+            ev = ErrataAdvisoryStateChangedEvent("msg123", 123, state)
+
+            handler = ErrataAdvisoryStateChangedHandler()
+            handler.handle(ev)
+
+            db.session.refresh(db_event)
+            self.assertEqual(db_event.released, False)
+
+    @patch('freshmaker.errata.Errata.advisories_from_event')
+    def test_mark_as_released_unknown_event(self, advisories_from_event):
+        ev = ErrataAdvisoryStateChangedEvent("msg123", 123, "SHIPPED_LIVE")
+
+        handler = ErrataAdvisoryStateChangedHandler()
+        handler.handle(ev)
