@@ -421,6 +421,38 @@ class TestPrepareYumRepo(unittest.TestCase):
             repo_url)
 
 
+class TestFindAndRecordImagesToRebuild(unittest.TestCase):
+    def setup(self):
+        db.session.remove()
+        db.drop_all()
+        db.create_all()
+        db.session.commit()
+
+    def tearDown(self):
+        db.session.remove()
+        db.drop_all()
+        db.session.commit()
+
+    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.Errata')
+    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.Pulp')
+    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.LightBlue')
+    def test_find_and_record_images_to_rebuild_non_rpm_content(
+            self, lb, pulp, errata):
+        """
+        Tests that _find_and_record_images_to_rebuild is not called for
+        non-rpm content.
+        """
+        errata.return_value.get_builds.return_value = set(["httpd-2.4.15-1.f27.tar.gz"])
+
+        db_event = Mock(message_id='msg-id', search_key=12345)
+        event = Mock()
+
+        handler = ErrataAdvisoryRPMsSignedHandler()
+        ret = handler._find_and_record_images_to_rebuild(db_event, event)
+        lb.find_images_to_rebuild.assert_not_called()
+        self.assertEqual(ret, {})
+
+
 class TestFindEventsToInclude(unittest.TestCase):
     """Test ErrataAdvisoryRPMsSignedHandler._find_events_to_include"""
 
