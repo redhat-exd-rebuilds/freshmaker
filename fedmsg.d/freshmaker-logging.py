@@ -12,6 +12,11 @@ config = dict(
                 "propagate": True,
                 "handlers": ["console"],
             },
+            dogpile={
+                "level": "WARNING",
+                "propagate": True,
+                "handlers": ["console"],
+            },
             # freshmaker={
             #     "level": "INFO",
             #     "propagate": True,

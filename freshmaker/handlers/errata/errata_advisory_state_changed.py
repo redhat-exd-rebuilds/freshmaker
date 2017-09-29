@@ -90,8 +90,8 @@ class ErrataAdvisoryStateChangedHandler(BaseHandler):
                  event.state)
         advisory = advisories[0]
         db_event = ErrataAdvisoryRPMsSignedEvent(
-                event.msg_id + "." + str(advisory.name), advisory.name,
-                advisory.errata_id, advisory.security_impact)
+            event.msg_id + "." + str(advisory.name), advisory.name,
+            advisory.errata_id, advisory.security_impact)
         return [db_event]
 
     def handle(self, event):

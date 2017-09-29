@@ -22,9 +22,11 @@
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
 import requests
+import dogpile.cache
 from requests_kerberos import HTTPKerberosAuth
 
 from freshmaker.events import BrewSignRPMEvent, ErrataAdvisoryStateChangedEvent
+from freshmaker import conf
 
 
 class ErrataAdvisory(object):
@@ -44,6 +46,13 @@ class ErrataAdvisory(object):
 
 class Errata(object):
     """ Interface to Errata. """
+
+    # Cache for `advisories_from_event` related methods. The main reason
+    # of this cache is lookup of BrewSignRPMEvents which came in waves.
+    # Therefore the short 10 seconds timeout. We don't want to cache it for
+    # too long to keep the data in sync with Errata tool.
+    region = dogpile.cache.make_region().configure(
+        conf.dogpile_cache_backend, expiration_time=10)
 
     def __init__(self, server_url):
         """
@@ -76,6 +85,27 @@ class Errata(object):
         r.raise_for_status()
         return r.json()
 
+    @region.cache_on_arguments()
+    def _advisories_from_nvr(self, nvr):
+        """
+        Returns the list of advisories which contain the artifact with
+        `nvr` NVR.
+        """
+        build = self._errata_rest_get("/build/%s" % str(nvr))
+        if "all_errata" not in build:
+            return []
+
+        advisories = []
+        for errata in build["all_errata"]:
+            extra_data = self._errata_http_get(
+                "advisory/%s.json" % str(errata["id"]))
+            advisory = ErrataAdvisory(
+                errata["id"], errata["name"], errata["status"],
+                extra_data["security_impact"])
+            advisories.append(advisory)
+
+        return advisories
+
     def advisories_from_event(self, event):
         """
         Returns list of ErrataAdvisory instances associated with
@@ -89,20 +119,7 @@ class Errata(object):
         :rtype: list
         """
         if isinstance(event, BrewSignRPMEvent):
-            build = self._errata_rest_get("/build/%s" % str(event.nvr))
-            if "all_errata" not in build:
-                return []
-
-            advisories = []
-            for errata in build["all_errata"]:
-                extra_data = self._errata_http_get(
-                    "advisory/%s.json" % str(errata["id"]))
-                advisory = ErrataAdvisory(
-                    errata["id"], errata["name"], errata["status"],
-                    extra_data["security_impact"])
-                advisories.append(advisory)
-
-            return advisories
+            return self._advisories_from_nvr(event.nvr)
         elif isinstance(event, ErrataAdvisoryStateChangedEvent):
             data = self._errata_http_get(
                 "advisory/%s.json" % str(event.errata_id))

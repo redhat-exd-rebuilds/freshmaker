@@ -262,6 +262,10 @@ class Config(object):
             'type': str,
             'default': '',
             'desc': 'Path to credential cache file.'},
+        'dogpile_cache_backend': {
+            'type': str,
+            'default': 'dogpile.cache.memory',
+            'desc': 'Name of dogpile.cache backend to use.'},
     }
 
     def __init__(self, conf_section_obj):
