@@ -340,17 +340,23 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
                 dep_on = builds[parent_name] if parent_name in builds else None
 
                 if "error" in image and image["error"]:
-                    #state_reason = image["error"]
+                    state_reason = image["error"]
+                    state = ArtifactBuildState.FAILED.value
+                elif dep_on and dep_on.state == ArtifactBuildState.FAILED.value:
+                    # If this artifact build depends on a build which cannot
+                    # be built by Freshmaker, mark this one as failed too.
+                    state_reason = "Cannot build artifact, because its " \
+                        "dependency cannot be built."
                     state = ArtifactBuildState.FAILED.value
                 else:
-                    #state_reason = ""
+                    state_reason = ""
                     state = ArtifactBuildState.PLANNED.value
 
-                # TODO: Set state_reason, waiting on PR#88
                 build = self.record_build(
                     event, name, ArtifactType.IMAGE,
                     dep_on=dep_on,
                     state=state)
+                build.state_reason = state_reason
 
                 build_args = {}
                 build_args["repository"] = image["repository"]

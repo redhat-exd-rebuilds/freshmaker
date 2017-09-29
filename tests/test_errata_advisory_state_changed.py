@@ -219,12 +219,12 @@ class TestBatches(unittest.TestCase):
         #   |- child2_parent2
         #     |- child2_parent1
         #       |- child2
-        batches = [[self._mock_build("shared_parent", error="Fail")],
+        batches = [[self._mock_build("shared_parent")],
                    [self._mock_build("child1_parent3", "shared_parent"),
                     self._mock_build("child2_parent2", "shared_parent")],
                    [self._mock_build("child1_parent2", "child1_parent3"),
                     self._mock_build("child2_parent1", "child2_parent2")],
-                   [self._mock_build("child1_parent1", "child1_parent2"),
+                   [self._mock_build("child1_parent1", "child1_parent2", error="Fail"),
                     self._mock_build("child2", "child2_parent1")],
                    [self._mock_build("child1", "child1_parent1")]]
 
@@ -242,9 +242,10 @@ class TestBatches(unittest.TestCase):
         # Check that the images have proper data in proper db columns.
         e = db.session.query(Event).filter(Event.id == 1).one()
         for build in e.builds:
-            # shared-parent is in FAILED state, because LB failed to resolve
-            # it.
-            if build.name == "shared_parent":
+            # child1_parent1 and child1 are in FAILED states, because LB failed
+            # to resolve child1_parent1 and therefore also child1 cannot be
+            # build.
+            if build.name in ["child1_parent1", "child1"]:
                 self.assertEqual(build.state, ArtifactBuildState.FAILED.value)
             else:
                 self.assertEqual(build.state, ArtifactBuildState.PLANNED.value)

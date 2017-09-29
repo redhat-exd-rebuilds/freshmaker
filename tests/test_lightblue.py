@@ -198,9 +198,9 @@ class TestContainerImageObject(unittest.TestCase):
         self.assertEqual(image["commit"], None)
         self.assertEqual(image["target"], None)
         self.assertEqual(image["srpm_nevra"], "openssl-0:1.2.3-1.src")
-        self.assertEqual(
-            image["error"],
-            "Cannot find Koji build with nvr package-name-1-4-12.10 in Koji.")
+        self.assertTrue(image["error"].find(
+            "Cannot find Koji build with nvr package-name-1-4-12.10 in "
+            "Koji.") != -1)
 
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')
@@ -233,10 +233,9 @@ class TestContainerImageObject(unittest.TestCase):
         self.assertEqual(image["commit"], None)
         self.assertEqual(image["target"], None)
         self.assertEqual(image["srpm_nevra"], "openssl-0:1.2.3-1.src")
-        self.assertEqual(
-            image["error"],
+        self.assertTrue(image["error"].find(
             "Cannot find task_id or container_koji_task_id in the Koji build "
-            "{'task_id': None}")
+            "{'task_id': None}") != -1)
 
 class TestContainerRepository(unittest.TestCase):
 

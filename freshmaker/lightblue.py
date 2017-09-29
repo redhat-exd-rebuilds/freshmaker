@@ -88,6 +88,9 @@ class LightBlueRequestError(LightBlueError):
                       for err in self.raw['errors']))
         )
 
+class KojiLookupError(ValueError):
+    """ Koji lookup error """
+    pass
 
 class ContainerRepository(dict):
     """Represent a container repository"""
@@ -113,6 +116,10 @@ class ContainerImage(dict):
     def __hash__(self):
         return hash((self['brew']['build']))
 
+    def _get_default_additional_data(self):
+        return {"repository": None, "commit": None, "target": None,
+        "git_branch": None, "error": None}
+
     @region.cache_on_arguments()
     def _get_additional_data_from_koji(self, nvr):
         """
@@ -122,16 +129,13 @@ class ContainerImage(dict):
 
         In case of lookup error, the "error" will be set to error string.
         """
-        data = {"repository": None, "commit": None, "target": None,
-                "git_branch": None, "error": None}
+        data = self._get_default_additional_data()
 
         with koji_service(conf.koji_profile, log) as session:
             build = session.get_build(nvr)
             if not build:
-                err = "Cannot find Koji build with nvr %s in Koji." % nvr
-                log.error(err)
-                data["error"] = err
-                return data
+                raise KojiLookupError(
+                    "Cannot find Koji build with nvr %s in Koji" % nvr)
 
             if 'task_id' not in build or not build['task_id']:
                 if ("extra" in build and
@@ -139,11 +143,9 @@ class ContainerImage(dict):
                         build["extra"]["container_koji_task_id"]):
                     build['task_id'] = build["extra"]['container_koji_task_id']
                 else:
-                    err = "Cannot find task_id or container_koji_task_id " \
-                          "in the Koji build %r" % build
-                    log.error(err)
-                    data["error"] = err
-                    return data
+                    raise KojiLookupError(
+                        "Cannot find task_id or container_koji_task_id "
+                        "in the Koji build %r" % build)
 
             brew_task = session.get_task_request(
                 build['task_id'])
@@ -184,7 +186,14 @@ class ContainerImage(dict):
 
         # Find the additional data for Container build in Koji.
         nvr = self["brew"]["build"]
-        data = self._get_additional_data_from_koji(nvr)
+        try:
+            data = self._get_additional_data_from_koji(nvr)
+        except KojiLookupError as e:
+            err = "Cannot get data from Koji for build %s: %s." % (nvr, e)
+            log.error(err)
+            data = self._get_default_additional_data()
+            data["error"] = err
+
         data["srpm_nevra"] = srpm_nevra
         self.update(data)
 
