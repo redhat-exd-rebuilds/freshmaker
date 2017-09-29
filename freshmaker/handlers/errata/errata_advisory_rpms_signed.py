@@ -398,9 +398,12 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
         builds = builds or {}
         nvrs = errata.get_builds(errata_id)
         for nvr in nvrs:
-            srpm_name = self._find_build_srpm_name(nvr)
-            batches = lb.find_images_to_rebuild(srpm_name, content_sets)
-            builds = self._record_batches(batches, event, builds)
+            if nvr.endswith(".rpm"):
+                srpm_name = self._find_build_srpm_name(nvr)
+                batches = lb.find_images_to_rebuild(srpm_name, content_sets)
+                builds = self._record_batches(batches, event, builds)
+            else:
+                log.info("Skipping unsupported Errata build type: %s.", nvr)
         return builds
 
     def _find_build_srpm_name(self, build_nvr):
