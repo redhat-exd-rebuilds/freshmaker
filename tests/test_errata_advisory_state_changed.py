@@ -24,7 +24,7 @@
 import unittest
 import json
 
-from mock import patch, MagicMock, PropertyMock
+from mock import patch, MagicMock, PropertyMock, Mock
 
 from freshmaker.handlers.errata import ErrataAdvisoryRPMsSignedHandler
 from freshmaker.handlers.errata import ErrataAdvisoryStateChangedHandler

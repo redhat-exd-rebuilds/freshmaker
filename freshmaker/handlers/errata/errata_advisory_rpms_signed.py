@@ -355,8 +355,9 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
                 build = self.record_build(
                     event, name, ArtifactType.IMAGE,
                     dep_on=dep_on,
-                    state=state)
-                build.state_reason = state_reason
+                    state=ArtifactBuildState.PLANNED.value)
+
+                build.transition(state, state_reason)
 
                 build_args = {}
                 build_args["repository"] = image["repository"]
