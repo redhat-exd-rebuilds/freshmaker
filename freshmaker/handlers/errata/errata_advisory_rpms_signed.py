@@ -372,6 +372,25 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
 
         return builds
 
+    def _filter_out_not_allowed_builds(self, image):
+        """
+        Helper method for _find_and_record_images_to_rebuild(...) to filter
+        out all images which are not allowed to build by configuration.
+
+        :param ContainerImage image: Image to be checked.
+        :rtype: bool
+        :return: True when image should be filtered out.
+        """
+
+        image_name = koji.parse_NVR(image["brew"]["build"])['name']
+
+        if not self.allow_build(
+                ArtifactType.IMAGE, image_name=image_name):
+            log.info("Skipping rebuild of image %s, not allowed by "
+                     "configuration", image_name)
+            return True
+        return False
+
     def _find_and_record_images_to_rebuild(self, db_event, event, builds=None):
         """
         Finds docker images to rebuild based on the particular
@@ -416,7 +435,9 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
         for nvr in nvrs:
             if nvr.endswith(".rpm"):
                 srpm_name = self._find_build_srpm_name(nvr)
-                batches = lb.find_images_to_rebuild(srpm_name, content_sets)
+                batches = lb.find_images_to_rebuild(
+                    srpm_name, content_sets,
+                    filter_fnc=self._filter_out_not_allowed_builds)
                 builds = self._record_batches(batches, event, builds)
             else:
                 log.info("Skipping unsupported Errata build type: %s.", nvr)

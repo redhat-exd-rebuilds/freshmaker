@@ -141,7 +141,8 @@ class TestAllowBuild(unittest.TestCase):
                 "image": [{
                     "advisory_security_impact": [
                         "Normal", "Important"
-                    ]
+                    ],
+                    "image_name": "foo",
                 }]
             }
         })
@@ -183,6 +184,67 @@ class TestAllowBuild(unittest.TestCase):
         handler.handle(event)
 
         record_images.assert_not_called()
+
+    @patch(
+        "freshmaker.config.Config.handler_build_whitelist",
+        new_callable=PropertyMock,
+        return_value={
+            "ErrataAdvisoryRPMsSignedHandler": {
+                "image": [{
+                    "image_name": ["foo", "bar"]
+                }]
+            }
+        })
+    def test_filter_out_not_allowed_builds(
+            self, handler_build_whitelist):
+        """
+        Tests that allow_build does filter images based on image_name.
+        """
+
+        handler = ErrataAdvisoryRPMsSignedHandler()
+
+        image = {"brew": {"build": "foo-1-2.3"}}
+        ret = handler._filter_out_not_allowed_builds(image)
+        self.assertEqual(ret, False)
+
+        image = {"brew": {"build": "foo2-1-2.3"}}
+        ret = handler._filter_out_not_allowed_builds(image)
+        self.assertEqual(ret, False)
+
+        image = {"brew": {"build": "bar-1-2.3"}}
+        ret = handler._filter_out_not_allowed_builds(image)
+        self.assertEqual(ret, False)
+
+        image = {"brew": {"build": "unknown-1-2.3"}}
+        ret = handler._filter_out_not_allowed_builds(image)
+        self.assertEqual(ret, True)
+
+    @patch(
+        "freshmaker.config.Config.handler_build_whitelist",
+        new_callable=PropertyMock,
+        return_value={
+            "ErrataAdvisoryRPMsSignedHandler": {
+                "image": [{
+                    "image_name": ["foo", "bar"],
+                    "advisory_name": "RHSA-.*",
+                }]
+            }
+        })
+    def test_filter_out_image_name_and_advisory_name(
+            self, handler_build_whitelist):
+        """
+        Tests that allow_build does filter images based on image_name.
+        """
+
+        handler = ErrataAdvisoryRPMsSignedHandler()
+
+        image = {"brew": {"build": "foo-1-2.3"}}
+        ret = handler._filter_out_not_allowed_builds(image)
+        self.assertEqual(ret, False)
+
+        image = {"brew": {"build": "unknown-1-2.3"}}
+        ret = handler._filter_out_not_allowed_builds(image)
+        self.assertEqual(ret, True)
 
 
 class TestBatches(unittest.TestCase):

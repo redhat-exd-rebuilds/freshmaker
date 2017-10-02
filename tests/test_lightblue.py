@@ -166,7 +166,6 @@ class TestContainerImageObject(unittest.TestCase):
         self.assertEqual(image["target"], "target1")
         self.assertEqual(image["srpm_nevra"], "openssl-0:1.2.3-1.src")
 
-
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')
     def test_resolve_commit_no_koji_build(self, get_task_request, get_build):
@@ -236,6 +235,7 @@ class TestContainerImageObject(unittest.TestCase):
         self.assertTrue(image["error"].find(
             "Cannot find task_id or container_koji_task_id in the Koji build "
             "{'task_id': None}") != -1)
+
 
 class TestContainerRepository(unittest.TestCase):
 
@@ -727,6 +727,9 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
         self.assertEqual(1, len(ret))
         self.assertEqual(ret[0]["brew"]["package"], "package-name-1")
 
+    def _filter_fnc(self, image):
+        return image["brew"]["build"].startswith("filtered_")
+
     @patch('freshmaker.lightblue.LightBlue.find_images_with_package_from_content_set')
     @patch('freshmaker.lightblue.LightBlue.find_parent_images_with_package')
     @patch('freshmaker.lightblue.LightBlue.find_unpublished_image_for_build')
@@ -740,8 +743,12 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                                         "parsed_data": {"layers": None}})
         child2 = ContainerImage.create({'brew': {'package': 'child2', 'build': 'child2'},
                                         "parsed_data": {"layers": None}})
-        cont_images.return_value = [child1, child2]
-        unpublished_image.side_effect = [child1, child2]
+        # This "filtered_child" will be filtered by self._filter_fnc.
+        filtered_child = ContainerImage.create(
+            {'brew': {'package': 'filtered_child', 'build': 'filtered_child'},
+             "parsed_data": {"layers": None}})
+        cont_images.return_value = [child1, child2, filtered_child]
+        unpublished_image.side_effect = [child1, child2, filtered_child]
 
         child1_parent1 = ContainerImage.create(
             {'brew': {'package': 'child1_parent1', 'build': 'child1_parent1'}})
@@ -773,7 +780,8 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
                        private_key=self.fake_private_key)
-        ret = lb.find_images_to_rebuild("dummy", "dummy")
+        ret = lb.find_images_to_rebuild("dummy", "dummy",
+                                        filter_fnc=self._filter_fnc)
         self.assertEqual([len(x) for x in ret], [1, 2, 2, 1, 1, 1])
         self.assertEqual(set(ret[0]), set([child1_parent4]))
         self.assertEqual(set(ret[1]), set([child1_parent3, child2_parent2]))
