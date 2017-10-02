@@ -609,6 +609,9 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
         cont_images.assert_called_with(expected_image_request)
         self.assertEqual(ret, cont_images.return_value)
 
+    def _filter_fnc(self, image):
+        return image["brew"]["build"].startswith("filtered_")
+
     @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('freshmaker.kojiservice.KojiService.get_build')
@@ -620,15 +623,17 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
 
         exists.return_value = True
         cont_repos.return_value = self.fake_repositories_with_content_sets
-        cont_images.return_value = self.fake_container_images
+        # "filtered_x-1-23" image will be filtered by filter_fnc.
+        cont_images.return_value = self.fake_container_images + [
+            ContainerImage.create({"brew": {"build": "filtered_x-1-23"}})]
         koji_task_request.side_effect = self.fake_koji_task_requests
         koji_get_build.side_effect = self.fake_koji_builds
 
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
                        private_key=self.fake_private_key)
-        ret = lb.find_images_with_package_from_content_set("openssl",
-                                                           ["dummy-content-set-1"])
+        ret = lb.find_images_with_package_from_content_set(
+            "openssl", ["dummy-content-set-1"], filter_fnc=self._filter_fnc)
 
         self.assertEqual(2, len(ret))
         self.assertEqual(ret,
@@ -727,9 +732,6 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
         self.assertEqual(1, len(ret))
         self.assertEqual(ret[0]["brew"]["package"], "package-name-1")
 
-    def _filter_fnc(self, image):
-        return image["brew"]["build"].startswith("filtered_")
-
     @patch('freshmaker.lightblue.LightBlue.find_images_with_package_from_content_set')
     @patch('freshmaker.lightblue.LightBlue.find_parent_images_with_package')
     @patch('freshmaker.lightblue.LightBlue.find_unpublished_image_for_build')
@@ -743,12 +745,8 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                                         "parsed_data": {"layers": None}})
         child2 = ContainerImage.create({'brew': {'package': 'child2', 'build': 'child2'},
                                         "parsed_data": {"layers": None}})
-        # This "filtered_child" will be filtered by self._filter_fnc.
-        filtered_child = ContainerImage.create(
-            {'brew': {'package': 'filtered_child', 'build': 'filtered_child'},
-             "parsed_data": {"layers": None}})
-        cont_images.return_value = [child1, child2, filtered_child]
-        unpublished_image.side_effect = [child1, child2, filtered_child]
+        cont_images.return_value = [child1, child2]
+        unpublished_image.side_effect = [child1, child2]
 
         child1_parent1 = ContainerImage.create(
             {'brew': {'package': 'child1_parent1', 'build': 'child1_parent1'}})
@@ -780,8 +778,7 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
                        private_key=self.fake_private_key)
-        ret = lb.find_images_to_rebuild("dummy", "dummy",
-                                        filter_fnc=self._filter_fnc)
+        ret = lb.find_images_to_rebuild("dummy", "dummy")
         self.assertEqual([len(x) for x in ret], [1, 2, 2, 1, 1, 1])
         self.assertEqual(set(ret[0]), set([child1_parent4]))
         self.assertEqual(set(ret[1]), set([child1_parent3, child2_parent2]))

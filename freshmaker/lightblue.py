@@ -606,13 +606,19 @@ class LightBlue(object):
 
     def find_images_with_package_from_content_set(
             self, srpm_name, content_sets, published=True, deprecated=False,
-            release_category="Generally Available"):
+            release_category="Generally Available", filter_fnc=None):
         """Query lightblue and find containers which contain given
         package from one of content sets
 
         :param str srpm_name: srpm_name (source rpm name) to look for
         :param list content_sets: list of strings (content sets) to consider
             when looking for the packages
+        :param function filter_fnc: Function called as
+            filter_fnc(container_image) with container_image being
+            ContainerImage instance. If this function returns True, the image
+            will not be considered for a rebuild as well as its parent images.
+            This function is used to filter out images not allowed by
+            Freshmaker configuration.
 
         :return: a list of dictionaries with three keys - repository, commit and
             srpm_nevra. Repository is a name git repository including the
@@ -630,6 +636,11 @@ class LightBlue(object):
         images = self.find_images_with_included_srpm(repos,
                                                      srpm_name,
                                                      published=published)
+
+        # Filter out images based on the filter_fnc.
+        if filter_fnc:
+            images = [image for image in images if not filter_fnc(image)]
+
         for image in images:
             image.resolve_commit(srpm_name)
         return images
@@ -657,11 +668,8 @@ class LightBlue(object):
             Freshmaker configuration.
         """
         images = self.find_images_with_package_from_content_set(
-            srpm_name, content_sets, published, deprecated, release_category)
-
-        # Filter out images based on the filter_fnc.
-        if filter_fnc:
-            images = [image for image in images if not filter_fnc(image)]
+            srpm_name, content_sets, published, deprecated, release_category,
+            filter_fnc=filter_fnc)
 
         def _get_images_to_rebuild(image):
             """

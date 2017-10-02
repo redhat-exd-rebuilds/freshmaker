@@ -433,7 +433,9 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
         builds = builds or {}
         nvrs = errata.get_builds(errata_id)
         for nvr in nvrs:
-            if nvr.endswith(".rpm"):
+            # Container images builds end with ".tar.gz", so do not treat
+            # them as RPMs here.
+            if not nvr.endswith(".tar.gz"):
                 srpm_name = self._find_build_srpm_name(nvr)
                 batches = lb.find_images_to_rebuild(
                     srpm_name, content_sets,
