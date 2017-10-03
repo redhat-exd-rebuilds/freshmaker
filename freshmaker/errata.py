@@ -59,7 +59,7 @@ class Errata(object):
     # something for particular product version, its rhel_release version
     # should not change.
     product_region = dogpile.cache.make_region().configure(
-        conf.dogpile_cache_backend, expiration_time=24*3600)
+        conf.dogpile_cache_backend, expiration_time=24 * 3600)
 
     def __init__(self, server_url):
         """
@@ -230,7 +230,7 @@ class Errata(object):
                     errata_id, product_version)
                 Errata.product_region.set(product_version, rhel_release)
 
-            if (rhel_release_prefix and 
+            if (rhel_release_prefix and
                     not rhel_release.startswith(rhel_release_prefix)):
                 log.info("Skipping builds for %s - not based on RHEL %s",
                          product_version, rhel_release_prefix)

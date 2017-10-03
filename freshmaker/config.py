@@ -229,7 +229,7 @@ class Config(object):
             'type': str,
             'default': 'RHEL-7',
             'desc': 'When set, only builds based on this RHEL release '
-                'will be included in rebuilds.'},
+                    'will be included in rebuilds.'},
         'pulp_server_url': {
             'type': str,
             'default': '',

@@ -74,19 +74,19 @@ class MockedErrataAPI(object):
             "advisory_name": "RHSA-2017:28484",
             "status": "QE",
             "security_impact": "Important",
-            "product" : {
+            "product": {
                 "id": 89
-                }
             }
+        }
 
         self.product_versions_json = [
-                {"product_version": {"name": "PRODUCT1-3.0-NFS", "id": 1}},
-                {"product_version": {"name": "PRODUCT1-3.1-NFS", "id": 2}},
-                {"product_version": {"name": "PRODUCT1-3.2-NFS", "id": 3}},
-                {"product_version": {"name": "PRODUCT1", "id": 3}},
-                {"product_version": {"name": "PRODUCT2-3.2-NFS", "id": 4}},
-                {"product_version": {"name": "PRODUCT2", "id": 4}},
-            ]
+            {"product_version": {"name": "PRODUCT1-3.0-NFS", "id": 1}},
+            {"product_version": {"name": "PRODUCT1-3.1-NFS", "id": 2}},
+            {"product_version": {"name": "PRODUCT1-3.2-NFS", "id": 3}},
+            {"product_version": {"name": "PRODUCT1", "id": 3}},
+            {"product_version": {"name": "PRODUCT2-3.2-NFS", "id": 4}},
+            {"product_version": {"name": "PRODUCT2", "id": 4}},
+        ]
 
         self.product_versions = {}
         self.product_versions[3] = {"rhel_release": {"name": "RHEL-6-foobar"}}
@@ -108,7 +108,7 @@ class MockedErrataAPI(object):
             elif endpoint.find("/product_versions/") != -1:
                 id = int(endpoint.split("/")[-1].replace(".json", ""))
                 return self.product_versions[id]
- 
+
 
 class TestErrata(unittest.TestCase):
     def setUp(self):
@@ -193,7 +193,7 @@ class TestErrata(unittest.TestCase):
     @patch.object(Errata, "_errata_http_get")
     def test_rhel_release_from_product_version(
             self, errata_http_get, errata_rest_get):
-        mocked_errata = MockedErrataAPI(errata_rest_get, errata_http_get)
+        MockedErrataAPI(errata_rest_get, errata_http_get)
         ret = self.errata._rhel_release_from_product_version(
             28484, "PRODUCT1-3.2-NFS")
         self.assertEqual(ret, "RHEL-6-foobar")
@@ -202,16 +202,16 @@ class TestErrata(unittest.TestCase):
     @patch.object(Errata, "_errata_http_get")
     def test_rhel_release_from_product_version_unknown_product_ver(
             self, errata_http_get, errata_rest_get):
-        mocked_errata = MockedErrataAPI(errata_rest_get, errata_http_get)
+        MockedErrataAPI(errata_rest_get, errata_http_get)
         with self.assertRaises(ValueError):
-            ret = self.errata._rhel_release_from_product_version(
+            self.errata._rhel_release_from_product_version(
                 28484, "PRODUCT1-2.9-NFS")
 
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
     def test_get_builds(
             self, errata_http_get, errata_rest_get):
-        mocked_errata = MockedErrataAPI(errata_rest_get, errata_http_get)
+        MockedErrataAPI(errata_rest_get, errata_http_get)
         ret = self.errata.get_builds(28484, "")
         self.assertEqual(ret, set(['libntirpc-1.4.3-4.el7rhgs',
                                   'libntirpc-1.4.3-4.el6rhs']))
@@ -220,7 +220,6 @@ class TestErrata(unittest.TestCase):
     @patch.object(Errata, "_errata_http_get")
     def test_get_builds_rhel_7(
             self, errata_http_get, errata_rest_get):
-        mocked_errata = MockedErrataAPI(errata_rest_get, errata_http_get)
+        MockedErrataAPI(errata_rest_get, errata_http_get)
         ret = self.errata.get_builds(28484, "RHEL-7")
         self.assertEqual(ret, set(['libntirpc-1.4.3-4.el7rhgs']))
-

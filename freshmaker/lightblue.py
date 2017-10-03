@@ -88,9 +88,11 @@ class LightBlueRequestError(LightBlueError):
                       for err in self.raw['errors']))
         )
 
+
 class KojiLookupError(ValueError):
     """ Koji lookup error """
     pass
+
 
 class ContainerRepository(dict):
     """Represent a container repository"""
@@ -118,7 +120,7 @@ class ContainerImage(dict):
 
     def _get_default_additional_data(self):
         return {"repository": None, "commit": None, "target": None,
-        "git_branch": None, "error": None}
+                "git_branch": None, "error": None}
 
     @region.cache_on_arguments()
     def _get_additional_data_from_koji(self, nvr):
