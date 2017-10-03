@@ -26,7 +26,7 @@ import dogpile.cache
 from requests_kerberos import HTTPKerberosAuth
 
 from freshmaker.events import BrewSignRPMEvent, ErrataAdvisoryStateChangedEvent
-from freshmaker import conf
+from freshmaker import conf, log
 
 
 class ErrataAdvisory(object):
@@ -53,6 +53,13 @@ class Errata(object):
     # too long to keep the data in sync with Errata tool.
     region = dogpile.cache.make_region().configure(
         conf.dogpile_cache_backend, expiration_time=10)
+
+    # Change for _rhel_release_from_product_version.
+    # Big expiration_time is OK here, because once we start rebuilding
+    # something for particular product version, its rhel_release version
+    # should not change.
+    product_region = dogpile.cache.make_region().configure(
+        conf.dogpile_cache_backend, expiration_time=24*3600)
 
     def __init__(self, server_url):
         """
@@ -154,13 +161,80 @@ class Errata(object):
 
         return True
 
-    def get_builds(self, errata_id):
+    def _rhel_release_from_product_version(self, errata_id, product_version):
+        """
+        Returns release name of RHEL release the product version is based on.
+
+        :param number errata_id: Errata advisory ID.
+        :param string product_version: Version of product to check the RHEL
+            release for.
+        :rtype: string
+        :return: Name of the RHEL release.
+        """
+
+        # Get the product ID this advisory is about - for example "RHSCL".
+        data = self._errata_http_get("advisory/%s.json" % str(errata_id))
+        product_id = data["product"]["id"]
+
+        # Get all the product versions associated with this product ID.
+        data = self._errata_http_get("products/%s/product_versions.json"
+                                     % str(product_id))
+
+        # Find out the product version ID for the input `product_version`
+        # name.
+        pr_version_id = None
+        for pr_version in data:
+            if pr_version["product_version"]["name"] == product_version:
+                pr_version_id = pr_version["product_version"]["id"]
+                break
+
+        if not pr_version_id:
+            raise ValueError(
+                "Cannot get RHEL release from Errata advisory %s, product "
+                "version %s" % (str(errata_id), product_version))
+
+        # Get the additional product version info to find out the RHEL release
+        # name.
+        data = self._errata_http_get("products/%s/product_versions/%s.json"
+                                     % (str(product_id), str(pr_version_id)))
+
+        return data["rhel_release"]["name"]
+
+    def get_builds(self, errata_id, rhel_release_prefix=None):
+        """
+        Returns set of NVRs of builds added to the advisory. These are just
+        brew build NVRs, not the particular RPM NVRs.
+
+        :param number errata_id: ID of advisory.
+        :param string rhel_release_prefix: When set to non-empty string,
+            it will be used to limit the set of builds returned by this
+            method to only builds based on the RHEL version starting with
+            `rhel_release_prefix`. For example to return only RHEL-7 builds,
+            this should be set to "RHEL-7".
+            Defaults to conf.errata_rhel_release_prefix.
+        :rtype: set of strings
+        :return: Set of NVR builds.
+        """
+        if rhel_release_prefix is None:
+            rhel_release_prefix = conf.errata_rhel_release_prefix
+
         builds_per_product = self._errata_http_get(
             "advisory/%s/builds.json" % str(errata_id))
 
         # Store NVRs of all builds in advisory to nvrs set.
         nvrs = set()
-        for builds in builds_per_product.values():
+        for product_version, builds in builds_per_product.items():
+            rhel_release = Errata.product_region.get(product_version)
+            if not rhel_release:
+                rhel_release = self._rhel_release_from_product_version(
+                    errata_id, product_version)
+                Errata.product_region.set(product_version, rhel_release)
+
+            if (rhel_release_prefix and 
+                    not rhel_release.startswith(rhel_release_prefix)):
+                log.info("Skipping builds for %s - not based on RHEL %s",
+                         product_version, rhel_release_prefix)
+                continue
             for build in builds:
                 nvrs.update(set(build.keys()))
         return nvrs
