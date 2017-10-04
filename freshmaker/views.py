@@ -36,14 +36,14 @@ from freshmaker.api_utils import json_error
 api_v1 = {
     'event_types': {
         'event_types_list': {
-            'url': '/freshmaker/1/event-types/',
+            'url': '/api/1/event-types/',
             'options': {
                 'defaults': {'id': None},
                 'methods': ['GET'],
             }
         },
         'event_type': {
-            'url': '/freshmaker/1/event-types/<int:id>',
+            'url': '/api/1/event-types/<int:id>',
             'options': {
                 'methods': ['GET'],
             }
@@ -51,14 +51,14 @@ api_v1 = {
     },
     'build_types': {
         'build_types_list': {
-            'url': '/freshmaker/1/build-types/',
+            'url': '/api/1/build-types/',
             'options': {
                 'defaults': {'id': None},
                 'methods': ['GET'],
             }
         },
         'build_type': {
-            'url': '/freshmaker/1/build-types/<int:id>',
+            'url': '/api/1/build-types/<int:id>',
             'options': {
                 'methods': ['GET'],
             }
@@ -66,14 +66,14 @@ api_v1 = {
     },
     'build_states': {
         'build_states_list': {
-            'url': '/freshmaker/1/build-states/',
+            'url': '/api/1/build-states/',
             'options': {
                 'defaults': {'id': None},
                 'methods': ['GET'],
             }
         },
         'build_state': {
-            'url': '/freshmaker/1/build-states/<int:id>',
+            'url': '/api/1/build-states/<int:id>',
             'options': {
                 'methods': ['GET'],
             }
@@ -81,14 +81,14 @@ api_v1 = {
     },
     'events': {
         'events_list': {
-            'url': '/freshmaker/1/events/',
+            'url': '/api/1/events/',
             'options': {
                 'defaults': {'id': None},
                 'methods': ['GET'],
             }
         },
         'event': {
-            'url': '/freshmaker/1/events/<int:id>',
+            'url': '/api/1/events/<int:id>',
             'options': {
                 'methods': ['GET'],
             }
@@ -96,14 +96,14 @@ api_v1 = {
     },
     'builds': {
         'builds_list': {
-            'url': '/freshmaker/1/builds/',
+            'url': '/api/1/builds/',
             'options': {
                 'defaults': {'id': None},
                 'methods': ['GET'],
             }
         },
         'build': {
-            'url': '/freshmaker/1/builds/<int:id>',
+            'url': '/api/1/builds/<int:id>',
             'options': {
                 'methods': ['GET'],
             }

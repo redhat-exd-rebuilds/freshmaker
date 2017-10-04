@@ -48,7 +48,7 @@ class TestViews(unittest.TestCase):
         db.session.expire_all()
 
     def test_query_build(self):
-        resp = self.client.get('/freshmaker/1/builds/1')
+        resp = self.client.get('/api/1/builds/1')
         data = json.loads(resp.data.decode('utf8'))
         self.assertEqual(data['id'], 1)
         self.assertEqual(data['name'], 'ed')
@@ -58,7 +58,7 @@ class TestViews(unittest.TestCase):
         self.assertEqual(data['build_id'], 1234)
 
     def test_query_builds(self):
-        resp = self.client.get('/freshmaker/1/builds/')
+        resp = self.client.get('/api/1/builds/')
         builds = json.loads(resp.data.decode('utf8'))['items']
         self.assertEqual(len(builds), 3)
         for name in ['ed', 'mksh', 'bash']:
@@ -67,50 +67,50 @@ class TestViews(unittest.TestCase):
             self.assertIn(build_id, [b['build_id'] for b in builds])
 
     def test_query_builds_by_name(self):
-        resp = self.client.get('/freshmaker/1/builds/?name=ed')
+        resp = self.client.get('/api/1/builds/?name=ed')
         builds = json.loads(resp.data.decode('utf8'))['items']
         self.assertEqual(len(builds), 1)
         self.assertEqual(builds[0]['name'], 'ed')
 
-        resp = self.client.get('/freshmaker/1/builds/?name=mksh')
+        resp = self.client.get('/api/1/builds/?name=mksh')
         builds = json.loads(resp.data.decode('utf8'))['items']
         self.assertEqual(len(builds), 1)
         self.assertEqual(builds[0]['name'], 'mksh')
 
-        resp = self.client.get('/freshmaker/1/builds/?name=nonexist')
+        resp = self.client.get('/api/1/builds/?name=nonexist')
         builds = json.loads(resp.data.decode('utf8'))['items']
         self.assertEqual(len(builds), 0)
 
     def test_query_builds_by_type(self):
-        resp = self.client.get('/freshmaker/1/builds/?type=0')
+        resp = self.client.get('/api/1/builds/?type=0')
         builds = json.loads(resp.data.decode('utf8'))['items']
         self.assertEqual(len(builds), 0)
 
-        resp = self.client.get('/freshmaker/1/builds/?type=1')
+        resp = self.client.get('/api/1/builds/?type=1')
         builds = json.loads(resp.data.decode('utf8'))['items']
         self.assertEqual(len(builds), 0)
 
-        resp = self.client.get('/freshmaker/1/builds/?type=2')
+        resp = self.client.get('/api/1/builds/?type=2')
         builds = json.loads(resp.data.decode('utf8'))['items']
         self.assertEqual(len(builds), 3)
 
-        resp = self.client.get('/freshmaker/1/builds/?type=module')
+        resp = self.client.get('/api/1/builds/?type=module')
         builds = json.loads(resp.data.decode('utf8'))['items']
         self.assertEqual(len(builds), 3)
 
     def test_query_builds_by_invalid_type(self):
         with self.assertRaises(ValueError) as ctx:
-            self.client.get('/freshmaker/1/builds/?type=100')
+            self.client.get('/api/1/builds/?type=100')
         self.assertEqual(str(ctx.exception), 'An invalid artifact type was supplied')
 
     def test_query_builds_by_state(self):
-        resp = self.client.get('/freshmaker/1/builds/?state=0')
+        resp = self.client.get('/api/1/builds/?state=0')
         builds = json.loads(resp.data.decode('utf8'))['items']
         self.assertEqual(len(builds), 3)
 
     def test_query_builds_by_invalid_state(self):
         with self.assertRaises(ValueError) as ctx:
-            self.client.get('/freshmaker/1/builds/?state=100')
+            self.client.get('/api/1/builds/?state=100')
         self.assertEqual(str(ctx.exception), 'An invalid state was supplied')
 
     def test_query_build_by_event_type_id(self):
@@ -132,42 +132,42 @@ class TestViews(unittest.TestCase):
         models.ArtifactBuild.create(db.session, event3, "testmodule3", "module", 2347, build1)
         db.session.commit()
 
-        resp = self.client.get('/freshmaker/1/builds/?event_type_id=%s' % models.EVENT_TYPES[events.TestingEvent])
+        resp = self.client.get('/api/1/builds/?event_type_id=%s' % models.EVENT_TYPES[events.TestingEvent])
         builds = json.loads(resp.data.decode('utf8'))['items']
         self.assertEqual(len(builds), 3)
 
-        resp = self.client.get('/freshmaker/1/builds/?event_type_id=%s' % models.EVENT_TYPES[events.GitModuleMetadataChangeEvent])
+        resp = self.client.get('/api/1/builds/?event_type_id=%s' % models.EVENT_TYPES[events.GitModuleMetadataChangeEvent])
         builds = json.loads(resp.data.decode('utf8'))['items']
         self.assertEqual(len(builds), 2)
 
-        resp = self.client.get('/freshmaker/1/builds/?event_type_id=%s' % models.EVENT_TYPES[events.MBSModuleStateChangeEvent])
+        resp = self.client.get('/api/1/builds/?event_type_id=%s' % models.EVENT_TYPES[events.MBSModuleStateChangeEvent])
         builds = json.loads(resp.data.decode('utf8'))['items']
         self.assertEqual(len(builds), 1)
 
-        resp = self.client.get('/freshmaker/1/builds/?event_type_id=%s' % models.EVENT_TYPES[events.KojiTaskStateChangeEvent])
+        resp = self.client.get('/api/1/builds/?event_type_id=%s' % models.EVENT_TYPES[events.KojiTaskStateChangeEvent])
         builds = json.loads(resp.data.decode('utf8'))['items']
         self.assertEqual(len(builds), 0)
 
     def test_query_build_by_event_search_key(self):
-        resp = self.client.get('/freshmaker/1/builds/?event_search_key=RHSA-2018-101')
+        resp = self.client.get('/api/1/builds/?event_search_key=RHSA-2018-101')
         builds = json.loads(resp.data.decode('utf8'))['items']
         self.assertEqual(len(builds), 3)
 
-        resp = self.client.get('/freshmaker/1/builds/?event_search_key=RHSA-2018-102')
+        resp = self.client.get('/api/1/builds/?event_search_key=RHSA-2018-102')
         builds = json.loads(resp.data.decode('utf8'))['items']
         self.assertEqual(len(builds), 0)
 
     def test_query_build_by_event_type_id_and_search_key(self):
-        resp = self.client.get('/freshmaker/1/builds/?event_type_id=%s&event_search_key=RHSA-2018-101' % models.EVENT_TYPES[events.TestingEvent])
+        resp = self.client.get('/api/1/builds/?event_type_id=%s&event_search_key=RHSA-2018-101' % models.EVENT_TYPES[events.TestingEvent])
         builds = json.loads(resp.data.decode('utf8'))['items']
         self.assertEqual(len(builds), 3)
 
-        resp = self.client.get('/freshmaker/1/builds/?event_type_id=%s&event_search_key=RHSA-2018-102' % models.EVENT_TYPES[events.TestingEvent])
+        resp = self.client.get('/api/1/builds/?event_type_id=%s&event_search_key=RHSA-2018-102' % models.EVENT_TYPES[events.TestingEvent])
         builds = json.loads(resp.data.decode('utf8'))['items']
         self.assertEqual(len(builds), 0)
 
     def test_query_event(self):
-        resp = self.client.get('/freshmaker/1/events/1')
+        resp = self.client.get('/api/1/events/1')
         data = json.loads(resp.data.decode('utf8'))
         self.assertEqual(data['id'], 1)
         self.assertEqual(data['message_id'], '2017-00000000-0000-0000-0000-000000000001')
@@ -176,74 +176,74 @@ class TestViews(unittest.TestCase):
         self.assertEqual(len(data['builds']), 3)
 
     def test_query_events(self):
-        resp = self.client.get('/freshmaker/1/events/')
+        resp = self.client.get('/api/1/events/')
         evs = json.loads(resp.data.decode('utf8'))['items']
         self.assertEqual(len(evs), 2)
 
     def test_query_event_by_message_id(self):
-        resp = self.client.get('/freshmaker/1/events/?message_id=2017-00000000-0000-0000-0000-000000000001')
+        resp = self.client.get('/api/1/events/?message_id=2017-00000000-0000-0000-0000-000000000001')
         evs = json.loads(resp.data.decode('utf8'))['items']
         self.assertEqual(len(evs), 1)
         self.assertEqual(evs[0]['message_id'], '2017-00000000-0000-0000-0000-000000000001')
 
     def test_query_event_by_search_key(self):
-        resp = self.client.get('/freshmaker/1/events/?search_key=RHSA-2018-101')
+        resp = self.client.get('/api/1/events/?search_key=RHSA-2018-101')
         evs = json.loads(resp.data.decode('utf8'))['items']
         self.assertEqual(len(evs), 1)
         self.assertEqual(evs[0]['search_key'], 'RHSA-2018-101')
 
     def test_query_event_types(self):
-        resp = self.client.get('/freshmaker/1/event-types/')
+        resp = self.client.get('/api/1/event-types/')
         event_types = json.loads(resp.data.decode('utf8'))['items']
         self.assertEqual(len(event_types), len(models.EVENT_TYPES))
 
     def test_query_event_type(self):
         for cls, val in six.iteritems(models.EVENT_TYPES):
-            resp = self.client.get('/freshmaker/1/event-types/%s' % val)
+            resp = self.client.get('/api/1/event-types/%s' % val)
             event = json.loads(resp.data.decode('utf8'))
             self.assertEqual(event['id'], val)
             self.assertEqual(event['name'], cls.__name__)
 
     def test_query_nonexist_event_type(self):
-        resp = self.client.get('/freshmaker/1/event-types/99999')
+        resp = self.client.get('/api/1/event-types/99999')
         data = json.loads(resp.data.decode('utf8'))
         self.assertEqual(data['status'], 404)
         self.assertEqual(data['error'], 'Not Found')
         self.assertEqual(data['message'], 'No such event type found.')
 
     def test_query_build_types(self):
-        resp = self.client.get('/freshmaker/1/build-types/')
+        resp = self.client.get('/api/1/build-types/')
         build_types = json.loads(resp.data.decode('utf8'))['items']
         self.assertEqual(len(build_types), len(list(ArtifactType)))
 
     def test_query_build_type(self):
         for t in list(ArtifactType):
-            resp = self.client.get('/freshmaker/1/build-types/%s' % t.value)
+            resp = self.client.get('/api/1/build-types/%s' % t.value)
             build_type = json.loads(resp.data.decode('utf8'))
             self.assertEqual(build_type['id'], t.value)
             self.assertEqual(build_type['name'], t.name)
 
     def test_query_nonexist_build_type(self):
-        resp = self.client.get('/freshmaker/1/build-types/99999')
+        resp = self.client.get('/api/1/build-types/99999')
         data = json.loads(resp.data.decode('utf8'))
         self.assertEqual(data['status'], 404)
         self.assertEqual(data['error'], 'Not Found')
         self.assertEqual(data['message'], 'No such build type found.')
 
     def test_query_build_states(self):
-        resp = self.client.get('/freshmaker/1/build-states/')
+        resp = self.client.get('/api/1/build-states/')
         build_types = json.loads(resp.data.decode('utf8'))['items']
         self.assertEqual(len(build_types), len(list(ArtifactBuildState)))
 
     def test_query_build_state(self):
         for t in list(ArtifactBuildState):
-            resp = self.client.get('/freshmaker/1/build-states/%s' % t.value)
+            resp = self.client.get('/api/1/build-states/%s' % t.value)
             build_type = json.loads(resp.data.decode('utf8'))
             self.assertEqual(build_type['id'], t.value)
             self.assertEqual(build_type['name'], t.name)
 
     def test_query_nonexist_build_state(self):
-        resp = self.client.get('/freshmaker/1/build-states/99999')
+        resp = self.client.get('/api/1/build-states/99999')
         data = json.loads(resp.data.decode('utf8'))
         self.assertEqual(data['status'], 404)
         self.assertEqual(data['error'], 'Not Found')
