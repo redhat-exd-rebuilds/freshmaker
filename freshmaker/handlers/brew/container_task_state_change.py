@@ -45,7 +45,7 @@ class BrewContainerTaskStateChangeHandler(ContainerBuildHandler):
 
         # check db to see whether this build exists in db
         found_build = db.session.query(ArtifactBuild).filter_by(type=ArtifactType.IMAGE.value,
-                                                                build_id=build_id).one_or_none()
+                                                                build_id=build_id).first()
         if found_build is not None:
             # update build state in db
             if event.new_state == 'CLOSED':
