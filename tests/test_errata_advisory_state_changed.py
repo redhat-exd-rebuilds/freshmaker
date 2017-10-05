@@ -453,8 +453,7 @@ class TestPrepareYumRepo(unittest.TestCase):
            'ErrataAdvisoryRPMsSignedHandler._get_compose_source')
     @patch('time.sleep')
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.Errata')
-    @patch('freshmaker.handlers.BaseHandler.krb_context',
-           new_callable=PropertyMock)
+    @patch('freshmaker.utils.krbContext')
     def test_get_repo_url_when_succeed_to_generate_compose(
             self, krb_context, errata, sleep, _get_compose_source,
             _get_packages_for_compose, ODCS):
@@ -497,7 +496,7 @@ class TestPrepareYumRepo(unittest.TestCase):
            'ErrataAdvisoryRPMsSignedHandler._get_compose_source')
     @patch('time.sleep')
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.Errata')
-    @patch('freshmaker.handlers.BaseHandler.krb_context',
+    @patch('freshmaker.kojiservice.krb_context',
            new_callable=PropertyMock)
     def test_get_repo_url_packages_in_multiple_tags(
             self, krb_context, errata, sleep, _get_compose_source,
@@ -528,7 +527,7 @@ class TestPrepareYumRepo(unittest.TestCase):
            'ErrataAdvisoryRPMsSignedHandler._get_compose_source')
     @patch('time.sleep')
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.Errata')
-    @patch('freshmaker.handlers.BaseHandler.krb_context',
+    @patch('freshmaker.kojiservice.krb_context',
            new_callable=PropertyMock)
     def test_get_repo_url_packages_not_found_in_tag(
             self, krb_context, errata, sleep, _get_compose_source,

@@ -24,7 +24,7 @@
 
 import json
 
-from mock import patch
+from mock import patch, PropertyMock
 from unittest import TestCase
 
 from freshmaker import db
@@ -49,15 +49,17 @@ class TestKrbContextPreparedForBuildContainer(TestCase):
     """Test krb_context for BaseHandler.build_container"""
 
     def setUp(self):
-        self.koji_service = patch('freshmaker.handlers.koji_service')
+        self.koji_service = patch('freshmaker.kojiservice.KojiService')
         self.koji_service.start()
 
     def tearDown(self):
         self.koji_service.stop()
 
-    @patch('freshmaker.handlers.conf')
-    @patch('freshmaker.handlers.krbContext')
-    def test_prepare_with_keytab(self, krbContext, conf):
+    @patch('freshmaker.utils.conf')
+    @patch('freshmaker.utils.krbContext')
+    @patch("freshmaker.config.Config.krb_auth_principal",
+           new_callable=PropertyMock, return_value="user@example.com")
+    def test_prepare_with_keytab(self, auth_principal, krbContext, conf):
         conf.krb_auth_use_keytab = True
         conf.krb_auth_principal = 'freshmaker/hostname@REALM'
         conf.krb_auth_client_keytab = '/etc/freshmaker.keytab'
@@ -73,9 +75,11 @@ class TestKrbContextPreparedForBuildContainer(TestCase):
             ccache_file='/tmp/freshmaker_cc',
         )
 
-    @patch('freshmaker.handlers.conf')
-    @patch('freshmaker.handlers.krbContext')
-    def test_prepare_with_normal_user_credential(self, krbContext, conf):
+    @patch('freshmaker.utils.conf')
+    @patch('freshmaker.utils.krbContext')
+    @patch("freshmaker.config.Config.krb_auth_principal",
+           new_callable=PropertyMock, return_value="user@example.com")
+    def test_prepare_with_normal_user_credential(self, auth_principal, krbContext, conf):
         conf.krb_auth_use_keytab = False
         conf.krb_auth_principal = 'somebody@REALM'
         conf.krb_auth_ccache_file = '/tmp/freshmaker_cc'
@@ -150,7 +154,7 @@ class TestBuildFirstBatch(TestCase):
 
     @patch('freshmaker.handlers.ODCS')
     @patch('koji.ClientSession')
-    @patch('freshmaker.handlers.krbContext')
+    @patch('freshmaker.utils.krbContext')
     def test_build_first_batch(self, krb, ClientSession, ODCS):
         """
         Tests that only PLANNED images without a parent are submitted to

@@ -256,7 +256,7 @@ class Config(object):
             'desc': 'Whether to acquire credential cache from a client keytab.'},
         'krb_auth_principal': {
             'type': str,
-            'default': True,
+            'default': "",
             'desc': 'Principal used to acquire credential cache, which must be'
                     ' present in specified client keytab.'},
         'krb_auth_client_keytab': {

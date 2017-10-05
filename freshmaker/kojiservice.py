@@ -28,6 +28,7 @@ import re
 from freshmaker import log, conf
 from freshmaker.consumer import work_queue_put
 from freshmaker.events import BrewContainerTaskStateChangeEvent
+from freshmaker.utils import krb_context
 
 
 class KojiService(object):
@@ -162,7 +163,7 @@ class KojiService(object):
 
 
 @contextlib.contextmanager
-def koji_service(profile=None, logger=None):
+def koji_service(profile=None, logger=None, login=True):
     """A Koji service context manager that could be used with with
 
     Example::
@@ -179,6 +180,24 @@ def koji_service(profile=None, logger=None):
             ...
     """
     service = KojiService(profile=profile)
+
+    if login:
+        if not conf.krb_auth_principal:
+            log.error("Cannot login to Koji, krb_auth_principal not set")
+        else:
+            log.debug('Logging into %s with Kerberos authentication.',
+                      service.server)
+
+            proxyuser = conf.koji_build_owner if conf.koji_proxyuser else None
+
+            with krb_context():
+                service.krb_login(proxyuser=proxyuser)
+
+            # We are not logged in in dry run mode...
+            if not conf.dry_run and not service.logged_in:
+                log.error('Could not login server %s', service.server)
+                yield None
+
     try:
         yield service
     finally:

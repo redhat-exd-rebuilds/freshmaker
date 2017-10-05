@@ -32,7 +32,6 @@ from freshmaker.mbs import MBS
 from freshmaker.models import ArtifactBuildState
 from freshmaker.types import ArtifactType
 from freshmaker.models import ArtifactBuild, Event
-from krbcontext import krbContext
 
 from freshmaker.odcsclient import ODCS
 from freshmaker.odcsclient import AuthMech
@@ -62,23 +61,6 @@ class BaseHandler(object):
         generate internal events for other handlers in Freshmaker.
         """
         raise NotImplementedError()
-
-    @property
-    def krb_context(self):
-        if conf.krb_auth_use_keytab:
-            krb_ctx_opts = {
-                'using_keytab': conf.krb_auth_use_keytab,
-                'principal': conf.krb_auth_principal,
-                'keytab_file': conf.krb_auth_client_keytab,
-                'ccache_file': conf.krb_auth_ccache_file,
-            }
-        else:
-            krb_ctx_opts = {
-                'principal': conf.krb_auth_principal,
-                'ccache_file': conf.krb_auth_ccache_file,
-            }
-
-        return krbContext(**krb_ctx_opts)
 
     def build_module(self, name, branch, rev):
         """
@@ -197,19 +179,6 @@ class ContainerBuildHandler(BaseHandler):
         :rtype: int
         """
         with koji_service(profile=conf.koji_profile, logger=log) as service:
-            log.debug('Logging into %s with Kerberos authentication.',
-                      service.server)
-
-            proxyuser = conf.koji_build_owner if conf.koji_proxyuser else None
-
-            with self.krb_context:
-                service.krb_login(proxyuser=proxyuser)
-
-            # We are not logged in in dry run mode...
-            if not conf.dry_run and not service.logged_in:
-                log.error('Could not login server %s', service.server)
-                return None
-
             log.info('Building container from source: %s, '
                      'release=%r, parent=%r, target=%r',
                      scm_url, release, koji_parent_build, target)

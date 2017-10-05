@@ -38,6 +38,7 @@ from freshmaker.errata import Errata
 from freshmaker.types import ArtifactType, ArtifactBuildState
 from freshmaker.models import Event
 from freshmaker.consumer import work_queue_put
+from freshmaker.utils import krb_context
 
 from odcs.client.odcs import ODCS
 from odcs.client.odcs import AuthMech
@@ -200,7 +201,7 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
         odcs = ODCS(conf.odcs_server_url, auth_mech=AuthMech.Kerberos,
                     verify_ssl=conf.odcs_verify_ssl)
         if not conf.dry_run:
-            with self.krb_context:
+            with krb_context():
                 new_compose = odcs.new_compose(
                     compose_source, 'tag', packages=packages)
         else:
