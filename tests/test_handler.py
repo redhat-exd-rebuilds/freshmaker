@@ -33,10 +33,14 @@ from freshmaker.handlers import ContainerBuildHandler
 from freshmaker.models import ArtifactBuild
 from freshmaker.models import ArtifactBuildState
 from freshmaker.models import Event
+from freshmaker.errors import UnprocessableEntity
+from freshmaker.types import ArtifactType
 
 
 class MyHandler(ContainerBuildHandler):
     """Handler for running tests to test things defined in parents"""
+
+    name = "MyHandler"
 
     def can_handle(self, event):
         """Implement BaseHandler method"""
@@ -214,3 +218,43 @@ class TestBuildFirstBatch(TestCase):
             else:
                 self.assertEqual(build.build_id, None)
                 self.assertEqual(build.state, ArtifactBuildState.PLANNED.value)
+
+    @patch('freshmaker.handlers.conf')
+    def test_allow_build_in_whitelist(self, conf):
+        """ Test if artifact is in the handlers whitelist """
+        whitelist_rules = {"image": [{'name': "test"}]}
+        handler = MyHandler()
+        conf.handler_build_whitelist.get.return_value = whitelist_rules
+        container = {"name": "test", "branch": "branch"}
+
+        allow = handler.allow_build(ArtifactType.IMAGE,
+                                    name=container["name"],
+                                    branch=container["branch"])
+        assert allow
+
+    @patch('freshmaker.handlers.conf')
+    def test_allow_build_not_in_whitelist(self, conf):
+        """ Test if artifact is not in the handlers whitelist """
+        whitelist_rules = {"image": [{'name': "test1"}]}
+        handler = MyHandler()
+        conf.handler_build_whitelist.get.return_value = whitelist_rules
+        container = {"name": "test", "branch": "branch"}
+
+        allow = handler.allow_build(ArtifactType.IMAGE,
+                                    name=container["name"],
+                                    branch=container["branch"])
+        assert not allow
+
+    @patch('freshmaker.handlers.conf')
+    def test_allow_build_regex_exception(self, conf):
+        """ If there is a regex error, method will raise UnprocessableEntity error """
+
+        whitelist_rules = {"image": [{'name': "te(st"}]}
+        handler = MyHandler()
+        conf.handler_build_whitelist.get.return_value = whitelist_rules
+        container = {"name": "test", "branch": "branch"}
+
+        with self.assertRaises(UnprocessableEntity):
+            handler.allow_build(ArtifactType.IMAGE,
+                                name=container["name"],
+                                branch=container["branch"])

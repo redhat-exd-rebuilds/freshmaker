@@ -144,39 +144,6 @@ class MBSModuleStateChangeHandlerTest(helpers.FreshmakerTestCase):
 
     @mock.patch('freshmaker.handlers.mbs.module_state_change.PDC')
     @mock.patch('freshmaker.handlers.mbs.module_state_change.utils')
-    @mock.patch('freshmaker.handlers.conf')
-    def test_module_is_not_allowed_in_blacklist(self, conf, utils, PDC):
-        conf.handler_build_whitelist = {}
-        conf.handler_build_blacklist = {
-            "MBSModuleStateChangeHandler": {
-                "module": [
-                    {
-                        'name': 'test.*',
-                    },
-                ],
-            },
-        }
-        msg = helpers.ModuleStateChangeMessage('testmodule', 'master', state='ready').produce()
-        event = self.get_event_from_msg(msg)
-
-        mod2_info = helpers.PDCModuleInfo('testmodule2', 'master', '20170412010101')
-        mod2_info.add_build_dep('testmodule', 'master')
-        mod2 = mod2_info.produce()
-
-        pdc = PDC.return_value
-        pdc.get_latest_modules.return_value = [mod2]
-
-        handler = MBSModuleStateChangeHandler()
-        handler.build_module = mock.Mock()
-        handler.record_build = mock.Mock()
-
-        self.assertTrue(handler.can_handle(event))
-        handler.handle(event)
-
-        handler.build_module.assert_not_called()
-
-    @mock.patch('freshmaker.handlers.mbs.module_state_change.PDC')
-    @mock.patch('freshmaker.handlers.mbs.module_state_change.utils')
     @mock.patch('freshmaker.handlers.mbs.module_state_change.log')
     def test_handler_not_fall_into_cyclic_rebuild_loop(self, log, utils, PDC):
         """
