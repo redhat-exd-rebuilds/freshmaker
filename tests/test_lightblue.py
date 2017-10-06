@@ -281,6 +281,9 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                     'build': 'package-name-1-4-12.10',
                     'package': 'package-name-1'
                 },
+                'repositories': [
+                    {'repository': 'product1/repo1', 'published': True}
+                ],
                 'parsed_data': {
                     'files': [
                         {
@@ -307,6 +310,9 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                     'build': 'package-name-2-4-12.10',
                     'package': 'package-name-2'
                 },
+                'repositories': [
+                    {'repository': 'product2/repo2', 'published': True}
+                ],
                 'parsed_data': {
                     'files': [
                         {
@@ -650,6 +656,8 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                                      "build": "package-name-1-4-12.10",
                                      "package": "package-name-1"
                                  },
+                                 'repositories': [{'repository': 'product1/repo1', 'published': True}],
+                                 'content_sets': set(['dummy-content-set-1', 'dummy-content-set-2']),
                                  'parsed_data': {
                                      'files': [
                                          {
@@ -682,6 +690,8 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                                      "build": "package-name-2-4-12.10",
                                      "package": "package-name-2"
                                  },
+                                 'content_sets': set(['dummy-content-set-1', 'dummy-content-set-2']),
+                                 'repositories': [{'repository': 'product2/repo2', 'published': True}],
                                  'parsed_data': {
                                      'files': [
                                          {

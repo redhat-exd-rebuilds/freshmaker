@@ -38,7 +38,7 @@ from freshmaker.errata import Errata
 from freshmaker.types import ArtifactType, ArtifactBuildState
 from freshmaker.models import Event
 from freshmaker.consumer import work_queue_put
-from freshmaker.utils import krb_context
+from freshmaker.utils import krb_context, retry
 
 from odcs.client.odcs import ODCS
 from odcs.client.odcs import AuthMech
@@ -217,6 +217,57 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
 
         return yum_repourl
 
+    def _prepare_pulp_repo(self, db_event, content_sets):
+        """
+        Prepares .repo file containing the repositories matching
+        the content_sets by creating new ODCS compose of PULP type.
+
+        This currently blocks until the compose is done or failed.
+
+        :param db_event: models.Event instance associated with this build.
+        :param list content_sets: List of content sets.
+        :rtype: dict
+        :return: ODCS compose dictionary.
+        """
+        log.info('Generating new PULP type compose for content_sets: %r',
+                 content_sets)
+
+        odcs = ODCS(conf.odcs_server_url, auth_mech=AuthMech.Kerberos,
+                    verify_ssl=conf.odcs_verify_ssl)
+        if not conf.dry_run:
+            with krb_context():
+                new_compose = odcs.new_compose(
+                    ' '.join(content_sets), 'pulp')
+
+                # Pulp composes in ODCS takes just few seconds, because ODCS
+                # only generates the .repo file after single query to Pulp.
+                # TODO: Freshmaker is currently not designed to handle
+                # multiple ODCS composes per rebuild Event and since these
+                # composes are done in no-time normally, it is OK here to
+                # block. It would still be nice to redesign that part of
+                # Freshmaker to do things "right".
+                @retry(timeout=60, interval=2)
+                def wait_for_compose(compose_id):
+                    ret = odcs.get_compose(compose_id)
+                    if ret["state_name"] == "done":
+                        return True
+                    elif ret["state_name"] == "failed":
+                        return False
+                    log.info("Waiting for Pulp compose to finish: %r", ret)
+                    raise Exception("ODCS compose not finished.")
+
+                done = wait_for_compose(new_compose["id"])
+                if not done:
+                    db_event.builds_transition(
+                        ArtifactBuildState.FAILED.value, "Cannot generate "
+                        "ODCS PULP compose for content_sets %r"
+                        % (content_sets))
+        else:
+            new_compose = self._fake_odcs_new_compose(
+                content_sets, 'pulp')
+
+        return new_compose
+
     def _get_packages_for_compose(self, nvr):
         """Get RPMs of current build NVR
 
@@ -360,12 +411,15 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
 
                 build.transition(state, state_reason)
 
+                compose = self._prepare_pulp_repo(event, image["content_sets"])
+
                 build_args = {}
                 build_args["repository"] = image["repository"]
                 build_args["commit"] = image["commit"]
                 build_args["parent"] = parent_name
                 build_args["target"] = image["target"]
                 build_args["branch"] = image["git_branch"]
+                build_args["odcs_pulp_compose_id"] = compose["id"]
                 build.build_args = json.dumps(build_args)
                 db.session.commit()
 

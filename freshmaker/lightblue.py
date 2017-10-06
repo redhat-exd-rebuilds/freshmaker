@@ -382,6 +382,64 @@ class LightBlue(object):
         }
         return self.find_container_repositories(repo_request)
 
+    def find_content_sets_for_repository(self,
+                                         repository,
+                                         published=True,
+                                         deprecated=False,
+                                         release_category="Generally Available"):
+        """
+        Query lightblue and find content sets which are used for Container
+        image in repository `repository`
+
+        :param str repository: name of the repository for which the content
+            sets will be returned
+        :param bool published: whether to limit queries to published
+            repositories
+        :param bool deprecated: set to True to limit results to deprecated
+            repositories
+        :param str release_category: filter only repositories with specific
+            release category (options: Deprecated, Generally Available, Beta, Tech Preview)
+        """
+        repo_request = {
+            "objectType": "containerRepository",
+            "query": {
+                "$and": [
+                    {
+                        "field": "repository",
+                        "op": "=",
+                        "rvalue": repository
+                    },
+                    {
+                        "field": "published",
+                        "op": "=",
+                        "rvalue": published
+                    },
+                    {
+                        "field": "deprecated",
+                        "op": "=",
+                        "rvalue": deprecated
+                    },
+                    {
+                        "field": "release_categories.*",
+                        "op": "=",
+                        "rvalue": release_category
+                    }
+                ]
+            },
+            "projection": [
+                {"field": "content_sets", "include": True, "recursive": True}
+            ]
+        }
+        repos = self.find_container_repositories(repo_request)
+        if not repos:
+            return set()
+
+        ret = set()
+        for repo in repos:
+            ret |= set(repo["content_sets"])
+
+        return ret
+
     def _get_default_projection(self):
         return [
             {"field": "brew", "include": True, "recursive": True},
@@ -390,6 +448,7 @@ class LightBlue(object):
             {"field": "parsed_data.rpm_manifest.*.srpm_name", "include": True, "recursive": True},
             {"field": "parsed_data.layers.*", "include": True, "recursive": True},
             {"field": "repositories.*.published", "include": True, "recursive": True},
+            {"field": "repositories.*.repository", "include": True, "recursive": True},
         ]
 
     def find_images_with_included_srpm(self, repositories, srpm_name,
@@ -644,6 +703,16 @@ class LightBlue(object):
             images = [image for image in images if not filter_fnc(image)]
 
         for image in images:
+            # Find out the content_sets this image uses and store it as
+            # "content_sets" key in image.
+            # Checking only the first repository is OK, because if an image
+            # is in multiple repositories, the content_sets of all of them
+            # must be the same by definition.
+            image_content_sets = self.find_content_sets_for_repository(
+                image["repositories"][0]["repository"])
+            log.info("Container image %s uses following content sets: %r",
+                     image["brew"]["build"], image_content_sets)
+            image.update({"content_sets": image_content_sets})
             image.resolve_commit(srpm_name)
         return images
 

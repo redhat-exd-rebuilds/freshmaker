@@ -63,8 +63,8 @@ class BrewContainerTaskStateChangeHandler(ContainerBuildHandler):
                 planned_builds = db.session.query(ArtifactBuild).filter_by(type=ArtifactType.IMAGE.value,
                                                                            state=ArtifactBuildState.PLANNED.value,
                                                                            dep_on=found_build).all()
-                repo_urls = self.get_repo_urls(found_build.event)
                 for build in planned_builds:
+                    repo_urls = self.get_repo_urls(found_build.event, build)
                     log.info("Build %r depends on build %r" % (build, found_build))
                     build.build_id = self.build_image_artifact_build(build, repo_urls)
                     build.state = ArtifactBuildState.BUILD.value

@@ -115,6 +115,7 @@ class TestBuildFirstBatch(TestCase):
             "branch": "mybranch",
             "yum_repourl": "http://localhost/composes/latest-odcs-3-1/compose/"
                            "Temporary/odcs-3.repo",
+            "odcs_pulp_compose_id": 15,
         })
 
         self.db_event = Event.get_or_create(
@@ -160,15 +161,20 @@ class TestBuildFirstBatch(TestCase):
         Tests that only PLANNED images without a parent are submitted to
         build system.
         """
-        ODCS.return_value.get_compose.return_value = {
-            "id": 3,
-            "result_repo": "http://localhost/composes/latest-odcs-3-1/compose/Temporary",
-            "result_repofile": "http://localhost/composes/latest-odcs-3-1/compose/Temporary/odcs-3.repo",
-            "source": "f26",
-            "source_type": 1,
-            "state": 2,
-            "state_name": "done",
-        }
+
+        def _fake_get_compose(compose_id):
+            return {
+                "id": compose_id,
+                "result_repo": "http://localhost/composes/latest-odcs-%d-1/compose/Temporary" % compose_id,
+                "result_repofile": "http://localhost/composes/latest-odcs-%d-1/compose/Temporary/odcs-%s.repo" % (compose_id, compose_id),
+                "source": "f26",
+                "source_type": 1,
+                "state": 2,
+                "state_name": "done",
+            }
+
+        ODCS.return_value.get_compose = _fake_get_compose
+
         mock_session = ClientSession.return_value
         mock_session.buildContainer.return_value = 123
 
@@ -181,7 +187,8 @@ class TestBuildFirstBatch(TestCase):
             {'scratch': True, 'isolated': True, 'koji_parent_build': u'nvr',
              'git_branch': 'mybranch', 'release': AnyStringWith('4.'),
              'yum_repourls': [
-                 'http://localhost/composes/latest-odcs-3-1/compose/Temporary/odcs-3.repo']})
+                 'http://localhost/composes/latest-odcs-3-1/compose/Temporary/odcs-3.repo',
+                 'http://localhost/composes/latest-odcs-15-1/compose/Temporary/odcs-15.repo']})
 
         db.session.refresh(self.db_event)
         for build in self.db_event.builds:

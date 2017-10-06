@@ -30,3 +30,4 @@
 # it would import freshmaker.handlers.odcs, so instead, we import it here
 # and in freshmaker.handler do "from freshmaker.odcsclient import ODCS".
 from odcs.client.odcs import * # noqa
+from odcs.common.types import * # noqa

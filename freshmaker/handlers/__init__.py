@@ -32,9 +32,11 @@ from freshmaker.mbs import MBS
 from freshmaker.models import ArtifactBuildState
 from freshmaker.types import ArtifactType
 from freshmaker.models import ArtifactBuild, Event
+from freshmaker.utils import krb_context
 
 from freshmaker.odcsclient import ODCS
 from freshmaker.odcsclient import AuthMech
+from freshmaker.odcsclient import COMPOSE_STATES
 
 
 class BaseHandler(object):
@@ -235,7 +237,26 @@ class ContainerBuildHandler(BaseHandler):
             scm_url, branch, target, repo_urls=repo_urls,
             isolated=True, release=release, koji_parent_build=parent)
 
-    def get_repo_urls(self, db_event):
+    def odcs_get_compose(self, compose_id):
+        """
+        Returns the information from the ODCS server about compose with id
+        `compose_id`. In DRY_RUN mode, returns fake compose information
+        without contacting the ODCS server.
+        """
+        if conf.dry_run:
+            compose = {}
+            compose['id'] = compose_id
+            compose['result_repofile'] = "http://localhost/%d.repo" % (
+                compose['id'])
+            compose['state'] = COMPOSE_STATES['done']
+            return compose
+
+        odcs = ODCS(conf.odcs_server_url, auth_mech=AuthMech.Kerberos,
+                    verify_ssl=conf.odcs_verify_ssl)
+        with krb_context():
+            return odcs.get_compose(compose_id)
+
+    def get_repo_urls(self, db_event, build):
         """
         Returns list of URLs to ODCS repositories which should be used
         to rebuild the container image for this event.
@@ -250,10 +271,15 @@ class ContainerBuildHandler(BaseHandler):
         # Use compose ids to get the repofile URLs.
         repo_urls = []
         for compose_id in compose_ids:
-            odcs = ODCS(conf.odcs_server_url, auth_mech=AuthMech.Kerberos,
-                        verify_ssl=conf.odcs_verify_ssl)
-            compose = odcs.get_compose(compose_id)
+            compose = self.odcs_get_compose(compose_id)
             repo_urls.append(compose["result_repofile"])
+
+        # Add PULP compose repo url.
+        if build.build_args and "odcs_pulp_compose_id" in build.build_args:
+            args = json.loads(build.build_args)
+            compose = self.odcs_get_compose(args["odcs_pulp_compose_id"])
+            repo_urls.append(compose["result_repofile"])
+
         return repo_urls
 
     def _build_first_batch(self, db_event):
@@ -262,13 +288,12 @@ class ContainerBuildHandler(BaseHandler):
         depend on other images.
         """
 
-        repo_urls = self.get_repo_urls(db_event)
-
         builds = db.session.query(ArtifactBuild).filter_by(
             type=ArtifactType.IMAGE.value, event_id=db_event.id,
             dep_on=None).all()
 
         for build in builds:
+            repo_urls = self.get_repo_urls(db_event, build)
             build.build_id = self.build_image_artifact_build(build, repo_urls)
             if build.build_id:
                 build.transition(

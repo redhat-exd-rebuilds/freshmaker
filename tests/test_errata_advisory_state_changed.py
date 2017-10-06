@@ -266,12 +266,22 @@ class TestBatches(unittest.TestCase):
             parent = {"brew": {"build": parent}}
         return {'brew': {'build': build}, 'repository': build + '_repo',
                 'commit': build + '_123', 'parent': parent, "target": "t1",
-                'git_branch': 'mybranch', "error": error}
+                'git_branch': 'mybranch', "error": error,
+                "content_sets": ["first-content-set"]}
 
-    def test_batches_records(self):
+    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.ODCS.new_compose')
+    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.ODCS.get_compose')
+    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.krb_context')
+    def test_batches_records(self, krb_context, get_compose, new_compose):
         """
         Tests that batches are properly recorded in DB.
         """
+
+        compose = {'id': 2, 'result_repofile': 'http://localhost/2.repo',
+                   'state_name': 'done'}
+        new_compose.return_value = compose
+        get_compose.return_value = compose
+
         # Creates following tree:
         # shared_parent
         #   |- child1_parent3
