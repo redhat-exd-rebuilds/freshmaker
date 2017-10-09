@@ -32,6 +32,24 @@ import tempfile
 import time
 
 from freshmaker import conf
+from krbcontext import krbContext
+
+
+def krb_context():
+    if conf.krb_auth_use_keytab:
+        krb_ctx_opts = {
+            'using_keytab': conf.krb_auth_use_keytab,
+            'principal': conf.krb_auth_principal,
+            'keytab_file': conf.krb_auth_client_keytab,
+            'ccache_file': conf.krb_auth_ccache_file,
+        }
+    else:
+        krb_ctx_opts = {
+            'principal': conf.krb_auth_principal,
+            'ccache_file': conf.krb_auth_ccache_file,
+        }
+
+    return krbContext(**krb_ctx_opts)
 
 
 def load_class(location):

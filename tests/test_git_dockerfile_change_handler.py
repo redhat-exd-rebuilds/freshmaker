@@ -25,7 +25,7 @@ import unittest
 import fedmsg.config
 
 from mock import patch
-from mock import MagicMock
+from mock import MagicMock, PropertyMock
 
 from freshmaker import db, models
 from freshmaker.consumer import FreshmakerConsumer
@@ -62,9 +62,11 @@ class GitDockerfileChangeHandlerTest(BaseTestCase):
 
     @patch('koji.read_config')
     @patch('koji.ClientSession')
-    @patch('freshmaker.handlers.krbContext')
+    @patch('freshmaker.utils.krbContext')
+    @patch("freshmaker.config.Config.krb_auth_principal",
+           new_callable=PropertyMock, return_value="user@example.com")
     def test_rebuild_if_dockerfile_changed(
-            self, krbContext, ClientSession, read_config):
+            self, auth_principal, krbContext, ClientSession, read_config):
         read_config.return_value = {
             'server': 'https://localhost/kojihub',
             'krb_rdns': False,
@@ -117,7 +119,9 @@ class GitDockerfileChangeHandlerTest(BaseTestCase):
 
     @patch('koji.read_config')
     @patch('koji.ClientSession')
-    def test_ensure_do_nothing_if_fail_to_login_koji(self, ClientSession, read_config):
+    @patch("freshmaker.config.Config.krb_auth_principal",
+           new_callable=PropertyMock, return_value="user@example.com")
+    def test_ensure_do_nothing_if_fail_to_login_koji(self, auth_principal, ClientSession, read_config):
         ClientSession.return_value.krb_login.side_effect = RuntimeError
         read_config.return_value = {
             'server': 'https://localhost/kojihub',
