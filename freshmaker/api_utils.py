@@ -86,7 +86,8 @@ def filter_artifact_builds(flask_request):
             else:
                 raise ValueError('An invalid state was supplied')
 
-    for key in ['name', 'event_id', 'dep_on_id', 'build_id']:
+    for key in ['name', 'event_id', 'dep_on_id', 'build_id', 'original_nvr',
+                'rebuilt_nvr']:
         if flask_request.args.get(key, None):
             search_query[key] = flask_request.args[key]
 

@@ -38,7 +38,7 @@ from freshmaker.errata import Errata
 from freshmaker.types import ArtifactType, ArtifactBuildState
 from freshmaker.models import Event
 from freshmaker.consumer import work_queue_put
-from freshmaker.utils import krb_context, retry
+from freshmaker.utils import krb_context, retry, get_rebuilt_nvr
 
 from odcs.client.odcs import ODCS
 from odcs.client.odcs import AuthMech
@@ -382,15 +382,21 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
 
         for batch in batches:
             for image in batch:
-                name = image["brew"]["build"]
-                if name in builds:
+                nvr = image["brew"]["build"]
+                if nvr in builds:
                     log.debug("Skipping recording build %s, "
-                              "it is already in db", name)
+                              "it is already in db", nvr)
                     continue
-                log.debug("Recording %s", name)
-                parent_name = image["parent"]["brew"]["build"] \
+                log.debug("Recording %s", nvr)
+                parent_nvr = image["parent"]["brew"]["build"] \
                     if image["parent"] else None
-                dep_on = builds[parent_name] if parent_name in builds else None
+                dep_on = builds[parent_nvr] if parent_nvr in builds else None
+
+                # If this container image depends on another container image
+                # we are going to rebuild, use the new NVR of that image
+                # as a dependency instead of the original one.
+                if dep_on:
+                    parent_nvr = dep_on.rebuilt_nvr
 
                 if "error" in image and image["error"]:
                     state_reason = image["error"]
@@ -405,10 +411,15 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
                     state_reason = ""
                     state = ArtifactBuildState.PLANNED.value
 
+                rebuilt_nvr = get_rebuilt_nvr(ArtifactType.IMAGE.value, nvr)
+                image_name = koji.parse_NVR(image["brew"]["build"])["name"]
+
                 build = self.record_build(
-                    event, name, ArtifactType.IMAGE,
+                    event, image_name, ArtifactType.IMAGE,
                     dep_on=dep_on,
-                    state=ArtifactBuildState.PLANNED.value)
+                    state=ArtifactBuildState.PLANNED.value,
+                    original_nvr=nvr,
+                    rebuilt_nvr=rebuilt_nvr)
 
                 build.transition(state, state_reason)
 
@@ -417,14 +428,14 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
                 build_args = {}
                 build_args["repository"] = image["repository"]
                 build_args["commit"] = image["commit"]
-                build_args["parent"] = parent_name
+                build_args["parent"] = parent_nvr
                 build_args["target"] = image["target"]
                 build_args["branch"] = image["git_branch"]
                 build_args["odcs_pulp_compose_id"] = compose["id"]
                 build.build_args = json.dumps(build_args)
                 db.session.commit()
 
-                builds[name] = build
+                builds[nvr] = build
 
         return builds
 

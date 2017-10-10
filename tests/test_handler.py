@@ -124,27 +124,32 @@ class TestBuildFirstBatch(TestCase):
         self.db_event.compose_id = 3
         p1 = ArtifactBuild.create(db.session, self.db_event, "parent1-1-4",
                                   "image",
-                                  state=ArtifactBuildState.PLANNED.value)
+                                  state=ArtifactBuildState.PLANNED.value,
+                                  original_nvr="parent1-1-4")
         p1.build_args = build_args
         b = ArtifactBuild.create(db.session, self.db_event,
                                  "parent1_child1", "image",
                                  state=ArtifactBuildState.PLANNED.value,
-                                 dep_on=p1)
+                                 dep_on=p1,
+                                 original_nvr="parent1_child1-1-4")
         b.build_args = build_args
 
         # Not in PLANNED state.
         b = ArtifactBuild.create(db.session, self.db_event, "parent3", "image",
-                                 state=ArtifactBuildState.BUILD.value)
+                                 state=ArtifactBuildState.BUILD.value,
+                                 original_nvr="parent3-1-4")
         b.build_args = build_args
 
         # No build args
         b = ArtifactBuild.create(db.session, self.db_event, "parent4", "image",
-                                 state=ArtifactBuildState.PLANNED.value)
+                                 state=ArtifactBuildState.PLANNED.value,
+                                 original_nvr="parent4-1-4")
         db.session.commit()
 
         # No parent - base image
         b = ArtifactBuild.create(db.session, self.db_event, "parent5", "image",
-                                 state=ArtifactBuildState.PLANNED.value)
+                                 state=ArtifactBuildState.PLANNED.value,
+                                 original_nvr="parent5-1-4")
         b.build_args = build_args
         b.build_args = b.build_args.replace("nvr", "")
 

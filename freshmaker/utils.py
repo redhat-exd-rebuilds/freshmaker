@@ -30,9 +30,34 @@ import subprocess
 import sys
 import tempfile
 import time
+import koji
 
 from freshmaker import conf
+from freshmaker.types import ArtifactType
 from krbcontext import krbContext
+
+
+def get_rebuilt_nvr(artifact_type, nvr):
+    """
+    Returns the new NVR of artifact which should be used when rebuilding
+    the artifact.
+
+    :param ArtifactType artifact_type: Type of the rebuilt artifact.
+    :param str nvr: Original NVR of artifact.
+
+    :rtype: str
+    :return: newly generated NVR
+    """
+    rebuilt_nvr = None
+    if artifact_type == ArtifactType.IMAGE.value:
+        # Set release from XX.YY to XX.$timestamp
+        parsed_nvr = koji.parse_NVR(nvr)
+        r_version = parsed_nvr["release"].split(".")[0]
+        release = str(r_version) + "." + str(int(time.time()))
+        rebuilt_nvr = "%s-%s-%s" % (parsed_nvr["name"], parsed_nvr["version"],
+                                    release)
+
+    return rebuilt_nvr
 
 
 def krb_context():

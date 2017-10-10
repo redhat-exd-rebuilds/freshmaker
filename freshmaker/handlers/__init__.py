@@ -24,15 +24,14 @@
 import abc
 import json
 import re
-import time
 
 from freshmaker import conf, log, db, models
-from freshmaker.kojiservice import koji_service
+from freshmaker.kojiservice import koji_service, parse_NVR
 from freshmaker.mbs import MBS
 from freshmaker.models import ArtifactBuildState
 from freshmaker.types import ArtifactType
 from freshmaker.models import ArtifactBuild, Event
-from freshmaker.utils import krb_context
+from freshmaker.utils import krb_context, get_rebuilt_nvr
 
 from freshmaker.odcsclient import ODCS
 from freshmaker.odcsclient import AuthMech
@@ -76,7 +75,8 @@ class BaseHandler(object):
         return mbs.build_module(name, branch, rev)
 
     def record_build(self, event, name, artifact_type,
-                     build_id=None, dep_on=None, state=None):
+                     build_id=None, dep_on=None, state=None,
+                     original_nvr=None, rebuilt_nvr=None):
         """
         Record build in db.
 
@@ -89,14 +89,19 @@ class BaseHandler(object):
             other artifact is depended on.
         :param state: the initial state of build. If omitted, defaults to
             ``ArtifactBuildState.BUILD``.
+        :param original_nvr: The original NVR of artifact.
+        :param rebuilt_nvr: The NVR of newly rebuilt artifact.
         :return: recorded build.
         :rtype: ArtifactBuild.
         """
+
         ev = models.Event.get_or_create(db.session, event.msg_id,
                                         event.search_key, event.__class__)
         build = models.ArtifactBuild.create(db.session, ev, name,
                                             artifact_type.name.lower(),
-                                            build_id, dep_on, state)
+                                            build_id, dep_on, state,
+                                            original_nvr, rebuilt_nvr)
+
         db.session.commit()
         return build
 
@@ -228,10 +233,17 @@ class ContainerBuildHandler(BaseHandler):
         target = args["target"]
         parent = args["parent"]
 
-        # Set release from XX.YY to XX.$timestamp
-        version_release = build.name.split("-")[-1]
-        version = version_release.split(".")[0]
-        release = str(version) + "." + str(int(time.time()))
+        if not build.rebuilt_nvr and build.original_nvr:
+            build.rebuilt_nvr = get_rebuilt_nvr(
+                build.type, build.original_nvr)
+
+        if not build.rebuilt_nvr:
+            build.transition(
+                ArtifactBuildState.FAILED.value,
+                "Container image does not have rebuilt_nvr set.")
+            return
+
+        release = parse_NVR(build.rebuilt_nvr)["release"]
 
         return self.build_container(
             scm_url, branch, target, repo_urls=repo_urls,

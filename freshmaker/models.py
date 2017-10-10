@@ -164,6 +164,8 @@ class ArtifactBuild(FreshmakerBase):
     __tablename__ = "artifact_builds"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String, nullable=False)
+    original_nvr = db.Column(db.String, nullable=True)
+    rebuilt_nvr = db.Column(db.String, nullable=True)
     type = db.Column(db.Integer)
     state = db.Column(db.Integer, nullable=False)
     state_reason = db.Column(db.String, nullable=True)
@@ -190,10 +192,14 @@ class ArtifactBuild(FreshmakerBase):
 
     @classmethod
     def create(cls, session, event, name, type,
-               build_id=None, dep_on=None, state=None):
+               build_id=None, dep_on=None, state=None,
+               original_nvr=None, rebuilt_nvr=None):
+
         now = datetime.utcnow()
         build = cls(
             name=name,
+            original_nvr=original_nvr,
+            rebuilt_nvr=rebuilt_nvr,
             type=type,
             event=event,
             state=state or ArtifactBuildState.BUILD.value,
@@ -271,6 +277,8 @@ class ArtifactBuild(FreshmakerBase):
         return {
             "id": self.id,
             "name": self.name,
+            "original_nvr": self.original_nvr,
+            "rebuilt_nvr": self.rebuilt_nvr,
             "type": self.type,
             "type_name": ArtifactType(self.type).name,
             "state": self.state,

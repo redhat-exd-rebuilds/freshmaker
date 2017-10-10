@@ -263,11 +263,11 @@ class TestBatches(unittest.TestCase):
 
     def _mock_build(self, build, parent=None, error=None):
         if parent:
-            parent = {"brew": {"build": parent}}
-        return {'brew': {'build': build}, 'repository': build + '_repo',
-                'commit': build + '_123', 'parent': parent, "target": "t1",
-                'git_branch': 'mybranch', "error": error,
-                "content_sets": ["first-content-set"]}
+            parent = {"brew": {"build": parent + "-1-1.25"}}
+        return {'brew': {'build': build + "-1-1.25"},
+                'repository': build + '_repo', 'commit': build + '_123',
+                'parent': parent, "target": "t1", 'git_branch': 'mybranch',
+                "error": error, "content_sets": ["first-content-set"]}
 
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.ODCS.new_compose')
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.ODCS.get_compose')
@@ -323,9 +323,9 @@ class TestBatches(unittest.TestCase):
                 self.assertEqual(build.state, ArtifactBuildState.PLANNED.value)
             self.assertEqual(build.type, ArtifactType.IMAGE.value)
 
-            image = images[build.name]
+            image = images[build.original_nvr]
             if image['parent']:
-                self.assertEqual(build.dep_on.name, image['parent']['brew']['build'])
+                self.assertEqual(build.dep_on.original_nvr, image['parent']['brew']['build'])
             else:
                 self.assertEqual(build.dep_on, None)
 
@@ -333,7 +333,7 @@ class TestBatches(unittest.TestCase):
             self.assertEqual(args["repository"], build.name + "_repo")
             self.assertEqual(args["commit"], build.name + "_123")
             self.assertEqual(args["parent"],
-                             build.dep_on.name if build.dep_on else None)
+                             build.dep_on.rebuilt_nvr if build.dep_on else None)
 
 
 class TestGetPackagesForCompose(unittest.TestCase):
