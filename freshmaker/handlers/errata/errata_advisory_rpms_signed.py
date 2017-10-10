@@ -246,6 +246,7 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
                 # composes are done in no-time normally, it is OK here to
                 # block. It would still be nice to redesign that part of
                 # Freshmaker to do things "right".
+                # This is tracked here: https://pagure.io/freshmaker/issue/114
                 @retry(timeout=60, interval=2)
                 def wait_for_compose(compose_id):
                     ret = odcs.get_compose(compose_id)
