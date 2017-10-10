@@ -24,7 +24,7 @@ import json
 import six
 import unittest
 
-from mock import call, patch
+from mock import call, patch, Mock
 from six.moves import http_client
 
 from freshmaker.lightblue import ContainerImage
@@ -235,6 +235,33 @@ class TestContainerImageObject(unittest.TestCase):
         self.assertTrue(image["error"].find(
             "Cannot find task_id or container_koji_task_id in the Koji build "
             "{'task_id': None}") != -1)
+
+    def test_resolve_content_sets_no_repositories(self):
+        image = ContainerImage.create({
+            '_id': '1233829',
+            'brew': {
+                'build': 'package-name-1-4-12.10',
+            },
+        })
+        self.assertTrue("content_sets" not in image)
+
+        lb = Mock()
+        image.resolve_content_sets(lb)
+        self.assertEqual(image["content_sets"], [])
+
+    def test_resolve_content_sets_empty_repositories(self):
+        image = ContainerImage.create({
+            '_id': '1233829',
+            'brew': {
+                'build': 'package-name-1-4-12.10',
+            },
+            'repositories': []
+        })
+        self.assertTrue("content_sets" not in image)
+
+        lb = Mock()
+        image.resolve_content_sets(lb)
+        self.assertEqual(image["content_sets"], [])
 
 
 class TestContainerRepository(unittest.TestCase):
@@ -719,12 +746,13 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                              }
                          ])
 
+    @patch('freshmaker.lightblue.LightBlue.find_content_sets_for_repository')
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('os.path.exists')
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')
     def test_parent_images_with_package(self, get_task_request, get_build,
-                                        exists, cont_images):
+                                        exists, cont_images, cont_sets):
 
         get_build.return_value = {"task_id": 123456}
         get_task_request.return_value = [
@@ -732,6 +760,7 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
         exists.return_value = True
         cont_images.side_effect = [self.fake_container_images, [],
                                    self.fake_container_images]
+        cont_sets.return_value = set(["content-set"])
 
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,

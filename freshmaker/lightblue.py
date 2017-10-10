@@ -199,6 +199,26 @@ class ContainerImage(dict):
         data["srpm_nevra"] = srpm_nevra
         self.update(data)
 
+    def resolve_content_sets(self, lb_instance):
+        """
+        Find out the content_sets this image uses and store it as
+        "content_sets" key in image.
+        """
+        # Checking only the first repository is OK, because if an image
+        # is in multiple repositories, the content_sets of all of them
+        # must be the same by definition.
+        if "repositories" not in self or len(self["repositories"]) == 0:
+            log.warning("Container image %s does not have 'repositories' set "
+                        "in Lightblue, this is suspicious.")
+            self.update({"content_sets": []})
+            return
+
+        image_content_sets = lb_instance.find_content_sets_for_repository(
+            self["repositories"][0]["repository"])
+        log.info("Container image %s uses following content sets: %r",
+                 self["brew"]["build"], image_content_sets)
+        self.update({"content_sets": image_content_sets})
+
 
 class LightBlue(object):
     """Interface to query lightblue"""
@@ -638,6 +658,7 @@ class LightBlue(object):
                                             parent_build_layers_count,
                                             srpm_name=srpm_name)
             if image:
+                image.resolve_content_sets(self)
                 image.resolve_commit(srpm_name)
 
             if images:
@@ -659,6 +680,7 @@ class LightBlue(object):
                             parent_top_layer, parent_build_layers_count)
 
                     if parent:
+                        parent.resolve_content_sets(self)
                         parent.resolve_commit(srpm_name)
                     images[-1]['parent'] = parent
             if not image:
@@ -703,16 +725,7 @@ class LightBlue(object):
             images = [image for image in images if not filter_fnc(image)]
 
         for image in images:
-            # Find out the content_sets this image uses and store it as
-            # "content_sets" key in image.
-            # Checking only the first repository is OK, because if an image
-            # is in multiple repositories, the content_sets of all of them
-            # must be the same by definition.
-            image_content_sets = self.find_content_sets_for_repository(
-                image["repositories"][0]["repository"])
-            log.info("Container image %s uses following content sets: %r",
-                     image["brew"]["build"], image_content_sets)
-            image.update({"content_sets": image_content_sets})
+            image.resolve_content_sets(self)
             image.resolve_commit(srpm_name)
         return images
 
@@ -759,6 +772,7 @@ class LightBlue(object):
             else:
                 parent = self.get_image_by_layer(layers[1], len(layers) - 1)
                 if parent:
+                    parent.resolve_content_sets(self)
                     parent.resolve_commit(srpm_name)
                 image['parent'] = parent
             rebuild_list.insert(0, image)
