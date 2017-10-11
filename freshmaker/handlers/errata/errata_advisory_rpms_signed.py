@@ -124,7 +124,7 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
         repo_urls = list(set(repo_urls))
 
         # Log what we are going to rebuild
-        self._log_images_to_rebuild(builds)
+        self._check_images_to_rebuild(db_event, builds)
         log.info("Following repositories will be used for the rebuild:")
         for url in repo_urls:
             log.info("   - %s", url)
@@ -303,17 +303,20 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
             if latest_build and latest_build[0]['nvr'] == nvr:
                 return tag
 
-    def _log_images_to_rebuild(self, builds):
+    def _check_images_to_rebuild(self, db_event, builds):
         """
-        Logs the information about images to rebuilt using log.info(...).
+        Checks the images to rebuild and logs them using log.info(...).
+        :param Event db_event: Database Event associated with images.
         :param builds dict: list of docker images to build as returned by
             _find_and_record_images_to_rebuild(...).
         """
         log.info('Found docker images to rebuild in following order:')
         batch = 0
         printed = []
-        while len(printed) != len(builds.values()):
+        while (len(printed) != len(builds.values()) or
+               len(printed) != len(db_event.builds)):
             log.info('   Batch %d:', batch)
+            old_printed_count = len(printed)
             for build in builds.values():
                 # Print build only if:
                 # a) It depends on other build, but this dependency has not
@@ -322,15 +325,30 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
                 #   batch 0 - this handles the base images
                 # In call cases, print only builds which have not been printed
                 # so far.
-                if (build.name not in printed and
-                        ((build.dep_on and build.dep_on.name in printed) or
+                if (build.original_nvr not in printed and
+                        ((build.dep_on and build.dep_on.original_nvr in printed) or
                          (not build.dep_on and batch == 0))):
                     args = json.loads(build.build_args)
                     based_on = "based on %s" % args["parent"] \
                         if args["parent"] else "base image"
                     log.info('      - %s#%s (%s)' %
                              (args["repository"], args["commit"], based_on))
-                    printed.append(build.name)
+                    printed.append(build.original_nvr)
+
+            # Nothing has been printed, that means the dependencies between
+            # images are not OK and we would loop forever. Instead of that,
+            # print error and stop the rebuild.
+            if old_printed_count == len(printed):
+                db_event.builds_transition(
+                    ArtifactBuildState.FAILED.value,
+                    "No image to be built in batch %d." % (batch))
+                log.error("Dumping the builds:")
+                for build in builds.values():
+                    log.error("   %r", build.original_nvr)
+                log.error("Printed ones:")
+                for p in printed:
+                    log.error("   %r", p)
+                break
 
             batch += 1
 

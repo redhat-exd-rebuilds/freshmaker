@@ -336,6 +336,90 @@ class TestBatches(unittest.TestCase):
                              build.dep_on.rebuilt_nvr if build.dep_on else None)
 
 
+class TestCheckImagesToRebuild(unittest.TestCase):
+    """Test handling of batches"""
+
+    def setUp(self):
+        db.session.remove()
+        db.drop_all()
+        db.create_all()
+        db.session.commit()
+
+        build_args = json.dumps({
+            "parent": "nvr",
+            "repository": "repo",
+            "target": "target",
+            "commit": "hash",
+            "branch": "mybranch",
+            "yum_repourl": "http://localhost/composes/latest-odcs-3-1/compose/"
+                           "Temporary/odcs-3.repo",
+            "odcs_pulp_compose_id": 15,
+        })
+
+        self.ev = Event.create(db.session, 'msg-id', '123', 100)
+        self.b1 = ArtifactBuild.create(
+            db.session, self.ev, "parent", "image",
+            state=ArtifactBuildState.PLANNED.value,
+            original_nvr="parent-1-25")
+        self.b1.build_args = build_args
+        self.b2 = ArtifactBuild.create(
+            db.session, self.ev, "child", "image",
+            state=ArtifactBuildState.PLANNED.value,
+            dep_on=self.b1,
+            original_nvr="child-1-25")
+        self.b2.build_args = build_args
+        db.session.commit()
+
+    def tearDown(self):
+        db.session.remove()
+        db.drop_all()
+        db.session.commit()
+
+    def test_check_images_to_rebuild(self):
+        builds = {
+            "parent-1-25": self.b1,
+            "child-1-25": self.b2
+        }
+
+        handler = ErrataAdvisoryRPMsSignedHandler()
+        handler._check_images_to_rebuild(self.ev, builds)
+
+        # Check that the images have proper data in proper db columns.
+        e = db.session.query(Event).filter(Event.id == 1).one()
+        for build in e.builds:
+            self.assertEqual(build.state, ArtifactBuildState.PLANNED.value)
+
+    def test_check_images_to_rebuild_missing_dep(self):
+        # Do not include child nvr here to test that _check_images_to_rebuild
+        # sets the state of event to failed.
+        builds = {
+            "parent-1-25": self.b1
+        }
+
+        handler = ErrataAdvisoryRPMsSignedHandler()
+        handler._check_images_to_rebuild(self.ev, builds)
+
+        # Check that the images have proper data in proper db columns.
+        e = db.session.query(Event).filter(Event.id == 1).one()
+        for build in e.builds:
+            self.assertEqual(build.state, ArtifactBuildState.FAILED.value)
+
+    def test_check_images_to_rebuild_extra_build(self):
+        builds = {
+            "parent-1-25": self.b1,
+            "child-1-25": self.b2,
+            "something-1-25": self.b1,
+        }
+
+        handler = ErrataAdvisoryRPMsSignedHandler()
+        handler._check_images_to_rebuild(self.ev, builds)
+
+        # Check that the images have proper data in proper db columns.
+        e = db.session.query(Event).filter(Event.id == 1).one()
+        for build in e.builds:
+            self.assertEqual(build.state, ArtifactBuildState.FAILED.value)
+
+
 class TestGetPackagesForCompose(unittest.TestCase):
     """Test ErrataAdvisoryRPMsSignedHandler._get_packages_for_compose"""
 
