@@ -25,30 +25,58 @@
 
 """Generic messaging functions."""
 
-from freshmaker import log
+import json
+
+from freshmaker import log, conf
 from freshmaker.events import BaseEvent
 
 
-def publish(topic, msg, conf, service):
+def publish(topic, msg):
     """
     Publish a single message to a given backend, and return
-    :param topic: the topic of the message (e.g. module.state.change)
-    :param msg: the message contents of the message (typically JSON)
-    :param conf: a Config object from the class in config.py
-    :param service: the system that is publishing the message (e.g. mbs)
-    :return:
+
+    :param str topic: the topic of the message (e.g. module.state.change)
+    :param dict msg: the message contents of the message (typically JSON)
+    :return: the value returned from underlying backend "send" method.
     """
     try:
         handler = _messaging_backends[conf.messaging]['publish']
     except KeyError:
         raise KeyError("No messaging backend found for %r" % conf.messaging)
-    return handler(topic, msg, conf, service)
+    return handler(topic, msg)
 
 
-def _fedmsg_publish(topic, msg, conf, service):
+def _fedmsg_publish(topic, msg):
     # fedmsg doesn't really need access to conf, however other backends do
     import fedmsg
-    return fedmsg.publish(topic, msg=msg, modname=service)
+    config = conf.messaging_backends['fedmsg']
+    return fedmsg.publish(topic, msg=msg, modname=config['SERVICE'])
+
+
+def _rhmsg_publish(topic, msg):
+    """Send message to Unified Message Bus
+
+    :param str topic: the topic where message will be sent to (e.g.
+        images.found)
+    :param dict msg: the message that will be sent
+    """
+    import proton
+    from rhmsg.activemq.producer import AMQProducer
+
+    config = conf.messaging_backends['rhmsg']
+    producer_config = {
+        'urls': config['BROKER_URLS'],
+        'certificate': config['CERT_FILE'],
+        'private_key': config['KEY_FILE'],
+        'trusted_certificates': config['CA_CERT'],
+    }
+    with AMQProducer(**producer_config) as producer:
+        topic = '{0}.{1}'.format(config['TOPIC_PREFIX'], topic)
+        producer.through_topic(topic)
+
+        outgoing_msg = proton.Message()
+        outgoing_msg.body = json.dumps(msg)
+        producer.send(outgoing_msg)
 
 
 # A counter used for in-memory messages.
@@ -56,17 +84,19 @@ _in_memory_msg_id = 0
 _initial_messages = []
 
 
-def _in_memory_publish(topic, msg, conf, service):
+def _in_memory_publish(topic, msg):
     """ Puts the message into the in memory work queue. """
     # Increment the message ID.
     global _in_memory_msg_id
     _in_memory_msg_id += 1
 
+    config = conf.messaging_backends['in_memory']
+
     # Create fake fedmsg from the message so we can reuse
     # the BaseEvent.from_fedmsg code to get the particular BaseEvent
     # class instance.
     wrapped_msg = BaseEvent.from_fedmsg(
-        service + "." + topic,
+        config['SERVICE'] + "." + topic,
         {"msg_id": str(_in_memory_msg_id), "msg": msg},
     )
 
@@ -90,5 +120,8 @@ _messaging_backends = {
     },
     'in_memory': {
         'publish': _in_memory_publish
+    },
+    'rhmsg': {
+        'publish': _rhmsg_publish
     }
 }

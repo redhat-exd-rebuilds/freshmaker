@@ -27,7 +27,6 @@ class BaseConfiguration(object):
     NET_RETRY_INTERVAL = 30
 
     SYSTEM = 'koji'
-    MESSAGING = 'fedmsg'  # or amq
     PDC_URL = 'http://modularity.fedorainfracloud.org:8080/rest_api/v1'
     PDC_INSECURE = True
     PDC_DEVELOP = True
@@ -192,6 +191,30 @@ class BaseConfiguration(object):
         'openid',
         'https://id.fedoraproject.org/scope/groups',
     ]
+
+    # Select which messaging backend will be used, that could be fedmsg, amq,
+    # in_memory or rhmsg.
+    MESSAGING = 'fedmsg'
+    MESSAGING_BACKENDS = {
+        'fedmsg': {
+            'SERVICE': 'freshmaker',
+        },
+        'rhmsg': {
+            # Brokers to connect, e.g.
+            # ['amqps://host:5671', 'amqps://anotherhost:5671']
+            'BROKER_URLS': [],
+            # Path to certificate file used to authenticate freshmaker
+            'CERT_FILE': '',
+            # Path to private key file used to authenticate freshmaker
+            'KEY_FILE': '',
+            # Path to trusted CA certificate bundle.
+            'CA_CERT': '',
+            'TOPIC_PREFIX': 'VirtualTopic.eng.freshmaker',
+        },
+        'in_memory': {
+            'SERVICE': 'freshmaker',
+        }
+    }
 
 
 class DevConfiguration(BaseConfiguration):
