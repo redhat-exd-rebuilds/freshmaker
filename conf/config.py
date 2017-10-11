@@ -21,6 +21,8 @@ class BaseConfiguration(object):
     HOST = '0.0.0.0'
     PORT = 5001
 
+    SERVER_NAME = 'localhost'
+
     DEBUG = False
     # Global network-related values, in seconds
     NET_TIMEOUT = 120

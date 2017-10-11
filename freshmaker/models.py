@@ -24,12 +24,14 @@
 """ SQLAlchemy Database models for the Flask app
 """
 
+import flask
+
 from datetime import datetime
 from sqlalchemy.orm import (validates, relationship)
 
 from flask_login import UserMixin
 
-from freshmaker import db, log
+from freshmaker import app, db, log
 from freshmaker.types import ArtifactType, ArtifactBuildState
 from freshmaker.events import (
     MBSModuleStateChangeEvent, GitModuleMetadataChangeEvent,
@@ -189,13 +191,17 @@ class Event(FreshmakerBase):
         return "<Event %s, %r, %s>" % (self.message_id, self.event_type, self.search_key)
 
     def json(self):
-        return {
-            "id": self.id,
-            "message_id": self.message_id,
-            "search_key": self.search_key,
-            "event_type_id": self.event_type_id,
-            "builds": [b.json() for b in self.builds],
-        }
+        with app.app_context():
+            event_url = flask.url_for('event', id=self.id)
+            db.session.add(self)
+            return {
+                "id": self.id,
+                "message_id": self.message_id,
+                "search_key": self.search_key,
+                "event_type_id": self.event_type_id,
+                "url": event_url,
+                "builds": [b.json() for b in self.builds],
+            }
 
 
 class EventDependency(FreshmakerBase):
@@ -319,22 +325,26 @@ class ArtifactBuild(FreshmakerBase):
             ArtifactBuildState(self.state).name, self.event.message_id)
 
     def json(self):
-        return {
-            "id": self.id,
-            "name": self.name,
-            "original_nvr": self.original_nvr,
-            "rebuilt_nvr": self.rebuilt_nvr,
-            "type": self.type,
-            "type_name": ArtifactType(self.type).name,
-            "state": self.state,
-            "state_name": ArtifactBuildState(self.state).name,
-            "state_reason": self.state_reason,
-            "dep_on": self.dep_on.name if self.dep_on else None,
-            "time_submitted": self.time_submitted,
-            "time_completed": self.time_completed,
-            "event_id": self.event_id,
-            "build_id": self.build_id,
-        }
+        with app.app_context():
+            build_url = flask.url_for('build', id=self.id)
+            db.session.add(self)
+            return {
+                "id": self.id,
+                "name": self.name,
+                "original_nvr": self.original_nvr,
+                "rebuilt_nvr": self.rebuilt_nvr,
+                "type": self.type,
+                "type_name": ArtifactType(self.type).name,
+                "state": self.state,
+                "state_name": ArtifactBuildState(self.state).name,
+                "state_reason": self.state_reason,
+                "dep_on": self.dep_on.name if self.dep_on else None,
+                "time_submitted": self.time_submitted,
+                "time_completed": self.time_completed,
+                "event_id": self.event_id,
+                "build_id": self.build_id,
+                "url": build_url,
+            }
 
     def get_root_dep_on(self):
         dep_on = self.dep_on
