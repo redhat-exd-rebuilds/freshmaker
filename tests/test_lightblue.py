@@ -783,56 +783,136 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
     @patch('freshmaker.lightblue.LightBlue.find_parent_images_with_package')
     @patch('freshmaker.lightblue.LightBlue.find_unpublished_image_for_build')
     @patch('os.path.exists')
-    def test_images_to_rebuild(self, exists, unpublished_image,
-                               parent_images, cont_images):
-
+    def test_images_to_rebuild(self,
+                               exists,
+                               find_unpublished_image_for_build,
+                               find_parent_images_with_package,
+                               find_images_with_package_from_content_set):
         exists.return_value = True
 
-        child1 = ContainerImage.create({'brew': {'package': 'child1', 'build': 'child1'},
-                                        "parsed_data": {"layers": None}})
-        child2 = ContainerImage.create({'brew': {'package': 'child2', 'build': 'child2'},
-                                        "parsed_data": {"layers": None}})
-        cont_images.return_value = [child1, child2]
-        unpublished_image.side_effect = [child1, child2]
+        image_a = ContainerImage.create({
+            'brew': {'package': 'image-a', 'build': 'image-a-v-r1'},
+            'repository': 'repo-1',
+            'commit': 'image-a-commit'
+        })
+        image_b = ContainerImage.create({
+            'brew': {'package': 'image-b', 'build': 'image-b-v-r1'},
+            'repository': 'repo-1',
+            'commit': 'image-b-commit',
+            'parent': image_a,
+        })
+        image_c = ContainerImage.create({
+            'brew': {'package': 'image-c', 'build': 'image-c-v-r1'},
+            'repository': 'repo-1',
+            'commit': 'image-c-commit',
+            'parent': image_b,
+        })
+        image_e = ContainerImage.create({
+            'brew': {'package': 'image-e', 'build': 'image-e-v-r1'},
+            'repository': 'repo-1',
+            'commit': 'image-e-commit',
+            'parent': image_a,
+        })
+        image_d = ContainerImage.create({
+            'brew': {'package': 'image-d', 'build': 'image-d-v-r1'},
+            'repository': 'repo-1',
+            'commit': 'image-d-commit',
+            'parent': image_e,
+        })
+        image_j = ContainerImage.create({
+            'brew': {'package': 'image-j', 'build': 'image-j-v-r1'},
+            'repository': 'repo-1',
+            'commit': 'image-j-commit',
+            'parent': image_e,
+        })
+        image_k = ContainerImage.create({
+            'brew': {'package': 'image-k', 'build': 'image-k-v-r1'},
+            'repository': 'repo-1',
+            'commit': 'image-k-commit',
+            'parent': image_j,
+        })
+        image_g = ContainerImage.create({
+            'brew': {'package': 'image-g', 'build': 'image-g-v-r1'},
+            'repository': 'repo-1',
+            'commit': 'image-g-commit',
+            'parent': None,
+        })
+        image_f = ContainerImage.create({
+            'brew': {'package': 'image-f', 'build': 'image-f-v-r1'},
+            'repository': 'repo-1',
+            'commit': 'image-f-commit',
+            'parent': image_g,
+        })
 
-        child1_parent1 = ContainerImage.create(
-            {'brew': {'package': 'child1_parent1', 'build': 'child1_parent1'}})
-        child1_parent2 = ContainerImage.create(
-            {'brew': {'package': 'child1_parent2', 'build': 'child1_parent2'}})
-        child1_parent3 = ContainerImage.create(
-            {'brew': {'package': 'child1_parent3', 'build': 'child1_parent3'}})
-        child1_parent4 = ContainerImage.create(
-            {'brew': {'package': 'shared_parent', 'build': 'shared_parent'}})
-        # Include child1_parent2 twice to ensure find_images_to_rebuild
-        # removes duplicates
-        child1_parents = [child1_parent1, child1_parent2, child1_parent2,
-                          child1_parent3, child1_parent4]
+        leaf_image1 = ContainerImage.create({
+            'brew': {'build': 'leaf-image-1'},
+            'parsed_data': {'layers': ['fake layer']},
+            'repository': 'repo-1',
+            'commit': 'leaf-image1-commit',
+        })
+        leaf_image2 = ContainerImage.create({
+            'brew': {'build': 'leaf-image-2'},
+            'parsed_data': {'layers': ['fake layer']},
+            'repository': 'repo-1',
+            'commit': 'leaf-image2-commit',
+        })
+        leaf_image3 = ContainerImage.create({
+            'brew': {'build': 'leaf-image-3'},
+            'parsed_data': {'layers': ['fake layer']},
+            'repository': 'repo-1',
+            'commit': 'leaf-image3-commit',
+        })
+        leaf_image4 = ContainerImage.create({
+            'brew': {'build': 'leaf-image-4'},
+            'parsed_data': {'layers': ['fake layer']},
+            'repository': 'repo-1',
+            'commit': 'leaf-image4-commit',
+        })
+        leaf_image5 = ContainerImage.create({
+            'brew': {'build': 'leaf-image-5'},
+            'parsed_data': {'layers': ['fake layer']},
+            'repository': 'repo-1',
+            'commit': 'leaf-image5-commit',
+        })
+        leaf_image6 = ContainerImage.create({
+            'brew': {'build': 'leaf-image-6'},
+            'parsed_data': {'layers': ['fake layer']},
+            'repository': 'repo-1',
+            'commit': 'leaf-image6-commit',
+        })
+        images = [
+            leaf_image1, leaf_image2, leaf_image3,
+            leaf_image4, leaf_image5, leaf_image6
+        ]
+        find_unpublished_image_for_build.side_effect = images
+        find_images_with_package_from_content_set.return_value = images
 
-        child2_parent1 = ContainerImage.create(
-            {'brew': {'package': 'child2_parent1', 'build': 'child2_parent1'}})
-        child2_parent2 = ContainerImage.create(
-            {'brew': {'package': 'child2_parent2', 'build': 'child2_parent2'}})
-        child2_parent3 = ContainerImage.create(
-            {'brew': {'package': 'shared_parent', 'build': 'shared_parent'}})
-        child2_parents = [child2_parent1, child2_parent2, child2_parent3]
-
-        for image in child1_parents + child2_parents + [child1, child2]:
-            image["repository"] = "repo_" + image["brew"]["build"]
-            image["commit"] = "commit_" + image["brew"]["build"]
-
-        parent_images.side_effect = [child1_parents, child2_parents]
-
+        find_parent_images_with_package.side_effect = [
+            [image_b, image_a],                    # parents of leaf_image1
+            [image_c, image_b, image_a],           # parents of leaf_image2
+            [image_k, image_j, image_e, image_a],  # parents of leaf_image3
+            [image_d, image_e, image_a],           # parents of leaf_image4
+            [image_a],                             # parents of leaf_image5
+            [image_f, image_g]                     # parents of leaf_image6
+        ]
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
                        private_key=self.fake_private_key)
-        ret = lb.find_images_to_rebuild("dummy", "dummy")
-        self.assertEqual([len(x) for x in ret], [1, 2, 2, 1, 1, 1])
-        self.assertEqual(set(ret[0]), set([child1_parent4]))
-        self.assertEqual(set(ret[1]), set([child1_parent3, child2_parent2]))
-        self.assertEqual(set(ret[2]), set([child1_parent2, child2_parent1]))
-        self.assertEqual(set(ret[3]), set([child2]))
-        self.assertEqual(set(ret[4]), set([child1_parent1]))
-        self.assertEqual(set(ret[5]), set([child1]))
+        batches = lb.find_images_to_rebuild("dummy", "dummy")
+
+        # Each of batch is sorted for assertion easily
+        expected_batches = [
+            [image_a, image_g],
+            [image_b, image_e, image_f, leaf_image5],
+            [image_c, image_d, image_j, leaf_image1, leaf_image6],
+            [image_k, leaf_image2, leaf_image4],
+            [leaf_image3]
+        ]
+
+        self.assertEqual(
+            expected_batches,
+            [sorted(images, key=lambda image: image['brew']['build'])
+             for images in batches])
 
     @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
     @patch('freshmaker.lightblue.LightBlue.find_container_images')

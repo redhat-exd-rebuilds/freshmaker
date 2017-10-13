@@ -801,44 +801,18 @@ class LightBlue(object):
         # parent image).
         # Therefore, group the same parent images from the same inheritance
         # level to not build them multiple times for each image, but just once.
-        batches = []
-        for i in reversed(range(-max_len, 0)):
-            batch = []
-            seen = []   # Used to remove possible duplicates in single batch.
-            for imgs in to_rebuild:
-                if len(imgs) < abs(i):
-                    continue
-                image = imgs[i]
 
-                # Duplicate build means that it is built from the same
-                # repository and commit hash. We don't want duplicate builds,
-                # so in case we find some, do not add it to batch.
-                seen_dict = {}
-                if "repository" not in image or "commit" not in image:
-                    log.error("Cannot obtain repository and commit of image %r",
-                              image)
-                    return []
-                seen_dict["repository"] = image["repository"]
-                seen_dict["commit"] = image["commit"]
-                if seen_dict not in seen:
-                    batch.append(image)
-                    seen.append(seen_dict)
-            batches.append(batch)
+        # Using dict for each batch to remove duplicate images
+        batches = [{} for i in range(max_len)]
+        for image_rebuild_list in to_rebuild:
+            for image, batch in zip(reversed(image_rebuild_list), batches):
+                image_key = '{0}_{1}'.format(image['repository'],
+                                             image['commit'])
+                if image_key not in batch:
+                    batch[image_key] = image
 
-        # In previous step, we have removed only duplicate builds within
-        # single batch, but we want to remove duplicates between batches too.
-        # In this step, check all the images in batch N and if we find the
-        # duplicate image in the batch N + 1, N + 2, ..., remove it from that
-        # batch.
-        for i, batch in enumerate(batches):
-            for image in batch:
-                for next_batch in batches[i + 1:]:
-                    to_remove = []
-                    for next_image in next_batch:
-                        if (next_image["repository"] == image["repository"] and
-                                next_image["commit"] == image["commit"]):
-                            to_remove.append(next_image)
-                    for image_to_remove in to_remove:
-                        next_batch.remove(image_to_remove)
-
+        # Final step to convert batches to list of sub-lists
+        # Each sublist contains images in this order
+        # [found image containing signed RPMs, parent, grandparent, ...]
+        batches = [batch.values() for batch in batches]
         return batches
