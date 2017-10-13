@@ -419,6 +419,9 @@ class LightBlue(object):
             repositories
         :param str release_category: filter only repositories with specific
             release category (options: Deprecated, Generally Available, Beta, Tech Preview)
+        :return: list of found content sets, each of which is content set name.
+            Empty list is returned if no repository is found.
+        :rtype: list
         """
         repo_request = {
             "objectType": "containerRepository",
@@ -452,13 +455,13 @@ class LightBlue(object):
         }
         repos = self.find_container_repositories(repo_request)
         if not repos:
-            return set()
+            return []
 
         ret = set()
         for repo in repos:
             ret |= set(repo["content_sets"])
 
-        return ret
+        return sorted(list(ret))
 
     def _get_default_projection(self):
         return [
