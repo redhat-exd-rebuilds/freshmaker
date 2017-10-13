@@ -81,7 +81,10 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
 
         # Get and record all images to rebuild based on the current
         # ErrataAdvisoryRPMsSignedEvent event.
-        builds = self._find_and_record_images_to_rebuild(db_event, event)
+        builds = {}
+        for batches in self._find_images_to_rebuild(db_event.search_key):
+            builds = self._record_batches(batches, event, builds)
+
         if not builds:
             log.info('No container images to rebuild for advisory %r',
                      event.errata_name)
@@ -115,8 +118,8 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
                     continue
                 seen_extra_events.append(ev)
                 db_event.add_event_dependency(db.session, ev)
-                builds = self._find_and_record_images_to_rebuild(
-                    ev, event, builds)
+                for batches in self._find_images_to_rebuild(ev.search_key):
+                    builds = self._record_batches(batches, event, builds)
                 repo_urls.append(self._prepare_yum_repo(ev))
 
         db.session.commit()
@@ -327,7 +330,7 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
         Checks the images to rebuild and logs them using log.info(...).
         :param Event db_event: Database Event associated with images.
         :param builds dict: list of docker images to build as returned by
-            _find_and_record_images_to_rebuild(...).
+            _find_images_to_rebuild(...).
         """
         log.info('Found docker images to rebuild in following order:')
         batch = 0
@@ -379,7 +382,7 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
         :param db_event Event: Database representation of
             ErrataAdvisoryRPMsSignedEvent.
         :param builds dict: list of docker images to build as returned by
-            _find_and_record_images_to_rebuild(...).
+            _find_images_to_rebuild(...).
         """
         events_to_include = []
         for ev in Event.get_unreleased(db.session):
@@ -478,7 +481,7 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
 
     def _filter_out_not_allowed_builds(self, image):
         """
-        Helper method for _find_and_record_images_to_rebuild(...) to filter
+        Helper method for _find_images_to_rebuild(...) to filter
         out all images which are not allowed to build by configuration.
 
         :param ContainerImage image: Image to be checked.
@@ -495,24 +498,18 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
             return True
         return False
 
-    def _find_and_record_images_to_rebuild(self, db_event, event, builds=None):
+    def _find_images_to_rebuild(self, errata_id):
         """
-        Finds docker images to rebuild based on the particular
-        ErrataAdvisoryRPMsSignedEvent and records them into database.
+        Finds docker rebuild images from each build added to specific Errata
+        advisory.
 
-        :param db_event Event: Database representation of
-            ErrataAdvisoryRPMsSignedEvent.
-        :param event ErrataAdvisoryRPMsSignedEvent: The main event this handler
-            is currently handling. Used to store found docker images to
-            database.
-        :param builds dict: list of docker images to build as returned by
-            previous calls of _find_and_record_images_to_rebuild(...).
-        :return: mappings extended by and returned from ``_record_batches``.
-        :rtype: dict
+        Found images are yielded in proper rebuild order from base images to
+        leaf images through the docker build dependnecy chain.
+
+        :param int errata_id: Errata ID.
         """
-
         errata = Errata(conf.errata_tool_server_url)
-        errata_id = int(db_event.search_key)
+        errata_id = int(errata_id)
 
         # Use the errata_id to find out Pulp repository IDs from Errata Tool
         # and furthermore get content_sets from Pulp where signed RPM will end
@@ -534,7 +531,6 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
 
         # For each RPM package in Errata advisory, find Docker images
         # containing this package and record those images into database.
-        builds = builds or {}
         nvrs = errata.get_builds(errata_id)
         for nvr in nvrs:
             # Container images builds end with ".tar.gz", so do not treat
@@ -544,10 +540,9 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
                 batches = lb.find_images_to_rebuild(
                     srpm_name, content_sets,
                     filter_fnc=self._filter_out_not_allowed_builds)
-                builds = self._record_batches(batches, event, builds)
+                yield batches
             else:
                 log.info("Skipping unsupported Errata build type: %s.", nvr)
-        return builds
 
     def _find_build_srpm_name(self, build_nvr):
         """Find srpm name from a build"""

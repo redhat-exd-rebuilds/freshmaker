@@ -101,7 +101,7 @@ class TestAllowBuild(unittest.TestCase):
         db.session.commit()
 
     @patch("freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler."
-           "_find_and_record_images_to_rebuild", return_value=[])
+           "_find_images_to_rebuild", return_value=[])
     @patch("freshmaker.config.Config.handler_build_whitelist",
            new_callable=PropertyMock, return_value={
                "ErrataAdvisoryRPMsSignedHandler": {"image": [{"advisory_name": "RHSA-.*"}]}})
@@ -116,7 +116,7 @@ class TestAllowBuild(unittest.TestCase):
         record_images.assert_not_called()
 
     @patch("freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler."
-           "_find_and_record_images_to_rebuild", return_value=[])
+           "_find_images_to_rebuild", return_value=[])
     @patch("freshmaker.config.Config.handler_build_whitelist",
            new_callable=PropertyMock, return_value={
                "ErrataAdvisoryRPMsSignedHandler": {"image": [{"advisory_name": "RHSA-.*"}]}})
@@ -132,7 +132,7 @@ class TestAllowBuild(unittest.TestCase):
         record_images.assert_called_once()
 
     @patch("freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler."
-           "_find_and_record_images_to_rebuild", return_value=[])
+           "_find_images_to_rebuild", return_value=[])
     @patch(
         "freshmaker.config.Config.handler_build_whitelist",
         new_callable=PropertyMock,
@@ -160,7 +160,7 @@ class TestAllowBuild(unittest.TestCase):
         record_images.assert_called_once()
 
     @patch("freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler."
-           "_find_and_record_images_to_rebuild", return_value=[])
+           "_find_images_to_rebuild", return_value=[])
     @patch(
         "freshmaker.config.Config.handler_build_whitelist",
         new_callable=PropertyMock,
@@ -699,36 +699,23 @@ class TestPrepareYumRepo(unittest.TestCase):
                 "of advisory 123 is the latest build in its candidate tag."))
 
 
-class TestFindAndRecordImagesToRebuild(unittest.TestCase):
-    def setup(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
-
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
+class TestFindImagesToRebuild(unittest.TestCase):
 
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.Errata')
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.Pulp')
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.LightBlue')
-    def test_find_and_record_images_to_rebuild_non_rpm_content(
+    def test_find_images_to_rebuild_non_rpm_content(
             self, lb, pulp, errata):
         """
-        Tests that _find_and_record_images_to_rebuild is not called for
+        Tests that _find_images_to_rebuild is not called for
         non-rpm content.
         """
         errata.return_value.get_builds.return_value = set(["httpd-2.4.15-1.f27.tar.gz"])
 
-        db_event = Mock(message_id='msg-id', search_key=12345)
-        event = Mock()
-
         handler = ErrataAdvisoryRPMsSignedHandler()
-        ret = handler._find_and_record_images_to_rebuild(db_event, event)
+        ret = list(handler._find_images_to_rebuild(12345))
         lb.find_images_to_rebuild.assert_not_called()
-        self.assertEqual(ret, {})
+        self.assertEqual([], ret)
 
 
 class TestFindEventsToInclude(unittest.TestCase):
@@ -882,3 +869,190 @@ class TestErrataAdvisoryStateChangedHandler(unittest.TestCase):
 
         handler = ErrataAdvisoryStateChangedHandler()
         handler.handle(ev)
+
+
+class TestRecordBatchesImages(unittest.TestCase):
+    """Test ErrataAdvisoryRPMsSignedHandler._record_batches"""
+
+    def setUp(self):
+        db.session.remove()
+        db.drop_all()
+        db.create_all()
+        db.session.commit()
+
+        self.mock_event = Mock(msg_id='msg-id', search_key=12345)
+
+        self.event_types_patcher = patch.dict('freshmaker.models.EVENT_TYPES',
+                                              {self.mock_event.__class__: -1})
+        self.event_types_patcher.start()
+
+        self.prepare_pulp_repo_patcher = patch(
+            'freshmaker.handlers.errata.'
+            'ErrataAdvisoryRPMsSignedHandler._prepare_pulp_repo',
+            side_effect=[{'id': 1}, {'id': 2}])
+        self.mock_prepare_pulp_repo = self.prepare_pulp_repo_patcher.start()
+
+    def tearDown(self):
+        self.prepare_pulp_repo_patcher.stop()
+        self.event_types_patcher.stop()
+
+        db.session.remove()
+        db.drop_all()
+        db.session.commit()
+
+    def test_record_batches(self):
+        batches = [
+            [{
+                "brew": {
+                    "completion_date": "20170420T17:05:37.000-0400",
+                    "build": "rhel-server-docker-7.3-82",
+                    "package": "rhel-server-docker"
+                },
+                "parent": None,
+                "content_sets": ["content-set-1"],
+                "repository": "repo-1",
+                "commit": "123456789",
+                "target": "target-candidate",
+                "git_branch": "rhel-7",
+                "error": None
+            }],
+            [{
+                "brew": {
+                    "build": "rh-dotnetcore10-docker-1.0-16",
+                    "package": "rh-dotnetcore10-docker",
+                    "completion_date": "20170511T10:06:09.000-0400"
+                },
+                "parent": {
+                    "brew": {
+                        "completion_date": "20170420T17:05:37.000-0400",
+                        "build": "rhel-server-docker-7.3-82",
+                        "package": "rhel-server-docker"
+                    },
+                    "parent": None,
+                    "content_sets": ["content-set-1"],
+                    "repository": "repo-1",
+                    "commit": "123456789",
+                    "target": "target-candidate",
+                    "git_branch": "rhel-7",
+                    "error": None
+                },
+                "content_sets": ["content-set-1"],
+                "repository": "repo-1",
+                "commit": "987654321",
+                "target": "target-candidate",
+                "git_branch": "rhel-7",
+                "error": None
+            }]
+        ]
+
+        handler = ErrataAdvisoryRPMsSignedHandler()
+        handler._record_batches(batches, self.mock_event)
+
+        # Check parent image
+        query = db.session.query(ArtifactBuild)
+        parent_image = query.filter(
+            ArtifactBuild.original_nvr == 'rhel-server-docker-7.3-82'
+        ).first()
+        self.assertNotEqual(None, parent_image)
+        self.assertEqual(ArtifactBuildState.PLANNED.value, parent_image.state)
+
+        build_args = json.loads(parent_image.build_args)
+        self.assertEqual(1, build_args['odcs_pulp_compose_id'])
+
+        # Check child image
+        child_image = query.filter(
+            ArtifactBuild.original_nvr == 'rh-dotnetcore10-docker-1.0-16'
+        ).first()
+        self.assertNotEqual(None, child_image)
+        self.assertEqual(parent_image, child_image.dep_on)
+        self.assertEqual(ArtifactBuildState.PLANNED.value, child_image.state)
+
+        build_args = json.loads(child_image.build_args)
+        self.assertEqual(2, build_args['odcs_pulp_compose_id'])
+
+    def test_mark_failed_state_if_image_has_error(self):
+        batches = [
+            [{
+                "brew": {
+                    "completion_date": "20170420T17:05:37.000-0400",
+                    "build": "rhel-server-docker-7.3-82",
+                    "package": "rhel-server-docker"
+                },
+                "parent": None,
+                "content_sets": ["content-set-1"],
+                "repository": "repo-1",
+                "commit": "123456789",
+                "target": "target-candidate",
+                "git_branch": "rhel-7",
+                "error": "Some error occurs while getting this image."
+            }]
+        ]
+
+        handler = ErrataAdvisoryRPMsSignedHandler()
+        handler._record_batches(batches, self.mock_event)
+
+        query = db.session.query(ArtifactBuild)
+        build = query.filter(
+            ArtifactBuild.original_nvr == 'rhel-server-docker-7.3-82'
+        ).first()
+
+        self.assertEqual(ArtifactBuildState.FAILED.value, build.state)
+
+    def test_mark_state_failed_if_depended_image_is_failed(self):
+        batches = [
+            [{
+                "brew": {
+                    "completion_date": "20170420T17:05:37.000-0400",
+                    "build": "rhel-server-docker-7.3-82",
+                    "package": "rhel-server-docker"
+                },
+                "parent": None,
+                "content_sets": ["content-set-1"],
+                "repository": "repo-1",
+                "commit": "123456789",
+                "target": "target-candidate",
+                "git_branch": "rhel-7",
+                "error": "Some error occured."
+            }],
+            [{
+                "brew": {
+                    "build": "rh-dotnetcore10-docker-1.0-16",
+                    "package": "rh-dotnetcore10-docker",
+                    "completion_date": "20170511T10:06:09.000-0400"
+                },
+                "parent": {
+                    "brew": {
+                        "completion_date": "20170420T17:05:37.000-0400",
+                        "build": "rhel-server-docker-7.3-82",
+                        "package": "rhel-server-docker"
+                    },
+                    "parent": None,
+                    "content_sets": ["content-set-1"],
+                    "repository": "repo-1",
+                    "commit": "123456789",
+                    "target": "target-candidate",
+                    "git_branch": "rhel-7",
+                    "error": None
+                },
+                "content_sets": ["content-set-1"],
+                "repository": "repo-1",
+                "commit": "987654321",
+                "target": "target-candidate",
+                "git_branch": "rhel-7",
+                "error": "Some error occured too."
+            }]
+        ]
+
+        handler = ErrataAdvisoryRPMsSignedHandler()
+        handler._record_batches(batches, self.mock_event)
+
+        query = db.session.query(ArtifactBuild)
+        build = query.filter(
+            ArtifactBuild.original_nvr == 'rhel-server-docker-7.3-82'
+        ).first()
+        self.assertEqual(ArtifactBuildState.FAILED.value, build.state)
+
+        build = query.filter(
+            ArtifactBuild.original_nvr == 'rh-dotnetcore10-docker-1.0-16'
+        ).first()
+        self.assertEqual(ArtifactBuildState.FAILED.value, build.state)
