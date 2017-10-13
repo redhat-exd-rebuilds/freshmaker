@@ -142,8 +142,8 @@ class TestContainerImageObject(unittest.TestCase):
                 'build': 'package-name-1-4-12.10',
                 'package': 'package-name-1'
             },
-            'parsed_data': {
-                'rpm_manifest': [
+            'rpm_manifest': {
+                'rpms': [
                     {
                         "srpm_name": "openssl",
                         "srpm_nevra": "openssl-0:1.2.3-1.src"
@@ -176,8 +176,8 @@ class TestContainerImageObject(unittest.TestCase):
                 'build': 'package-name-1-4-12.10',
                 'package': 'package-name-1'
             },
-            'parsed_data': {
-                'rpm_manifest': [
+            'rpm_manifest': {
+                'rpms': [
                     {
                         "srpm_name": "openssl",
                         "srpm_nevra": "openssl-0:1.2.3-1.src"
@@ -211,8 +211,8 @@ class TestContainerImageObject(unittest.TestCase):
                 'build': 'package-name-1-4-12.10',
                 'package': 'package-name-1'
             },
-            'parsed_data': {
-                'rpm_manifest': [
+            'rpm_manifest': {
+                'rpms': [
                     {
                         "srpm_name": "openssl",
                         "srpm_nevra": "openssl-0:1.2.3-1.src"
@@ -319,7 +319,9 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                             'filename': u'Dockerfile'
                         }
                     ],
-                    'rpm_manifest': [
+                },
+                'rpm_manifest': {
+                    'rpms': [
                         {
                             "srpm_name": "openssl",
                             "srpm_nevra": "openssl-0:1.2.3-1.src"
@@ -353,7 +355,9 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                             'filename': 'bogus.file'
                         }
                     ],
-                    'rpm_manifest': [
+                },
+                'rpm_manifest': {
+                    'rpms': [
                         {
                             "srpm_name": "openssl",
                             "srpm_nevra": "openssl-1:1.2.3-1.src"
@@ -626,7 +630,7 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                         "rvalue": "latest"
                     },
                     {
-                        "field": "parsed_data.rpm_manifest.*.srpm_name",
+                        "field": "rpm_manifest.*.rpms.*.srpm_name",
                         "op": "=",
                         "rvalue": "openssl"
                     },
@@ -692,8 +696,10 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                                              'content_url': 'http://git.repo.com/cgit/rpms/repo-1/plain/Dockerfile?id=commit_hash1',
                                              'filename': u'Dockerfile'
                                          }
-                                     ],
-                                     'rpm_manifest': [
+                                     ]
+                                 },
+                                 'rpm_manifest': {
+                                     'rpms': [
                                          {
                                              "srpm_name": "openssl",
                                              "srpm_nevra": "openssl-0:1.2.3-1.src"
@@ -731,8 +737,10 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                                              'content_url': 'bogus_test_url',
                                              'filename': 'bogus.file'
                                          }
-                                     ],
-                                     'rpm_manifest': [
+                                     ]
+                                 },
+                                 'rpm_manifest': {
+                                     'rpms': [
                                          {
                                              "srpm_name": "openssl",
                                              "srpm_nevra": "openssl-1:1.2.3-1.src"

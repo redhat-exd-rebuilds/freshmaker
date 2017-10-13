@@ -180,8 +180,9 @@ class ContainerImage(dict):
                               image is rebuilt.
         """
         srpm_nevra = None
-        if "parsed_data" in self and "rpm_manifest" in self["parsed_data"]:
-            for rpm in self["parsed_data"]["rpm_manifest"]:
+        if ("rpm_manifest" in self and len(self['rpm_manifest']) > 0 and
+                "rpms" in self["rpm_manifest"]):
+            for rpm in self["rpm_manifest"]['rpms']:
                 if "srpm_name" in rpm and rpm["srpm_name"] == srpm_name:
                     srpm_nevra = rpm['srpm_nevra']
                     break
@@ -467,8 +468,8 @@ class LightBlue(object):
         return [
             {"field": "brew", "include": True, "recursive": True},
             {"field": "parsed_data.files", "include": True, "recursive": True},
-            {"field": "parsed_data.rpm_manifest.*.srpm_nevra", "include": True, "recursive": True},
-            {"field": "parsed_data.rpm_manifest.*.srpm_name", "include": True, "recursive": True},
+            {"field": "rpm_manifest.*.rpms.*.srpm_nevra", "include": True, "recursive": True},
+            {"field": "rpm_manifest.*.rpms.*.srpm_name", "include": True, "recursive": True},
             {"field": "parsed_data.layers.*", "include": True, "recursive": True},
             {"field": "repositories.*.published", "include": True, "recursive": True},
             {"field": "repositories.*.repository", "include": True, "recursive": True},
@@ -508,7 +509,7 @@ class LightBlue(object):
                         "rvalue": "latest"
                     },
                     {
-                        "field": "parsed_data.rpm_manifest.*.srpm_name",
+                        "field": "rpm_manifest.*.rpms.*.srpm_name",
                         "op": "=",
                         "rvalue": srpm_name
                     },
@@ -599,7 +600,7 @@ class LightBlue(object):
         }
         if srpm_name:
             query['query']['$and'].append({
-                "field": "parsed_data.rpm_manifest.*.srpm_name",
+                "field": "rpm_manifest.*.rpms.*.srpm_name",
                 "op": "=",
                 "rvalue": srpm_name
             })
