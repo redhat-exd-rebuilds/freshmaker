@@ -282,26 +282,45 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
 
     def _get_compose_source(self, nvr):
         """Get tag from which to collect packages to compose
-
-        Try to find *-candidate tag from given build, the NVR. Whatever a
-        release tag is tagged to the given build, a candidate tag will always
-        be usable for gathering RPMs from Brew since it is the first tag must
-        be tagged when package is built in Brew for the first time.
-
         :param str nvr: build NVR used to find correct tag.
         :return: found tag. None is returned if build is not the latest build
             of found tag.
         :rtype: str
         """
         with koji_service(conf.koji_profile, log) as service:
-            tag = [tag['name'] for tag in service.session.listTags(nvr)
-                   if tag['name'].endswith('-candidate')][0]
-            latest_build = service.session.listTagged(
-                tag,
-                latest=True,
-                package=koji.parse_NVR(nvr)['name'])
-            if latest_build and latest_build[0]['nvr'] == nvr:
-                return tag
+            # Get the list of *-candidate tags, because packages added into
+            # Errata should be tagged into -candidate tag.
+            tags = service.session.listTags(nvr)
+            candidate_tags = [tag['name'] for tag in tags
+                              if tag['name'].endswith('-candidate')]
+
+            # Candidate tags may include unsigned packages and ODCS won't
+            # allow generating compose from them, so try to find out final
+            # version of candidate tag (without the "-candidate" suffix).
+            final_tags = []
+            for candidate_tag in candidate_tags:
+                final = candidate_tag[:-len("-candidate")]
+                final_tags += [tag['name'] for tag in tags
+                               if tag['name'] == final]
+
+            # Prefer final tags over candidate tags.
+            tags_to_try = final_tags + candidate_tags
+            for tag in tags_to_try:
+                latest_build = service.session.listTagged(
+                    tag,
+                    latest=True,
+                    package=koji.parse_NVR(nvr)['name'])
+                if latest_build and latest_build[0]['nvr'] == nvr:
+                    log.info("Package %r is latest version in tag %r, "
+                             "will use this tag", nvr, tag)
+                    return tag
+                elif not latest_build:
+                    log.info("Could not find package %r in tag %r, "
+                             "skipping this tag", nvr, tag)
+                else:
+                    log.info("Package %r is not he latest in the tag %r ("
+                             "latest is %r), skipping this tag", nvr, tag,
+                             latest_build[0]['nvr'])
 
     def _check_images_to_rebuild(self, db_event, builds):
         """

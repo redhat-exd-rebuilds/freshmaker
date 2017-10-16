@@ -519,6 +519,60 @@ class TestGetComposeSource(unittest.TestCase):
         tag = handler._get_compose_source('rh-postgresql96-3.0-9.el6')
         self.assertEqual(None, tag)
 
+    @patch('freshmaker.kojiservice.KojiService.session', callable=PropertyMock)
+    def test_get_tag_prefer_final_over_candidate(self, session):
+        session.listTags.return_value = [
+            {
+                'id': 10974,
+                'name': 'rhel-6-candidate',
+            },
+            {
+                'id': 10975,
+                'name': 'rhel-6',
+            },
+        ]
+        session.listTagged.return_value = [
+            {
+                'build_id': 568228,
+                'nvr': 'rh-postgresql96-3.0-9.el6',
+            }
+        ]
+
+        handler = ErrataAdvisoryRPMsSignedHandler()
+        tag = handler._get_compose_source('rh-postgresql96-3.0-9.el6')
+        self.assertEqual('rhel-6', tag)
+
+    @patch('freshmaker.kojiservice.KojiService.session', callable=PropertyMock)
+    def test_get_tag_fallback_to_second_tag(self, session):
+        session.listTags.return_value = [
+            {
+                'id': 10974,
+                'name': 'rhel-6-candidate',
+            },
+            {
+                'id': 10975,
+                'name': 'rhel-6',
+            },
+        ]
+        session.listTagged.side_effect = [
+            [
+                {
+                    'build_id': 568228,
+                    'nvr': 'rh-postgresql96-3.0-10.el6',
+                }
+            ],
+            [
+                {
+                    'build_id': 568228,
+                    'nvr': 'rh-postgresql96-3.0-9.el6',
+                }
+            ],
+        ]
+
+        handler = ErrataAdvisoryRPMsSignedHandler()
+        tag = handler._get_compose_source('rh-postgresql96-3.0-9.el6')
+        self.assertEqual('rhel-6-candidate', tag)
+
 
 class TestPrepareYumRepo(unittest.TestCase):
     """Test ErrataAdvisoryRPMsSignedHandler._prepare_yum_repo"""
