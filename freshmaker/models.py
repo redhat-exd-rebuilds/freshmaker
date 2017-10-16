@@ -27,6 +27,8 @@
 from datetime import datetime
 from sqlalchemy.orm import (validates, relationship)
 
+from flask_login import UserMixin
+
 from freshmaker import db, log
 from freshmaker.types import ArtifactType, ArtifactBuildState
 from freshmaker.events import (
@@ -50,8 +52,51 @@ EVENT_TYPES = {
 INVERSE_EVENT_TYPES = {v: k for k, v in EVENT_TYPES.items()}
 
 
+def commit_on_success(func):
+    """
+    Ensures db session is committed after a successful call to decorated
+    function, otherwise rollback.
+    """
+    def _decorator(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except:
+            db.session.rollback()
+            raise
+        finally:
+            db.session.commit()
+    return _decorator
+
+
 class FreshmakerBase(db.Model):
     __abstract__ = True
+
+
+class User(FreshmakerBase, UserMixin):
+    """User information table"""
+    __tablename__ = 'users'
+
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(200), nullable=False, unique=True)
+
+    @classmethod
+    def find_user_by_name(cls, username):
+        """Find a user by username
+
+        :param str username: a string of username to find user
+        :return: user object if found, otherwise None is returned.
+        :rtype: User
+        """
+        try:
+            return db.session.query(cls).filter(cls.username == username)[0]
+        except IndexError:
+            return None
+
+    @classmethod
+    def create_user(cls, username):
+        user = cls(username=username)
+        db.session.add(user)
+        return user
 
 
 class Event(FreshmakerBase):

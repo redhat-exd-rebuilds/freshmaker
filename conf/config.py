@@ -147,6 +147,52 @@ class BaseConfiguration(object):
     # a client keytab to acquire credential.
     KRB_AUTH_CCACHE_FILE = '/tmp/freshmaker_cc_{}'.format(os.getpid())
 
+    # Users are required to be in allowed_clients to generate composes,
+    # you can add group names or usernames (it can be normal user or host
+    # principal) into ALLOWED_CLIENTS. The group names are from ldap for
+    # kerberos users or FAS for openidc users.
+    ALLOWED_CLIENTS = {
+        'groups': [],
+        'users': [],
+    }
+
+    # Users in ADMINS are granted with admin permission.
+    ADMINS = {
+        'groups': [],
+        'users': [],
+    }
+
+    # Select which authentication backend to work with. There are 3 choices
+    # noauth: no authentication is enabled. Useful for development particularly.
+    # kerberos: Kerberos authentication is enabled.
+    # openidc: OpenIDC authentication is enabled.
+    AUTH_BACKEND = ''
+
+    # Used for Kerberos authentication and to query user's groups.
+    # Format: ldap://hostname[:port]
+    # For example: ldap://ldap.example.com/
+    AUTH_LDAP_SERVER = ''
+
+    # Group base to query groups from LDAP server.
+    # Generally, it would be, for example, ou=groups,dc=example,dc=com
+    AUTH_LDAP_GROUP_BASE = ''
+
+    AUTH_OPENIDC_USERINFO_URI = 'https://id.fedoraproject.org/openidc/UserInfo'
+
+    # OIDC base namespace
+    # See also section pagure.io/odcs in
+    # https://fedoraproject.org/wiki/Infrastructure/Authentication
+    OIDC_BASE_NAMESPACE = 'https://pagure.io/freshmaker/'
+
+    # Scope requested from Fedora Infra for permission of submitting request to
+    # run a new compose.
+    # See also: https://fedoraproject.org/wiki/Infrastructure/Authentication
+    # Add additional required scope in following list
+    AUTH_OPENIDC_REQUIRED_SCOPES = [
+        'openid',
+        'https://id.fedoraproject.org/scope/groups',
+    ]
+
 
 class DevConfiguration(BaseConfiguration):
     DEBUG = True
@@ -170,6 +216,9 @@ class DevConfiguration(BaseConfiguration):
     KRB_AUTH_PRINCIPAL = ''  # Should be in form name@REAL
     # Use the default ccache
     KRB_AUTH_CCACHE_FILE = None
+
+    AUTH_BACKEND = 'noauth'
+    AUTH_OPENIDC_USERINFO_URI = 'https://iddev.fedorainfracloud.org/openidc/UserInfo'
 
 
 class TestConfiguration(BaseConfiguration):
@@ -195,6 +244,10 @@ class TestConfiguration(BaseConfiguration):
 
     # Disable caching for tests
     DOGPILE_CACHE_BACKEND = "dogpile.cache.null"
+
+    AUTH_BACKEND = 'noauth'
+    AUTH_LDAP_SERVER = 'ldap://ldap.example.com'
+    AUTH_LDAP_GROUP_BASE = 'ou=groups,dc=example,dc=com'
 
 
 class ProdConfiguration(BaseConfiguration):

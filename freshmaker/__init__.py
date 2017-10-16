@@ -26,6 +26,7 @@
 from logging import getLogger
 
 from flask import Flask
+from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
 
 from freshmaker.logger import init_logging
@@ -43,3 +44,9 @@ init_logging(conf)
 log = getLogger(__name__)
 
 from freshmaker import views  # noqa
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+
+from freshmaker.auth import init_auth  # noqa
+init_auth(login_manager, conf.auth_backend)

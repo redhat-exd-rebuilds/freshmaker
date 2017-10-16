@@ -41,3 +41,11 @@ class NotFound(ValueError):
 
 class ProgrammingError(ValueError):
     pass
+
+
+class Unauthorized(ValueError):
+    pass
+
+
+class Forbidden(ValueError):
+    pass
