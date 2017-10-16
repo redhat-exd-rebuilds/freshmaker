@@ -4,7 +4,7 @@ psutil
 funcsigs  # Python2 only
 httplib2
 kobo
-m2crypto
+m2crypto < 0.27
 m2ext
 mock
 munch
