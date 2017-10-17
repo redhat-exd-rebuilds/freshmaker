@@ -155,6 +155,7 @@ class Errata(object):
 
         # For each NVR, check that all the rpms are signed.
         for nvr in nvrs:
+            log.info("Checking whether the build %s is signed", str(nvr))
             build = self._errata_rest_get("build/%s" % str(nvr))
             if "rpms_signed" not in build or not build["rpms_signed"]:
                 return False

@@ -210,7 +210,8 @@ class ContainerImage(dict):
         # must be the same by definition.
         if "repositories" not in self or len(self["repositories"]) == 0:
             log.warning("Container image %s does not have 'repositories' set "
-                        "in Lightblue, this is suspicious.")
+                        "in Lightblue, this is suspicious.",
+                        self["brew"]["build"])
             self.update({"content_sets": []})
             return
 
@@ -678,10 +679,14 @@ class LightBlue(object):
 
                     children_image_layers_count = parent_build_layers_count + 1
                     if parent is None and children_image_layers_count > 2:
-                        log.error(
-                            'No parent image is found from LightBlue, whose '
-                            'top layer is %s and which has %d layers',
-                            parent_top_layer, parent_build_layers_count)
+                        err = "Cannot find parent of image %s with layer %s " \
+                            "and layer count %d in Lightblue, Lightblue data " \
+                            "is probably incomplete" % (
+                                image['brew']['build'], parent_top_layer,
+                              parent_build_layers_count)
+                        log.error(err)
+                        if not images[-1]['error']:
+                            images[-1]['error'] = err
 
                     if parent:
                         parent.resolve_content_sets(self)
@@ -778,6 +783,15 @@ class LightBlue(object):
                 if parent:
                     parent.resolve_content_sets(self)
                     parent.resolve_commit(srpm_name)
+                elif len(layers) > 2:
+                    err = "Cannot find parent of image %s with layer %s " \
+                          "and layer count %d in Lightblue, Lightblue data " \
+                          "is probably incomplete" % (
+                              image['brew']['build'], layers[1],
+                              len(layers) - 1)
+                    log.error(err)
+                    if not image['error']:
+                        image['error'] = err
                 image['parent'] = parent
             rebuild_list.insert(0, image)
             return rebuild_list

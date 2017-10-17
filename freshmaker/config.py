@@ -250,6 +250,10 @@ class Config(object):
             'type': bool,
             'default': True,
             'desc': 'Whether to enable SSL verification over HTTP with ODCS.'},
+        'odcs_sigkeys': {
+            'type': list,
+            'default': [],
+            'desc': 'List of sigkeys IDs to use when requesting compose.'},
         'krb_auth_using_keytab': {
             'type': bool,
             'default': True,

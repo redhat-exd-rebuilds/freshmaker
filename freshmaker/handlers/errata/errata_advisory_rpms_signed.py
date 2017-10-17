@@ -206,7 +206,8 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
         if not conf.dry_run:
             with krb_context():
                 new_compose = odcs.new_compose(
-                    compose_source, 'tag', packages=packages)
+                    compose_source, 'tag', packages=packages,
+                    sigkeys=conf.odcs_sigkeys, flags=["no_deps"])
         else:
             new_compose = self._fake_odcs_new_compose(
                 compose_source, 'tag', packages=packages)
