@@ -90,7 +90,7 @@ class BaseConfiguration(object):
 
     SSL_ENABLED = False
 
-    # whitelist and blacklist for handlers to decide whether an artifact
+    # whitelist for handlers to decide whether an artifact
     # can be built.
     #
     # In format of:
@@ -100,25 +100,13 @@ class BaseConfiguration(object):
     # }
     #
     # Here is an example of allowing MBSModuleStateChangeHandler to build
-    # any module that module name matches 'base-.*' but not:
-    #   1. module name matches 'base-test-module'
-    # or:
-    #   2. module from branch 'rawhide'
+    # any module that module name matches 'base-.*' or branch rawhide
     #
     # HANDLER_BUILD_WHITELIST = {
     #     "MBSModuleStateChangeHandler": {
     #         "module": [
     #             {
     #                 'name': 'base-.*',
-    #             },
-    #         ],
-    #     },
-    # }
-    # HANDLER_BUILD_BLACKLIST = {
-    #     "MBSModuleStateChangeHandler": {
-    #         "module": [
-    #             {
-    #                 'name': 'base-test-module',
     #             },
     #             {
     #                 'branch': 'rawhide',

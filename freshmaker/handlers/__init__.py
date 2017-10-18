@@ -32,6 +32,7 @@ from freshmaker.models import ArtifactBuildState
 from freshmaker.types import ArtifactType
 from freshmaker.models import ArtifactBuild, Event
 from freshmaker.utils import krb_context, get_rebuilt_nvr
+from freshmaker.errors import UnprocessableEntity
 
 from freshmaker.odcsclient import ODCS
 from freshmaker.odcsclient import AuthMech
@@ -108,7 +109,7 @@ class BaseHandler(object):
     def allow_build(self, artifact_type, **kwargs):
         """
         Check whether the artifact is allowed to be built by checking
-        HANDLER_BUILD_WHITELIST and HANDLER_BUILD_BLACKLIST in config.
+        HANDLER_BUILD_WHITELIST in config.
 
         :param artifact_type: an enum member of ArtifactType.
         :param kwargs: dictionary of arguments to check against
@@ -116,21 +117,16 @@ class BaseHandler(object):
         """
         # If there is a whitelist specified for the (handler, artifact_type),
         # the build target of (name, branch) need to be in that whitelist first.
-        # After that (if the build target is in whitelist), check the build target
-        # is not in the specified blacklist.
 
         # by default we assume the artifact is in whitelist and not in blacklist
         in_whitelist = True
-        in_blacklist = False
 
         # Global rules
         whitelist_rules = conf.handler_build_whitelist.get("global", {})
-        blacklist_rules = conf.handler_build_blacklist.get("global", {})
 
         # This handler rules
         handler_name = self.name
         whitelist_rules.update(conf.handler_build_whitelist.get(handler_name, {}))
-        blacklist_rules.update(conf.handler_build_blacklist.get(handler_name, {}))
 
         def match_rule(kwargs, rule):
             for key, value in kwargs.items():
@@ -152,20 +148,15 @@ class BaseHandler(object):
                           kwargs, artifact_type.name.lower())
                 in_whitelist = False
 
-            # only need to check blacklist when it is in whitelist first
-            if in_whitelist:
-                blacklist = blacklist_rules.get(artifact_type.name.lower(), [])
-                if blacklist and any([match_rule(kwargs, rule) for rule in blacklist]):
-                    log.debug('%r, type=%r is blacklisted.',
-                              kwargs, artifact_type.name.lower())
-                    in_blacklist = True
-
         except re.error as exc:
-            log.error("Error while compiling blacklist/whilelist rule for <handler(%s) artifact(%s)>:\n"
-                      "Incorrect regular expression: %s\nBlacklist and Whitelist will not take effect",
-                      handler_name, artifact_type.name.lower(), str(exc))
-            return True
-        return in_whitelist and not in_blacklist
+            err_msg = ("Error while compiling whilelist rule "
+                       "for <handler(%s) artifact(%s)>:\n"
+                       "Incorrect regular expression: %s\n"
+                       "Whitelist will not take effect" %
+                       (handler_name, artifact_type.name.lower(), str(exc)))
+            log.error(err_msg)
+            raise UnprocessableEntity(err_msg)
+        return in_whitelist
 
 
 class ContainerBuildHandler(BaseHandler):
