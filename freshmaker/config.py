@@ -275,6 +275,10 @@ class Config(object):
             'type': str,
             'default': 'dogpile.cache.memory',
             'desc': 'Name of dogpile.cache backend to use.'},
+        'messaging_backends': {
+            'type': dict,
+            'default': {},
+            'desc': 'Configuration for each supported messaging backend.'},
     }
 
     def __init__(self, conf_section_obj):
@@ -358,6 +362,6 @@ class Config(object):
 
     def _setifok_messaging(self, s):
         s = str(s)
-        if s not in ("fedmsg", "amq", "in_memory"):
+        if s not in ("fedmsg", "amq", "in_memory", "rhmsg"):
             raise ValueError("Unsupported messaging system.")
         self._messaging = s

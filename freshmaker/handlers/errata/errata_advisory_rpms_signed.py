@@ -25,9 +25,8 @@
 import json
 import koji
 
-from freshmaker import conf
-from freshmaker import log
-from freshmaker import db
+from freshmaker import conf, db, log
+from freshmaker import messaging
 from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
 from freshmaker.events import ODCSComposeStateChangeEvent
 from freshmaker.handlers import BaseHandler
@@ -131,6 +130,8 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
         log.info("Following repositories will be used for the rebuild:")
         for url in repo_urls:
             log.info("   - %s", url)
+
+        messaging.publish('images.found', db_event.json())
 
         return []
 
