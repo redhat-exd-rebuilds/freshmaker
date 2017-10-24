@@ -14,6 +14,8 @@ Example usage:
         ./freshmaker-cli --redhat --stage --rebuilt-nvr NVR
     - Search for events which upated particular NVR:
         ./freshmaker-cli --redhat --stage --original-nvr NVR
+    - Search for events building particular artifact name
+        ./freshmaker-cli --redhat --stage --name httpd24-docker
 """
 
 from __future__ import print_function
@@ -63,7 +65,8 @@ def get_api_url(deployment, env):
     return envs[env]
 
 
-def get_events_from_builds(api_url, rebuilt_nvr=None, original_nvr=None):
+def get_events_from_builds(api_url, rebuilt_nvr=None, original_nvr=None,
+                           name=None):
     page = 1
     ids = []
     while True:
@@ -71,6 +74,10 @@ def get_events_from_builds(api_url, rebuilt_nvr=None, original_nvr=None):
         url = '%s/api/1/builds?page=%d' % (api_url, page)
         if rebuilt_nvr:
             url += "&rebuilt_nvr=" + rebuilt_nvr
+        if original_nvr:
+            url += "&original_nvr=" + original_nvr
+        if name:
+            url += "&name=" + name
 
         r = requests.get(url, verify=False)
         page += 1
@@ -85,9 +92,11 @@ def get_events_from_builds(api_url, rebuilt_nvr=None, original_nvr=None):
     return get_freshmaker_events_by_ids(api_url, ids)
 
 
-def get_freshmaker_events(api_url, search_key=None, rebuilt_nvr=None, original_nvr=None):
-    if rebuilt_nvr or original_nvr:
-        return get_events_from_builds(api_url, rebuilt_nvr, original_nvr)
+def get_freshmaker_events(api_url, search_key=None, rebuilt_nvr=None,
+                          original_nvr=None, name=None):
+    if rebuilt_nvr or original_nvr or name:
+        return get_events_from_builds(api_url, rebuilt_nvr, original_nvr,
+                                      name)
 
     page = 1
     events = []
@@ -170,6 +179,9 @@ parser.add_argument(
 parser.add_argument(
     '--original-nvr', default=None,
     help="NVR of original artifact to search for")
+parser.add_argument(
+    '--name', default=None,
+    help="Name of artifact to search for")
 args = parser.parse_args()
 
 if args.redhat:
@@ -194,7 +206,8 @@ if not api_url:
 if not args.events:
     events = get_freshmaker_events(api_url, search_key=args.search_key,
                                    rebuilt_nvr=args.rebuilt_nvr,
-                                   original_nvr=args.original_nvr)
+                                   original_nvr=args.original_nvr,
+                                   name=args.name)
     print_events(events)
 else:
     events = get_freshmaker_events_by_ids(api_url, args.events)
