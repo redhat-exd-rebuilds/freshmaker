@@ -27,7 +27,6 @@ BuildRequires:    python2-pdc-client
 BuildRequires:    python-enum34
 BuildRequires:    python-flask-script
 BuildRequires:    python-httplib2
-BuildRequires:    python-m2ext
 BuildRequires:    python-munch
 
 %if 0%{?rhel} && 0%{?rhel} <= 7
@@ -72,7 +71,6 @@ Requires:    python2-pdc-client
 Requires:    python-enum34
 Requires:    python-flask-script
 Requires:    python-httplib2
-Requires:    python-m2ext
 Requires:    python-munch
 
 %if 0%{?rhel} && 0%{?rhel} <= 7
