@@ -111,9 +111,10 @@ def get_freshmaker_events(api_url, search_key=None, rebuilt_nvr=None,
         ret = r.json()
         items = ret["items"]
         if not items:
-            return events
+            break
         events += items
 
+    events = sorted(events, key=lambda k: k['id'])
     return events
 
 
@@ -125,8 +126,12 @@ def get_freshmaker_events_by_ids(api_url, ids):
 
         r = requests.get(url, verify=False)
         ret = r.json()
-        events += [ret]
+        if not "error" in ret:
+            events += [ret]
+        else:
+            print(ret["error"])
 
+    events = sorted(events, key=lambda k: k['id'])
     return events
 
 
