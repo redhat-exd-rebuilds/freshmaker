@@ -630,7 +630,8 @@ class TestPrepareYumRepo(unittest.TestCase):
 
         # Ensure new_compose is called to request a new compose
         ODCS.return_value.new_compose.assert_called_once_with(
-            'rhel-7.2-candidate', 'tag', packages=['httpd', 'httpd-debuginfo'])
+            'rhel-7.2-candidate', 'tag', packages=['httpd', 'httpd-debuginfo'],
+            sigkeys=[], flags=["no_deps"])
 
         # We should get the right repo URL eventually
         self.assertEqual(
