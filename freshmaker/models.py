@@ -25,6 +25,7 @@
 """
 
 import flask
+import json
 
 from datetime import datetime
 from sqlalchemy.orm import (validates, relationship)
@@ -325,6 +326,10 @@ class ArtifactBuild(FreshmakerBase):
             ArtifactBuildState(self.state).name, self.event.message_id)
 
     def json(self):
+        build_args = {}
+        if self.build_args:
+            build_args = json.loads(self.build_args)
+
         with app.app_context():
             build_url = flask.url_for('build', id=self.id)
             db.session.add(self)
@@ -344,6 +349,7 @@ class ArtifactBuild(FreshmakerBase):
                 "event_id": self.event_id,
                 "build_id": self.build_id,
                 "url": build_url,
+                "build_args": build_args,
             }
 
     def get_root_dep_on(self):
