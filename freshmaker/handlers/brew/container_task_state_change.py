@@ -23,7 +23,8 @@ from freshmaker import log
 from freshmaker import db
 from freshmaker.events import BrewContainerTaskStateChangeEvent
 from freshmaker.models import ArtifactBuild
-from freshmaker.handlers import ContainerBuildHandler
+from freshmaker.handlers import (
+    ContainerBuildHandler, fail_event_on_handler_exception)
 from freshmaker.types import ArtifactType, ArtifactBuildState
 
 
@@ -35,6 +36,7 @@ class BrewContainerTaskStateChangeHandler(ContainerBuildHandler):
     def can_handle(self, event):
         return isinstance(event, BrewContainerTaskStateChangeEvent)
 
+    @fail_event_on_handler_exception
     def handle(self, event):
         """
         When build container task state changed in brew, update build state in db and
@@ -47,6 +49,7 @@ class BrewContainerTaskStateChangeHandler(ContainerBuildHandler):
         found_build = db.session.query(ArtifactBuild).filter_by(type=ArtifactType.IMAGE.value,
                                                                 build_id=build_id).first()
         if found_build is not None:
+            self.set_context(found_build)
             # update build state in db
             if event.new_state == 'CLOSED':
                 found_build.transition(
@@ -64,6 +67,7 @@ class BrewContainerTaskStateChangeHandler(ContainerBuildHandler):
                                                                            state=ArtifactBuildState.PLANNED.value,
                                                                            dep_on=found_build).all()
                 for build in planned_builds:
+                    self.set_context(build)
                     repo_urls = self.get_repo_urls(found_build.event, build)
                     log.info("Build %r depends on build %r" % (build, found_build))
                     build.build_id = self.build_image_artifact_build(build, repo_urls)

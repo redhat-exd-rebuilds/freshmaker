@@ -33,7 +33,7 @@ from freshmaker.handlers import ContainerBuildHandler
 from freshmaker.models import ArtifactBuild
 from freshmaker.models import ArtifactBuildState
 from freshmaker.models import Event
-from freshmaker.errors import UnprocessableEntity
+from freshmaker.errors import UnprocessableEntity, ProgrammingError
 from freshmaker.types import ArtifactType
 
 
@@ -97,6 +97,47 @@ class TestKrbContextPreparedForBuildContainer(TestCase):
         )
 
 
+class TestContext(TestCase):
+    """Test setting context of handler"""
+
+    def setUp(self):
+        db.session.remove()
+        db.drop_all()
+        db.create_all()
+        db.session.commit()
+
+    def tearDown(self):
+        db.session.remove()
+        db.drop_all()
+        db.session.commit()
+
+    def test_context_event(self):
+        db_event = Event.get_or_create(
+            db.session, "msg1", "current_event", ErrataAdvisoryRPMsSignedEvent)
+        db.session.commit()
+        handler = MyHandler()
+        handler.set_context(db_event)
+
+        self.assertEqual(handler.current_db_event_id, db_event.id)
+        self.assertEqual(handler.current_db_artifact_build_id, None)
+
+    def test_context_artifact_build(self):
+        db_event = Event.get_or_create(
+            db.session, "msg1", "current_event", ErrataAdvisoryRPMsSignedEvent)
+        build = ArtifactBuild.create(db.session, db_event, "parent1-1-4",
+                                     "image")
+        db.session.commit()
+        handler = MyHandler()
+        handler.set_context(build)
+
+        self.assertEqual(handler.current_db_event_id, db_event.id)
+        self.assertEqual(handler.current_db_artifact_build_id, build.id)
+
+    def test_context_unknown(self):
+        handler = MyHandler()
+        self.assertRaises(ProgrammingError, handler.set_context, "something")
+
+
 class AnyStringWith(str):
     def __eq__(self, other):
         return self in other
@@ -126,11 +167,14 @@ class TestBuildFirstBatch(TestCase):
             db.session, "msg1", "current_event", ErrataAdvisoryRPMsSignedEvent,
             released=False)
         self.db_event.compose_id = 3
+
         p1 = ArtifactBuild.create(db.session, self.db_event, "parent1-1-4",
                                   "image",
                                   state=ArtifactBuildState.PLANNED.value,
                                   original_nvr="parent1-1-4")
         p1.build_args = build_args
+        self.p1 = p1
+
         b = ArtifactBuild.create(db.session, self.db_event,
                                  "parent1_child1", "image",
                                  state=ArtifactBuildState.PLANNED.value,
@@ -258,3 +302,39 @@ class TestBuildFirstBatch(TestCase):
             handler.allow_build(ArtifactType.IMAGE,
                                 name=container["name"],
                                 branch=container["branch"])
+
+    @patch('freshmaker.handlers.ODCS')
+    @patch('koji.ClientSession')
+    @patch('freshmaker.utils.krbContext')
+    def test_build_first_batch_exception(self, krb, ClientSession, ODCS):
+        """
+        Tests that only PLANNED images without a parent are submitted to
+        build system.
+        """
+
+        def _fake_get_compose(compose_id):
+            return {
+                "id": compose_id,
+                "result_repo": "http://localhost/composes/latest-odcs-%d-1/compose/Temporary" % compose_id,
+                "result_repofile": "http://localhost/composes/latest-odcs-%d-1/compose/Temporary/odcs-%s.repo" % (compose_id, compose_id),
+                "source": "f26",
+                "source_type": 1,
+                "state": 2,
+                "state_name": "done",
+            }
+
+        ODCS.return_value.get_compose = _fake_get_compose
+
+        def mock_buildContainer(*args, **kwargs):
+            raise ValueError("Expected exception")
+
+        mock_session = ClientSession.return_value
+        mock_session.buildContainer.side_effect = mock_buildContainer
+
+        handler = MyHandler()
+        self.assertRaises(ValueError, handler._build_first_batch, self.db_event)
+
+        db.session.refresh(self.p1)
+        self.assertEqual(self.p1.state, ArtifactBuildState.FAILED.value)
+        self.assertTrue(self.p1.state_reason.startswith(
+            "Handling of build failed with traceback"))

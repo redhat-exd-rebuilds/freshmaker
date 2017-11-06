@@ -25,6 +25,10 @@ import unittest
 import freshmaker
 
 from freshmaker.events import BrewSignRPMEvent
+from freshmaker.models import Event, ArtifactBuild
+from freshmaker import db
+from freshmaker.types import ArtifactBuildState
+from freshmaker.handlers import fail_event_on_handler_exception
 
 
 class ConsumerBaseTest(unittest.TestCase):
@@ -35,8 +39,33 @@ class ConsumerBaseTest(unittest.TestCase):
         hub.config['freshmakerconsumer'] = True
         return freshmaker.consumer.FreshmakerConsumer(hub)
 
+    def _module_state_change_msg(self, state=None):
+        msg = {'body': {
+            "msg_id": "2017-7afcb214-cf82-4130-92d2-22f45cf59cf7",
+            "topic": "org.fedoraproject.prod.mbs.module.state.change",
+            "signature": "qRZ6oXBpKD/q8BTjBNa4MREkAPxT+KzI8Oret+TSKazGq/6gk0uuprdFpkfBXLR5dd4XDoh3NQWp\nyC74VYTDVqJR7IsEaqHtrv01x1qoguU/IRWnzrkGwqXm+Es4W0QZjHisBIRRZ4ywYBG+DtWuskvy\n6/5Mc3dXaUBcm5TnT0c=\n",
+            "msg": {
+                "state": 5,
+                "id": 70,
+                "state_name": state or "ready"
+            }
+        }}
+
+        return msg
+
 
 class ConsumerTest(ConsumerBaseTest):
+
+    def setUp(self):
+        db.session.remove()
+        db.drop_all()
+        db.create_all()
+        db.session.commit()
+
+    def tearDown(self):
+        db.session.remove()
+        db.drop_all()
+        db.session.commit()
 
     @mock.patch("freshmaker.handlers.mbs.module_state_change.MBSModuleStateChangeHandler.handle")
     @mock.patch("freshmaker.consumer.get_global_consumer")
@@ -48,19 +77,9 @@ class ConsumerTest(ConsumerBaseTest):
         """
         consumer = self._create_consumer()
         global_consumer.return_value = consumer
-
-        msg = {'body': {
-            "msg_id": "2017-7afcb214-cf82-4130-92d2-22f45cf59cf7",
-            "topic": "org.fedoraproject.prod.mbs.module.state.change",
-            "signature": "qRZ6oXBpKD/q8BTjBNa4MREkAPxT+KzI8Oret+TSKazGq/6gk0uuprdFpkfBXLR5dd4XDoh3NQWp\nyC74VYTDVqJR7IsEaqHtrv01x1qoguU/IRWnzrkGwqXm+Es4W0QZjHisBIRRZ4ywYBG+DtWuskvy\n6/5Mc3dXaUBcm5TnT0c=\n",
-            "msg": {
-                "state": 5,
-                "id": 70,
-                "state_name": "ready"
-            }
-        }}
-
         handle.return_value = [freshmaker.events.TestingEvent("ModuleBuilt handled")]
+
+        msg = self._module_state_change_msg()
         consumer.consume(msg)
 
         event = consumer.incoming.get()
@@ -77,6 +96,36 @@ class ConsumerTest(ConsumerBaseTest):
         callback = consumer._consume_json if consumer.jsonify else consumer.consume
         for topic in topics:
             self.assertIn(mock.call(topic, callback), consumer.hub.subscribe.call_args_list)
+
+    @mock.patch("freshmaker.handlers.mbs.module_state_change.MBSModuleStateChangeHandler.handle",
+                autospec=True)
+    @mock.patch("freshmaker.consumer.get_global_consumer")
+    def test_consumer_mark_event_as_failed_on_exception(
+            self, global_consumer, handle):
+        """
+        Tests that Consumer.consume marks the DB Event as failed in case there
+        is an error in a handler.
+        """
+        consumer = self._create_consumer()
+        global_consumer.return_value = consumer
+
+        @fail_event_on_handler_exception
+        def mocked_handle(cls, msg):
+            event = Event.get_or_create(db.session, "msg_id", "msg_id", 0)
+            ArtifactBuild.create(db.session, event, "foo", 0)
+            db.session.commit()
+            cls.set_context(event)
+            raise ValueError("Expected exception")
+
+        handle.side_effect = mocked_handle
+
+        msg = self._module_state_change_msg()
+        consumer.consume(msg)
+
+        db_event = Event.get(db.session, "msg_id")
+        for build in db_event.builds:
+            self.assertEqual(build.state, ArtifactBuildState.FAILED.value)
+            self.assertTrue(build.state_reason, "Failed with traceback")
 
 
 class ParseBrewSignRPMEventTest(ConsumerBaseTest):
