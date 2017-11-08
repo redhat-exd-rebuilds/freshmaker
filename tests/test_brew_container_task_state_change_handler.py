@@ -64,7 +64,8 @@ class TestBrewContainerTaskStateChangeHandler(helpers.FreshmakerTestCase):
 
     @mock.patch('freshmaker.handlers.ContainerBuildHandler.build_image_artifact_build')
     @mock.patch('freshmaker.handlers.ContainerBuildHandler.get_repo_urls')
-    def test_build_containers_when_dependency_container_is_built(self, repo_urls, build_image):
+    @mock.patch('freshmaker.handlers.ContainerBuildHandler.set_context')
+    def test_build_containers_when_dependency_container_is_built(self, set_context, repo_urls, build_image):
         """
         Tests when dependency container is built, rebuild containers depend on it.
         """
@@ -88,6 +89,9 @@ class TestBrewContainerTaskStateChangeHandler(helpers.FreshmakerTestCase):
             mock.call(build_0, ['url']), mock.call(build_1, ['url']),
             mock.call(build_2, ['url']),
         ])
+
+        set_context.assert_has_calls([
+            mock.call(build_0), mock.call(build_1), mock.call(build_2)])
 
         self.assertEqual(build_0.build_id, 1)
         self.assertEqual(build_1.build_id, 2)

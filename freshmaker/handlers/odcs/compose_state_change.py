@@ -23,7 +23,8 @@
 
 from freshmaker import db
 from freshmaker.models import Event
-from freshmaker.handlers import ContainerBuildHandler
+from freshmaker.handlers import (
+    ContainerBuildHandler, fail_event_on_handler_exception)
 from freshmaker.events import ODCSComposeStateChangeEvent
 
 from odcs.common.types import COMPOSE_STATES
@@ -39,8 +40,10 @@ class ComposeStateChangeHandler(ContainerBuildHandler):
             return False
         return event.compose['state'] == COMPOSE_STATES['done']
 
+    @fail_event_on_handler_exception
     def handle(self, event):
         errata_signed_events = db.session.query(Event).filter(
             Event.compose_id == event.compose['id']).all()
-        for event in errata_signed_events:
-            self._build_first_batch(event)
+        for db_event in errata_signed_events:
+            self.set_context(db_event)
+            self._build_first_batch(db_event)

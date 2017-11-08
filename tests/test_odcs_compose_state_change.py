@@ -71,7 +71,8 @@ class TestComposeStateChangeHandler(unittest.TestCase):
         self.assertFalse(can_handle)
 
     @patch('freshmaker.handlers.ContainerBuildHandler._build_first_batch')
-    def test_start_to_build(self, build_first_batch):
+    @patch('freshmaker.handlers.ContainerBuildHandler.set_context')
+    def test_start_to_build(self, set_context, build_first_batch):
         event = ODCSComposeStateChangeEvent(
             'msg-id', {'id': 1, 'state': 'done'}
         )
@@ -80,4 +81,9 @@ class TestComposeStateChangeHandler(unittest.TestCase):
         build_first_batch.assert_has_calls([
             call(self.adv_signed_event1),
             call(self.adv_signed_event2),
+        ])
+
+        set_context.assert_has_calls([
+            call(self.adv_signed_event1),
+            call(self.adv_signed_event2)
         ])

@@ -23,7 +23,7 @@ from freshmaker import db, conf, log
 from freshmaker.events import (
     ErrataAdvisoryStateChangedEvent, ErrataAdvisoryRPMsSignedEvent)
 from freshmaker.models import Event, EVENT_TYPES
-from freshmaker.handlers import BaseHandler
+from freshmaker.handlers import BaseHandler, fail_event_on_handler_exception
 from freshmaker.errata import Errata
 
 
@@ -43,6 +43,7 @@ class ErrataAdvisoryStateChangedHandler(BaseHandler):
     def can_handle(self, event):
         return isinstance(event, ErrataAdvisoryStateChangedEvent)
 
+    @fail_event_on_handler_exception
     def mark_as_released(self, errata_id):
         """
         Marks the Errata advisory with `errata_id` ID as "released", so it
@@ -56,6 +57,8 @@ class ErrataAdvisoryStateChangedHandler(BaseHandler):
             log.debug("Ignoring Errata advisory %d - it does not exist in "
                       "Freshmaker db.", errata_id)
             return []
+
+        self.set_context(db_event)
 
         db_event.released = True
         db.session.commit()

@@ -29,7 +29,7 @@ from freshmaker import conf, db, log
 from freshmaker import messaging
 from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
 from freshmaker.events import ODCSComposeStateChangeEvent
-from freshmaker.handlers import BaseHandler
+from freshmaker.handlers import BaseHandler, fail_event_on_handler_exception
 from freshmaker.kojiservice import koji_service
 from freshmaker.lightblue import LightBlue
 from freshmaker.pulp import Pulp
@@ -58,6 +58,7 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
     def can_handle(self, event):
         return isinstance(event, ErrataAdvisoryRPMsSignedEvent)
 
+    @fail_event_on_handler_exception
     def handle(self, event):
         """
         Rebuilds all Docker images which contain packages from the Errata
@@ -77,6 +78,7 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
             db.session, event.msg_id, event.search_key, event.__class__,
             released=False)
         db.session.commit()
+        self.set_context(db_event)
 
         # Get and record all images to rebuild based on the current
         # ErrataAdvisoryRPMsSignedEvent event.

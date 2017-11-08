@@ -24,6 +24,7 @@
 import abc
 import json
 import re
+from functools import wraps
 
 from freshmaker import conf, log, db, models
 from freshmaker.kojiservice import koji_service, parse_NVR
@@ -32,11 +33,77 @@ from freshmaker.models import ArtifactBuildState
 from freshmaker.types import ArtifactType
 from freshmaker.models import ArtifactBuild, Event
 from freshmaker.utils import krb_context, get_rebuilt_nvr
-from freshmaker.errors import UnprocessableEntity
+from freshmaker.errors import UnprocessableEntity, ProgrammingError
 
 from freshmaker.odcsclient import ODCS
 from freshmaker.odcsclient import AuthMech
 from freshmaker.odcsclient import COMPOSE_STATES
+
+
+def fail_event_on_handler_exception(func):
+    """
+    Decorator which marks the models.Event associated with handler by
+    BaseHandler.set_context() as FAILED in case the `func` raises an
+    exception.
+
+    The exception is re-raised by this decorator once its finished.
+    """
+    @wraps(func)
+    def decorator(handler, *args, **kwargs):
+        try:
+            return func(handler, *args, **kwargs)
+        except Exception as e:
+            err = 'Could not process message handler. See the traceback.'
+            log.exception(err)
+
+            # In case the exception interrupted the database transaction,
+            # rollback it.
+            db.session.rollback()
+
+            # Mark the event as failed.
+            db_event_id = handler.current_db_event_id
+            db_event = db.session.query(Event).filter_by(
+                id=db_event_id).first()
+            if db_event:
+                db_event.builds_transition(
+                    ArtifactBuildState.FAILED.value, "Handling of "
+                    "event failed with traceback: %s" % (str(e)))
+                db.session.commit()
+            raise
+    return decorator
+
+
+def fail_artifact_build_on_handler_exception(func):
+    """
+    Decorator which marks the models.ArtifactBuild associated with handler by
+    BaseHandler.set_context() as FAILED in case the `func` raises an
+    exception.
+
+    The exception is re-raised by this decorator once its finished.
+    """
+    @wraps(func)
+    def decorator(handler, *args, **kwargs):
+        try:
+            return func(handler, *args, **kwargs)
+        except Exception as e:
+            err = 'Could not process message handler. See the traceback.'
+            log.exception(err)
+
+            # In case the exception interrupted the database transaction,
+            # rollback it.
+            db.session.rollback()
+
+            # Mark the event as failed.
+            build_id = handler.current_db_artifact_build_id
+            build = db.session.query(ArtifactBuild).filter_by(
+                id=build_id).first()
+            if build:
+                build.transition(
+                    ArtifactBuildState.FAILED.value, "Handling of "
+                    "build failed with traceback: %s" % (str(e)))
+                db.session.commit()
+            raise
+    return decorator
 
 
 class BaseHandler(object):
@@ -44,6 +111,37 @@ class BaseHandler(object):
     Abstract base class for event handlers.
     """
     __metaclass__ = abc.ABCMeta
+
+    def __init__(self):
+        self._db_event_id = None
+        self._db_artifact_build_id = None
+
+    @property
+    def current_db_event_id(self):
+        return self._db_event_id
+
+    @property
+    def current_db_artifact_build_id(self):
+        return self._db_artifact_build_id
+
+    def set_context(self, db_object):
+        """
+        Sets the current context of a handler. This method accepts models.Event
+        or models.ArtifactBuild.
+
+        Whenever the handler handles particular event or artifact build, it
+        must set the context, so in case of a failure, the event or artifact
+        build can be marked as FAILED by a consumer class.
+        """
+        if type(db_object) == Event:
+            self._db_event_id = db_object.id
+            self._db_artifact_build_id = None
+        elif type(db_object) == ArtifactBuild:
+            self._db_event_id = db_object.event.id
+            self._db_artifact_build_id = db_object.id
+        else:
+            raise ProgrammingError(
+                "Unsupported context type passed to BaseHandler.set_context()")
 
     @abc.abstractmethod
     def can_handle(self, event):
@@ -190,6 +288,7 @@ class ContainerBuildHandler(BaseHandler):
                                            koji_parent_build=koji_parent_build,
                                            scratch=conf.koji_container_scratch_build)
 
+    @fail_artifact_build_on_handler_exception
     def build_image_artifact_build(self, build, repo_urls=[]):
         """
         Submits ArtifactBuild of 'image' type to Koji.
@@ -296,6 +395,7 @@ class ContainerBuildHandler(BaseHandler):
             dep_on=None).all()
 
         for build in builds:
+            self.set_context(build)
             repo_urls = self.get_repo_urls(db_event, build)
             build.build_id = self.build_image_artifact_build(build, repo_urls)
             if build.build_id:
@@ -308,3 +408,5 @@ class ContainerBuildHandler(BaseHandler):
                     "Error while building container image in Koji.")
             db.session.add(build)
             db.session.commit()
+
+        self.set_context(db_event)

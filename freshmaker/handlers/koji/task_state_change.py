@@ -21,7 +21,7 @@
 
 from freshmaker import log, db, models
 from freshmaker.types import ArtifactType, ArtifactBuildState
-from freshmaker.handlers import BaseHandler
+from freshmaker.handlers import BaseHandler, fail_event_on_handler_exception
 from freshmaker.events import KojiTaskStateChangeEvent
 
 
@@ -34,6 +34,7 @@ class KojiTaskStateChangeHandler(BaseHandler):
 
         return False
 
+    @fail_event_on_handler_exception
     def handle(self, event):
         task_id = event.task_id
         task_state = event.task_state
@@ -45,6 +46,7 @@ class KojiTaskStateChangeHandler(BaseHandler):
             raise RuntimeError("Found duplicate image build '%s' in db" % task_id)
         if len(builds) == 1:
             build = builds.pop()
+            self.set_context(build)
             if task_state in ['CLOSED', 'FAILED']:
                 log.info("Image build '%s' state changed in koji, updating it in db.", task_id)
             if task_state == 'CLOSED':

@@ -25,7 +25,7 @@ from freshmaker import log, conf, utils, db, models
 from freshmaker.types import ArtifactType, ArtifactBuildState
 from freshmaker.mbs import MBS
 from freshmaker.pdc import PDC
-from freshmaker.handlers import BaseHandler
+from freshmaker.handlers import BaseHandler, fail_event_on_handler_exception
 from freshmaker.events import MBSModuleStateChangeEvent
 
 
@@ -38,6 +38,7 @@ class MBSModuleStateChangeHandler(BaseHandler):
 
         return False
 
+    @fail_event_on_handler_exception
     def handle(self, event):
         """
         Update build state in db when module state changed in MBS and the
@@ -59,6 +60,7 @@ class MBSModuleStateChangeHandler(BaseHandler):
         if len(builds) == 1:
             # we can find this build in DB
             module_build = builds.pop()
+            self.set_context(module_build)
             if build_state in [MBS.BUILD_STATES['ready'], MBS.BUILD_STATES['failed']]:
                 log.info("Module build '%s' state changed in MBS, updating it in db.", build_id)
             if build_state == MBS.BUILD_STATES['ready']:

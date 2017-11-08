@@ -147,8 +147,8 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
             try:
                 further_work = handler.handle(msg) or []
             except Exception:
-                msg = 'Could not process message handler. See the traceback.'
-                log.exception(msg)
+                err = 'Could not process message handler. See the traceback.'
+                log.exception(err)
 
             log.debug("Done with %s" % idx)
 
