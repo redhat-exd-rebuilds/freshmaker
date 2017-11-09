@@ -678,7 +678,7 @@ class LightBlue(object):
                                                      parent_build_layers_count)
 
                     children_image_layers_count = parent_build_layers_count + 1
-                    if parent is None and children_image_layers_count > 2:
+                    if parent is None and children_image_layers_count != 2:
                         err = "Cannot find parent of image %s with layer %s " \
                             "and layer count %d in Lightblue, Lightblue data " \
                             "is probably incomplete" % (
@@ -783,7 +783,7 @@ class LightBlue(object):
                 if parent:
                     parent.resolve_content_sets(self)
                     parent.resolve_commit(srpm_name)
-                elif len(layers) > 2:
+                elif len(layers) != 2:
                     err = "Cannot find parent of image %s with layer %s " \
                           "and layer count %d in Lightblue, Lightblue data " \
                           "is probably incomplete" % (
