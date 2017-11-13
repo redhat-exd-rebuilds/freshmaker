@@ -23,6 +23,8 @@ import unittest
 import json
 import six
 
+from mock import patch
+
 from freshmaker import app, db, events, models
 from freshmaker.types import ArtifactType, ArtifactBuildState
 
@@ -250,6 +252,32 @@ class TestViews(unittest.TestCase):
         self.assertEqual(data['status'], 404)
         self.assertEqual(data['error'], 'Not Found')
         self.assertEqual(data['message'], 'No such build state found.')
+
+
+class TestManualTriggerRebuild(unittest.TestCase):
+    def setUp(self):
+        db.session.remove()
+        db.drop_all()
+        db.create_all()
+        db.session.commit()
+
+        self.client = app.test_client()
+
+    def tearDown(self):
+
+        db.session.remove()
+        db.drop_all()
+        db.session.commit()
+
+    @patch('freshmaker.messaging.publish')
+    def test_manual_rebuild(self, publish):
+        resp = self.client.post('/api/1/builds/',
+                                data=json.dumps({'errata_id': 1}),
+                                content_type='application/json')
+        data = json.loads(resp.data.decode('utf-8'))
+
+        self.assertEqual(data["errata_id"], 1)
+        publish.assert_called_once_with('manual.rebuild', {u'errata_id': 1})
 
 
 if __name__ == '__main__':

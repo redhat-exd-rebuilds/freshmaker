@@ -127,8 +127,14 @@ class Event(FreshmakerBase):
         default=None,
         doc='Used to include new version packages to rebuild docker images')
 
+    manual_triggered = db.Column(
+        db.Boolean,
+        default=False,
+        doc='Whether this event is triggered manually')
+
     @classmethod
-    def create(cls, session, message_id, search_key, event_type, released=True):
+    def create(cls, session, message_id, search_key, event_type,
+               released=True, manual=False):
         if event_type in EVENT_TYPES:
             event_type = EVENT_TYPES[event_type]
         event = cls(
@@ -136,6 +142,7 @@ class Event(FreshmakerBase):
             search_key=search_key,
             event_type_id=event_type,
             released=released,
+            manual_triggered=manual,
         )
         session.add(event)
         return event
@@ -145,11 +152,13 @@ class Event(FreshmakerBase):
         return session.query(cls).filter_by(message_id=message_id).first()
 
     @classmethod
-    def get_or_create(cls, session, message_id, search_key, event_type, released=True):
+    def get_or_create(cls, session, message_id, search_key, event_type,
+                      released=True, manual=False):
         instance = cls.get(session, message_id)
         if instance:
             return instance
-        return cls.create(session, message_id, search_key, event_type, released)
+        return cls.create(session, message_id, search_key, event_type,
+                          released=released, manual=manual)
 
     @classmethod
     def get_unreleased(cls, session):

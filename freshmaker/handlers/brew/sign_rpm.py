@@ -21,7 +21,6 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
-from freshmaker import conf
 from freshmaker import log
 from freshmaker import db
 from freshmaker.events import BrewSignRPMEvent, ErrataAdvisoryRPMsSignedEvent
@@ -68,7 +67,7 @@ class BrewSignRPMHandler(BaseHandler):
 
         # When get a signed RPM, first step is to find out advisories
         # containing that RPM and ensure all builds are signed.
-        errata = Errata(conf.errata_tool_server_url)
+        errata = Errata()
         advisories = errata.advisories_from_event(event)
 
         # Filter out advisories which are not allowed by configuration.

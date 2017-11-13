@@ -18,53 +18,28 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+#
+# Written by Jan Kaluza <jkaluza@redhat.com>
 
 from freshmaker import db, log
-from freshmaker.events import (
-    ErrataAdvisoryStateChangedEvent, ErrataAdvisoryRPMsSignedEvent)
 from freshmaker.models import Event, EVENT_TYPES
-from freshmaker.handlers import BaseHandler, fail_event_on_handler_exception
+from freshmaker.handlers import ContainerBuildHandler
+from freshmaker.events import (
+    FreshmakerManualRebuildEvent, ErrataAdvisoryRPMsSignedEvent)
 from freshmaker.errata import Errata
 
+__all__ = ('FreshmakerManualRebuildHandler',)
 
-class ErrataAdvisoryStateChangedHandler(BaseHandler):
-    """Mark Errata advisory as released
 
-    When an advisory state is changed to SHIPPED_LIVE, mark it as released in
-    associated event object of ``ErrataAdvisoryStateChangedHandler``.
-
-    This is used to avoiding generating YUM repository to include RPMs
-    inlcuded in a SHIPPED_LIVE advisory, because at that state, RPMs will be
-    available in official YUM repositories.
-    """
-
-    name = 'ErrataAdvisoryStateChangedHandler'
+class FreshmakerManualRebuildHandler(ContainerBuildHandler):
+    """Start image rebuild with this compose containing included packages"""
 
     def can_handle(self, event):
-        return isinstance(event, ErrataAdvisoryStateChangedEvent)
+        if not isinstance(event, FreshmakerManualRebuildEvent):
+            return False
+        return True
 
-    @fail_event_on_handler_exception
-    def mark_as_released(self, errata_id):
-        """
-        Marks the Errata advisory with `errata_id` ID as "released", so it
-        is not included in further container images rebuilds.
-        """
-        # check db to see whether this advisory exists in db
-        db_event = db.session.query(Event).filter_by(
-            event_type_id=EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
-            search_key=str(errata_id)).first()
-        if not db_event:
-            log.debug("Ignoring Errata advisory %d - it does not exist in "
-                      "Freshmaker db.", errata_id)
-            return []
-
-        self.set_context(db_event)
-
-        db_event.released = True
-        db.session.commit()
-        log.info("Errata advisory %d is now marked as released", errata_id)
-
-    def rebuild_if_not_exists(self, event, errata_id):
+    def rebuild_advisory_if_not_exists(self, event, errata_id):
         """
         Initiates rebuild of artifacts based on Errata advisory with
         `errata_id` id.
@@ -77,7 +52,7 @@ class ErrataAdvisoryStateChangedHandler(BaseHandler):
             event_type_id=EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
             search_key=str(errata_id)).first()
         if db_event:
-            log.debug("Ignoring Errata advisory %d - it already exists in "
+            log.info("Ignoring Errata advisory %d - it already exists in "
                       "Freshmaker db.", errata_id)
             return []
 
@@ -89,24 +64,18 @@ class ErrataAdvisoryStateChangedHandler(BaseHandler):
             return []
 
         log.info("Generating ErrataAdvisoryRPMsSignedEvent for Errata "
-                 "advisory %d, because its state changed to %s.", errata_id,
-                 event.state)
+                 "advisory %d - manually triggered rebuild.", errata_id)
         advisory = advisories[0]
-        db_event = ErrataAdvisoryRPMsSignedEvent(
+        new_event = ErrataAdvisoryRPMsSignedEvent(
             event.msg_id + "." + str(advisory.name), advisory.name,
             advisory.errata_id, advisory.security_impact)
-        return [db_event]
+        new_event.manual = True
+        return [new_event]
 
     def handle(self, event):
-        errata_id = event.errata_id
-        state = event.state
-
         extra_events = []
 
-        if state in ["REL_PREP", "PUSH_READY", "IN_PUSH", "SHIPPED_LIVE"]:
-            extra_events += self.rebuild_if_not_exists(event, errata_id)
-
-        if state == "SHIPPED_LIVE":
-            self.mark_as_released(errata_id)
+        if event.errata_id:
+            extra_events += self.rebuild_advisory_if_not_exists(event, event.errata_id)
 
         return extra_events

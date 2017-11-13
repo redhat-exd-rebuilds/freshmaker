@@ -127,6 +127,10 @@ class Config(object):
             'type': str,
             'default': 'fedmsg',
             'desc': 'The messaging system to use.'},
+        'messaging_sender': {
+            'type': str,
+            'default': 'fedmsg',
+            'desc': 'The messaging system to use for sending msgs.'},
         'messaging_topic_prefix': {
             'type': list,
             'default': ['org.fedoraproject.prod'],
@@ -365,3 +369,9 @@ class Config(object):
         if s not in ("fedmsg", "amq", "in_memory", "rhmsg"):
             raise ValueError("Unsupported messaging system.")
         self._messaging = s
+
+    def _setifok_messaging_sender(self, s):
+        s = str(s)
+        if s not in ("fedmsg", "amq", "in_memory", "rhmsg"):
+            raise ValueError("Unsupported messaging system.")
+        self._messaging_sender = s

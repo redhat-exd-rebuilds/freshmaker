@@ -107,7 +107,7 @@ def load_openidc_user(request):
 
     token = request.environ.get('OIDC_access_token')
     if not token:
-        raise Unauthorized('Missing token passed to ODCS.')
+        raise Unauthorized('Missing token passed to Freshmaker.')
 
     scope = request.environ.get('OIDC_CLAIM_scope')
     if not scope:
@@ -184,7 +184,7 @@ def init_auth(login_manager, backend):
     if backend == 'noauth':
         # Do not enable any authentication backend working with frontend
         # authentication module in Apache.
-        log.warn("Authorization is disabled in ODCS configuration.")
+        log.warn("Authorization is disabled in Freshmaker configuration.")
         return
     if backend == 'kerberos':
         _validate_kerberos_config()

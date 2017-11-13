@@ -204,6 +204,8 @@ class TestAllowBuild(unittest.TestCase):
         """
 
         handler = ErrataAdvisoryRPMsSignedHandler()
+        handler.event = ErrataAdvisoryRPMsSignedEvent(
+            "123", "RHSA-2017", 123, "None")
 
         image = {"brew": {"build": "foo-1-2.3"}}
         ret = handler._filter_out_not_allowed_builds(image)
@@ -239,6 +241,8 @@ class TestAllowBuild(unittest.TestCase):
         """
 
         handler = ErrataAdvisoryRPMsSignedHandler()
+        handler.event = ErrataAdvisoryRPMsSignedEvent(
+            "123", "RHSA-2017", 123, "None")
 
         image = {"brew": {"build": "foo-1-2.3"}}
         ret = handler._filter_out_not_allowed_builds(image)

@@ -52,23 +52,23 @@ class TestSelectMessagingBackend(unittest.TestCase):
         }
         with patch.dict('freshmaker.messaging._messaging_backends',
                         mock_messaging_backends):
-            with patch.object(conf, 'messaging', new='fedmsg'):
+            with patch.object(conf, 'messaging_sender', new='fedmsg'):
                 publish('images.ready', fake_msg)
                 _fedmsg_publish.assert_called_once_with(
                     'images.ready', fake_msg)
 
-            with patch.object(conf, 'messaging', new='rhmsg'):
+            with patch.object(conf, 'messaging_sender', new='rhmsg'):
                 publish('images.ready', fake_msg)
                 _rhmsg_publish.assert_called_once_with(
                     'images.ready', fake_msg)
 
-            with patch.object(conf, 'messaging', new='in_memory'):
+            with patch.object(conf, 'messaging_sender', new='in_memory'):
                 publish('images.ready', fake_msg)
                 _in_memory_publish.assert_called_once_with(
                     'images.ready', fake_msg)
 
     def test_raise_error_if_backend_not_exists(self):
-        messaging_patcher = patch.object(conf, 'messaging', new='XXXX')
+        messaging_patcher = patch.object(conf, 'messaging_sender', new='XXXX')
         six.assertRaisesRegex(
             self, ValueError, 'Unsupported messaging system',
             messaging_patcher.start)
@@ -77,7 +77,7 @@ class TestSelectMessagingBackend(unittest.TestCase):
 class TestPublishToFedmsg(unittest.TestCase):
     """Test publish message to fedmsg using _fedmsg_publish backend"""
 
-    @patch.object(conf, 'messaging', new='fedmsg')
+    @patch.object(conf, 'messaging_sender', new='fedmsg')
     @patch.object(conf, 'messaging_backends',
                   new={'fedmsg': {'SERVICE': 'freshmaker'}})
     @patch('fedmsg.publish')
@@ -94,7 +94,7 @@ class TestPublishToFedmsg(unittest.TestCase):
 class TestPublishToRhmsg(unittest.TestCase):
     """Test publish message to UMB using _rhmsg_publish backend"""
 
-    @patch.object(conf, 'messaging', new='rhmsg')
+    @patch.object(conf, 'messaging_sender', new='rhmsg')
     @patch('rhmsg.activemq.producer.AMQProducer')
     @patch('proton.Message')
     def test_publish(self, Message, AMQProducer):

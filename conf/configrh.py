@@ -56,6 +56,11 @@ class BaseConfiguration(config.BaseConfiguration):
     PULP_USERNAME = ''
     PULP_PASSWORD = ''
 
+    AUTH_BACKEND = 'kerberos'
+    # Replace with real ldap server URL
+    AUTH_LDAP_SERVER = ''
+    AUTH_LDAP_GROUP_BASE = 'ou=groups,dc=redhat,dc=com'
+
 
 class DevConfiguration(BaseConfiguration):
     DEBUG = True

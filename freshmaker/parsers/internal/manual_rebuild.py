@@ -18,35 +18,23 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-#
-# Written by Petr Šabata <contyk@redhat.com>
-#            Matt Prahl <mprahl@redhat.com>
-#            Jan Kaluza <jkaluza@redhat.com>
 
-from logging import getLogger
+from freshmaker.parsers import BaseParser
+from freshmaker.events import FreshmakerManualRebuildEvent
 
-from flask import Flask
-from flask_login import LoginManager
-from flask_sqlalchemy import SQLAlchemy
 
-from freshmaker.logger import init_logging
-from freshmaker.config import init_config
-from freshmaker.proxy import ReverseProxy
+class FreshmakerManualRebuildParser(BaseParser):
+    """Parser parsing odcs.compose.state.change"""
 
-app = Flask(__name__)
-app.wsgi_app = ReverseProxy(app.wsgi_app)
+    name = "FreshmakerManualRebuildEvent"
+    topic_suffixes = ["freshmaker.manual.rebuild"]
 
-conf = init_config(app)
+    def can_parse(self, topic, msg):
+        return any([topic.endswith(s) for s in self.topic_suffixes])
 
-db = SQLAlchemy(app)
+    def parse(self, topic, msg):
+        msg_id = msg.get('msg_id')
+        inner_msg = msg.get('msg')
+        errata_id = inner_msg.get('errata_id')
 
-init_logging(conf)
-log = getLogger(__name__)
-
-login_manager = LoginManager()
-login_manager.init_app(app)
-
-from freshmaker.auth import init_auth  # noqa
-init_auth(login_manager, conf.auth_backend)
-
-from freshmaker import views  # noqa
+        return FreshmakerManualRebuildEvent(msg_id, errata_id=errata_id)

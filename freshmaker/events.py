@@ -35,12 +35,15 @@ class BaseEvent(object):
 
     _parsers = {}
 
-    def __init__(self, msg_id):
+    def __init__(self, msg_id, manual=False):
         """
         A base class to abstract events from different fedmsg messages.
         :param msg_id: the id of the msg (e.g. 2016-SomeGUID)
+        :param manual: True if the event was trigerred manually by Freshmaker
+            REST API.
         """
         self.msg_id = msg_id
+        self.manual = manual
 
         # Moksha calls `consumer.validate` on messages that it receives, and
         # even though we have validation turned off in the config there's still
@@ -310,5 +313,11 @@ class ODCSComposeStateChangeEvent(BaseEvent):
     """Represent a compose' state change event from ODCS"""
 
     def __init__(self, msg_id, compose):
-        self.msg_id = msg_id
+        super(ODCSComposeStateChangeEvent, self).__init__(msg_id)
         self.compose = compose
+
+
+class FreshmakerManualRebuildEvent(BaseEvent):
+    def __init__(self, msg_id, errata_id=None):
+        super(FreshmakerManualRebuildEvent, self).__init__(msg_id)
+        self.errata_id = errata_id

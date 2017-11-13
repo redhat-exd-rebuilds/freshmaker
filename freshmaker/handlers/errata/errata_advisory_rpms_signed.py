@@ -65,18 +65,21 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
         advisory.
         """
 
+        self.event = event
+
         # Check if we are allowed to build this advisory.
-        if not self.allow_build(
+        if not event.manual and not self.allow_build(
                 ArtifactType.IMAGE, advisory_name=event.errata_name,
                 advisory_security_impact=event.security_impact):
-            log.info("Errata advisory %s not allowed to trigger rebuilds.",
-                     event.errata_name)
+            msg = 'Errata advisory {0} not allowed to trigger ' \
+                  'rebuilds.'.format(event.errata_id)
+            log.info(msg)
             return []
 
         # Generate the Database representation of `event`.
         db_event = Event.get_or_create(
             db.session, event.msg_id, event.search_key, event.__class__,
-            released=False)
+            released=False, manual=event.manual)
         db.session.commit()
         self.set_context(db_event)
 
@@ -177,7 +180,7 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
         errata_id = int(db_event.search_key)
 
         packages = []
-        errata = Errata(conf.errata_tool_server_url)
+        errata = Errata()
         builds = errata.get_builds(errata_id)
         compose_source = None
         for nvr in builds:
@@ -495,7 +498,7 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
 
         image_name = koji.parse_NVR(image["brew"]["build"])['name']
 
-        if not self.allow_build(
+        if not self.event.manual and not self.allow_build(
                 ArtifactType.IMAGE, image_name=image_name):
             log.info("Skipping rebuild of image %s, not allowed by "
                      "configuration", image_name)
@@ -512,7 +515,7 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
 
         :param int errata_id: Errata ID.
         """
-        errata = Errata(conf.errata_tool_server_url)
+        errata = Errata()
         errata_id = int(errata_id)
 
         # Use the errata_id to find out Pulp repository IDs from Errata Tool

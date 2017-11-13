@@ -40,7 +40,7 @@ def publish(topic, msg):
     :return: the value returned from underlying backend "send" method.
     """
     try:
-        handler = _messaging_backends[conf.messaging]['publish']
+        handler = _messaging_backends[conf.messaging_sender]['publish']
     except KeyError:
         raise KeyError("No messaging backend found for %r" % conf.messaging)
     return handler(topic, msg)

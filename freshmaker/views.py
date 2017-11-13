@@ -32,6 +32,8 @@ from freshmaker.api_utils import pagination_metadata
 from freshmaker.api_utils import filter_artifact_builds
 from freshmaker.api_utils import filter_events
 from freshmaker.api_utils import json_error
+from freshmaker.auth import login_required, requires_role
+from freshmaker import messaging
 
 api_v1 = {
     'event_types': {
@@ -106,6 +108,12 @@ api_v1 = {
             'url': '/api/1/builds/<int:id>',
             'options': {
                 'methods': ['GET'],
+            }
+        },
+        'manual_trigger': {
+            'url': '/api/1/builds/',
+            'options': {
+                'methods': ['POST'],
             }
         },
     },
@@ -213,6 +221,18 @@ class BuildAPI(MethodView):
                 return jsonify(build.json()), 200
             else:
                 return json_error(404, "Not Found", "No such build found.")
+
+    @login_required
+    @requires_role('admins')
+    def post(self):
+        """Trigger image rebuild"""
+        data = request.get_json(force=True)
+        if 'errata_id' not in data:
+            return json_error(
+                400, 'Bad Request', 'Missing errata_id in request')
+
+        messaging.publish("manual.rebuild", data)
+        return jsonify(data), 200
 
 
 API_V1_MAPPING = {

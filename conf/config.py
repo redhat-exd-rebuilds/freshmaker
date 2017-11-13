@@ -21,7 +21,7 @@ class BaseConfiguration(object):
     HOST = '0.0.0.0'
     PORT = 5001
 
-    SERVER_NAME = 'localhost'
+    SERVER_NAME = 'localhost:5001'
 
     DEBUG = False
     # Global network-related values, in seconds
@@ -46,6 +46,7 @@ class BaseConfiguration(object):
 
     # Parsers defined for parse specific messages
     PARSERS = [
+        'freshmaker.parsers.internal:FreshmakerManualRebuildParser',
         'freshmaker.parsers.bodhi:BodhiUpdateCompleteStableParser',
         'freshmaker.parsers.git:GitReceiveParser',
         'freshmaker.parsers.koji:KojiTaskStateChangeParser',
@@ -54,6 +55,7 @@ class BaseConfiguration(object):
 
     # List of enabled composing handlers.
     HANDLERS = [
+        "freshmaker.handlers.internal:FreshmakerManualRebuildHandler",
         "freshmaker.handlers.bodhi:BodhiUpdateCompleteStableHandler",
         "freshmaker.handlers.git:GitDockerfileChangeHandler",
         "freshmaker.handlers.git:GitModuleMetadataChangeHandler",
@@ -243,6 +245,7 @@ class TestConfiguration(BaseConfiguration):
         os.path.join(dbdir, 'tests', 'test_freshmaker.db'))
 
     MESSAGING = 'in_memory'
+    MESSAGING_SENDER = 'in_memory'
     PDC_URL = 'http://pdc.fedoraproject.org/rest_api/v1'
 
     # Global network-related values, in seconds

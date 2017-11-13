@@ -25,7 +25,9 @@ import requests
 import dogpile.cache
 from requests_kerberos import HTTPKerberosAuth
 
-from freshmaker.events import BrewSignRPMEvent, ErrataAdvisoryStateChangedEvent
+from freshmaker.events import (
+    BrewSignRPMEvent, ErrataAdvisoryStateChangedEvent,
+    FreshmakerManualRebuildEvent)
 from freshmaker import conf, log
 
 
@@ -61,14 +63,17 @@ class Errata(object):
     product_region = dogpile.cache.make_region().configure(
         conf.dogpile_cache_backend, expiration_time=24 * 3600)
 
-    def __init__(self, server_url):
+    def __init__(self, server_url=None):
         """
         Initializes the Errata instance.
 
         :param str server_url: Base URL of Errata server.
         """
         self._rest_api_ver = 'api/v1'
-        self.server_url = server_url.rstrip('/')
+        if server_url is not None:
+            self.server_url = server_url.rstrip('/')
+        else:
+            self.server_url = conf.errata_tool_server_url.rstrip('/')
 
     def _errata_rest_get(self, endpoint):
         """Request REST-style API
@@ -91,6 +96,9 @@ class Errata(object):
                          auth=HTTPKerberosAuth())
         r.raise_for_status()
         return r.json()
+
+    def get_advisory(self, errata_id):
+        return self._errata_http_get('advisory/{0}.json'.format(errata_id))
 
     @region.cache_on_arguments()
     def _advisories_from_nvr(self, nvr):
@@ -127,9 +135,9 @@ class Errata(object):
         """
         if isinstance(event, BrewSignRPMEvent):
             return self._advisories_from_nvr(event.nvr)
-        elif isinstance(event, ErrataAdvisoryStateChangedEvent):
-            data = self._errata_http_get(
-                "advisory/%s.json" % str(event.errata_id))
+        elif (isinstance(event, ErrataAdvisoryStateChangedEvent) or
+              isinstance(event, FreshmakerManualRebuildEvent)):
+            data = self.get_advisory(event.errata_id)
             advisory = ErrataAdvisory(
                 data["id"], data["advisory_name"], data["status"],
                 data["security_impact"])
