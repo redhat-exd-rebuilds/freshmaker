@@ -34,7 +34,7 @@ from freshmaker.kojiservice import koji_service
 from freshmaker.lightblue import LightBlue
 from freshmaker.pulp import Pulp
 from freshmaker.errata import Errata
-from freshmaker.types import ArtifactType, ArtifactBuildState
+from freshmaker.types import ArtifactType, ArtifactBuildState, EventState
 from freshmaker.models import Event
 from freshmaker.consumer import work_queue_put
 from freshmaker.utils import krb_context, retry, get_rebuilt_nvr
@@ -90,8 +90,9 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
             builds = self._record_batches(batches, event, builds)
 
         if not builds:
-            log.info('No container images to rebuild for advisory %r',
-                     event.errata_name)
+            msg = 'No container images to rebuild for advisory %r' % event.errata_name
+            log.info(msg)
+            db_event.transition(EventState.SKIPPED, msg)
             return []
 
         # Generate the ODCS compose with RPMs from the current advisory.
@@ -136,9 +137,7 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
         for url in repo_urls:
             log.info("   - %s", url)
 
-        # TODO: Once https://pagure.io/freshmaker/issue/137 is fixed, this
-        # should be moved to models.Event.transition().
-        messaging.publish('event.state.changed', db_event.json())
+        db_event.transition(EventState.COMPLETE, "All docker images have been rebuilt.")
 
         return []
 

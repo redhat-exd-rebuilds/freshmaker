@@ -34,3 +34,15 @@ class ArtifactBuildState(Enum):
     FAILED = 2
     CANCELED = 3
     PLANNED = 4
+
+
+class EventState(Enum):
+    INITIALIZED = 0
+    # some artifacts has been found and under building
+    BUILDING = 1
+    # event is handled successfully
+    COMPLETE = 2
+    # error happens while handling the event
+    FAILED = 3
+    # no action to take upon the event
+    SKIPPED = 4
