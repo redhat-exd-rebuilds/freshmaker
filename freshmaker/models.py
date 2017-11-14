@@ -55,6 +55,19 @@ EVENT_TYPES = {
 INVERSE_EVENT_TYPES = {v: k for k, v in EVENT_TYPES.items()}
 
 
+def _utc_datetime_to_iso(datetime_object):
+    """
+    Takes a UTC datetime object and returns an ISO formatted string
+    :param datetime_object: datetime.datetime
+    :return: string with datetime in ISO format
+    """
+    if datetime_object:
+        # Converts the datetime to ISO 8601
+        return datetime_object.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    return None
+
+
 def commit_on_success(func):
     """
     Ensures db session is committed after a successful call to decorated
@@ -344,8 +357,8 @@ class ArtifactBuild(FreshmakerBase):
                 "state_name": ArtifactBuildState(self.state).name,
                 "state_reason": self.state_reason,
                 "dep_on": self.dep_on.name if self.dep_on else None,
-                "time_submitted": self.time_submitted,
-                "time_completed": self.time_completed,
+                "time_submitted": _utc_datetime_to_iso(self.time_submitted),
+                "time_completed": _utc_datetime_to_iso(self.time_completed),
                 "event_id": self.event_id,
                 "build_id": self.build_id,
                 "url": build_url,
