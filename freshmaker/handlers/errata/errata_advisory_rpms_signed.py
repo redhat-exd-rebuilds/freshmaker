@@ -136,7 +136,9 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
         for url in repo_urls:
             log.info("   - %s", url)
 
-        messaging.publish('images.found', db_event.json())
+        # TODO: Once https://pagure.io/freshmaker/issue/137 is fixed, this
+        # should be moved to models.Event.transition().
+        messaging.publish('event.state.changed', db_event.json())
 
         return []
 

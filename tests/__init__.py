@@ -23,6 +23,7 @@
 
 from os import path
 import json
+from freshmaker import app
 
 
 def get_fedmsg(name):
@@ -31,3 +32,16 @@ def get_fedmsg(name):
 
     with open(fedmsg_path, 'r') as f:
         return {'body': json.load(f)}
+
+
+# There is no Flask app-context in the tests and we need some,
+# because models.Event.json() and models.ArtifactBuild.json() uses
+# flask.url_for, which needs app_context to generate the URL.
+# We also cannot generate Flask context on the fly each time in the
+# mentioned json() calls, because each generation of Flask context
+# changes db.session and unfortunatelly does not give it to original
+# state which might be Flask bug, so the only safe way on backend is
+app_context = app.app_context()
+# We do not care about __exit__ in a tests, because the app_context is
+# just use during the whole test-suite run.
+app_context.__enter__()

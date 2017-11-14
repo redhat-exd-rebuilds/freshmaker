@@ -32,9 +32,27 @@ import tempfile
 import time
 import koji
 
-from freshmaker import conf
+from freshmaker import conf, app, log
 from freshmaker.types import ArtifactType
 from krbcontext import krbContext
+from flask import has_app_context, url_for
+
+
+def get_url_for(*args, **kwargs):
+    """
+    flask.url_for wrapper which creates the app_context on-the-fly.
+    """
+    if has_app_context():
+        return url_for(*args, **kwargs)
+
+    # Localhost is right URL only when the scheduler runs on the same
+    # system as the web views.
+    app.config['SERVER_NAME'] = 'localhost'
+    with app.app_context():
+        log.warn("get_url_for() has been called without the Flask "
+                 "app_context. That can lead to SQLAlchemy errors caused by "
+                 "multiple session being used in the same time.")
+        return url_for(*args, **kwargs)
 
 
 def get_rebuilt_nvr(artifact_type, nvr):

@@ -33,6 +33,8 @@ from sqlalchemy.orm import (validates, relationship)
 from flask_login import UserMixin
 
 from freshmaker import app, db, log
+from freshmaker import messaging
+from freshmaker.utils import get_url_for
 from freshmaker.types import ArtifactType, ArtifactBuildState
 from freshmaker.events import (
     MBSModuleStateChangeEvent, GitModuleMetadataChangeEvent,
@@ -210,21 +212,24 @@ class Event(FreshmakerBase):
         for build in self.builds:
             build.transition(state, reason)
 
+        # TODO: Once https://pagure.io/freshmaker/issue/137 is fixed, this
+        # should be moved to models.Event.transition().
+        messaging.publish('event.state.changed', self.json())
+
     def __repr__(self):
         return "<Event %s, %r, %s>" % (self.message_id, self.event_type, self.search_key)
 
     def json(self):
-        with app.app_context():
-            event_url = flask.url_for('event', id=self.id)
-            db.session.add(self)
-            return {
-                "id": self.id,
-                "message_id": self.message_id,
-                "search_key": self.search_key,
-                "event_type_id": self.event_type_id,
-                "url": event_url,
-                "builds": [b.json() for b in self.builds],
-            }
+        event_url = get_url_for('event', id=self.id)
+        db.session.add(self)
+        return {
+            "id": self.id,
+            "message_id": self.message_id,
+            "search_key": self.search_key,
+            "event_type_id": self.event_type_id,
+            "url": event_url,
+            "builds": [b.json() for b in self.builds],
+        }
 
 
 class EventDependency(FreshmakerBase):
@@ -342,6 +347,8 @@ class ArtifactBuild(FreshmakerBase):
                     self.state, "Cannot build artifact, because its "
                     "dependency cannot be built.")
 
+        messaging.publish('build.state.changed', self.json())
+
     def __repr__(self):
         return "<ArtifactBuild %s, type %s, state %s, event %s>" % (
             self.name, ArtifactType(self.type).name,
@@ -352,27 +359,26 @@ class ArtifactBuild(FreshmakerBase):
         if self.build_args:
             build_args = json.loads(self.build_args)
 
-        with app.app_context():
-            build_url = flask.url_for('build', id=self.id)
-            db.session.add(self)
-            return {
-                "id": self.id,
-                "name": self.name,
-                "original_nvr": self.original_nvr,
-                "rebuilt_nvr": self.rebuilt_nvr,
-                "type": self.type,
-                "type_name": ArtifactType(self.type).name,
-                "state": self.state,
-                "state_name": ArtifactBuildState(self.state).name,
-                "state_reason": self.state_reason,
-                "dep_on": self.dep_on.name if self.dep_on else None,
-                "time_submitted": _utc_datetime_to_iso(self.time_submitted),
-                "time_completed": _utc_datetime_to_iso(self.time_completed),
-                "event_id": self.event_id,
-                "build_id": self.build_id,
-                "url": build_url,
-                "build_args": build_args,
-            }
+        build_url = get_url_for('build', id=self.id)
+        db.session.add(self)
+        return {
+            "id": self.id,
+            "name": self.name,
+            "original_nvr": self.original_nvr,
+            "rebuilt_nvr": self.rebuilt_nvr,
+            "type": self.type,
+            "type_name": ArtifactType(self.type).name,
+            "state": self.state,
+            "state_name": ArtifactBuildState(self.state).name,
+            "state_reason": self.state_reason,
+            "dep_on": self.dep_on.name if self.dep_on else None,
+            "time_submitted": _utc_datetime_to_iso(self.time_submitted),
+            "time_completed": _utc_datetime_to_iso(self.time_completed),
+            "event_id": self.event_id,
+            "build_id": self.build_id,
+            "url": build_url,
+            "build_args": build_args,
+        }
 
     def get_root_dep_on(self):
         dep_on = self.dep_on

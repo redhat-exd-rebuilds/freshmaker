@@ -28,7 +28,7 @@ to use.
 import fedmsg.consumers
 import moksha.hub
 
-from freshmaker import log, conf, messaging, events
+from freshmaker import log, conf, messaging, events, app
 from freshmaker.utils import load_classes
 
 
@@ -100,7 +100,16 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
 
         # Primary work is done here.
         try:
-            self.process_event(msg)
+            # There is no Flask app-context in the backend and we need some,
+            # because models.Event.json() and models.ArtifactBuild.json() uses
+            # flask.url_for, which needs app_context to generate the URL.
+            # We also cannot generate Flask context on the fly each time in the
+            # mentioned json() calls, because each generation of Flask context
+            # changes db.session and unfortunatelly does not give it to original
+            # state which might be Flask bug, so the only safe way on backend is
+            # to have global app_context.
+            with app.app_context():
+                self.process_event(msg)
         except Exception:
             log.exception('Failed while handling {0!r}'.format(msg))
 

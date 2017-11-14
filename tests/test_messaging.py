@@ -27,6 +27,7 @@ import unittest
 from mock import patch
 
 from freshmaker import conf
+from freshmaker import messaging
 from freshmaker.messaging import publish
 
 try:
@@ -35,7 +36,17 @@ except ImportError:
     rhmsg = None
 
 
-class TestSelectMessagingBackend(unittest.TestCase):
+class BaseMessagingTest(unittest.TestCase):
+    """ Base class for messaging related tests """
+
+    def setUp(self):
+        messaging._in_memory_msg_id = 0
+
+    def tearDown(self):
+        messaging._in_memory_msg_id = 0
+
+
+class TestSelectMessagingBackend(BaseMessagingTest):
     """Test messaging backend is selected correctly in publish method"""
 
     @patch('freshmaker.messaging._fedmsg_publish')
@@ -74,7 +85,7 @@ class TestSelectMessagingBackend(unittest.TestCase):
             messaging_patcher.start)
 
 
-class TestPublishToFedmsg(unittest.TestCase):
+class TestPublishToFedmsg(BaseMessagingTest):
     """Test publish message to fedmsg using _fedmsg_publish backend"""
 
     @patch.object(conf, 'messaging_sender', new='fedmsg')
@@ -91,7 +102,7 @@ class TestPublishToFedmsg(unittest.TestCase):
 
 @unittest.skipUnless(rhmsg, 'rhmsg is not available in Fedora yet.')
 @unittest.skipIf(six.PY3, 'rhmsg has no Python 3 package so far.')
-class TestPublishToRhmsg(unittest.TestCase):
+class TestPublishToRhmsg(BaseMessagingTest):
     """Test publish message to UMB using _rhmsg_publish backend"""
 
     @patch.object(conf, 'messaging_sender', new='rhmsg')
@@ -124,7 +135,7 @@ class TestPublishToRhmsg(unittest.TestCase):
             Message.return_value)
 
 
-class TestInMemoryPublish(unittest.TestCase):
+class TestInMemoryPublish(BaseMessagingTest):
     """Test publish message in memory using _in_memory_publish backend"""
 
     @patch('freshmaker.consumer.work_queue_put')
