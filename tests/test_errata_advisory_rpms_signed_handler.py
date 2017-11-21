@@ -52,5 +52,5 @@ class TestErrataAdvisoryRPMsSignedHandler(unittest.TestCase):
         handler.handle(event)
 
         db_event = Event.get(db.session, message_id='123')
-        self.assertEqual(db_event.state, EventState.HANDLED_NOOP.value)
+        self.assertEqual(db_event.state, EventState.SKIPPED.value)
         self.assertEqual(db_event.state_reason, "No container images to rebuild for advisory 'RHBA-2017'")

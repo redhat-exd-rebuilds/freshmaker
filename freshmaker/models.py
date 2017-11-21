@@ -24,7 +24,6 @@
 """ SQLAlchemy Database models for the Flask app
 """
 
-import flask
 import json
 
 from datetime import datetime
@@ -32,7 +31,7 @@ from sqlalchemy.orm import (validates, relationship)
 
 from flask_login import UserMixin
 
-from freshmaker import app, db, log
+from freshmaker import db, log
 from freshmaker import messaging
 from freshmaker.utils import get_url_for
 from freshmaker.types import ArtifactType, ArtifactBuildState, EventState
@@ -40,7 +39,9 @@ from freshmaker.events import (
     MBSModuleStateChangeEvent, GitModuleMetadataChangeEvent,
     GitRPMSpecChangeEvent, TestingEvent, GitDockerfileChangeEvent,
     BodhiUpdateCompleteStableEvent, KojiTaskStateChangeEvent, BrewSignRPMEvent,
-    ErrataAdvisoryRPMsSignedEvent)
+    ErrataAdvisoryRPMsSignedEvent, BrewContainerTaskStateChangeEvent,
+    ErrataAdvisoryStateChangedEvent, FreshmakerManualRebuildEvent,
+    ODCSComposeStateChangeEvent)
 
 EVENT_TYPES = {
     MBSModuleStateChangeEvent: 0,
@@ -52,6 +53,10 @@ EVENT_TYPES = {
     KojiTaskStateChangeEvent: 6,
     BrewSignRPMEvent: 7,
     ErrataAdvisoryRPMsSignedEvent: 8,
+    BrewContainerTaskStateChangeEvent: 9,
+    ErrataAdvisoryStateChangedEvent: 10,
+    FreshmakerManualRebuildEvent: 11,
+    ODCSComposeStateChangeEvent: 12,
 }
 
 INVERSE_EVENT_TYPES = {v: k for k, v in EVENT_TYPES.items()}
@@ -191,6 +196,12 @@ class Event(FreshmakerBase):
                           released=released, manual=manual)
 
     @classmethod
+    def get_or_create_from_event(cls, session, event, released=True):
+        return cls.get_or_create(session, event.msg_id,
+                                 event.search_key, event.__class__,
+                                 released=released, manual=event.manual)
+
+    @classmethod
     def get_unreleased(cls, session):
         return session.query(cls).filter_by(released=False).all()
 
@@ -227,7 +238,7 @@ class Event(FreshmakerBase):
         for build in self.builds:
             build.transition(state, reason)
 
-    def transition(self, state, state_reason):
+    def transition(self, state, state_reason=None):
         """
         Sets the state and state_reason of this Event.
 
@@ -247,8 +258,10 @@ class Event(FreshmakerBase):
             return
 
         self.state = state
-        self.state_reason = state_reason
+        if state_reason is not None:
+            self.state_reason = state_reason
 
+        db.session.commit()
         messaging.publish('event.state.changed', self.json())
 
     def __repr__(self):

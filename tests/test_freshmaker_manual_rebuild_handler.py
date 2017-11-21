@@ -32,6 +32,7 @@ from freshmaker.events import (
 from freshmaker.errata import ErrataAdvisory
 from freshmaker import db
 from freshmaker.models import Event
+from freshmaker.types import EventState
 
 
 class TestFreshmakerManualRebuildHandler(unittest.TestCase):
@@ -61,6 +62,11 @@ class TestFreshmakerManualRebuildHandler(unittest.TestCase):
         self.assertEqual(ret[0].security_impact, "Critical")
         self.assertEqual(ret[0].errata_name, "RHSA-2017")
 
+        db_event = Event.query.filter_by(message_id=ev.msg_id).first()
+        self.assertEqual(db_event.state, EventState.COMPLETE.value)
+        self.assertEqual(db_event.state_reason,
+                         'Generated ErrataAdvisoryRPMsSignedEvent (msg123) for errata: 123')
+
     @patch('freshmaker.errata.Errata.advisories_from_event')
     def test_rebuild_if_not_exists_already_exists(
             self, advisories_from_event):
@@ -77,6 +83,11 @@ class TestFreshmakerManualRebuildHandler(unittest.TestCase):
 
         self.assertEqual(len(ret), 0)
 
+        db_event = Event.query.filter_by(message_id=ev.msg_id).first()
+        self.assertEqual(db_event.state, EventState.SKIPPED.value)
+        self.assertEqual(db_event.state_reason,
+                         'Ignoring Errata advisory 123 - it already exists in Freshmaker db.')
+
     @patch('freshmaker.errata.Errata.advisories_from_event')
     def test_rebuild_if_not_exists_unknown_errata_id(
             self, advisories_from_event):
@@ -87,3 +98,7 @@ class TestFreshmakerManualRebuildHandler(unittest.TestCase):
         ret = handler.handle(ev)
 
         self.assertEqual(len(ret), 0)
+
+        db_event = Event.query.filter_by(message_id=ev.msg_id).first()
+        self.assertEqual(db_event.state, EventState.FAILED.value)
+        self.assertEqual(db_event.state_reason, "Unknown Errata advisory 123")

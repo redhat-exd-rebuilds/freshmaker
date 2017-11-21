@@ -114,7 +114,6 @@ class TestAllowBuild(unittest.TestCase):
         handler.handle(event)
 
         record_images.assert_not_called()
-        self.assertEqual(handler.current_db_event_id, None)
 
     @patch("freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler."
            "_find_images_to_rebuild", return_value=[])
