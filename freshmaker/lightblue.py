@@ -200,23 +200,52 @@ class ContainerImage(dict):
         data["srpm_nevra"] = srpm_nevra
         self.update(data)
 
-    def resolve_content_sets(self, lb_instance):
+    def resolve_content_sets(self, lb_instance, children=None):
         """
         Find out the content_sets this image uses and store it as
         "content_sets" key in image.
+
+        :param LightBlue lb_instance: LightBlue instance to use for additional
+            queries.
+        :param list children: List of children to take the content_sets from in
+            case this container image is unpublished and therefore without
+            repositories from which we could get the list of content_sets.
         """
-        # Checking only the first repository is OK, because if an image
-        # is in multiple repositories, the content_sets of all of them
-        # must be the same by definition.
         if "repositories" not in self or len(self["repositories"]) == 0:
+            if not children:
+                log.warning("Container image %s does not have 'repositories' set "
+                            "in Lightblue, this is suspicious.",
+                            self["brew"]["build"])
+                self.update({"content_sets": []})
+                return
+
+            for child in children:
+                # The child['content_sets'] should be always set for children
+                # passed here, but in case it is not, just try it.
+                if "content_sets" not in child:
+                    child.resolve_content_sets(lb_instance)
+                if not child["content_sets"]:
+                    continue
+
+                log.info("Container image %s does not have 'repositories' set "
+                        "in Ligblue. Using child image %s content_sets: %r",
+                        self["brew"]["build"], child["brew"]["build"],
+                        child["content_sets"])
+                self.update({"content_sets": child["content_sets"]})
+                return
+
             log.warning("Container image %s does not have 'repositories' set "
-                        "in Lightblue, this is suspicious.",
-                        self["brew"]["build"])
+                        "in Lightblue as well as its children, this "
+                        "is suspicious.", self["brew"]["build"])
             self.update({"content_sets": []})
             return
 
+        # Checking only the first repository is OK, because if an image
+        # is in multiple repositories, the content_sets of all of them
+        # must be the same by definition.
         image_content_sets = lb_instance.find_content_sets_for_repository(
             self["repositories"][0]["repository"])
+
         log.info("Container image %s uses following content sets: %r",
                  self["brew"]["build"], image_content_sets)
         self.update({"content_sets": image_content_sets})
@@ -618,7 +647,7 @@ class LightBlue(object):
 
         return images[0]
 
-    def find_parent_images_with_package(self, srpm_name, layers):
+    def find_parent_images_with_package(self, child_image, srpm_name, layers):
         """
         Returns the chain of all parent images of the image with
         parsed_data.layers `layers` which contain the package `srpm_name`
@@ -663,7 +692,8 @@ class LightBlue(object):
                                             parent_build_layers_count,
                                             srpm_name=srpm_name)
             if image:
-                image.resolve_content_sets(self)
+                children = images if images else [child_image]
+                image.resolve_content_sets(self, children=children)
                 image.resolve_commit(srpm_name)
 
             if images:
@@ -689,7 +719,7 @@ class LightBlue(object):
                             images[-1]['error'] = err
 
                     if parent:
-                        parent.resolve_content_sets(self)
+                        parent.resolve_content_sets(self, children=images)
                         parent.resolve_commit(srpm_name)
                     images[-1]['parent'] = parent
             if not image:
@@ -734,6 +764,8 @@ class LightBlue(object):
             images = [image for image in images if not filter_fnc(image)]
 
         for image in images:
+            # We do not set "children" here in resolve_content_sets call, because
+            # published images should have the content_set set.
             image.resolve_content_sets(self)
             image.resolve_commit(srpm_name)
         return images
@@ -775,13 +807,13 @@ class LightBlue(object):
 
             layers = unpublished["parsed_data"]["layers"]
             rebuild_list = self.find_parent_images_with_package(
-                srpm_name, layers)
+                image, srpm_name, layers)
             if rebuild_list:
                 image['parent'] = rebuild_list[0]
             else:
                 parent = self.get_image_by_layer(layers[1], len(layers) - 1)
                 if parent:
-                    parent.resolve_content_sets(self)
+                    parent.resolve_content_sets(self, children=[image])
                     parent.resolve_commit(srpm_name)
                 elif len(layers) != 2:
                     err = "Cannot find parent of image %s with layer %s " \
