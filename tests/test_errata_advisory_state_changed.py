@@ -24,7 +24,7 @@
 import unittest
 import json
 
-from mock import patch, MagicMock, PropertyMock, Mock
+from mock import patch, MagicMock, PropertyMock, Mock, call
 
 from freshmaker.handlers.errata import ErrataAdvisoryRPMsSignedHandler
 from freshmaker.handlers.errata import ErrataAdvisoryStateChangedHandler
@@ -975,6 +975,11 @@ class TestRecordBatchesImages(unittest.TestCase):
 
         build_args = json.loads(child_image.build_args)
         self.assertEqual(2, build_args['odcs_pulp_compose_id'])
+
+        self.mock_prepare_pulp_repo.assert_has_calls([
+            call(child_image.event, ["content-set-1"]),
+            call(child_image.event, ["content-set-1"])
+        ])
 
     def test_mark_failed_state_if_image_has_error(self):
         batches = [

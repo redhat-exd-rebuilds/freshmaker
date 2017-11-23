@@ -475,7 +475,7 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
 
                 build.transition(state, state_reason)
 
-                compose = self._prepare_pulp_repo(event, image["content_sets"])
+                compose = self._prepare_pulp_repo(build.event, image["content_sets"])
 
                 build_args = {}
                 build_args["repository"] = image["repository"]
