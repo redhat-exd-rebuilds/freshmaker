@@ -52,7 +52,7 @@ class FreshmakerManualRebuildHandler(ContainerBuildHandler):
         db_event = db.session.query(Event).filter_by(
             event_type_id=EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
             search_key=str(errata_id)).first()
-        if db_event:
+        if db_event and db_event.state != EventState.FAILED.value:
             msg = ("Ignoring Errata advisory %d - it already exists in "
                    "Freshmaker db." % errata_id)
             self.current_db_event.transition(EventState.SKIPPED, msg)
