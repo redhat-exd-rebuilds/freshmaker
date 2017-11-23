@@ -25,6 +25,7 @@ from freshmaker.events import (
 from freshmaker.models import Event, EVENT_TYPES
 from freshmaker.handlers import BaseHandler, fail_event_on_handler_exception
 from freshmaker.errata import Errata
+from freshmaker.types import EventState
 
 
 class ErrataAdvisoryStateChangedHandler(BaseHandler):
@@ -76,7 +77,7 @@ class ErrataAdvisoryStateChangedHandler(BaseHandler):
         db_event = db.session.query(Event).filter_by(
             event_type_id=EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
             search_key=str(errata_id)).first()
-        if db_event:
+        if db_event and db_event.state != EventState.FAILED.value:
             log.debug("Ignoring Errata advisory %d - it already exists in "
                       "Freshmaker db.", errata_id)
             return []

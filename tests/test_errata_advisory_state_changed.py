@@ -34,7 +34,7 @@ from freshmaker.errata import ErrataAdvisory
 
 from freshmaker import db, events
 from freshmaker.models import Event, ArtifactBuild
-from freshmaker.types import ArtifactBuildState, ArtifactType
+from freshmaker.types import ArtifactBuildState, ArtifactType, EventState
 
 
 class TestFindBuildSrpmName(unittest.TestCase):
@@ -816,17 +816,25 @@ class TestErrataAdvisoryStateChangedHandler(unittest.TestCase):
             self, advisories_from_event):
         handler = ErrataAdvisoryStateChangedHandler()
 
-        Event.create(
+        db_event = Event.create(
             db.session, "msg124", "123", ErrataAdvisoryRPMsSignedEvent)
         db.session.commit()
 
-        for state in ["REL_PREP", "PUSH_READY", "IN_PUSH", "SHIPPED_LIVE"]:
-            advisories_from_event.return_value = [
-                ErrataAdvisory(123, "RHSA-2017", state, "Critical")]
-            ev = ErrataAdvisoryStateChangedEvent("msg123", 123, state)
-            ret = handler.handle(ev)
+        for db_event_state in [EventState.INITIALIZED, EventState.BUILDING,
+                               EventState.COMPLETE, EventState.FAILED,
+                               EventState.SKIPPED]:
+            db_event.state = db_event_state
+            db.session.commit()
+            for state in ["REL_PREP", "PUSH_READY", "IN_PUSH", "SHIPPED_LIVE"]:
+                advisories_from_event.return_value = [
+                    ErrataAdvisory(123, "RHSA-2017", state, "Critical")]
+                ev = ErrataAdvisoryStateChangedEvent("msg123", 123, state)
+                ret = handler.handle(ev)
 
-            self.assertEqual(len(ret), 0)
+                if db_event_state == EventState.FAILED:
+                    self.assertEqual(len(ret), 1)
+                else:
+                    self.assertEqual(len(ret), 0)
 
     @patch('freshmaker.errata.Errata.advisories_from_event')
     def test_rebuild_if_not_exists_unknown_errata_id(
