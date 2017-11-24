@@ -249,6 +249,34 @@ class TestContainerImageObject(unittest.TestCase):
         image.resolve_content_sets(lb)
         self.assertEqual(image["content_sets"], [])
 
+    def test_resolve_content_sets_no_repositories_children_set(self):
+        image = ContainerImage.create({
+            '_id': '1233829',
+            'brew': {
+                'build': 'package-name-1-4-12.10',
+            },
+        })
+        self.assertTrue("content_sets" not in image)
+
+        child1 = ContainerImage.create({
+            '_id': '1233828',
+            'brew': {
+                'build': 'child1-name-1-4-12.10',
+            },
+        })
+
+        child2 = ContainerImage.create({
+            '_id': '1233828',
+            'brew': {
+                'build': 'child2-name-1-4-12.10',
+            },
+            'content_sets': ["foo", "bar"],
+        })
+
+        lb = Mock()
+        image.resolve_content_sets(lb, children=[child1, child2])
+        self.assertEqual(image["content_sets"], ["foo", "bar"])
+
     def test_resolve_content_sets_empty_repositories(self):
         image = ContainerImage.create({
             '_id': '1233829',
@@ -766,18 +794,69 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
         get_task_request.return_value = [
             "git://example.com/rpms/repo-1#commit_hash1", "target1", {}]
         exists.return_value = True
-        cont_images.side_effect = [self.fake_container_images, [],
-                                   self.fake_container_images]
+
+        # Test that even when the parent image does not have the repositories
+        # set, it will take the content_sets from the child image.
+        images_without_repositories = []
+        for data in self.fake_images_with_parsed_data:
+            img = ContainerImage.create(data)
+            del img["repositories"]
+            images_without_repositories.append(img)
+
+        cont_images.side_effect = [images_without_repositories, [],
+                                   images_without_repositories]
         cont_sets.return_value = set(["content-set"])
 
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
                        private_key=self.fake_private_key)
         ret = lb.find_parent_images_with_package(
-            "openssl", ["layer0", "layer1", "layer2", "layer3"])
+            self.fake_container_images[0], "openssl",
+            ["layer0", "layer1", "layer2", "layer3"])
 
         self.assertEqual(1, len(ret))
         self.assertEqual(ret[0]["brew"]["package"], "package-name-1")
+        self.assertEqual(ret[0]["content_sets"], set(["content-set"]))
+
+    @patch('freshmaker.lightblue.LightBlue.find_content_sets_for_repository')
+    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @patch('os.path.exists')
+    @patch('freshmaker.kojiservice.KojiService.get_build')
+    @patch('freshmaker.kojiservice.KojiService.get_task_request')
+    def test_parent_images_with_package_last_parent_content_sets(
+            self, get_task_request, get_build, exists, cont_images, cont_sets):
+
+        get_build.return_value = {"task_id": 123456}
+        get_task_request.return_value = [
+            "git://example.com/rpms/repo-1#commit_hash1", "target1", {}]
+        exists.return_value = True
+
+        # Test that even when the parent image does not have the repositories
+        # set, it will take the content_sets from the child image.
+        images_without_repositories = []
+        for data in self.fake_images_with_parsed_data:
+            img = ContainerImage.create(data)
+            del img["repositories"]
+            images_without_repositories.append(img)
+
+        cont_images.side_effect = [self.fake_container_images,
+                                   images_without_repositories,
+                                   images_without_repositories, [],
+                                   images_without_repositories]
+        cont_sets.return_value = set(["content-set"])
+
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key)
+        ret = lb.find_parent_images_with_package(
+            self.fake_container_images[0], "openssl",
+            ["layer0", "layer1", "layer2", "layer3", "layer4"])
+
+        self.assertEqual(3, len(ret))
+        self.assertEqual(ret[0]["brew"]["package"], "package-name-1")
+        self.assertEqual(ret[0]["content_sets"], set(["content-set"]))
+        self.assertEqual(ret[1]["content_sets"], set(["content-set"]))
+        self.assertEqual(ret[2]["content_sets"], set(["content-set"]))
 
     @patch('freshmaker.lightblue.LightBlue.find_images_with_package_from_content_set')
     @patch('freshmaker.lightblue.LightBlue.find_parent_images_with_package')
