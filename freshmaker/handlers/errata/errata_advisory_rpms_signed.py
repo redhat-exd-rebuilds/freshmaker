@@ -26,7 +26,6 @@ import json
 import koji
 
 from freshmaker import conf, db, log
-from freshmaker import messaging
 from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
 from freshmaker.events import ODCSComposeStateChangeEvent
 from freshmaker.handlers import BaseHandler, fail_event_on_handler_exception
@@ -34,7 +33,7 @@ from freshmaker.kojiservice import koji_service
 from freshmaker.lightblue import LightBlue
 from freshmaker.pulp import Pulp
 from freshmaker.errata import Errata
-from freshmaker.types import ArtifactType, ArtifactBuildState
+from freshmaker.types import ArtifactType, ArtifactBuildState, EventState
 from freshmaker.models import Event
 from freshmaker.consumer import work_queue_put
 from freshmaker.utils import krb_context, retry, get_rebuilt_nvr
@@ -67,21 +66,25 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
 
         self.event = event
 
-        # Check if we are allowed to build this advisory.
-        if not event.manual and not self.allow_build(
-                ArtifactType.IMAGE, advisory_name=event.errata_name,
-                advisory_security_impact=event.security_impact):
-            msg = 'Errata advisory {0} not allowed to trigger ' \
-                  'rebuilds.'.format(event.errata_id)
-            log.info(msg)
-            return []
+        # Generate the Database representation of `event`, it can be
+        # triggered by user, we want to track what happened
 
-        # Generate the Database representation of `event`.
         db_event = Event.get_or_create(
             db.session, event.msg_id, event.search_key, event.__class__,
             released=False, manual=event.manual)
         db.session.commit()
         self.set_context(db_event)
+
+        # Check if we are allowed to build this advisory.
+        if not event.manual and not self.allow_build(
+                ArtifactType.IMAGE, advisory_name=event.errata_name,
+                advisory_security_impact=event.security_impact):
+            msg = ("Errata advisory {0} is not allowed by internal policy "
+                   "to trigger rebuilds.".format(event.errata_id))
+            db_event.transition(EventState.SKIPPED, msg)
+            db.session.commit()
+            log.info(msg)
+            return []
 
         # Get and record all images to rebuild based on the current
         # ErrataAdvisoryRPMsSignedEvent event.
@@ -90,8 +93,10 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
             builds = self._record_batches(batches, event, builds)
 
         if not builds:
-            log.info('No container images to rebuild for advisory %r',
-                     event.errata_name)
+            msg = 'No container images to rebuild for advisory %r' % event.errata_name
+            log.info(msg)
+            db_event.transition(EventState.SKIPPED, msg)
+            db.session.commit()
             return []
 
         # Generate the ODCS compose with RPMs from the current advisory.
@@ -136,9 +141,7 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
         for url in repo_urls:
             log.info("   - %s", url)
 
-        # TODO: Once https://pagure.io/freshmaker/issue/137 is fixed, this
-        # should be moved to models.Event.transition().
-        messaging.publish('event.state.changed', db_event.json())
+        db_event.transition(EventState.COMPLETE, "All docker images have been rebuilt.")
 
         return []
 
@@ -472,7 +475,7 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
 
                 build.transition(state, state_reason)
 
-                compose = self._prepare_pulp_repo(event, image["content_sets"])
+                compose = self._prepare_pulp_repo(build.event, image["content_sets"])
 
                 build_args = {}
                 build_args["repository"] = image["repository"]

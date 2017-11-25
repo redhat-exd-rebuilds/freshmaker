@@ -24,7 +24,7 @@
 import unittest
 import json
 
-from mock import patch, MagicMock, PropertyMock, Mock
+from mock import patch, MagicMock, PropertyMock, Mock, call
 
 from freshmaker.handlers.errata import ErrataAdvisoryRPMsSignedHandler
 from freshmaker.handlers.errata import ErrataAdvisoryStateChangedHandler
@@ -34,7 +34,7 @@ from freshmaker.errata import ErrataAdvisory
 
 from freshmaker import db, events
 from freshmaker.models import Event, ArtifactBuild
-from freshmaker.types import ArtifactBuildState, ArtifactType
+from freshmaker.types import ArtifactBuildState, ArtifactType, EventState
 
 
 class TestFindBuildSrpmName(unittest.TestCase):
@@ -114,7 +114,6 @@ class TestAllowBuild(unittest.TestCase):
         handler.handle(event)
 
         record_images.assert_not_called()
-        self.assertEqual(handler.current_db_event_id, None)
 
     @patch("freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler."
            "_find_images_to_rebuild", return_value=[])
@@ -817,17 +816,25 @@ class TestErrataAdvisoryStateChangedHandler(unittest.TestCase):
             self, advisories_from_event):
         handler = ErrataAdvisoryStateChangedHandler()
 
-        Event.create(
+        db_event = Event.create(
             db.session, "msg124", "123", ErrataAdvisoryRPMsSignedEvent)
         db.session.commit()
 
-        for state in ["REL_PREP", "PUSH_READY", "IN_PUSH", "SHIPPED_LIVE"]:
-            advisories_from_event.return_value = [
-                ErrataAdvisory(123, "RHSA-2017", state, "Critical")]
-            ev = ErrataAdvisoryStateChangedEvent("msg123", 123, state)
-            ret = handler.handle(ev)
+        for db_event_state in [EventState.INITIALIZED, EventState.BUILDING,
+                               EventState.COMPLETE, EventState.FAILED,
+                               EventState.SKIPPED]:
+            db_event.state = db_event_state
+            db.session.commit()
+            for state in ["REL_PREP", "PUSH_READY", "IN_PUSH", "SHIPPED_LIVE"]:
+                advisories_from_event.return_value = [
+                    ErrataAdvisory(123, "RHSA-2017", state, "Critical")]
+                ev = ErrataAdvisoryStateChangedEvent("msg123", 123, state)
+                ret = handler.handle(ev)
 
-            self.assertEqual(len(ret), 0)
+                if db_event_state == EventState.FAILED:
+                    self.assertEqual(len(ret), 1)
+                else:
+                    self.assertEqual(len(ret), 0)
 
     @patch('freshmaker.errata.Errata.advisories_from_event')
     def test_rebuild_if_not_exists_unknown_errata_id(
@@ -976,6 +983,11 @@ class TestRecordBatchesImages(unittest.TestCase):
 
         build_args = json.loads(child_image.build_args)
         self.assertEqual(2, build_args['odcs_pulp_compose_id'])
+
+        self.mock_prepare_pulp_repo.assert_has_calls([
+            call(child_image.event, ["content-set-1"]),
+            call(child_image.event, ["content-set-1"])
+        ])
 
     def test_mark_failed_state_if_image_has_error(self):
         batches = [

@@ -27,6 +27,7 @@ from freshmaker.handlers import ContainerBuildHandler
 from freshmaker.events import (
     FreshmakerManualRebuildEvent, ErrataAdvisoryRPMsSignedEvent)
 from freshmaker.errata import Errata
+from freshmaker.types import EventState
 
 __all__ = ('FreshmakerManualRebuildHandler',)
 
@@ -51,16 +52,21 @@ class FreshmakerManualRebuildHandler(ContainerBuildHandler):
         db_event = db.session.query(Event).filter_by(
             event_type_id=EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
             search_key=str(errata_id)).first()
-        if db_event:
-            log.info("Ignoring Errata advisory %d - it already exists in "
-                      "Freshmaker db.", errata_id)
+        if db_event and db_event.state != EventState.FAILED.value:
+            msg = ("Ignoring Errata advisory %d - it already exists in "
+                   "Freshmaker db." % errata_id)
+            self.current_db_event.transition(EventState.SKIPPED, msg)
+            db.session.commit()
+            log.info(msg)
             return []
 
         # Get additional info from Errata to fill in the needed data.
         errata = Errata()
         advisories = errata.advisories_from_event(event)
         if not advisories:
-            log.error("Unknown Errata advisory %d" % errata_id)
+            msg = "Unknown Errata advisory %d" % errata_id
+            self.current_db_event.transition(EventState.FAILED, msg)
+            db.session.commit()
             return []
 
         log.info("Generating ErrataAdvisoryRPMsSignedEvent for Errata "
@@ -70,9 +76,18 @@ class FreshmakerManualRebuildHandler(ContainerBuildHandler):
             event.msg_id + "." + str(advisory.name), advisory.name,
             advisory.errata_id, advisory.security_impact)
         new_event.manual = True
+        msg = ("Generated ErrataAdvisoryRPMsSignedEvent (%s) for errata: %s"
+               % (event.msg_id, errata_id))
+        self.current_db_event.transition(EventState.COMPLETE, msg)
+        db.session.commit()
         return [new_event]
 
     def handle(self, event):
+        # for every manual triggered event, we log it in db
+        db_event = Event.get_or_create_from_event(db.session, event)
+        db.session.commit()
+        self.set_context(db_event)
+
         extra_events = []
 
         if event.errata_id:

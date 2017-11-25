@@ -24,7 +24,6 @@
 """ SQLAlchemy Database models for the Flask app
 """
 
-import flask
 import json
 
 from datetime import datetime
@@ -32,15 +31,17 @@ from sqlalchemy.orm import (validates, relationship)
 
 from flask_login import UserMixin
 
-from freshmaker import app, db, log
+from freshmaker import db, log
 from freshmaker import messaging
 from freshmaker.utils import get_url_for
-from freshmaker.types import ArtifactType, ArtifactBuildState
+from freshmaker.types import ArtifactType, ArtifactBuildState, EventState
 from freshmaker.events import (
     MBSModuleStateChangeEvent, GitModuleMetadataChangeEvent,
     GitRPMSpecChangeEvent, TestingEvent, GitDockerfileChangeEvent,
     BodhiUpdateCompleteStableEvent, KojiTaskStateChangeEvent, BrewSignRPMEvent,
-    ErrataAdvisoryRPMsSignedEvent)
+    ErrataAdvisoryRPMsSignedEvent, BrewContainerTaskStateChangeEvent,
+    ErrataAdvisoryStateChangedEvent, FreshmakerManualRebuildEvent,
+    ODCSComposeStateChangeEvent)
 
 EVENT_TYPES = {
     MBSModuleStateChangeEvent: 0,
@@ -52,6 +53,10 @@ EVENT_TYPES = {
     KojiTaskStateChangeEvent: 6,
     BrewSignRPMEvent: 7,
     ErrataAdvisoryRPMsSignedEvent: 8,
+    BrewContainerTaskStateChangeEvent: 9,
+    ErrataAdvisoryStateChangedEvent: 10,
+    FreshmakerManualRebuildEvent: 11,
+    ODCSComposeStateChangeEvent: 12,
 }
 
 INVERSE_EVENT_TYPES = {v: k for k, v in EVENT_TYPES.items()}
@@ -133,7 +138,9 @@ class Event(FreshmakerBase):
     # This is currently only used for internal Docker images rebuilds, but in
     # the future might be used even for modules or Fedora Docker images.
     released = db.Column(db.Boolean, default=True)
-
+    state = db.Column(db.Integer, nullable=False)
+    state_reason = db.Column(db.String, nullable=True)
+    time_created = db.Column(db.DateTime, nullable=True)
     # List of builds associated with this Event.
     builds = relationship("ArtifactBuild", back_populates="event")
 
@@ -148,19 +155,32 @@ class Event(FreshmakerBase):
         doc='Whether this event is triggered manually')
 
     @classmethod
-    def create(cls, session, message_id, search_key, event_type,
-               released=True, manual=False):
+    def create(cls, session, message_id, search_key, event_type, released=True,
+               state=None, manual=False):
         if event_type in EVENT_TYPES:
             event_type = EVENT_TYPES[event_type]
+        now = datetime.utcnow()
         event = cls(
             message_id=message_id,
             search_key=search_key,
             event_type_id=event_type,
             released=released,
+            state=state or EventState.INITIALIZED.value,
+            time_created=now,
             manual_triggered=manual,
         )
         session.add(event)
         return event
+
+    @validates('state')
+    def validate_state(self, key, field):
+        if field in [s.value for s in list(EventState)]:
+            return field
+        if field in [s.name.lower() for s in list(EventState)]:
+            return EventState[field.upper()].value
+        if isinstance(field, EventState):
+            return field.value
+        raise ValueError("%s: %s, not in %r" % (key, field, list(EventState)))
 
     @classmethod
     def get(cls, session, message_id):
@@ -174,6 +194,12 @@ class Event(FreshmakerBase):
             return instance
         return cls.create(session, message_id, search_key, event_type,
                           released=released, manual=manual)
+
+    @classmethod
+    def get_or_create_from_event(cls, session, event, released=True):
+        return cls.get_or_create(session, event.msg_id,
+                                 event.search_key, event.__class__,
+                                 released=released, manual=event.manual)
 
     @classmethod
     def get_unreleased(cls, session):
@@ -206,14 +232,36 @@ class Event(FreshmakerBase):
 
     def builds_transition(self, state, reason):
         """
-        Calls transition(state, reason) for all builds associated whit this
+        Calls transition(state, reason) for all builds associated with this
         event.
         """
         for build in self.builds:
             build.transition(state, reason)
 
-        # TODO: Once https://pagure.io/freshmaker/issue/137 is fixed, this
-        # should be moved to models.Event.transition().
+    def transition(self, state, state_reason=None):
+        """
+        Sets the state and state_reason of this Event.
+
+        :param state: EventState value
+        :param state_reason: Reason why this state has been set.
+        """
+
+        # Log the state and state_reason
+        if state == EventState.FAILED.value:
+            log_fnc = log.error
+        else:
+            log_fnc = log.info
+        log_fnc("Event %r moved to state %s, %r" % (
+            self, EventState(state).name, state_reason))
+
+        if self.state == state:
+            return
+
+        self.state = state
+        if state_reason is not None:
+            self.state_reason = state_reason
+
+        db.session.commit()
         messaging.publish('event.state.changed', self.json())
 
     def __repr__(self):
@@ -227,6 +275,9 @@ class Event(FreshmakerBase):
             "message_id": self.message_id,
             "search_key": self.search_key,
             "event_type_id": self.event_type_id,
+            "state": self.state,
+            "state_name": EventState(self.state).name,
+            "state_reason": self.state_reason,
             "url": event_url,
             "builds": [b.json() for b in self.builds],
         }

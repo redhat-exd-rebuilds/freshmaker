@@ -30,7 +30,7 @@ from freshmaker import conf, log, db, models
 from freshmaker.kojiservice import koji_service, parse_NVR
 from freshmaker.mbs import MBS
 from freshmaker.models import ArtifactBuildState
-from freshmaker.types import ArtifactType
+from freshmaker.types import ArtifactType, EventState
 from freshmaker.models import ArtifactBuild, Event
 from freshmaker.utils import krb_context, get_rebuilt_nvr
 from freshmaker.errors import UnprocessableEntity, ProgrammingError
@@ -65,9 +65,9 @@ def fail_event_on_handler_exception(func):
             db_event = db.session.query(Event).filter_by(
                 id=db_event_id).first()
             if db_event:
-                db_event.builds_transition(
-                    ArtifactBuildState.FAILED.value, "Handling of "
-                    "event failed with traceback: %s" % (str(e)))
+                msg = "Handling of event failed with traceback: %s" % (str(e))
+                db_event.transition(EventState.FAILED, msg)
+                db_event.builds_transition(ArtifactBuildState.FAILED.value, msg)
                 db.session.commit()
             raise
     return decorator
@@ -119,6 +119,10 @@ class BaseHandler(object):
     @property
     def current_db_event_id(self):
         return self._db_event_id
+
+    @property
+    def current_db_event(self):
+        return db.session.query(Event).filter_by(id=self.current_db_event_id).first()
 
     @property
     def current_db_artifact_build_id(self):
