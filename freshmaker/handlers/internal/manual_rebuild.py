@@ -74,7 +74,7 @@ class FreshmakerManualRebuildHandler(ContainerBuildHandler):
         advisory = advisories[0]
         new_event = ErrataAdvisoryRPMsSignedEvent(
             event.msg_id + "." + str(advisory.name), advisory.name,
-            advisory.errata_id, advisory.security_impact)
+            advisory.errata_id, advisory.security_impact, advisory.state)
         new_event.manual = True
         msg = ("Generated ErrataAdvisoryRPMsSignedEvent (%s) for errata: %s"
                % (event.msg_id, errata_id))

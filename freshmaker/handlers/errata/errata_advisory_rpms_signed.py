@@ -28,7 +28,7 @@ import koji
 from freshmaker import conf, db, log
 from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
 from freshmaker.events import ODCSComposeStateChangeEvent
-from freshmaker.handlers import BaseHandler, fail_event_on_handler_exception
+from freshmaker.handlers import ContainerBuildHandler, fail_event_on_handler_exception
 from freshmaker.kojiservice import koji_service
 from freshmaker.lightblue import LightBlue
 from freshmaker.pulp import Pulp
@@ -43,7 +43,7 @@ from odcs.client.odcs import AuthMech
 from odcs.common.types import COMPOSE_STATES
 
 
-class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
+class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
     """
     Rebuilds all Docker images which contain packages from the Errata
     advisory.
@@ -77,7 +77,8 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
 
         # Check if we are allowed to build this advisory.
         if not event.manual and not self.allow_build(
-                ArtifactType.IMAGE, advisory_name=event.errata_name,
+                ArtifactType.IMAGE,
+                advisory_name=event.errata_name,
                 advisory_security_impact=event.security_impact):
             msg = ("Errata advisory {0} is not allowed by internal policy "
                    "to trigger rebuilds.".format(event.errata_id))
@@ -99,47 +100,27 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
             db.session.commit()
             return []
 
-        # Generate the ODCS compose with RPMs from the current advisory.
-        repo_urls = []
-        repo_urls.append(self._prepare_yum_repo(db_event))  # noqa
-
-        # Find out extra events we want to include. These are advisories
-        # which are not released yet and touches some Docker images which
-        # are shared with the initial list of docker images we are going to
-        # rebuild.
-        # If we For example have NSS Errata advisory and httpd advisory, we
-        # need to rebuild some Docker images with both NSS and httpd
-        # advisories.
-        # We also want to search for extra events recursively, because there
-        # might for example be zlib advisory, and we want to include this zlib
-        # advisory when rebuilding NSS when rebuilding httpd... :)
-        prev_builds_count = 0
-        seen_extra_events = []
-
-        # We stop when we did not find more docker images to rebuild and
-        # therefore cannot find more extra events.
-        while prev_builds_count != len(builds):
-            prev_builds_count = len(builds)
-            extra_events = self._find_events_to_include(db_event, builds)
-            log.info("Extra events: %r", extra_events)
-            for ev in extra_events:
-                if ev in seen_extra_events:
-                    continue
-                seen_extra_events.append(ev)
-                db_event.add_event_dependency(db.session, ev)
-                for batches in self._find_images_to_rebuild(ev.search_key):
-                    builds = self._record_batches(batches, event, builds)
-                repo_urls.append(self._prepare_yum_repo(ev))
-
-        db.session.commit()
-        # Remove duplicates from repo_urls.
-        repo_urls = list(set(repo_urls))
+        if event.errata_state != 'SHIPPED_LIVE':
+            # If freshmaker is configured to rebuild images only when advisory
+            # moves to SHIPPED_LIVE state, there is no need to generate new
+            # composes for rebuild as all signed RPMs should already be
+            # available from official YUM repositories.
+            #
+            # Generate the ODCS compose with RPMs from the current advisory.
+            repo_urls = self._prepare_yum_repos_for_rebuilds(
+                db_event, event, builds)
+            log.info("Following repositories will be used for the rebuild:")
+            for url in repo_urls:
+                log.info("   - %s", url)
 
         # Log what we are going to rebuild
         self._check_images_to_rebuild(db_event, builds)
-        log.info("Following repositories will be used for the rebuild:")
-        for url in repo_urls:
-            log.info("   - %s", url)
+
+        if event.errata_state == 'SHIPPED_LIVE':
+            # As mentioned above, no need to wait for the event of new compose
+            # is generated in ODCS, so we can start to rebuild the first batch
+            # from here immediately.
+            self._build_first_batch(db_event)
 
         db_event.transition(EventState.COMPLETE, "All docker images have been rebuilt.")
 
@@ -173,6 +154,42 @@ class ErrataAdvisoryRPMsSignedHandler(BaseHandler):
         work_queue_put(event)
 
         return new_compose
+
+    def _prepare_yum_repos_for_rebuilds(self, db_event, event, builds):
+        repo_urls = []
+        repo_urls.append(self._prepare_yum_repo(db_event))  # noqa
+
+        # Find out extra events we want to include. These are advisories
+        # which are not released yet and touches some Docker images which
+        # are shared with the initial list of docker images we are going to
+        # rebuild.
+        # If we For example have NSS Errata advisory and httpd advisory, we
+        # need to rebuild some Docker images with both NSS and httpd
+        # advisories.
+        # We also want to search for extra events recursively, because there
+        # might for example be zlib advisory, and we want to include this zlib
+        # advisory when rebuilding NSS when rebuilding httpd... :)
+        prev_builds_count = 0
+        seen_extra_events = []
+
+        # We stop when we did not find more docker images to rebuild and
+        # therefore cannot find more extra events.
+        while prev_builds_count != len(builds):
+            prev_builds_count = len(builds)
+            extra_events = self._find_events_to_include(db_event, builds)
+            log.info("Extra events: %r", extra_events)
+            for ev in extra_events:
+                if ev in seen_extra_events:
+                    continue
+                seen_extra_events.append(ev)
+                db_event.add_event_dependency(db.session, ev)
+                for batches in self._find_images_to_rebuild(ev.search_key):
+                    builds = self._record_batches(batches, event, builds)
+                repo_urls.append(self._prepare_yum_repo(ev))
+
+        db.session.commit()
+        # Remove duplicates from repo_urls.
+        return list(set(repo_urls))
 
     def _prepare_yum_repo(self, db_event):
         """

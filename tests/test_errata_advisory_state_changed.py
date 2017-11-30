@@ -32,7 +32,7 @@ from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
 from freshmaker.events import ErrataAdvisoryStateChangedEvent
 from freshmaker.errata import ErrataAdvisory
 
-from freshmaker import db, events
+from freshmaker import conf, db, events
 from freshmaker.models import Event, ArtifactBuild
 from freshmaker.types import ArtifactBuildState, ArtifactType, EventState
 
@@ -109,7 +109,7 @@ class TestAllowBuild(unittest.TestCase):
         """
         Tests that allow_build filters out advisories based on advisory_name.
         """
-        event = ErrataAdvisoryRPMsSignedEvent("123", "RHBA-2017", 123, "")
+        event = ErrataAdvisoryRPMsSignedEvent("123", "RHBA-2017", 123, "", "REL_PREP")
         handler = ErrataAdvisoryRPMsSignedHandler()
         handler.handle(event)
 
@@ -125,7 +125,8 @@ class TestAllowBuild(unittest.TestCase):
         Tests that allow_build does not filter out advisories based on
         advisory_name.
         """
-        event = ErrataAdvisoryRPMsSignedEvent("123", "RHSA-2017", 123, "")
+        event = ErrataAdvisoryRPMsSignedEvent(
+            "123", "RHSA-2017", 123, "", "REL_PREP")
         handler = ErrataAdvisoryRPMsSignedHandler()
         handler.handle(event)
 
@@ -153,8 +154,8 @@ class TestAllowBuild(unittest.TestCase):
         Tests that allow_build does not filter out advisories based on
         advisory_security_impact.
         """
-        event = ErrataAdvisoryRPMsSignedEvent("123", "RHSA-2017", 123,
-                                              "Important")
+        event = ErrataAdvisoryRPMsSignedEvent(
+            "123", "RHSA-2017", 123, "Important", "REL_PREP")
         handler = ErrataAdvisoryRPMsSignedHandler()
         handler.handle(event)
 
@@ -180,7 +181,8 @@ class TestAllowBuild(unittest.TestCase):
         Tests that allow_build dost filter out advisories based on
         advisory_security_impact.
         """
-        event = ErrataAdvisoryRPMsSignedEvent("123", "RHSA-2017", 123, "None")
+        event = ErrataAdvisoryRPMsSignedEvent(
+            "123", "RHSA-2017", 123, "None", "REL_PREP")
         handler = ErrataAdvisoryRPMsSignedHandler()
         handler.handle(event)
 
@@ -204,7 +206,7 @@ class TestAllowBuild(unittest.TestCase):
 
         handler = ErrataAdvisoryRPMsSignedHandler()
         handler.event = ErrataAdvisoryRPMsSignedEvent(
-            "123", "RHSA-2017", 123, "None")
+            "123", "RHSA-2017", 123, "None", "REL_PREP")
 
         image = {"brew": {"build": "foo-1-2.3"}}
         ret = handler._filter_out_not_allowed_builds(image)
@@ -241,7 +243,7 @@ class TestAllowBuild(unittest.TestCase):
 
         handler = ErrataAdvisoryRPMsSignedHandler()
         handler.event = ErrataAdvisoryRPMsSignedEvent(
-            "123", "RHSA-2017", 123, "None")
+            "123", "RHSA-2017", 123, "None", "REL_PREP")
 
         image = {"brew": {"build": "foo-1-2.3"}}
         ret = handler._filter_out_not_allowed_builds(image)
@@ -799,6 +801,15 @@ class TestErrataAdvisoryStateChangedHandler(unittest.TestCase):
             self.assertEqual(ret[0].errata_name, "RHSA-2017")
 
     @patch('freshmaker.errata.Errata.advisories_from_event')
+    @patch.object(conf, 'handler_build_whitelist', new={
+        'ErrataAdvisoryStateChangedHandler': {
+            'image': [
+                {
+                    'advisory_state': r'REL_PREP|SHIPPED_LIVE',
+                }
+            ]
+        }
+    })
     def test_rebuild_if_not_exists_unknown_states(
             self, advisories_from_event):
         handler = ErrataAdvisoryStateChangedHandler()
@@ -883,6 +894,32 @@ class TestErrataAdvisoryStateChangedHandler(unittest.TestCase):
 
         handler = ErrataAdvisoryStateChangedHandler()
         handler.handle(ev)
+
+    @patch('freshmaker.handlers.errata.ErrataAdvisoryStateChangedHandler'
+           '.rebuild_if_not_exists')
+    @patch.object(conf, 'handler_build_whitelist', new={
+        'ErrataAdvisoryStateChangedHandler': {
+            'image': [
+                {
+                    'advisory_state': r'REL_PREP',
+                }
+            ]
+        }
+    })
+    def test_not_rebuild_if_errata_state_is_not_allowed(
+            self, rebuild_if_not_exists):
+        rebuild_if_not_exists.return_value = [Mock(), Mock()]
+
+        Event.create(db.session, "msg-id-123", "123456",
+                     ErrataAdvisoryRPMsSignedEvent, False)
+        db.session.commit()
+
+        event = ErrataAdvisoryStateChangedEvent(
+            'msg-id-123', '123456', 'SHIPPED_LIVE')
+        handler = ErrataAdvisoryStateChangedHandler()
+        msgs = handler.handle(event)
+
+        self.assertEqual([], msgs)
 
 
 class TestRecordBatchesImages(unittest.TestCase):

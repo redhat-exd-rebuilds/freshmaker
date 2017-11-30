@@ -267,11 +267,12 @@ class ErrataAdvisoryRPMsSignedEvent(BaseEvent):
     """
     Event when all RPMs in Errata advisory are signed.
     """
-    def __init__(self, msg_id, errata_name, errata_id, security_impact):
+    def __init__(self, msg_id, errata_name, errata_id, security_impact, state):
         super(ErrataAdvisoryRPMsSignedEvent, self).__init__(msg_id)
         self.errata_name = errata_name
         self.errata_id = errata_id
         self.security_impact = security_impact
+        self.errata_state = state
 
     @property
     def search_key(self):
