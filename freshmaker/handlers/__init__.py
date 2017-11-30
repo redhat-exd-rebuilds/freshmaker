@@ -220,7 +220,7 @@ class BaseHandler(object):
         # If there is a whitelist specified for the (handler, artifact_type),
         # the build target of (name, branch) need to be in that whitelist first.
 
-        # by default we assume the artifact is in whitelist and not in blacklist
+        # by default we assume the artifact is in whitelist
         in_whitelist = True
 
         # Global rules

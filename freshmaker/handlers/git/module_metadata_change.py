@@ -41,7 +41,7 @@ class GitModuleMetadataChangeHandler(BaseHandler):
         log.info("Triggering rebuild of module %s:%s, metadata updated (%s).",
                  event.module, event.branch, event.rev)
         if not self.allow_build(ArtifactType.MODULE, name=event.module, branch=event.branch):
-            log.info("Skip rebuild of %s:%s as it's not allowed by configured whitelist/blacklist",
+            log.info("Skip rebuild of %s:%s as it's not allowed by configured whitelist",
                      event.module, event.branch)
             return []
 

@@ -51,7 +51,7 @@ class BodhiUpdateCompleteStableHandler(BaseHandler):
 
         for container in containers:
             if not self.allow_build(ArtifactType.IMAGE, name=container['name'], branch=container['branch']):
-                log.info("Skip rebuild of image %s:%s as it's not allowed by configured whitelist/blacklist",
+                log.info("Skip rebuild of image %s:%s as it's not allowed by configured whitelist",
                          container['name'], container['branch'])
                 continue
             try:

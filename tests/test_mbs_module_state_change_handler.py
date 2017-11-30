@@ -121,7 +121,6 @@ class MBSModuleStateChangeHandlerTest(helpers.FreshmakerTestCase):
                 ],
             },
         }
-        conf.handler_build_blacklist = {}
 
         msg = helpers.ModuleStateChangeMessage('testmodule', 'master', state='ready').produce()
         event = self.get_event_from_msg(msg)
