@@ -26,6 +26,8 @@ import mock
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))  # noqa
 from tests import helpers
 
+import freshmaker
+
 from freshmaker import events, db, models
 from freshmaker.types import ArtifactType
 from freshmaker.handlers.git import GitRPMSpecChangeHandler
@@ -76,6 +78,11 @@ class GitRPMSpecChangeHandlerTest(helpers.FreshmakerTestCase):
     @mock.patch('freshmaker.handlers.git.rpm_spec_change.PDC')
     @mock.patch('freshmaker.handlers.git.rpm_spec_change.utils')
     @mock.patch('freshmaker.handlers.git.rpm_spec_change.conf')
+    @mock.patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+        'GitRPMSpecChangeHandler': {
+            'module': [{'name': 'testmodule'}, {'branch': 'master'}]
+        }
+    })
     def test_can_rebuild_modules_has_rpm_included(self, conf, utils, PDC):
         """
         Test handler can rebuild modules which include the rpm.

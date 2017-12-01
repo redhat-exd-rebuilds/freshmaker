@@ -27,6 +27,8 @@ import fedmsg.config
 from mock import patch
 from mock import MagicMock, PropertyMock
 
+import freshmaker
+
 from freshmaker import db, models
 from freshmaker.consumer import FreshmakerConsumer
 from freshmaker.types import ArtifactType
@@ -65,6 +67,11 @@ class GitDockerfileChangeHandlerTest(BaseTestCase):
     @patch('freshmaker.utils.krbContext')
     @patch("freshmaker.config.Config.krb_auth_principal",
            new_callable=PropertyMock, return_value="user@example.com")
+    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+        'GitDockerfileChangeHandler': {
+            'image': [{'name': 'testimage'}, {'branch': 'master'}]
+        }
+    })
     def test_rebuild_if_dockerfile_changed(
             self, auth_principal, krbContext, ClientSession, read_config):
         read_config.return_value = {
@@ -105,6 +112,11 @@ class GitDockerfileChangeHandlerTest(BaseTestCase):
 
     @patch('koji.read_config')
     @patch('koji.ClientSession')
+    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+        'GitDockerfileChangeHandler': {
+            'image': [{'name': 'testimage'}, {'branch': 'master'}]
+        }
+    })
     def test_ensure_logout_in_whatever_case(self, ClientSession, read_config):
         ClientSession.return_value.buildContainer.side_effect = RuntimeError
         read_config.return_value = {

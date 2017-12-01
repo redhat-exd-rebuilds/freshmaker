@@ -24,6 +24,7 @@
 import abc
 import json
 import re
+import itertools
 from functools import wraps
 
 from freshmaker import conf, log, db, models
@@ -208,21 +209,20 @@ class BaseHandler(object):
         db.session.commit()
         return build
 
-    def allow_build(self, artifact_type, **kwargs):
+    def allow_build(self, artifact_type, **criteria):
         """
         Check whether the artifact is allowed to be built by checking
         HANDLER_BUILD_WHITELIST in config.
 
         :param artifact_type: an enum member of ArtifactType.
-        :param kwargs: dictionary of arguments to check against
-        :return: True or False.
+        :param criteria: keyword arguments listing criteria that will be
+            checked against whitelist to determine whether build is allowed.
+            There is not specific order or logical relationship to these
+            criteria. How they are checked depends on how whitelist is
+            configured.
+        :return: True if build is allowed, otherwise False is returned.
+        :rtype: bool
         """
-        # If there is a whitelist specified for the (handler, artifact_type),
-        # the build target of (name, branch) need to be in that whitelist first.
-
-        # by default we assume the artifact is in whitelist
-        in_whitelist = True
-
         # Global rules
         whitelist_rules = conf.handler_build_whitelist.get("global", {})
 
@@ -230,26 +230,29 @@ class BaseHandler(object):
         handler_name = self.name
         whitelist_rules.update(conf.handler_build_whitelist.get(handler_name, {}))
 
-        def match_rule(kwargs, rule):
-            for key, value in kwargs.items():
-                value_rule = rule.get(key, None)
-                if not value_rule:
+        def match_rule(criteria, rule):
+            for name, value in criteria.items():
+                value_patterns = rule.get(name, None)
+                if not value_patterns:
                     continue
 
-                if not isinstance(value_rule, list):
-                    value_rule = [value_rule]
+                if not isinstance(value_patterns, (tuple, list)):
+                    value_patterns = [value_patterns]
 
-                if not any((re.compile(r).match(value) for r in value_rule)):
+                if not any((re.match(regex, value) for regex in value_patterns)):
                     return False
             return True
 
         try:
             whitelist = whitelist_rules.get(artifact_type.name.lower(), [])
-            if whitelist and not any([match_rule(kwargs, rule) for rule in whitelist]):
+            # If none of passed criteria matches configured rule, build is not allowed
+            if not (set(itertools.chain(*[rule.keys() for rule in whitelist])) &
+                    set(criteria.keys())):
+                return False
+            if whitelist and any([match_rule(criteria, rule) for rule in whitelist]):
                 log.debug('%r, type=%r is not whitelisted.',
-                          kwargs, artifact_type.name.lower())
-                in_whitelist = False
-
+                          criteria, artifact_type.name.lower())
+                return True
         except re.error as exc:
             err_msg = ("Error while compiling whilelist rule "
                        "for <handler(%s) artifact(%s)>:\n"
@@ -258,7 +261,8 @@ class BaseHandler(object):
                        (handler_name, artifact_type.name.lower(), str(exc)))
             log.error(err_msg)
             raise UnprocessableEntity(err_msg)
-        return in_whitelist
+
+        return False
 
 
 class ContainerBuildHandler(BaseHandler):

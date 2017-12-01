@@ -26,6 +26,8 @@ import mock
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))  # noqa
 from tests import helpers
 
+import freshmaker
+
 from freshmaker import events, db, models
 from freshmaker.types import ArtifactType
 from freshmaker.handlers.git import GitModuleMetadataChangeHandler
@@ -59,6 +61,11 @@ class GitModuleMetadataChangeHandlerTest(helpers.FreshmakerTestCase):
         handler = GitModuleMetadataChangeHandler()
         self.assertTrue(handler.can_handle(event))
 
+    @mock.patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+        'GitModuleMetadataChangeHandler': {
+            'module': [{'name': 'testmodule'}, {'branch': 'master'}]
+        }
+    })
     def test_can_rebuild_module_when_module_metadata_changed(self):
         """
         Tests handler can rebuild module when module metadata is changed in dist-git

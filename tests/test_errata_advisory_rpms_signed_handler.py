@@ -23,10 +23,11 @@ import unittest
 
 from mock import patch
 
-from freshmaker.handlers.errata import ErrataAdvisoryRPMsSignedHandler
-from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
+import freshmaker
 
 from freshmaker import db
+from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
+from freshmaker.handlers.errata import ErrataAdvisoryRPMsSignedHandler
 from freshmaker.models import Event
 from freshmaker.types import EventState
 
@@ -152,6 +153,11 @@ class TestErrataAdvisoryRPMsSignedHandler(unittest.TestCase):
         db.drop_all()
         db.session.commit()
 
+    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+        'ErrataAdvisoryRPMsSignedHandler': {
+            'image': [{'advisory_name': 'RHBA-2017'}]
+        }
+    })
     def test_event_state_updated_when_no_images_to_rebuild(self):
         self.mock_find_images_to_rebuild.return_value = iter([[[]]])
         event = ErrataAdvisoryRPMsSignedEvent(

@@ -28,6 +28,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))  # noqa
 from tests import helpers
 from tests import get_fedmsg
 
+import freshmaker
+
 from freshmaker import events, db, models
 from freshmaker.types import ArtifactType
 from freshmaker.handlers.bodhi import BodhiUpdateCompleteStableHandler
@@ -105,6 +107,11 @@ class BodhiUpdateCompleteStableHandlerTest(helpers.FreshmakerTestCase):
     @mock.patch('freshmaker.handlers.bodhi.update_complete_stable.PDC')
     @mock.patch('freshmaker.handlers.bodhi.update_complete_stable.utils')
     @mock.patch('freshmaker.handlers.bodhi.update_complete_stable.conf')
+    @mock.patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+        'BodhiUpdateCompleteStableHandler': {
+            'image': [{'name': r'testimage\d', 'branch': 'f25'}]
+        }
+    })
     def test_trigger_rebuild_container_when_receives_bodhi_update_complete_stable_message(self, conf, utils, PDC):
 
         conf.git_base_url = 'git://pkgs.fedoraproject.org'

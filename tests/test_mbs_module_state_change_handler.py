@@ -26,6 +26,8 @@ import mock
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))  # noqa
 from tests import helpers
 
+import freshmaker
+
 from freshmaker import events, db, models
 from freshmaker.types import ArtifactType
 from freshmaker.handlers.mbs import MBSModuleStateChangeHandler
@@ -60,6 +62,11 @@ class MBSModuleStateChangeHandlerTest(helpers.FreshmakerTestCase):
     @mock.patch('freshmaker.handlers.mbs.module_state_change.PDC')
     @mock.patch('freshmaker.handlers.mbs.module_state_change.utils')
     @mock.patch('freshmaker.handlers.mbs.module_state_change.conf')
+    @mock.patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+        'MBSModuleStateChangeHandler': {
+            'module': [{'name': r'testmodule\d*'}, {'branch': 'master'}],
+        }
+    })
     def test_can_rebuild_depending_modules(self, conf, utils, PDC):
         """
         Tests handler can rebuild all modules which depend on the module
@@ -144,6 +151,11 @@ class MBSModuleStateChangeHandlerTest(helpers.FreshmakerTestCase):
     @mock.patch('freshmaker.handlers.mbs.module_state_change.PDC')
     @mock.patch('freshmaker.handlers.mbs.module_state_change.utils')
     @mock.patch('freshmaker.handlers.mbs.module_state_change.log')
+    @mock.patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+        'MBSModuleStateChangeHandler': {
+            'module': [{'name': r'module\d+'}, {'branch': 'master'}]
+        }
+    })
     def test_handler_not_fall_into_cyclic_rebuild_loop(self, log, utils, PDC):
         """
         Tests handler will not fall into cyclic rebuild loop when there is
