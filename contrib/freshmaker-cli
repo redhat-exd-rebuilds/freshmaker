@@ -16,6 +16,8 @@ Example usage:
         ./freshmaker-cli --redhat --stage --original-nvr NVR
     - Search for events building particular artifact name
         ./freshmaker-cli --redhat --stage --name httpd24-docker
+    - Search for events in particular state
+        ./freshmaker-cli --redhat --stage --state skipped
 """
 
 from __future__ import print_function
@@ -40,8 +42,21 @@ EVENT_TYPES = [
     "Bodhi update added to stable",
     "Koji task state changed",
     "Koji RPM signed",
-    "Errata advisory RPMS signed"
+    "Errata advisory RPMS signed",
+    "Brew container task state changed",
+    "Errata advisory state changed",
+    "Manual rebuild triggerred",
+    "ODCS compose state changed",
 ]
+
+
+EVENT_STATES = [
+    "init",
+    "building",
+    "complete",
+    "failed",
+    "skipped",
+    ]
 
 
 def get_api_url(deployment, env):
@@ -71,7 +86,7 @@ def get_events_from_builds(api_url, rebuilt_nvr=None, original_nvr=None,
     ids = []
     while True:
         print("Getting messages from Freshmaker, page", page)
-        url = '%s/api/1/builds?page=%d' % (api_url, page)
+        url = '%s/api/1/builds?page=%d&per_page=100' % (api_url, page)
         if rebuilt_nvr:
             url += "&rebuilt_nvr=" + rebuilt_nvr
         if original_nvr:
@@ -93,7 +108,7 @@ def get_events_from_builds(api_url, rebuilt_nvr=None, original_nvr=None,
 
 
 def get_freshmaker_events(api_url, search_key=None, rebuilt_nvr=None,
-                          original_nvr=None, name=None):
+                          original_nvr=None, name=None, states=None):
     if rebuilt_nvr or original_nvr or name:
         return get_events_from_builds(api_url, rebuilt_nvr, original_nvr,
                                       name)
@@ -102,7 +117,7 @@ def get_freshmaker_events(api_url, search_key=None, rebuilt_nvr=None,
     events = []
     while True:
         print("Getting messages from Freshmaker, page", page)
-        url = '%s/api/1/events?page=%d' % (api_url, page)
+        url = '%s/api/1/events?page=%d&per_page=100' % (api_url, page)
         if search_key:
             url += "&search_key=" + search_key
 
@@ -113,6 +128,10 @@ def get_freshmaker_events(api_url, search_key=None, rebuilt_nvr=None,
         if not items:
             break
         events += items
+
+    if states:
+        events = filter(
+            lambda x: EVENT_STATES[x["state"]] in states, events)
 
     events = sorted(events, key=lambda k: k['id'])
     return events
@@ -136,20 +155,24 @@ def get_freshmaker_events_by_ids(api_url, ids):
 
 
 def print_events(events):
-    table = [["ID", "Event type", "Event key", "Number of builds"]]
+    table = [["ID", "Event type", "State", "Event key", "Number of builds", "State reason"]]
     for event in events:
         row = [event["id"], EVENT_TYPES[event["event_type_id"]],
-               event["search_key"], len(event["builds"])]
+               EVENT_STATES[event["state"]], event["search_key"][:20],
+               len(event["builds"]), event["state_reason"]]
         table.append(row)
     print(tabulate(table, headers="firstrow"))
 
 
-def print_detailed_events(events):
+def print_detailed_events(events, states=None):
     for event in events:
         print("Event id:", event["id"])
 
         table = [["Build ID", "Task ID", "State", "Original NVR", "Rebuilt NVR", "State Reason"]]
         for build in event["builds"]:
+            if states:
+                if build['state_name'].lower() not in states:
+                    continue
             row = [build["id"], build["build_id"], build["state_name"],
                 build["original_nvr"], build["rebuilt_nvr"], build["state_reason"]]
             table.append(row)
@@ -187,6 +210,9 @@ parser.add_argument(
 parser.add_argument(
     '--name', default=None,
     help="Name of artifact to search for")
+parser.add_argument(
+    '--state', default=None, action="append",
+    help="Limit the query only for events/builds in given state")
 args = parser.parse_args()
 
 if args.redhat:
@@ -209,11 +235,13 @@ if not api_url:
     sys.exit(1)
 
 if not args.events:
+    if not args.state:
+        args.state = ["init", "building", "complete", "failed"]
     events = get_freshmaker_events(api_url, search_key=args.search_key,
                                    rebuilt_nvr=args.rebuilt_nvr,
                                    original_nvr=args.original_nvr,
-                                   name=args.name)
+                                   name=args.name, states=args.state)
     print_events(events)
 else:
     events = get_freshmaker_events_by_ids(api_url, args.events)
-    print_detailed_events(events)
+    print_detailed_events(events, states=args.state)
