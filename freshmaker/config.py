@@ -41,11 +41,8 @@ def init_config(app):
 
     # automagically detect production environment:
     #   - existing and readable config_file presets ProdConfiguration
-    try:
-        with open(config_file):
-            config_section = 'ProdConfiguration'
-    except:
-        pass
+    if os.path.exists(config_file) and os.access(config_file, os.O_RDONLY):
+        config_section = 'ProdConfiguration'
 
     # try getting config_file from os.environ
     if 'FRESHMAKER_CONFIG_FILE' in os.environ:
@@ -81,7 +78,7 @@ def init_config(app):
         try:
             config_module = imp.load_source('freshmaker_runtime_config',
                                             config_file)
-        except:
+        except IOError:
             raise SystemError("Configuration file {} was not found."
                               .format(config_file))
 
@@ -329,7 +326,7 @@ class Config(object):
                     # Do no try to convert None...
                     if value is not None:
                         value = convert(value)
-                except:
+                except (TypeError, ValueError):
                     raise TypeError("Configuration value conversion failed for name: %s" % key)
             # unknown type/unsupported conversion
             elif convert is not None:

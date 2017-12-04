@@ -69,7 +69,7 @@ class BodhiUpdateCompleteStableHandler(BaseHandler):
                 task_id = self.build_container(scm_url, branch, build_target)
                 if task_id is not None:
                     self.record_build(event, container['name'], ArtifactType.IMAGE, task_id)
-            except:
+            except Exception:
                 log.exception('Error when rebuild %s', container)
 
         return []

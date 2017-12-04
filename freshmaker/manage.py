@@ -125,7 +125,7 @@ def generatelocalhostcert():
     msg_cert_subject.C = 'US'
     msg_cert_subject.ST = 'MA'
     msg_cert_subject.L = 'Boston'
-    msg_cert_subject.O = 'Development'
+    msg_cert_subject.O = 'Development'  # noqa
     msg_cert_subject.CN = 'localhost'
     cert.set_serial_number(2)
     cert.gmtime_adj_notBefore(0)

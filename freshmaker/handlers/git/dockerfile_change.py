@@ -60,7 +60,7 @@ class GitDockerfileChangeHandler(ContainerBuildHandler):
 
         except koji.krbV.Krb5Error as e:
             log.exception('Failed to login Koji via Kerberos using GSSAPI. %s', e.args[1])
-        except:
+        except Exception:
             log.exception('Could not create task to build docker image %s', event.container)
 
         return []

@@ -60,7 +60,7 @@ for name in os.listdir(handlers_path):
     for submod_name in dir(mod):
         try:
             submod = getattr(mod, submod_name)
-        except:
+        except AttributeError:
             continue
         key = None
         deps = []
