@@ -265,6 +265,23 @@ class TestConfiguration(BaseConfiguration):
     AUTH_LDAP_SERVER = 'ldap://ldap.example.com'
     AUTH_LDAP_GROUP_BASE = 'ou=groups,dc=example,dc=com'
 
+    HANDLER_BUILD_WHITELIST = {
+        'BrewSignRPMHandler': {
+            'image': [
+                {
+                    'advisory_state': 'REL_PREP|PUSH_READY|IN_PUSH|SHIPPED_LIVE',
+                },
+            ],
+        },
+        'ErrataAdvisoryStateChangedHandler': {
+            'image': [
+                {
+                    'advisory_state': 'REL_PREP|PUSH_READY|IN_PUSH|SHIPPED_LIVE',
+                },
+            ],
+        },
+    }
+
 
 class ProdConfiguration(BaseConfiguration):
     pass

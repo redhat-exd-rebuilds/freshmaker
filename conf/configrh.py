@@ -61,6 +61,23 @@ class BaseConfiguration(config.BaseConfiguration):
     AUTH_LDAP_SERVER = ''
     AUTH_LDAP_GROUP_BASE = 'ou=groups,dc=redhat,dc=com'
 
+    HANDLER_BUILD_WHITELIST = {
+        'BrewSignRPMHandler': {
+            'image': [
+                {
+                    'advisory_state': 'SHIPPED_LIVE',
+                },
+            ],
+        },
+        'ErrataAdvisoryStateChangedHandler': {
+            'image': [
+                {
+                    'advisory_state': 'SHIPPED_LIVE',
+                },
+            ],
+        },
+    }
+
 
 class DevConfiguration(BaseConfiguration):
     DEBUG = True
@@ -74,6 +91,23 @@ class DevConfiguration(BaseConfiguration):
     KOJI_CONTAINER_SCRATCH_BUILD = True
 
     LIGHTBLUE_VERIFY_SSL = False
+
+    HANDLER_BUILD_WHITELIST = {
+        'BrewSignRPMHandler': {
+            'image': [
+                {
+                    'advisory_state': 'REL_PREP|PUSH_READY|IN_PUSH|SHIPPED_LIVE',
+                },
+            ],
+        },
+        'ErrataAdvisoryStateChangedHandler': {
+            'image': [
+                {
+                    'advisory_state': 'REL_PREP|PUSH_READY|IN_PUSH|SHIPPED_LIVE',
+                },
+            ],
+        },
+    }
 
 
 class TestConfiguration(BaseConfiguration):

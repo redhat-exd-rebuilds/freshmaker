@@ -21,8 +21,7 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
-from freshmaker import log
-from freshmaker import db
+from freshmaker import db, log
 from freshmaker.events import BrewSignRPMEvent, ErrataAdvisoryRPMsSignedEvent
 from freshmaker.handlers import BaseHandler
 from freshmaker.errata import Errata
@@ -73,8 +72,10 @@ class BrewSignRPMHandler(BaseHandler):
         # Filter out advisories which are not allowed by configuration.
         advisories = [advisory for advisory in advisories
                       if self.allow_build(
-                          ArtifactType.IMAGE, advisory_name=advisory.name,
-                          advisory_security_impact=advisory.security_impact)]
+                          ArtifactType.IMAGE,
+                          advisory_name=advisory.name,
+                          advisory_security_impact=advisory.security_impact,
+                          advisory_state=advisory.state)]
 
         # Filter out advisories which are already in Freshmaker DB.
         advisories = self._filter_out_existing_advisories(advisories)
@@ -97,7 +98,8 @@ class BrewSignRPMHandler(BaseHandler):
         for advisory in advisories:
             new_event = ErrataAdvisoryRPMsSignedEvent(
                 event.msg_id + "." + str(advisory.name), advisory.name,
-                advisory.errata_id, advisory.security_impact)
+                advisory.errata_id, advisory.security_impact,
+                advisory.state)
             db_event = Event.create(
                 db.session, new_event.msg_id, new_event.search_key,
                 new_event.__class__, released=False)

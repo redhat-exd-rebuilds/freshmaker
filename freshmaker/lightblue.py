@@ -228,9 +228,9 @@ class ContainerImage(dict):
                     continue
 
                 log.info("Container image %s does not have 'repositories' set "
-                        "in Ligblue. Using child image %s content_sets: %r",
-                        self["brew"]["build"], child["brew"]["build"],
-                        child["content_sets"])
+                         "in Ligblue. Using child image %s content_sets: %r",
+                         self["brew"]["build"], child["brew"]["build"],
+                         child["content_sets"])
                 self.update({"content_sets": child["content_sets"]})
                 return
 
