@@ -122,7 +122,12 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
             # from here immediately.
             self._build_first_batch(db_event)
 
-        db_event.transition(EventState.COMPLETE, "All docker images have been rebuilt.")
+        if event.manual:
+            msg = 'Base images are scheduled to be rebuilt due to manual rebuild.'
+        else:
+            msg = ('Waiting for composes to finish in order to start to '
+                   'schedule base images for rebuild.')
+        db_event.transition(EventState.BUILDING, msg)
 
         return []
 
