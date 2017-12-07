@@ -691,8 +691,8 @@ class LightBlue(object):
             image = self.get_image_by_layer(parent_top_layer,
                                             parent_build_layers_count,
                                             srpm_name=srpm_name)
+            children = images if images else [child_image]
             if image:
-                children = images if images else [child_image]
                 image.resolve_content_sets(self, children=children)
                 image.resolve_commit(srpm_name)
 
@@ -712,7 +712,7 @@ class LightBlue(object):
                         err = "Cannot find parent of image %s with layer %s " \
                             "and layer count %d in Lightblue, Lightblue data " \
                             "is probably incomplete" % (
-                                image['brew']['build'], parent_top_layer,
+                                children[-1]['brew']['build'], parent_top_layer,
                               parent_build_layers_count)
                         log.error(err)
                         if not images[-1]['error']:
