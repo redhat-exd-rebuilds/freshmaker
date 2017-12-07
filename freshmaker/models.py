@@ -202,8 +202,28 @@ class Event(FreshmakerBase):
                                  released=released, manual=event.manual)
 
     @classmethod
-    def get_unreleased(cls, session):
-        return session.query(cls).filter_by(released=False).all()
+    def get_unreleased(cls, session, states=None):
+        """
+        Returns list of all unreleased events in given states. If no states
+        are provided, returns only events in INTIALIZED, BUILDING or COMPLETE
+        state.
+        :param session: db.session
+        :param list states: List of states to filter events for. If None,
+            INITIALIZED, BUILDING and COMPLETE is used.
+        :rtype: list of models.Event.
+        :return: List of unreleased events of `states` state.
+        """
+        if not states:
+            states = [EventState.INITIALIZED.value,
+                      EventState.BUILDING.value,
+                      EventState.COMPLETE.value]
+        else:
+            states = [
+                state.value if isinstance(state, EventState) else state for
+                state in states
+            ]
+        return session.query(cls).filter(cls.released == False,
+                                         cls.state.in_(states)).all()
 
     @property
     def event_type(self):

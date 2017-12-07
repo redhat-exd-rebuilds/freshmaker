@@ -23,7 +23,7 @@
 import unittest
 
 from freshmaker import db, events
-from freshmaker.models import Event, ArtifactBuild
+from freshmaker.models import Event, ArtifactBuild, EventState
 from freshmaker.types import ArtifactBuildState
 
 
@@ -141,3 +141,30 @@ class TestModels(unittest.TestCase):
             for build in [build2, build3, build4]:
                 self.assertEqual(build4.state, ArtifactBuildState.BUILD.value)
                 self.assertEqual(build4.state_reason, None)
+
+
+    def test_get_unreleased(self):
+        event1 = Event.create(db.session, "test_msg_id1", "test", events.TestingEvent)
+        event1.state = EventState.COMPLETE
+        event1.released = False
+
+        event2 = Event.create(db.session, "test_msg_id2", "test", events.TestingEvent)
+        event2.state = EventState.COMPLETE
+        event2.released = True
+
+        event3 = Event.create(db.session, "test_msg_id3", "test", events.TestingEvent)
+        event3.state = EventState.SKIPPED
+        event3.released = False
+
+        event4 = Event.create(db.session, "test_msg_id4", "test", events.TestingEvent)
+        event4.state = EventState.SKIPPED
+        event4.released = True
+        db.session.commit()
+
+        # No state means only COMPLETE should be returned
+        ret = Event.get_unreleased(db.session)
+        self.assertEqual(ret, [event1])
+
+        # No state means only COMPLETE should be returned
+        ret = Event.get_unreleased(db.session, states=[EventState.SKIPPED])
+        self.assertEqual(ret, [event3])

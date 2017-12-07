@@ -189,7 +189,7 @@ class TestErrataAdvisoryRPMsSignedHandler(unittest.TestCase):
         build_first_batch.assert_not_called()
 
         db_event = Event.get(db.session, event.msg_id)
-        self.assertEqual(EventState.COMPLETE.value, db_event.state)
+        self.assertEqual(EventState.BUILDING.value, db_event.state)
 
     @patch('freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler.'
            'allow_build', return_value=True)
@@ -209,4 +209,4 @@ class TestErrataAdvisoryRPMsSignedHandler(unittest.TestCase):
         build_first_batch.assert_called_once()
 
         db_event = Event.get(db.session, event.msg_id)
-        self.assertEqual(EventState.COMPLETE.value, db_event.state)
+        self.assertEqual(EventState.BUILDING.value, db_event.state)

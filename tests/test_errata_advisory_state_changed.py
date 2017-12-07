@@ -745,6 +745,7 @@ class TestFindEventsToInclude(unittest.TestCase):
         ev = Event.get_or_create(
             db.session, "msg2", "old_event_foo", ErrataAdvisoryRPMsSignedEvent,
             released=False)
+        ev.state = EventState.COMPLETE
         ArtifactBuild.create(db.session, ev, "foo", "image", 0)
 
         ev = Event.get_or_create(
@@ -915,7 +916,7 @@ class TestErrataAdvisoryStateChangedHandler(unittest.TestCase):
         db.session.commit()
 
         event = ErrataAdvisoryStateChangedEvent(
-            'msg-id-123', '123456', 'SHIPPED_LIVE')
+            'msg-id-123', 123456, 'SHIPPED_LIVE')
         handler = ErrataAdvisoryStateChangedHandler()
         msgs = handler.handle(event)
 
