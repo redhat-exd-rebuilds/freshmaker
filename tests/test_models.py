@@ -142,7 +142,6 @@ class TestModels(unittest.TestCase):
                 self.assertEqual(build4.state, ArtifactBuildState.BUILD.value)
                 self.assertEqual(build4.state_reason, None)
 
-
     def test_get_unreleased(self):
         event1 = Event.create(db.session, "test_msg_id1", "test", events.TestingEvent)
         event1.state = EventState.COMPLETE

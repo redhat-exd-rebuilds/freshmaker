@@ -381,6 +381,8 @@ class ContainerBuildHandler(BaseHandler):
         # Use compose ids to get the repofile URLs.
         repo_urls = []
         for compose_id in compose_ids:
+            if not compose_id:
+                continue
             compose = self.odcs_get_compose(compose_id)
             repo_urls.append(compose["result_repofile"])
 

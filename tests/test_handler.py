@@ -140,6 +140,79 @@ class TestContext(TestCase):
         self.assertRaises(ProgrammingError, handler.set_context, "something")
 
 
+class TestGetRepoURLs(TestCase):
+
+    def setUp(self):
+        db.session.remove()
+        db.drop_all()
+        db.create_all()
+        db.session.commit()
+
+        self.db_event = Event.get_or_create(
+            db.session, "msg1", "current_event", ErrataAdvisoryRPMsSignedEvent,
+            released=False)
+
+        self.build = ArtifactBuild.create(
+            db.session, self.db_event, "parent1-1-4", "image",
+            state=ArtifactBuildState.PLANNED, original_nvr="parent1-1-4")
+        db.session.commit()
+
+        def mocked_odcs_get_compose(compose_id):
+            return {
+                "id": compose_id,
+                "result_repofile": "http://localhost/%d.repo" % compose_id,
+            }
+
+        self.patch_odcs_get_compose = patch(
+            "freshmaker.handlers.ContainerBuildHandler.odcs_get_compose")
+        self.odcs_get_compose = self.patch_odcs_get_compose.start()
+        self.odcs_get_compose.side_effect = mocked_odcs_get_compose
+
+    def tearDown(self):
+        db.session.remove()
+        db.drop_all()
+        db.session.commit()
+        self.patch_odcs_get_compose.stop()
+
+    def test_get_repo_urls_no_composes(self):
+        handler = MyHandler()
+        repos = handler.get_repo_urls(self.db_event, self.build)
+        self.assertEqual(repos, [])
+
+    def test_get_repo_urls_only_main_compose(self):
+        self.db_event.compose_id = 1
+        db.session.commit()
+
+        handler = MyHandler()
+        repos = handler.get_repo_urls(self.db_event, self.build)
+        self.assertEqual(repos, ["http://localhost/1.repo"])
+
+    def test_get_repo_urls_only_pulp_compose(self):
+        build_args = json.dumps({
+            "odcs_pulp_compose_id": 15,
+        })
+        self.build.build_args = build_args
+        db.session.commit()
+
+        handler = MyHandler()
+        repos = handler.get_repo_urls(self.db_event, self.build)
+        self.assertEqual(repos, ["http://localhost/15.repo"])
+
+    def test_get_repo_urls_both_pulp_and_main_compose(self):
+        build_args = json.dumps({
+            "odcs_pulp_compose_id": 15,
+        })
+        self.db_event.compose_id = 1
+        self.build.build_args = build_args
+        db.session.commit()
+
+        handler = MyHandler()
+        repos = handler.get_repo_urls(self.db_event, self.build)
+        self.assertEqual(
+            repos,
+            ["http://localhost/1.repo", "http://localhost/15.repo"])
+
+
 class TestAllowBuildBasedOnWhitelist(TestCase):
     """Test BaseHandler.allow_build"""
 
