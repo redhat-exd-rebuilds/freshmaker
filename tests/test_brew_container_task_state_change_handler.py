@@ -74,14 +74,14 @@ class TestBrewContainerTaskStateChangeHandler(helpers.FreshmakerTestCase):
         e1 = models.Event.create(db.session, "test_msg_id", "RHSA-2018-001", events.TestingEvent)
         event = self.get_event_from_msg(get_fedmsg('brew_container_task_closed'))
 
-        base_build = models.ArtifactBuild.create(db.session, e1, 'test-product-docker', ArtifactType.IMAGE.value, event.task_id)
+        base_build = models.ArtifactBuild.create(db.session, e1, 'test-product-docker', ArtifactType.IMAGE, event.task_id)
 
-        build_0 = models.ArtifactBuild.create(db.session, e1, 'docker-up-0', ArtifactType.IMAGE.value, 0,
-                                              dep_on=base_build, state=ArtifactBuildState.PLANNED.value)
-        build_1 = models.ArtifactBuild.create(db.session, e1, 'docker-up-1', ArtifactType.IMAGE.value, 0,
-                                              dep_on=base_build, state=ArtifactBuildState.PLANNED.value)
-        build_2 = models.ArtifactBuild.create(db.session, e1, 'docker-up-2', ArtifactType.IMAGE.value, 0,
-                                              dep_on=base_build, state=ArtifactBuildState.PLANNED.value)
+        build_0 = models.ArtifactBuild.create(db.session, e1, 'docker-up-0', ArtifactType.IMAGE, 0,
+                                              dep_on=base_build, state=ArtifactBuildState.PLANNED)
+        build_1 = models.ArtifactBuild.create(db.session, e1, 'docker-up-1', ArtifactType.IMAGE, 0,
+                                              dep_on=base_build, state=ArtifactBuildState.PLANNED)
+        build_2 = models.ArtifactBuild.create(db.session, e1, 'docker-up-2', ArtifactType.IMAGE, 0,
+                                              dep_on=base_build, state=ArtifactBuildState.PLANNED)
 
         self.handler.handle(event)
         self.assertEqual(base_build.state, ArtifactBuildState.DONE.value)
@@ -107,10 +107,10 @@ class TestBrewContainerTaskStateChangeHandler(helpers.FreshmakerTestCase):
         e1 = models.Event.create(db.session, "test_msg_id", "RHSA-2018-001", events.TestingEvent)
         event = self.get_event_from_msg(get_fedmsg('brew_container_task_failed'))
 
-        base_build = models.ArtifactBuild.create(db.session, e1, 'test-product-docker', ArtifactType.IMAGE.value, event.task_id)
+        base_build = models.ArtifactBuild.create(db.session, e1, 'test-product-docker', ArtifactType.IMAGE, event.task_id)
 
-        models.ArtifactBuild.create(db.session, e1, 'docker-up', ArtifactType.IMAGE.value, 0,
-                                    dep_on=base_build, state=ArtifactBuildState.PLANNED.value)
+        models.ArtifactBuild.create(db.session, e1, 'docker-up', ArtifactType.IMAGE, 0,
+                                    dep_on=base_build, state=ArtifactBuildState.PLANNED)
         self.handler.handle(event)
         self.assertEqual(base_build.state, ArtifactBuildState.FAILED.value)
         build_image.assert_not_called()

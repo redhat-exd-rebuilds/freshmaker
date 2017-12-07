@@ -346,6 +346,8 @@ class ArtifactBuild(FreshmakerBase):
             return field
         if field in [s.name.lower() for s in list(ArtifactBuildState)]:
             return ArtifactBuildState[field.upper()].value
+        if isinstance(field, ArtifactBuildState):
+            return field.value
         raise ValueError("%s: %s, not in %r" % (key, field, list(ArtifactBuildState)))
 
     @validates('type')
@@ -354,6 +356,8 @@ class ArtifactBuild(FreshmakerBase):
             return field
         if field in [t.name.lower() for t in list(ArtifactType)]:
             return ArtifactType[field.upper()].value
+        if isinstance(field, ArtifactType):
+            return field.value
         raise ValueError("%s: %s, not in %r" % (key, field, list(ArtifactType)))
 
     def depending_artifact_builds(self):

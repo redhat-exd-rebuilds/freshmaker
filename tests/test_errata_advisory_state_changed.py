@@ -366,12 +366,12 @@ class TestCheckImagesToRebuild(unittest.TestCase):
         self.ev = Event.create(db.session, 'msg-id', '123', 100)
         self.b1 = ArtifactBuild.create(
             db.session, self.ev, "parent", "image",
-            state=ArtifactBuildState.PLANNED.value,
+            state=ArtifactBuildState.PLANNED,
             original_nvr="parent-1-25")
         self.b1.build_args = build_args
         self.b2 = ArtifactBuild.create(
             db.session, self.ev, "child", "image",
-            state=ArtifactBuildState.PLANNED.value,
+            state=ArtifactBuildState.PLANNED,
             dep_on=self.b1,
             original_nvr="child-1-25")
         self.b2.build_args = build_args
@@ -593,7 +593,7 @@ class TestPrepareYumRepo(unittest.TestCase):
         self.ev = Event.create(db.session, 'msg-id', '123', 100)
         ArtifactBuild.create(
             db.session, self.ev, "parent", "image",
-            state=ArtifactBuildState.PLANNED.value)
+            state=ArtifactBuildState.PLANNED)
         db.session.commit()
 
     def tearDown(self):
