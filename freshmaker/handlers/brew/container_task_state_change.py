@@ -39,15 +39,18 @@ class BrewContainerTaskStateChangeHandler(ContainerBuildHandler):
     @fail_event_on_handler_exception
     def handle(self, event):
         """
-        When build container task state changed in brew, update build state in db and
-        rebuild containers depend on the success build as necessary.
+        When build container task state changed in brew, update build state in
+        db and rebuild containers depend on the success build as necessary.
         """
 
         build_id = event.task_id
 
         # check db to see whether this build exists in db
-        found_build = db.session.query(ArtifactBuild).filter_by(type=ArtifactType.IMAGE.value,
-                                                                build_id=build_id).first()
+        found_build = db.session.query(ArtifactBuild).filter_by(
+            type=ArtifactType.IMAGE.value,
+            build_id=build_id
+        ).first()
+
         if found_build is not None:
             self.set_context(found_build)
             # update build state in db
@@ -62,17 +65,20 @@ class BrewContainerTaskStateChangeHandler(ContainerBuildHandler):
             db.session.commit()
 
             if found_build.state == ArtifactBuildState.DONE.value:
-                # check db to see whether there is any planned image build depends on this build
-                planned_builds = db.session.query(ArtifactBuild).filter_by(type=ArtifactType.IMAGE.value,
-                                                                           state=ArtifactBuildState.PLANNED.value,
-                                                                           dep_on=found_build).all()
+                # check db to see whether there is any planned image build
+                # depends on this build
+                planned_builds = db.session.query(ArtifactBuild).filter_by(
+                    type=ArtifactType.IMAGE.value,
+                    state=ArtifactBuildState.PLANNED.value,
+                    dep_on=found_build
+                ).all()
+
+                log.info("Found following PLANNED builds to rebuild that "
+                         "depends on %r", found_build)
                 for build in planned_builds:
-                    self.set_context(build)
-                    repo_urls = self.get_repo_urls(found_build.event, build)
-                    log.info("Build %r depends on build %r" % (build, found_build))
-                    build.build_id = self.build_image_artifact_build(build, repo_urls)
-                    build.state = ArtifactBuildState.BUILD.value
-                db.session.commit()
+                    log.info("  %r", build)
+
+                self.start_to_build_images(planned_builds)
 
             # Finally, we check if all builds scheduled by event
             # found_build.event (ErrataAdvisoryRPMsSignedEvent) have been

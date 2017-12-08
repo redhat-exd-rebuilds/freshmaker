@@ -25,6 +25,7 @@ import abc
 import json
 import re
 import itertools
+import six
 from functools import wraps
 
 from freshmaker import conf, log, db, models
@@ -394,19 +395,17 @@ class ContainerBuildHandler(BaseHandler):
 
         return repo_urls
 
-    def _build_first_batch(self, db_event):
-        """
-        Rebuilds all the parents images - images in the first batch which don't
-        depend on other images.
+    def start_to_build_images(self, builds):
+        """Start to build images
+
+        :param builds: list of ArtifactBuild, each of them represents a
+            container image to be rebuilt.
+        :type builds: list or tuple
         """
 
-        builds = db.session.query(ArtifactBuild).filter_by(
-            type=ArtifactType.IMAGE.value, event_id=db_event.id,
-            dep_on=None).all()
-
-        for build in builds:
+        def build_image(build):
             self.set_context(build)
-            repo_urls = self.get_repo_urls(db_event, build)
+            repo_urls = self.get_repo_urls(build.event, build)
             build.build_id = self.build_image_artifact_build(build, repo_urls)
             if build.build_id:
                 build.transition(
@@ -419,4 +418,16 @@ class ContainerBuildHandler(BaseHandler):
             db.session.add(build)
             db.session.commit()
 
+        list(six.moves.map(build_image, builds))
+
+    def _build_first_batch(self, db_event):
+        """
+        Rebuilds all the parents images - images in the first batch which don't
+        depend on other images.
+        """
+
+        builds = db.session.query(ArtifactBuild).filter_by(
+            type=ArtifactType.IMAGE.value, event_id=db_event.id,
+            dep_on=None).all()
+        self.start_to_build_images(builds)
         self.set_context(db_event)
