@@ -28,6 +28,7 @@ import json
 
 from datetime import datetime
 from sqlalchemy.orm import (validates, relationship)
+from sqlalchemy.sql.expression import false
 
 from flask_login import UserMixin
 
@@ -222,7 +223,7 @@ class Event(FreshmakerBase):
                 state.value if isinstance(state, EventState) else state for
                 state in states
             ]
-        return session.query(cls).filter(cls.released == False,
+        return session.query(cls).filter(cls.released == false(),
                                          cls.state.in_(states)).all()
 
     @property
