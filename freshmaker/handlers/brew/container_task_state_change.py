@@ -25,7 +25,7 @@ from freshmaker.events import BrewContainerTaskStateChangeEvent
 from freshmaker.models import ArtifactBuild
 from freshmaker.handlers import (
     ContainerBuildHandler, fail_event_on_handler_exception)
-from freshmaker.types import ArtifactType, ArtifactBuildState
+from freshmaker.types import ArtifactType, ArtifactBuildState, EventState
 
 
 class BrewContainerTaskStateChangeHandler(ContainerBuildHandler):
@@ -73,3 +73,29 @@ class BrewContainerTaskStateChangeHandler(ContainerBuildHandler):
                     build.build_id = self.build_image_artifact_build(build, repo_urls)
                     build.state = ArtifactBuildState.BUILD.value
                 db.session.commit()
+
+            # Finally, we check if all builds scheduled by event
+            # found_build.event (ErrataAdvisoryRPMsSignedEvent) have been
+            # switched to FAILED or COMPLETE. If yes, mark the event COMPLETE.
+            self._mark_event_complete_when_all_builds_done(found_build.event)
+
+    def _mark_event_complete_when_all_builds_done(self, db_event):
+        """Mark ErrataAdvisoryRPMsSignedEvent COMPLETE
+
+        As we know that docker images are scheduled to be rebuilt by hanlding
+        event ErrataAdvisoryRPMsSignedEvent. When all those builds are done,
+        the event should be marked as COMPLETE accordingly. If not all finish,
+        nothing change to the state.
+
+        :param Event db_event: instance of Event that represents an event
+            ErrataAdvisoryRPMsSignedEvent.
+        """
+        build_complete_states = (
+            ArtifactBuildState.FAILED.value,
+            ArtifactBuildState.DONE.value
+        )
+        all_builds_done = all((build.state in build_complete_states
+                               for build in db_event.builds))
+        if all_builds_done:
+            db_event.transition(
+                EventState.COMPLETE, 'All docker images have been rebuilt.')

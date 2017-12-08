@@ -30,7 +30,7 @@ from tests import get_fedmsg, helpers
 from freshmaker import db, events, models
 from freshmaker.parsers.brew import BrewTaskStateChangeParser
 from freshmaker.handlers.brew import BrewContainerTaskStateChangeHandler
-from freshmaker.types import ArtifactType, ArtifactBuildState
+from freshmaker.types import ArtifactType, ArtifactBuildState, EventState
 
 
 class TestBrewContainerTaskStateChangeHandler(helpers.FreshmakerTestCase):
@@ -114,6 +114,92 @@ class TestBrewContainerTaskStateChangeHandler(helpers.FreshmakerTestCase):
         self.handler.handle(event)
         self.assertEqual(base_build.state, ArtifactBuildState.FAILED.value)
         build_image.assert_not_called()
+
+    @mock.patch('freshmaker.models.messaging.publish')
+    def test_mark_event_COMPLETE_if_all_builds_done(self, publish):
+        self.db_advisory_rpm_signed_event = models.Event.create(
+            db.session, 'msg-id-123', '12345',
+            events.ErrataAdvisoryStateChangedEvent,
+            state=EventState.BUILDING.value)
+
+        self.image_a_build = models.ArtifactBuild.create(
+            db.session, self.db_advisory_rpm_signed_event,
+            'image-a-0.1-1', ArtifactType.IMAGE,
+            state=ArtifactBuildState.DONE.value)
+
+        self.image_b_build = models.ArtifactBuild.create(
+            db.session, self.db_advisory_rpm_signed_event,
+            'image-b-0.1-1', ArtifactType.IMAGE,
+            dep_on=self.image_a_build,
+            state=ArtifactBuildState.DONE.value)
+
+        self.image_c_build = models.ArtifactBuild.create(
+            db.session, self.db_advisory_rpm_signed_event,
+            'image-c-0.1-1', ArtifactType.IMAGE,
+            dep_on=self.image_b_build,
+            state=ArtifactBuildState.FAILED.value)
+
+        self.image_d_build = models.ArtifactBuild.create(
+            db.session, self.db_advisory_rpm_signed_event,
+            'image-d-0.1-1', ArtifactType.IMAGE,
+            dep_on=self.image_a_build,
+            build_id=12345,
+            state=ArtifactBuildState.BUILD.value)
+
+        db.session.commit()
+
+        state_changed_event = events.BrewContainerTaskStateChangeEvent(
+            'msg-id-890', 'image-d', 'branch', 'target', 12345,
+            'BUILD', 'CLOSED')
+
+        handler = BrewContainerTaskStateChangeHandler()
+        handler.handle(state_changed_event)
+
+        self.assertEqual(EventState.COMPLETE.value,
+                         self.db_advisory_rpm_signed_event.state)
+
+    @mock.patch('freshmaker.handlers.ContainerBuildHandler.build_image_artifact_build')
+    @mock.patch('freshmaker.handlers.ContainerBuildHandler.get_repo_urls')
+    def test_not_change_state_if_not_all_builds_done(
+            self, get_repo_urls, build_image_artifact_build):
+        build_image_artifact_build.return_value = 67890
+
+        self.db_advisory_rpm_signed_event = models.Event.create(
+            db.session, 'msg-id-123', '12345',
+            events.ErrataAdvisoryStateChangedEvent,
+            state=EventState.BUILDING.value)
+
+        self.image_a_build = models.ArtifactBuild.create(
+            db.session, self.db_advisory_rpm_signed_event,
+            'image-a-0.1-1', ArtifactType.IMAGE,
+            build_id=12345,
+            state=ArtifactBuildState.BUILD.value)
+
+        self.image_b_build = models.ArtifactBuild.create(
+            db.session, self.db_advisory_rpm_signed_event,
+            'image-b-0.1-1', ArtifactType.IMAGE,
+            dep_on=self.image_a_build,
+            state=ArtifactBuildState.PLANNED.value)
+
+        self.image_c_build = models.ArtifactBuild.create(
+            db.session, self.db_advisory_rpm_signed_event,
+            'image-c-0.1-1', ArtifactType.IMAGE,
+            dep_on=self.image_b_build,
+            state=ArtifactBuildState.FAILED.value)
+
+        db.session.commit()
+
+        state_changed_event = events.BrewContainerTaskStateChangeEvent(
+            'msg-id-890', 'image-a', 'branch', 'target', 12345,
+            'BUILD', 'CLOSED')
+
+        handler = BrewContainerTaskStateChangeHandler()
+        handler.handle(state_changed_event)
+
+        # As self.image_b_build starts to be rebuilt, not all images are
+        # rebuilt yet.
+        self.assertEqual(EventState.BUILDING.value,
+                         self.db_advisory_rpm_signed_event.state)
 
 
 if __name__ == '__main__':
