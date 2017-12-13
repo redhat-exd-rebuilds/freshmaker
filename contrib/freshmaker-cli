@@ -27,6 +27,7 @@ import argparse
 import sys
 import requests
 from tabulate import tabulate
+from kobo.rpmlib import parse_nvr
 
 # Disable InsecureRequestWarning
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
@@ -164,18 +165,80 @@ def print_events(events):
     print(tabulate(table, headers="firstrow"))
 
 
+def make_tree_dict(child_parent_mapping):
+    """
+    Takes the list of tuples with child-parent mapping and constructs a tree
+    represented by nested dict.
+    """
+    has_parent = set()
+    all_items = {}
+    for child, parent in child_parent_mapping:
+        if parent not in all_items:
+            all_items[parent] = {}
+        if child not in all_items:
+            all_items[child] = {}
+        all_items[parent][child] = all_items[child]
+        has_parent.add(child)
+
+    result = {}
+    for key, value in all_items.items():
+        if key not in has_parent:
+            result[key] = value
+    return result
+
+
 def print_detailed_events(events, states=None):
+    """
+    Prints detailed information about events - this mainly means the list of
+    artifacts build as part of each event.
+    """
     for event in events:
         print("Event id:", event["id"])
 
-        table = [["Build ID", "Task ID", "State", "Original NVR", "Rebuilt NVR", "State Reason"]]
+        # Temporary list with child-parent mapping between the builds.
+        builds_mapping = []
+        # Temporary dict to find build based on rebuilt_nvr.
+        builds_by_nvr = {}
         for build in event["builds"]:
-            if states:
-                if build['state_name'].lower() not in states:
-                    continue
-            row = [build["id"], build["build_id"], build["state_name"],
-                build["original_nvr"], build["rebuilt_nvr"], build["state_reason"]]
-            table.append(row)
+            builds_mapping.append(
+                (build["rebuilt_nvr"], build["build_args"]["parent"]))
+            builds_by_nvr[build["rebuilt_nvr"]] = build
+
+        tree = make_tree_dict(builds_mapping)
+
+        def _prepare_table(subtree, level = 0):
+            """
+            Function called recursively for each level of tree generating the
+            rows with builds which can be later consumed by `tabulate()`
+            method.
+            """
+            rows = []
+            for nvr, children in subtree.items():
+                if nvr in builds_by_nvr:
+                    build = builds_by_nvr[nvr]
+
+                    if states:
+                        if build['state_name'].lower() not in states:
+                            continue
+
+                    nvr = parse_nvr(build["original_nvr"])
+                    new_nvr = parse_nvr(build["rebuilt_nvr"])
+
+                    padding = "-" * (level * 2) + ">" + " " * (8 - level * 2)
+                    row = [padding + str(build["id"]), build["build_id"],
+                           build["state_name"], nvr["name"],
+                           "%s-%s" % (nvr["version"], nvr["release"]),
+                           "%s-%s" % (new_nvr["version"], new_nvr["release"]),
+                           build["state_reason"]]
+                    rows.append(row)
+                rows += _prepare_table(children, level + 1)
+
+            return rows
+
+        table = [["Build ID", "Task ID", "State", "Name", "NVR",
+                  "Rebuilt NVR", "State Reason"]]
+        table += _prepare_table(tree)
+
         print(tabulate(table, headers="firstrow"))
 
 
