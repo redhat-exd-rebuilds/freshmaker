@@ -118,16 +118,21 @@ def filter_events(flask_request):
     :param request: Flask request object
     :return: flask_sqlalchemy.Pagination
     """
-    search_query = dict()
-
-    for key in ['message_id', 'search_key', 'event_type_id']:
-        if flask_request.args.get(key, None):
-            search_query[key] = flask_request.args[key]
 
     query = Event.query
 
-    if search_query:
-        query = query.filter_by(**search_query)
+    for key in ['message_id', 'search_key', 'event_type_id', 'state']:
+        values = flask_request.args.getlist(key)
+        if not values:
+            continue
+        if len(values) == 1:
+            search_query = {key: values[0]}
+            query = query.filter_by(**search_query)
+        else:
+            search_attr = getattr(Event, key)
+            query = query.filter(search_attr.in_(values))
+
+    query = query.order_by(Event.id)
 
     page = flask_request.args.get('page', 1, type=int)
     per_page = flask_request.args.get('per_page', 10, type=int)

@@ -26,7 +26,7 @@ import six
 from mock import patch
 
 from freshmaker import app, db, events, models
-from freshmaker.types import ArtifactType, ArtifactBuildState
+from freshmaker.types import ArtifactType, ArtifactBuildState, EventState
 
 
 class TestViews(unittest.TestCase):
@@ -252,6 +252,51 @@ class TestViews(unittest.TestCase):
         self.assertEqual(data['status'], 404)
         self.assertEqual(data['error'], 'Not Found')
         self.assertEqual(data['message'], 'No such build state found.')
+
+
+class TestViewsMultipleFilterValues(unittest.TestCase):
+    def setUp(self):
+        db.session.remove()
+        db.drop_all()
+        db.create_all()
+        db.session.commit()
+
+        self._init_data()
+
+        self.client = app.test_client()
+
+    def _init_data(self):
+        event = models.Event.create(
+            db.session, "2017-00000000-0000-0000-0000-000000000001",
+            "RHSA-2018-101", events.TestingEvent)
+        event.state = EventState.BUILDING.value
+        build = models.ArtifactBuild.create(db.session, event, "ed", "module", 1234)
+        build.build_args = '{"key": "value"}'
+        models.ArtifactBuild.create(db.session, event, "mksh", "module", 1235)
+        models.ArtifactBuild.create(db.session, event, "bash", "module", 1236)
+        event2 = models.Event.create(
+            db.session, "2017-00000000-0000-0000-0000-000000000002",
+            "RHSA-2018-102", events.GitModuleMetadataChangeEvent)
+        event2.state = EventState.SKIPPED.value
+        event3 = models.Event.create(
+            db.session, "2017-00000000-0000-0000-0000-000000000003",
+            "RHSA-2018-103", events.MBSModuleStateChangeEvent)
+        event3.state = EventState.FAILED.value
+        db.session.commit()
+        db.session.expire_all()
+
+    def test_query_event_multiple_states(self):
+        resp = self.client.get('/api/1/events/?state=%d&state=%d' % (
+            EventState.SKIPPED.value, EventState.BUILDING.value))
+        evs = json.loads(resp.data.decode('utf8'))['items']
+        self.assertEqual(len(evs), 2)
+
+    def test_query_event_multiple_event_type_ids(self):
+        resp = self.client.get('/api/1/events/?event_type_id=%d&event_type_id=%d' % (
+            models.EVENT_TYPES[events.TestingEvent],
+            models.EVENT_TYPES[events.GitModuleMetadataChangeEvent]))
+        evs = json.loads(resp.data.decode('utf8'))['items']
+        self.assertEqual(len(evs), 2)
 
 
 class TestManualTriggerRebuild(unittest.TestCase):
