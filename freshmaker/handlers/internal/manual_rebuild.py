@@ -22,10 +22,10 @@
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
 from freshmaker import db, log
-from freshmaker.models import Event, EVENT_TYPES
+from freshmaker.models import Event
 from freshmaker.handlers import ContainerBuildHandler
 from freshmaker.events import (
-    FreshmakerManualRebuildEvent, ErrataAdvisoryRPMsSignedEvent)
+    FreshmakerManualRebuildEvent, ErrataAdvisoryStateChangedEvent)
 from freshmaker.errata import Errata
 from freshmaker.types import EventState
 
@@ -40,57 +40,46 @@ class FreshmakerManualRebuildHandler(ContainerBuildHandler):
             return False
         return True
 
-    def rebuild_advisory_if_not_exists(self, event, errata_id):
+    def generate_fake_event(self, manual_rebuild_event):
         """
-        Initiates rebuild of artifacts based on Errata advisory with
-        `errata_id` id.
+        Returns fake ErrataAdvisoryStateChangedEvent which will trigger manual
+        rebuild of artifacts based on Errata advisory `errata_id`.
 
-        :rtype: List of ErrataAdvisoryRPMsSignedEvent instances.
-        :return: List of extra events generated to initiate the rebuild.
+        :param manual_rebuild_event: FreshmakerManualRebuildEvent instance.
+        :rtype: ErrataAdvisoryStateChangedEvent
+        :return: Newly generated ErrataAdvisoryStateChangedEvent.
         """
-
-        db_event = db.session.query(Event).filter_by(
-            event_type_id=EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
-            search_key=str(errata_id)).first()
-        if db_event and db_event.state != EventState.FAILED.value:
-            msg = ("Ignoring Errata advisory %d - it already exists in "
-                   "Freshmaker db." % errata_id)
-            self.current_db_event.transition(EventState.SKIPPED, msg)
-            db.session.commit()
-            log.info(msg)
-            return []
 
         # Get additional info from Errata to fill in the needed data.
         errata = Errata()
-        advisories = errata.advisories_from_event(event)
+        advisories = errata.advisories_from_event(manual_rebuild_event)
         if not advisories:
-            msg = "Unknown Errata advisory %d" % errata_id
+            msg = "Unknown Errata advisory %d" % manual_rebuild_event.errata_id
             self.current_db_event.transition(EventState.FAILED, msg)
             db.session.commit()
-            return []
+            return None
 
-        log.info("Generating ErrataAdvisoryRPMsSignedEvent for Errata "
-                 "advisory %d - manually triggered rebuild.", errata_id)
+        log.info("Generating ErrataAdvisoryStateChangedEvent for Errata "
+                 "advisory %d - manually triggered rebuild.",
+                 manual_rebuild_event.errata_id)
         advisory = advisories[0]
-        new_event = ErrataAdvisoryRPMsSignedEvent(
-            event.msg_id + "." + str(advisory.name), advisory.name,
-            advisory.errata_id, advisory.security_impact, advisory.state)
+        new_event = ErrataAdvisoryStateChangedEvent(
+            manual_rebuild_event.msg_id + "." + str(advisory.name),
+            advisory.errata_id, advisory.state)
         new_event.manual = True
-        msg = ("Generated ErrataAdvisoryRPMsSignedEvent (%s) for errata: %s"
-               % (event.msg_id, errata_id))
+        msg = ("Generated ErrataAdvisoryStateChangedEvent (%s) for errata: %s"
+               % (manual_rebuild_event.msg_id, manual_rebuild_event.errata_id))
         self.current_db_event.transition(EventState.COMPLETE, msg)
         db.session.commit()
-        return [new_event]
+        return new_event
 
     def handle(self, event):
-        # for every manual triggered event, we log it in db
+        # We log every manual trigger event to DB.
         db_event = Event.get_or_create_from_event(db.session, event)
         db.session.commit()
         self.set_context(db_event)
 
-        extra_events = []
-
-        if event.errata_id:
-            extra_events += self.rebuild_advisory_if_not_exists(event, event.errata_id)
-
-        return extra_events
+        fake_event = self.generate_fake_event(event)
+        if not fake_event:
+            return []
+        return [fake_event]
