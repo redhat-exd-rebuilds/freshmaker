@@ -288,6 +288,13 @@ class Event(FreshmakerBase):
     def __repr__(self):
         return "<Event %s, %r, %s>" % (self.message_id, self.event_type, self.search_key)
 
+    def __str__(self):
+        if self.event_type_id in INVERSE_EVENT_TYPES:
+            type_name = INVERSE_EVENT_TYPES[self.event_type_id].__name__
+        else:
+            type_name = "UnknownEventType %d" % self.event_type_id
+        return "<%s, search_key=%s>" % (type_name, self.search_key)
+
     def json(self):
         event_url = get_url_for('event', id=self.id)
         db.session.add(self)

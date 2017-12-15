@@ -117,6 +117,43 @@ class BaseHandler(object):
     def __init__(self):
         self._db_event_id = None
         self._db_artifact_build_id = None
+        self._log_prefix = ""
+
+    def _log(self, log_fnc, msg, *args, **kwargs):
+        """
+        Logs the message `msg` using `log_fnc`, passing msg, *args and **kwargs
+        to it.
+
+        :param log_fnc: log.info, log.error, log.warn, ...
+        :param str msg: Message to log (first argument passed to log_fnc).
+        :param *args: Args passed to log_fnc.
+        :param **kwargs: Kwargs passed to log_fnc.
+        """
+        return log_fnc("%s%s" % (self._log_prefix, msg), *args, **kwargs)
+
+    def log_debug(self, msg, *args, **kwargs):
+        """
+        Wraps log.info, prefixes the message with a context of this handler.
+        """
+        return self._log(log.debug, msg, *args, **kwargs)
+
+    def log_info(self, msg, *args, **kwargs):
+        """
+        Wraps log.info, prefixes the message with a context of this handler.
+        """
+        return self._log(log.info, msg, *args, **kwargs)
+
+    def log_warn(self, msg, *args, **kwargs):
+        """
+        Wraps log.warn, prefixes the message with a context of this handler.
+        """
+        return self._log(log.warn, msg, *args, **kwargs)
+
+    def log_error(self, msg, *args, **kwargs):
+        """
+        Wraps log.error, prefixes the message with a context of this handler.
+        """
+        return self._log(log.error, msg, *args, **kwargs)
 
     @property
     def current_db_event_id(self):
@@ -142,9 +179,11 @@ class BaseHandler(object):
         if type(db_object) == Event:
             self._db_event_id = db_object.id
             self._db_artifact_build_id = None
+            self._log_prefix = "%s: " % str(db_object)
         elif type(db_object) == ArtifactBuild:
             self._db_event_id = db_object.event.id
             self._db_artifact_build_id = db_object.id
+            self._log_prefix = "%s: " % str(db_object.event)
         else:
             raise ProgrammingError(
                 "Unsupported context type passed to BaseHandler.set_context()")

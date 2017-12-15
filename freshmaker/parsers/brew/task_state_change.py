@@ -21,7 +21,6 @@
 
 import re
 
-from freshmaker import log
 from freshmaker.parsers import BaseParser
 from freshmaker.events import BrewContainerTaskStateChangeEvent
 
@@ -56,6 +55,3 @@ class BrewTaskStateChangeParser(BaseParser):
             m = re.match(r".*/(?P<container>[^#]*)", git_url)
             container = m.group('container')
             return BrewContainerTaskStateChangeEvent(msg_id, container, branch, target, task_id, old_state, new_state)
-        else:
-            log.debug("brew.task.closed or brew.task.failed of %s task_method "
-                      "is not handled yet.", task_method)

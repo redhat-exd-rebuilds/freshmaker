@@ -84,7 +84,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                    "to trigger rebuilds.".format(event.errata_id))
             db_event.transition(EventState.SKIPPED, msg)
             db.session.commit()
-            log.info(msg)
+            self.log_info(msg)
             return []
 
         # Get and record all images to rebuild based on the current
@@ -95,7 +95,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
 
         if not builds:
             msg = 'No container images to rebuild for advisory %r' % event.errata_name
-            log.info(msg)
+            self.log_info(msg)
             db_event.transition(EventState.SKIPPED, msg)
             db.session.commit()
             return []
@@ -109,9 +109,10 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
             # Generate the ODCS compose with RPMs from the current advisory.
             repo_urls = self._prepare_yum_repos_for_rebuilds(
                 db_event, event, builds)
-            log.info("Following repositories will be used for the rebuild:")
+            self.log_info(
+                "Following repositories will be used for the rebuild:")
             for url in repo_urls:
-                log.info("   - %s", url)
+                self.log_info("   - %s", url)
 
         # Log what we are going to rebuild
         self._check_images_to_rebuild(db_event, builds)
@@ -141,8 +142,8 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         :rtype: dict
         :return: Fake odcs.new_compose dict.
         """
-        log.info("DRY RUN: Calling fake odcs.new_compose with args: %r",
-                 (compose_source, tag, packages))
+        self.log_info("DRY RUN: Calling fake odcs.new_compose with args: %r",
+                      (compose_source, tag, packages))
 
         # Generate the new_compose dict.
         ErrataAdvisoryRPMsSignedHandler._FAKE_COMPOSE_ID += 1
@@ -155,7 +156,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         # Generate and inject the ODCSComposeStateChangeEvent event.
         event = ODCSComposeStateChangeEvent(
             "fake_compose_msg", new_compose)
-        log.info("Injecting fake event: %r", event)
+        self.log_info("Injecting fake event: %r", event)
         work_queue_put(event)
 
         return new_compose
@@ -182,7 +183,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         while prev_builds_count != len(builds):
             prev_builds_count = len(builds)
             extra_events = self._find_events_to_include(db_event, builds)
-            log.info("Extra events: %r", extra_events)
+            self.log_info("Extra events: %r", extra_events)
             for ev in extra_events:
                 if ev in seen_extra_events:
                     continue
@@ -230,9 +231,9 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                 % (builds, errata_id))
             return
 
-        log.info('Generate new compose for rebuild: '
-                 'source: %s, source type: %s, packages: %s',
-                 compose_source, 'tag', packages)
+        self.log_info('Generating new compose for rebuild: '
+                      'source: %s, source type: %s, packages: %s',
+                      compose_source, 'tag', packages)
 
         odcs = ODCS(conf.odcs_server_url, auth_mech=AuthMech.Kerberos,
                     verify_ssl=conf.odcs_verify_ssl)
@@ -266,8 +267,8 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         :rtype: dict
         :return: ODCS compose dictionary.
         """
-        log.info('Generating new PULP type compose for content_sets: %r',
-                 content_sets)
+        self.log_info('Generating new PULP type compose for content_sets: %r',
+                      content_sets)
 
         odcs = ODCS(conf.odcs_server_url, auth_mech=AuthMech.Kerberos,
                     verify_ssl=conf.odcs_verify_ssl)
@@ -291,7 +292,8 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                         return True
                     elif ret["state_name"] == "failed":
                         return False
-                    log.info("Waiting for Pulp compose to finish: %r", ret)
+                    self.log_info("Waiting for Pulp compose to finish: %r",
+                                  ret)
                     raise Exception("ODCS compose not finished.")
 
                 done = wait_for_compose(new_compose["id"])
@@ -348,30 +350,30 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                     latest=True,
                     package=koji.parse_NVR(nvr)['name'])
                 if latest_build and latest_build[0]['nvr'] == nvr:
-                    log.info("Package %r is latest version in tag %r, "
-                             "will use this tag", nvr, tag)
+                    self.log_info("Package %r is latest version in tag %r, "
+                                  "will use this tag", nvr, tag)
                     return tag
                 elif not latest_build:
-                    log.info("Could not find package %r in tag %r, "
-                             "skipping this tag", nvr, tag)
+                    self.log_info("Could not find package %r in tag %r, "
+                                  "skipping this tag", nvr, tag)
                 else:
-                    log.info("Package %r is not he latest in the tag %r ("
-                             "latest is %r), skipping this tag", nvr, tag,
-                             latest_build[0]['nvr'])
+                    self.log_info("Package %r is not he latest in the tag %r ("
+                                  "latest is %r), skipping this tag",
+                                  nvr, tag, latest_build[0]['nvr'])
 
     def _check_images_to_rebuild(self, db_event, builds):
         """
-        Checks the images to rebuild and logs them using log.info(...).
+        Checks the images to rebuild and logs them using self.log_info(...).
         :param Event db_event: Database Event associated with images.
         :param builds dict: list of docker images to build as returned by
             _find_images_to_rebuild(...).
         """
-        log.info('Found docker images to rebuild in following order:')
+        self.log_info('Found container images to rebuild in following order:')
         batch = 0
         printed = []
         while (len(printed) != len(builds.values()) or
                len(printed) != len(db_event.builds)):
-            log.info('   Batch %d:', batch)
+            self.log_info('   Batch %d:', batch)
             old_printed_count = len(printed)
             for build in builds.values():
                 # Print build only if:
@@ -387,8 +389,9 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                     args = json.loads(build.build_args)
                     based_on = "based on %s" % args["parent"] \
                         if args["parent"] else "base image"
-                    log.info('      - %s#%s (%s)' %
-                             (args["repository"], args["commit"], based_on))
+                    self.log_info(
+                        '      - %s#%s (%s)' %
+                        (args["repository"], args["commit"], based_on))
                     printed.append(build.original_nvr)
 
             # Nothing has been printed, that means the dependencies between
@@ -398,12 +401,12 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                 db_event.builds_transition(
                     ArtifactBuildState.FAILED.value,
                     "No image to be built in batch %d." % (batch))
-                log.error("Dumping the builds:")
+                self.log_error("Dumping the builds:")
                 for build in builds.values():
-                    log.error("   %r", build.original_nvr)
-                log.error("Printed ones:")
+                    self.log_error("   %r", build.original_nvr)
+                self.log_error("Printed ones:")
                 for p in printed:
-                    log.error("   %r", p)
+                    self.log_error("   %r", p)
                 break
 
             batch += 1
@@ -458,10 +461,10 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
             for image in batch:
                 nvr = image["brew"]["build"]
                 if nvr in builds:
-                    log.debug("Skipping recording build %s, "
-                              "it is already in db", nvr)
+                    self.log_debug("Skipping recording build %s, "
+                                   "it is already in db", nvr)
                     continue
-                log.debug("Recording %s", nvr)
+                self.log_debug("Recording %s", nvr)
                 parent_nvr = image["parent"]["brew"]["build"] \
                     if image["parent"] else None
                 dep_on = builds[parent_nvr] if parent_nvr in builds else None
@@ -527,8 +530,8 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
 
         if not self.event.manual and not self.allow_build(
                 ArtifactType.IMAGE, image_name=image_name):
-            log.info("Skipping rebuild of image %s, not allowed by "
-                     "configuration", image_name)
+            self.log_info("Skipping rebuild of image %s, not allowed by "
+                          "configuration", image_name)
             return True
         return False
 
@@ -555,7 +558,8 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                     password=conf.pulp_password)
         content_sets = pulp.get_content_set_by_repo_ids(pulp_repo_ids)
 
-        log.info('RPM will end up within content sets %s', content_sets)
+        self.log_info('RPMs from advisory ends up in following content sets: '
+                      '%s', content_sets)
 
         # Query images from LightBlue by signed RPM's srpm name and found
         # content sets
@@ -570,13 +574,17 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
             # Container images builds end with ".tar.gz", so do not treat
             # them as RPMs here.
             if not nvr.endswith(".tar.gz"):
+                self.log_info(
+                    "Going to find all the container images to rebuild as "
+                    "result of %s update.", nvr)
                 srpm_name = self._find_build_srpm_name(nvr)
                 batches = lb.find_images_to_rebuild(
                     srpm_name, content_sets,
                     filter_fnc=self._filter_out_not_allowed_builds)
                 yield batches
             else:
-                log.info("Skipping unsupported Errata build type: %s.", nvr)
+                self.log_info("Skipping unsupported Errata build type: "
+                              "%s.", nvr)
 
     def _find_build_srpm_name(self, build_nvr):
         """Find srpm name from a build"""

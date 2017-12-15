@@ -33,7 +33,7 @@ from freshmaker.events import ErrataAdvisoryStateChangedEvent
 from freshmaker.errata import ErrataAdvisory
 
 from freshmaker import conf, db, events
-from freshmaker.models import Event, ArtifactBuild
+from freshmaker.models import Event, ArtifactBuild, EVENT_TYPES
 from freshmaker.types import ArtifactBuildState, ArtifactType, EventState
 
 
@@ -363,7 +363,8 @@ class TestCheckImagesToRebuild(unittest.TestCase):
             "odcs_pulp_compose_id": 15,
         })
 
-        self.ev = Event.create(db.session, 'msg-id', '123', 100)
+        self.ev = Event.create(db.session, 'msg-id', '123',
+                               EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent])
         self.b1 = ArtifactBuild.create(
             db.session, self.ev, "parent", "image",
             state=ArtifactBuildState.PLANNED,
@@ -389,6 +390,7 @@ class TestCheckImagesToRebuild(unittest.TestCase):
         }
 
         handler = ErrataAdvisoryRPMsSignedHandler()
+        handler.set_context(self.ev)
         handler._check_images_to_rebuild(self.ev, builds)
 
         # Check that the images have proper data in proper db columns.
@@ -404,6 +406,7 @@ class TestCheckImagesToRebuild(unittest.TestCase):
         }
 
         handler = ErrataAdvisoryRPMsSignedHandler()
+        handler.set_context(self.ev)
         handler._check_images_to_rebuild(self.ev, builds)
 
         # Check that the images have proper data in proper db columns.
@@ -419,6 +422,7 @@ class TestCheckImagesToRebuild(unittest.TestCase):
         }
 
         handler = ErrataAdvisoryRPMsSignedHandler()
+        handler.set_context(self.ev)
         handler._check_images_to_rebuild(self.ev, builds)
 
         # Check that the images have proper data in proper db columns.

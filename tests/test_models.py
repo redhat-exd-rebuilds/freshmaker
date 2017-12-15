@@ -167,3 +167,13 @@ class TestModels(unittest.TestCase):
         # No state means only COMPLETE should be returned
         ret = Event.get_unreleased(db.session, states=[EventState.SKIPPED])
         self.assertEqual(ret, [event3])
+
+    def test_str(self):
+        event = Event.create(db.session, "test_msg_id1", "test",
+                             events.TestingEvent)
+        self.assertEqual(str(event), "<TestingEvent, search_key=test>")
+
+    def test_str_unknown_event_type(self):
+        event = Event.create(db.session, "test_msg_id1", "test", 1024)
+        self.assertEqual(
+            str(event), "<UnknownEventType 1024, search_key=test>")

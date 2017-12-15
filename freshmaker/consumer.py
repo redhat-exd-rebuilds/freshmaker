@@ -76,7 +76,6 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
         if conf.messaging == 'fedmsg':
             # If this is a faked internal message, don't bother.
             if isinstance(message, events.BaseEvent):
-                log.info("Skipping crypto validation for %r" % message)
                 return
             # Otherwise, if it is a real message from the network, pass it
             # through crypto validation.
@@ -94,8 +93,8 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
             msg = self.get_abstracted_msg(message['body'])
 
         if not msg:
-            # Logging is done in get_abstracted_msg, because we know
-            # the msg_id there...
+            # We do not log here anything, because it would create lot of
+            # useless messages in the logs.
             return
 
         # Primary work is done here.
@@ -133,12 +132,7 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
                 'Received message does not contain "msg_id" or "message-id": '
                 '%r' % (message))
 
-        msg = events.BaseEvent.from_fedmsg(message['topic'], message)
-        if not msg:
-            log.debug("No BaseEvent subclass defined for message with id %s",
-                      message["msg_id"])
-
-        return msg
+        return events.BaseEvent.from_fedmsg(message['topic'], message)
 
     def process_event(self, msg):
         log.debug('Received a message with an ID of "{0}" and of type "{1}"'

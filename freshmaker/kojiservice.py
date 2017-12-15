@@ -154,17 +154,14 @@ class KojiService(object):
         return task_id
 
     def get_build_rpms(self, build_nvr, arches=None):
-        log.info("get_build_rpms %r", build_nvr)
         build_info = self.session.getBuild(build_nvr)
         return self.session.listRPMs(buildID=build_info['id'],
                                      arches=arches)
 
     def get_build(self, build_nvr):
-        log.info("get_build %r", build_nvr)
         return self.session.getBuild(build_nvr)
 
     def get_task_request(self, task_id):
-        log.info("get_task_request %r", task_id)
         return self.session.getTaskRequest(task_id)
 
 
