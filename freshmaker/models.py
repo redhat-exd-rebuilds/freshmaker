@@ -310,6 +310,40 @@ class Event(FreshmakerBase):
             "builds": [b.json() for b in self.builds],
         }
 
+    def find_dependent_events(self):
+        """
+        Find other unreleased Events which built the same builds (or just some
+        of them) as this Event and adds them as a dependency for this event.
+
+        Dependent events of may also rebuild some same images that current event
+        will build. So, for building images found from current event, we also
+        need those YUM repositories used to build images in dependent events.
+        """
+        builds_nvrs = [build.name for build in self.builds]
+
+        states = [EventState.INITIALIZED.value,
+                  EventState.BUILDING.value,
+                  EventState.COMPLETE.value]
+
+        query = db.session.query(ArtifactBuild.event_id)
+        dep_event_ids = query.join(ArtifactBuild.event).filter(
+            ArtifactBuild.name.in_(builds_nvrs),
+            ArtifactBuild.event_id != self.id,
+            ArtifactBuild.type == ArtifactType.IMAGE.value,
+            Event.manual_triggered == false(),
+            Event.released == false(),
+            Event.state.in_(states),
+        ).distinct()
+
+        dep_events = []
+        query = db.session.query(Event)
+        for row in dep_event_ids:
+            dep_event = query.filter_by(id=row[0]).first()
+            self.add_event_dependency(db.session, dep_event)
+            dep_events.append(dep_event)
+        db.session.commit()
+        return dep_events
+
 
 class EventDependency(FreshmakerBase):
     __tablename__ = "event_dependencies"

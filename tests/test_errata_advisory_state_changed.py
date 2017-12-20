@@ -24,7 +24,7 @@
 import unittest
 import json
 
-from mock import patch, MagicMock, PropertyMock, Mock, call
+from mock import patch, PropertyMock, Mock, call
 
 from freshmaker.handlers.errata import ErrataAdvisoryRPMsSignedHandler
 from freshmaker.handlers.errata import ErrataAdvisoryStateChangedHandler
@@ -728,53 +728,6 @@ class TestFindImagesToRebuild(unittest.TestCase):
         ret = list(handler._find_images_to_rebuild(12345))
         lb.find_images_to_rebuild.assert_not_called()
         self.assertEqual([], ret)
-
-
-class TestFindEventsToInclude(unittest.TestCase):
-    """Test ErrataAdvisoryRPMsSignedHandler._find_events_to_include"""
-
-    def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
-
-        self.db_event = Event.get_or_create(
-            db.session, "msg1", "current_event", ErrataAdvisoryRPMsSignedEvent,
-            released=False)
-        ArtifactBuild.create(db.session, self.db_event, "foo", "image", 0)
-
-        # Only this event should be reused, because it is unreleased and
-        # contains the foo build.
-        ev = Event.get_or_create(
-            db.session, "msg2", "old_event_foo", ErrataAdvisoryRPMsSignedEvent,
-            released=False)
-        ev.state = EventState.COMPLETE
-        ArtifactBuild.create(db.session, ev, "foo", "image", 0)
-
-        ev = Event.get_or_create(
-            db.session, "msg3", "old_event_foo_released",
-            ErrataAdvisoryRPMsSignedEvent, released=True)
-        ArtifactBuild.create(db.session, ev, "foo", "image", 0)
-
-        ev = Event.get_or_create(
-            db.session, "msg4", "old_event_bar", ErrataAdvisoryRPMsSignedEvent,
-            released=False)
-        ArtifactBuild.create(db.session, ev, "bar", "image", 0)
-        db.session.commit()
-
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
-
-    def test_find_events_to_include(self):
-        builds = {"foo": MagicMock()}
-        handler = ErrataAdvisoryRPMsSignedHandler()
-        events = handler._find_events_to_include(self.db_event, builds)
-
-        self.assertEqual(len(events), 1)
-        self.assertEqual(events[0].search_key, "old_event_foo")
 
 
 class TestErrataAdvisoryStateChangedHandler(unittest.TestCase):

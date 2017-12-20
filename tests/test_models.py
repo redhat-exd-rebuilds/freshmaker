@@ -23,8 +23,10 @@
 import unittest
 
 from freshmaker import db, events
-from freshmaker.models import Event, ArtifactBuild, EventState
+from freshmaker.models import ArtifactBuild, ArtifactType
+from freshmaker.models import Event, EventState, EVENT_TYPES, EventDependency
 from freshmaker.types import ArtifactBuildState
+from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
 
 
 class TestModels(unittest.TestCase):
@@ -177,3 +179,101 @@ class TestModels(unittest.TestCase):
         event = Event.create(db.session, "test_msg_id1", "test", 1024)
         self.assertEqual(
             str(event), "<UnknownEventType 1024, search_key=test>")
+
+
+class TestFindDependentEvents(unittest.TestCase):
+    """Test Event.find_dependent_events"""
+
+    def setUp(self):
+        db.session.remove()
+        db.drop_all()
+        db.create_all()
+        db.session.commit()
+
+        self.event_1 = Event.create(
+            db.session, 'msg-1', 'search-key-1',
+            EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
+            state=EventState.INITIALIZED,
+            released=False)
+        ArtifactBuild.create(
+            db.session, self.event_1, 'build-1', ArtifactType.IMAGE)
+        ArtifactBuild.create(
+            db.session, self.event_1, 'build-2', ArtifactType.IMAGE)
+        ArtifactBuild.create(
+            db.session, self.event_1, 'build-3', ArtifactType.IMAGE)
+        ArtifactBuild.create(
+            db.session, self.event_1, 'build-4', ArtifactType.IMAGE)
+
+        self.event_2 = Event.create(
+            db.session, 'msg-2', 'search-key-2',
+            EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
+            state=EventState.BUILDING,
+            released=False)
+        ArtifactBuild.create(
+            db.session, self.event_2, 'build-2', ArtifactType.IMAGE)
+        ArtifactBuild.create(
+            db.session, self.event_2, 'build-5', ArtifactType.IMAGE)
+        ArtifactBuild.create(
+            db.session, self.event_2, 'build-6', ArtifactType.IMAGE)
+
+        self.event_3 = Event.create(
+            db.session, 'msg-3', 'search-key-3',
+            EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
+            state=EventState.COMPLETE,
+            released=False)
+        ArtifactBuild.create(
+            db.session, self.event_3, 'build-2', ArtifactType.IMAGE)
+        ArtifactBuild.create(
+            db.session, self.event_3, 'build-4', ArtifactType.IMAGE)
+        ArtifactBuild.create(
+            db.session, self.event_3, 'build-7', ArtifactType.IMAGE)
+        ArtifactBuild.create(
+            db.session, self.event_3, 'build-8', ArtifactType.IMAGE)
+
+        # Some noises
+
+        # Failed events should not be included
+        self.event_4 = Event.create(
+            db.session, 'msg-4', 'search-key-4',
+            EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
+            state=EventState.FAILED,
+            released=False)
+        ArtifactBuild.create(
+            db.session, self.event_4, 'build-3', ArtifactType.IMAGE)
+
+        # Manual triggered rebuild should not be included as well
+        self.event_5 = Event.create(
+            db.session, 'msg-5', 'search-key-5',
+            EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
+            state=EventState.BUILDING,
+            released=False, manual=True)
+        ArtifactBuild.create(
+            db.session, self.event_5, 'build-4', ArtifactType.IMAGE)
+
+        # Released event should not be included also
+        self.event_6 = Event.create(
+            db.session, 'msg-6', 'search-key-6',
+            EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
+            state=EventState.COMPLETE,
+            released=True)
+        ArtifactBuild.create(
+            db.session, self.event_5, 'build-4', ArtifactType.IMAGE)
+
+        db.session.commit()
+
+    def tearDown(self):
+        db.session.remove()
+        db.drop_all()
+        db.session.commit()
+
+    def test_find_dependent_events(self):
+        dep_events = self.event_1.find_dependent_events()
+        self.assertEqual([self.event_2.id, self.event_3.id],
+                         sorted([event.id for event in dep_events]))
+
+        dep_rels = db.session.query(EventDependency).all()
+        dep_rels = [(rel.event_id, rel.event_dependency_id) for rel in dep_rels]
+
+        self.assertEqual(2, len(dep_rels))
+        self.assertIn((self.event_1.id, self.event_2.id), dep_rels)
+        self.assertIn((self.event_1.id, self.event_3.id), dep_rels)

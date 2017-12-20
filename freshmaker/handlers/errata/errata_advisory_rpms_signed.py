@@ -161,37 +161,14 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
 
         return new_compose
 
-    def _prepare_yum_repos_for_rebuilds(self, db_event, event, builds):
+    def _prepare_yum_repos_for_rebuilds(self, db_event):
         repo_urls = []
         repo_urls.append(self._prepare_yum_repo(db_event))  # noqa
 
-        # Find out extra events we want to include. These are advisories
-        # which are not released yet and touches some Docker images which
-        # are shared with the initial list of docker images we are going to
-        # rebuild.
-        # If we For example have NSS Errata advisory and httpd advisory, we
-        # need to rebuild some Docker images with both NSS and httpd
-        # advisories.
-        # We also want to search for extra events recursively, because there
-        # might for example be zlib advisory, and we want to include this zlib
-        # advisory when rebuilding NSS when rebuilding httpd... :)
-        prev_builds_count = 0
-        seen_extra_events = []
-
-        # We stop when we did not find more docker images to rebuild and
-        # therefore cannot find more extra events.
-        while prev_builds_count != len(builds):
-            prev_builds_count = len(builds)
-            extra_events = self._find_events_to_include(db_event, builds)
-            self.log_info("Extra events: %r", extra_events)
-            for ev in extra_events:
-                if ev in seen_extra_events:
-                    continue
-                seen_extra_events.append(ev)
-                db_event.add_event_dependency(db.session, ev)
-                for batches in self._find_images_to_rebuild(ev.search_key):
-                    builds = self._record_batches(batches, event, builds)
-                repo_urls.append(self._prepare_yum_repo(ev))
+        repo_urls += [
+            self._prepare_yum_repo(dep_event)
+            for dep_event in db_event.find_dependent_events()
+        ]
 
         db.session.commit()
         # Remove duplicates from repo_urls.
@@ -410,30 +387,6 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                 break
 
             batch += 1
-
-    def _find_events_to_include(self, db_event, builds):
-        """
-        Find out all unreleased events which built some image which is also
-        planned to be built as part of current image rebuild.
-
-        :param db_event Event: Database representation of
-            ErrataAdvisoryRPMsSignedEvent.
-        :param builds dict: list of docker images to build as returned by
-            _find_images_to_rebuild(...).
-        """
-        events_to_include = []
-        for ev in Event.get_unreleased(db.session):
-            for build in ev.builds:
-                # Skip non IMAGE builds
-                if (build.type != ArtifactType.IMAGE.value or
-                        ev.message_id == db_event.message_id):
-                    continue
-
-                if build.name in builds:
-                    events_to_include.append(ev)
-                    break
-
-        return events_to_include
 
     def _record_batches(self, batches, event, builds=None):
         """
