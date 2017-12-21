@@ -382,6 +382,8 @@ class ArtifactBuild(FreshmakerBase):
     # Build args in json format.
     build_args = db.Column(db.String, nullable=True)
 
+    composes = db.relationship('ArtifactBuildCompose', back_populates='build')
+
     @classmethod
     def create(cls, session, event, name, type,
                build_id=None, dep_on=None, state=None,
@@ -506,3 +508,29 @@ class ArtifactBuild(FreshmakerBase):
             else:
                 break
         return dep_on
+
+
+class Compose(FreshmakerBase):
+    __tablename__ = 'composes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    odcs_compose_id = db.Column(db.Integer, nullable=False)
+
+    builds = db.relationship('ArtifactBuildCompose', back_populates='compose')
+
+
+class ArtifactBuildCompose(FreshmakerBase):
+    __tablename__ = 'artifact_build_composes'
+
+    build_id = db.Column(
+        db.Integer,
+        db.ForeignKey('artifact_builds.id'),
+        primary_key=True)
+
+    compose_id = db.Column(
+        db.Integer,
+        db.ForeignKey('composes.id'),
+        primary_key=True)
+
+    build = db.relationship('ArtifactBuild', back_populates='composes')
+    compose = db.relationship('Compose', back_populates='builds')

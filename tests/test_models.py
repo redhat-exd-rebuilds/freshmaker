@@ -25,6 +25,7 @@ import unittest
 from freshmaker import db, events
 from freshmaker.models import ArtifactBuild, ArtifactType
 from freshmaker.models import Event, EventState, EVENT_TYPES, EventDependency
+from freshmaker.models import Compose, ArtifactBuildCompose
 from freshmaker.types import ArtifactBuildState
 from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
 
@@ -277,3 +278,83 @@ class TestFindDependentEvents(unittest.TestCase):
         self.assertEqual(2, len(dep_rels))
         self.assertIn((self.event_1.id, self.event_2.id), dep_rels)
         self.assertIn((self.event_1.id, self.event_3.id), dep_rels)
+
+
+class TestArtifactBuildComposesRel(unittest.TestCase):
+    """Test m2m relationship between ArtifactBuild and Compose"""
+
+    def setUp(self):
+        db.session.remove()
+        db.drop_all()
+        db.create_all()
+        db.session.commit()
+
+        self.compose_1 = Compose(odcs_compose_id=1)
+        self.compose_2 = Compose(odcs_compose_id=2)
+        self.compose_3 = Compose(odcs_compose_id=3)
+        self.compose_4 = Compose(odcs_compose_id=4)
+        db.session.add(self.compose_1)
+        db.session.add(self.compose_2)
+        db.session.add(self.compose_3)
+        db.session.add(self.compose_4)
+
+        self.event = Event.create(
+            db.session, 'msg-1', 'search-key-1',
+            EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
+            state=EventState.INITIALIZED,
+            released=False)
+        self.build_1 = ArtifactBuild.create(
+            db.session, self.event, 'build-1', ArtifactType.IMAGE)
+        self.build_2 = ArtifactBuild.create(
+            db.session, self.event, 'build-2', ArtifactType.IMAGE)
+        self.build_3 = ArtifactBuild.create(
+            db.session, self.event, 'build-3', ArtifactType.IMAGE)
+
+        db.session.commit()
+
+        rels = (
+            (self.build_1.id, self.compose_1.id),
+            (self.build_1.id, self.compose_2.id),
+            (self.build_1.id, self.compose_3.id),
+            (self.build_2.id, self.compose_2.id),
+            (self.build_2.id, self.compose_4.id),
+        )
+
+        for build_id, compose_id in rels:
+            db.session.add(
+                ArtifactBuildCompose(
+                    build_id=build_id, compose_id=compose_id))
+
+        db.session.commit()
+
+    def tearDown(self):
+        db.session.remove()
+        db.drop_all()
+        db.session.commit()
+
+    def test_build_composes(self):
+        self.assertEqual(3, len(self.build_1.composes))
+        self.assertEqual(
+            [self.compose_1.id, self.compose_2.id, self.compose_3.id],
+            sorted([rel.compose.id for rel in self.build_1.composes]))
+
+        self.assertEqual(2, len(self.build_2.composes))
+        self.assertEqual(
+            [self.compose_2.id, self.compose_4.id],
+            sorted([rel.compose.id for rel in self.build_2.composes]))
+
+        self.assertEqual([], self.build_3.composes)
+
+    def test_compose_builds(self):
+        expected_rels = (
+            (self.compose_1, 1, [self.build_1.id]),
+            (self.compose_2, 2, [self.build_1.id, self.build_2.id]),
+            (self.compose_3, 1, [self.build_1.id]),
+            (self.compose_4, 1, [self.build_2.id]),
+        )
+
+        for compose, builds_count, builds in expected_rels:
+            self.assertEqual(builds_count, len(compose.builds))
+            self.assertEqual(
+                builds,
+                sorted([rel.build.id for rel in compose.builds]))
