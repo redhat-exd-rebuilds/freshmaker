@@ -21,15 +21,18 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
+import six
 import unittest
 
-from mock import call, patch
+from mock import patch, PropertyMock
 
 from freshmaker import db
-from freshmaker.models import Event
-from freshmaker.models import EVENT_TYPES
+from freshmaker.models import (
+    Event, EventState, EVENT_TYPES,
+    ArtifactBuild, ArtifactType, ArtifactBuildState, ArtifactBuildCompose,
+    Compose
+)
 from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
-from freshmaker.events import KojiTaskStateChangeEvent
 from freshmaker.handlers.odcs import ComposeStateChangeHandler
 from freshmaker.events import ODCSComposeStateChangeEvent
 
@@ -43,18 +46,56 @@ class TestComposeStateChangeHandler(unittest.TestCase):
         db.create_all()
         db.session.commit()
 
-        self.adv_signed_event1 = Event.get_or_create(
-            db.session, 'msg-id-1', 'msg-id-1',
-            EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent])
-        self.adv_signed_event2 = Event.get_or_create(
-            db.session, 'msg-id-2', 'msg-id-2',
-            EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent])
-        self.unrelated_event = Event.get_or_create(
-            db.session, 'msg-id-3', 'msg-id-3',
-            EVENT_TYPES[KojiTaskStateChangeEvent])
+        # Test data
+        # (Inner build depends on outer build)
+        # Event (ErrataAdvisoryRPMsSignedEvent):
+        #     build 1: [compose 1, pulp compose 1]
+        #         build 2: [compose 1, pulp compose 2]
+        #     build 3: [compose 1, pulp compose 3]
+        #         build 4: [compose 1, pulp compose 4]
+        #         build 5: [compose 1, pulp compose 5]
+        #     build 6 (not planned): [compose 1, pulp compose 6]
 
-        self.adv_signed_event1.compose_id = 1
-        self.adv_signed_event2.compose_id = 1
+        self.db_event = Event.create(
+            db.session, 'msg-1', 'search-key-1',
+            EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
+            state=EventState.INITIALIZED,
+            released=False)
+
+        self.build_1 = ArtifactBuild.create(
+            db.session, self.db_event, 'build-1', ArtifactType.IMAGE,
+            state=ArtifactBuildState.PLANNED)
+        self.build_2 = ArtifactBuild.create(
+            db.session, self.db_event, 'build-2', ArtifactType.IMAGE,
+            dep_on=self.build_1,
+            state=ArtifactBuildState.PLANNED)
+
+        self.build_3 = ArtifactBuild.create(
+            db.session, self.db_event, 'build-3', ArtifactType.IMAGE,
+            state=ArtifactBuildState.PLANNED)
+        self.build_4 = ArtifactBuild.create(
+            db.session, self.db_event, 'build-4', ArtifactType.IMAGE,
+            dep_on=self.build_3,
+            state=ArtifactBuildState.PLANNED)
+        self.build_5 = ArtifactBuild.create(
+            db.session, self.db_event, 'build-5', ArtifactType.IMAGE,
+            dep_on=self.build_3,
+            state=ArtifactBuildState.PLANNED)
+
+        self.build_6 = ArtifactBuild.create(
+            db.session, self.db_event, 'build-6', ArtifactType.IMAGE,
+            state=ArtifactBuildState.BUILD)
+
+        self.compose_1 = Compose(odcs_compose_id=1)
+        db.session.add(self.compose_1)
+        db.session.commit()
+
+        builds = [self.build_1, self.build_2, self.build_3,
+                  self.build_4, self.build_5, self.build_6]
+        composes = [self.compose_1] * 6
+        for build, compose in six.moves.zip(builds, composes):
+            db.session.add(ArtifactBuildCompose(
+                build_id=build.id, compose_id=compose.id))
         db.session.commit()
 
     def tearDown(self):
@@ -70,20 +111,19 @@ class TestComposeStateChangeHandler(unittest.TestCase):
         can_handle = handler.can_handle(event)
         self.assertFalse(can_handle)
 
-    @patch('freshmaker.handlers.ContainerBuildHandler._build_first_batch')
-    @patch('freshmaker.handlers.ContainerBuildHandler.set_context')
-    def test_start_to_build(self, set_context, build_first_batch):
+    @patch('freshmaker.models.ArtifactBuild.composes_ready',
+           new_callable=PropertyMock)
+    @patch('freshmaker.handlers.ContainerBuildHandler.start_to_build_images')
+    def test_start_to_build(self, start_to_build_images, composes_ready):
+        composes_ready.return_value = True
+
         event = ODCSComposeStateChangeEvent(
-            'msg-id', {'id': 1, 'state': 'done'}
+            'msg-id', {'id': self.compose_1.id, 'state': 'done'}
         )
+
         handler = ComposeStateChangeHandler()
         handler.handle(event)
-        build_first_batch.assert_has_calls([
-            call(self.adv_signed_event1),
-            call(self.adv_signed_event2),
-        ])
 
-        set_context.assert_has_calls([
-            call(self.adv_signed_event1),
-            call(self.adv_signed_event2)
-        ])
+        args, kwargs = start_to_build_images.call_args
+        passed_builds = sorted(args[0], key=lambda build: build.id)
+        self.assertEqual([self.build_1, self.build_3], passed_builds)

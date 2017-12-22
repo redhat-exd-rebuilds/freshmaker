@@ -32,7 +32,7 @@ from freshmaker import conf, log, db, models
 from freshmaker.kojiservice import koji_service, parse_NVR
 from freshmaker.mbs import MBS
 from freshmaker.models import ArtifactBuildState
-from freshmaker.types import ArtifactType, EventState
+from freshmaker.types import EventState
 from freshmaker.models import ArtifactBuild, Event
 from freshmaker.utils import krb_context, get_rebuilt_nvr
 from freshmaker.errors import UnprocessableEntity, ProgrammingError
@@ -406,33 +406,18 @@ class ContainerBuildHandler(BaseHandler):
         with krb_context():
             return odcs.get_compose(compose_id)
 
-    def get_repo_urls(self, db_event, build):
+    def get_repo_urls(self, build):
         """
         Returns list of URLs to ODCS repositories which should be used
         to rebuild the container image for this event.
+
+        :param build: from this build to gather repo URLs.
+        :type build: ArtifactBuild
+        :return: list of repository URLs.
+        :rtype: list
         """
-        rebuild_event = Event.get(db.session, db_event.message_id)
-
-        # Get compose ids of ODCS composes of all event dependencies.
-        compose_ids = [rebuild_event.compose_id]
-        for event in rebuild_event.event_dependencies:
-            compose_ids.append(event.compose_id)
-
-        # Use compose ids to get the repofile URLs.
-        repo_urls = []
-        for compose_id in compose_ids:
-            if not compose_id:
-                continue
-            compose = self.odcs_get_compose(compose_id)
-            repo_urls.append(compose["result_repofile"])
-
-        # Add PULP compose repo url.
-        if build.build_args and "odcs_pulp_compose_id" in build.build_args:
-            args = json.loads(build.build_args)
-            compose = self.odcs_get_compose(args["odcs_pulp_compose_id"])
-            repo_urls.append(compose["result_repofile"])
-
-        return repo_urls
+        return [self.odcs_get_compose(rel.compose.id)['result_repofile']
+                for rel in build.composes]
 
     def start_to_build_images(self, builds):
         """Start to build images
@@ -444,7 +429,7 @@ class ContainerBuildHandler(BaseHandler):
 
         def build_image(build):
             self.set_context(build)
-            repo_urls = self.get_repo_urls(build.event, build)
+            repo_urls = self.get_repo_urls(build)
             build.build_id = self.build_image_artifact_build(build, repo_urls)
             if build.build_id:
                 build.transition(
@@ -458,15 +443,3 @@ class ContainerBuildHandler(BaseHandler):
             db.session.commit()
 
         list(six.moves.map(build_image, builds))
-
-    def _build_first_batch(self, db_event):
-        """
-        Rebuilds all the parents images - images in the first batch which don't
-        depend on other images.
-        """
-
-        builds = db.session.query(ArtifactBuild).filter_by(
-            type=ArtifactType.IMAGE.value, event_id=db_event.id,
-            dep_on=None).all()
-        self.start_to_build_images(builds)
-        self.set_context(db_event)

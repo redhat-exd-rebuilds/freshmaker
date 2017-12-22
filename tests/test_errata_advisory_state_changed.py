@@ -631,10 +631,10 @@ class TestPrepareYumRepo(unittest.TestCase):
         errata.return_value.get_builds.return_value = set(["httpd-2.4.15-1.f27"])
 
         handler = ErrataAdvisoryRPMsSignedHandler()
-        repo_url = handler._prepare_yum_repo(self.ev)
+        compose = handler._prepare_yum_repo(self.ev)
 
         db.session.refresh(self.ev)
-        self.assertEqual(3, self.ev.compose_id)
+        self.assertEqual(3, compose['id'])
 
         _get_compose_source.assert_called_once_with("httpd-2.4.15-1.f27")
         _get_packages_for_compose.assert_called_once_with("httpd-2.4.15-1.f27")
@@ -647,7 +647,7 @@ class TestPrepareYumRepo(unittest.TestCase):
         # We should get the right repo URL eventually
         self.assertEqual(
             "http://localhost/composes/latest-odcs-3-1/compose/Temporary/odcs-3.repo",
-            repo_url)
+            compose['result_repofile'])
 
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.ODCS')
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.'
@@ -965,9 +965,6 @@ class TestRecordBatchesImages(unittest.TestCase):
         self.assertNotEqual(None, parent_image)
         self.assertEqual(ArtifactBuildState.PLANNED.value, parent_image.state)
 
-        build_args = json.loads(parent_image.build_args)
-        self.assertEqual(1, build_args['odcs_pulp_compose_id'])
-
         # Check child image
         child_image = query.filter(
             ArtifactBuild.original_nvr == 'rh-dotnetcore10-docker-1.0-16'
@@ -976,12 +973,70 @@ class TestRecordBatchesImages(unittest.TestCase):
         self.assertEqual(parent_image, child_image.dep_on)
         self.assertEqual(ArtifactBuildState.PLANNED.value, child_image.state)
 
-        build_args = json.loads(child_image.build_args)
-        self.assertEqual(2, build_args['odcs_pulp_compose_id'])
+    def test_pulp_compose_is_stored_for_each_build(self):
+        batches = [
+            [{
+                "brew": {
+                    "completion_date": "20170420T17:05:37.000-0400",
+                    "build": "rhel-server-docker-7.3-82",
+                    "package": "rhel-server-docker"
+                },
+                "parent": None,
+                "content_sets": ["content-set-1"],
+                "repository": "repo-1",
+                "commit": "123456789",
+                "target": "target-candidate",
+                "git_branch": "rhel-7",
+                "error": None
+            }],
+            [{
+                "brew": {
+                    "build": "rh-dotnetcore10-docker-1.0-16",
+                    "package": "rh-dotnetcore10-docker",
+                    "completion_date": "20170511T10:06:09.000-0400"
+                },
+                "parent": {
+                    "brew": {
+                        "completion_date": "20170420T17:05:37.000-0400",
+                        "build": "rhel-server-docker-7.3-82",
+                        "package": "rhel-server-docker"
+                    },
+                    "parent": None,
+                    "content_sets": ["content-set-1"],
+                    "repository": "repo-1",
+                    "commit": "123456789",
+                    "target": "target-candidate",
+                    "git_branch": "rhel-7",
+                    "error": None
+                },
+                "content_sets": ["content-set-1"],
+                "repository": "repo-1",
+                "commit": "987654321",
+                "target": "target-candidate",
+                "git_branch": "rhel-7",
+                "error": None
+            }]
+        ]
+
+        handler = ErrataAdvisoryRPMsSignedHandler()
+        handler._record_batches(batches, self.mock_event)
+
+        query = db.session.query(ArtifactBuild)
+        parent_build = query.filter(
+            ArtifactBuild.original_nvr == 'rhel-server-docker-7.3-82'
+        ).first()
+        self.assertEqual(1, len(parent_build.composes))
+        self.assertEqual(1, parent_build.composes[0].compose.id)
+
+        child_build = query.filter(
+            ArtifactBuild.original_nvr == 'rh-dotnetcore10-docker-1.0-16'
+        ).first()
+        self.assertEqual(1, len(child_build.composes))
+        self.assertEqual(2, child_build.composes[0].compose.id)
 
         self.mock_prepare_pulp_repo.assert_has_calls([
-            call(child_image.event, ["content-set-1"]),
-            call(child_image.event, ["content-set-1"])
+            call(child_build.event, ["content-set-1"]),
+            call(child_build.event, ["content-set-1"])
         ])
 
     def test_mark_failed_state_if_image_has_error(self):
@@ -1070,3 +1125,80 @@ class TestRecordBatchesImages(unittest.TestCase):
             ArtifactBuild.original_nvr == 'rh-dotnetcore10-docker-1.0-16'
         ).first()
         self.assertEqual(ArtifactBuildState.FAILED.value, build.state)
+
+
+class TestPrepareYumReposForRebuilds(unittest.TestCase):
+    """Test ErrataAdvisoryRPMsSignedHandler._prepare_yum_repos_for_rebuilds"""
+
+    def setUp(self):
+        db.session.remove()
+        db.drop_all()
+        db.create_all()
+        db.session.commit()
+
+        self.prepare_yum_repo_patcher = patch(
+            'freshmaker.handlers.errata.errata_advisory_rpms_signed.'
+            'ErrataAdvisoryRPMsSignedHandler._prepare_yum_repo',
+            side_effect=[
+                {'id': 1, 'result_repofile': 'http://localhost/repo/1'},
+                {'id': 2, 'result_repofile': 'http://localhost/repo/2'},
+                {'id': 3, 'result_repofile': 'http://localhost/repo/3'},
+                {'id': 4, 'result_repofile': 'http://localhost/repo/4'},
+            ])
+        self.mock_prepare_yum_repo = self.prepare_yum_repo_patcher.start()
+
+        self.find_dependent_event_patcher = patch(
+            'freshmaker.models.Event.find_dependent_events')
+        self.mock_find_dependent_event = \
+            self.find_dependent_event_patcher.start()
+
+        self.db_event = Event.create(
+            db.session, 'msg-1', 'search-key-1',
+            EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
+            state=EventState.INITIALIZED,
+            released=False)
+        self.build_1 = ArtifactBuild.create(
+            db.session, self.db_event, 'build-1', ArtifactType.IMAGE)
+        self.build_2 = ArtifactBuild.create(
+            db.session, self.db_event, 'build-2', ArtifactType.IMAGE)
+
+        db.session.commit()
+
+    def tearDown(self):
+        self.find_dependent_event_patcher.stop()
+        self.prepare_yum_repo_patcher.stop()
+
+        db.session.remove()
+        db.drop_all()
+        db.session.commit()
+
+    def test_prepare_without_dependent_events(self):
+        self.mock_find_dependent_event.return_value = []
+
+        handler = ErrataAdvisoryRPMsSignedHandler()
+        urls = handler._prepare_yum_repos_for_rebuilds(self.db_event)
+
+        self.assertEqual(1, self.build_1.composes[0].compose.id)
+        self.assertEqual(1, self.build_2.composes[0].compose.id)
+        self.assertEqual(['http://localhost/repo/1'], urls)
+
+    def test_prepare_with_dependent_events(self):
+        self.mock_find_dependent_event.return_value = [
+            Mock(), Mock(), Mock()
+        ]
+
+        handler = ErrataAdvisoryRPMsSignedHandler()
+        urls = handler._prepare_yum_repos_for_rebuilds(self.db_event)
+
+        odcs_compose_ids = [rel.compose.id for rel in self.build_1.composes]
+        self.assertEqual([1, 2, 3, 4], sorted(odcs_compose_ids))
+
+        odcs_compose_ids = [rel.compose.id for rel in self.build_2.composes]
+        self.assertEqual([1, 2, 3, 4], sorted(odcs_compose_ids))
+
+        self.assertEqual([
+            'http://localhost/repo/1',
+            'http://localhost/repo/2',
+            'http://localhost/repo/3',
+            'http://localhost/repo/4',
+        ], sorted(urls))

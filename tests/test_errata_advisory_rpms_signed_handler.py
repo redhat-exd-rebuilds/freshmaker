@@ -176,9 +176,9 @@ class TestErrataAdvisoryRPMsSignedHandler(unittest.TestCase):
     @patch('freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler.'
            '_prepare_yum_repos_for_rebuilds')
     @patch('freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler.'
-           '_build_first_batch')
+           'start_to_build_images')
     def test_rebuild_if_errata_state_is_prior_to_SHIPPED_LIVE(
-            self, build_first_batch, prepare_yum_repos_for_rebuilds,
+            self, start_to_build_images, prepare_yum_repos_for_rebuilds,
             allow_build):
         event = ErrataAdvisoryRPMsSignedEvent(
             'msg-id-123', 'RHSA-2017', 123, '', 'REL_PREP')
@@ -186,7 +186,7 @@ class TestErrataAdvisoryRPMsSignedHandler(unittest.TestCase):
         handler.handle(event)
 
         prepare_yum_repos_for_rebuilds.assert_called_once()
-        build_first_batch.assert_not_called()
+        start_to_build_images.assert_not_called()
 
         db_event = Event.get(db.session, event.msg_id)
         self.assertEqual(EventState.BUILDING.value, db_event.state)
@@ -196,17 +196,19 @@ class TestErrataAdvisoryRPMsSignedHandler(unittest.TestCase):
     @patch('freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler.'
            '_prepare_yum_repos_for_rebuilds')
     @patch('freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler.'
-           '_build_first_batch')
+           'start_to_build_images')
+    @patch('freshmaker.models.Event.get_image_builds_in_first_batch')
     def test_rebuild_if_errata_state_is_SHIPPED_LIVE(
-            self, build_first_batch, prepare_yum_repos_for_rebuilds,
-            allow_build):
+            self, get_image_builds_in_first_batch, start_to_build_images,
+            prepare_yum_repos_for_rebuilds, allow_build):
         event = ErrataAdvisoryRPMsSignedEvent(
             'msg-id-123', 'RHSA-2017', 123, '', 'SHIPPED_LIVE')
         handler = ErrataAdvisoryRPMsSignedHandler()
         handler.handle(event)
 
         prepare_yum_repos_for_rebuilds.assert_not_called()
-        build_first_batch.assert_called_once()
+        get_image_builds_in_first_batch.assert_called_once()
+        start_to_build_images.assert_called_once()
 
         db_event = Event.get(db.session, event.msg_id)
         self.assertEqual(EventState.BUILDING.value, db_event.state)

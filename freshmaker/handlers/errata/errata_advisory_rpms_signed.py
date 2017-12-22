@@ -34,7 +34,7 @@ from freshmaker.lightblue import LightBlue
 from freshmaker.pulp import Pulp
 from freshmaker.errata import Errata
 from freshmaker.types import ArtifactType, ArtifactBuildState, EventState
-from freshmaker.models import Event
+from freshmaker.models import Event, Compose
 from freshmaker.consumer import work_queue_put
 from freshmaker.utils import krb_context, retry, get_rebuilt_nvr
 
@@ -107,8 +107,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
             # available from official YUM repositories.
             #
             # Generate the ODCS compose with RPMs from the current advisory.
-            repo_urls = self._prepare_yum_repos_for_rebuilds(
-                db_event, event, builds)
+            repo_urls = self._prepare_yum_repos_for_rebuilds(db_event)
             self.log_info(
                 "Following repositories will be used for the rebuild:")
             for url in repo_urls:
@@ -121,7 +120,8 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
             # As mentioned above, no need to wait for the event of new compose
             # is generated in ODCS, so we can start to rebuild the first batch
             # from here immediately.
-            self._build_first_batch(db_event)
+            self.start_to_build_images(
+                db_event.get_image_builds_in_first_batch())
 
         if event.manual:
             msg = 'Base images are scheduled to be rebuilt due to manual rebuild.'
@@ -163,25 +163,42 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
 
     def _prepare_yum_repos_for_rebuilds(self, db_event):
         repo_urls = []
-        repo_urls.append(self._prepare_yum_repo(db_event))  # noqa
+        db_composes = []
 
-        repo_urls += [
-            self._prepare_yum_repo(dep_event)
-            for dep_event in db_event.find_dependent_events()
-        ]
+        compose = self._prepare_yum_repo(db_event)
+        db_composes.append(Compose(odcs_compose_id=compose['id']))
+        db.session.add(db_composes[-1])
+        repo_urls.append(compose['result_repofile'])
 
+        for dep_event in db_event.find_dependent_events():
+            compose = self._prepare_yum_repo(dep_event)
+            db_composes.append(Compose(odcs_compose_id=compose['id']))
+            db.session.add(db_composes[-1])
+            repo_urls.append(compose['result_repofile'])
+
+        # commit all new composes
         db.session.commit()
+
+        for build in db_event.builds:
+            build.add_composes(db.session, db_composes)
+        db.session.commit()
+
         # Remove duplicates from repo_urls.
         return list(set(repo_urls))
 
     def _prepare_yum_repo(self, db_event):
         """
-        Prepare a yum repo for rebuild
+        Request a compose from ODCS for builds included in Errata advisory
 
         Run a compose in ODCS to contain required RPMs for rebuilding images
         later.
-        """
 
+        :param Event db_event: current event being handled that contains errata
+            advisory to get builds containing updated RPMs.
+        :return: a mapping returned from ODCS that represents the request
+            compose.
+        :rtype: dict
+        """
         errata_id = int(db_event.search_key)
 
         packages = []
@@ -223,14 +240,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
             new_compose = self._fake_odcs_new_compose(
                 compose_source, 'tag', packages=packages)
 
-        compose_id = new_compose['id']
-        yum_repourl = new_compose['result_repofile']
-
-        rebuild_event = Event.get(db.session, db_event.message_id)
-        rebuild_event.compose_id = compose_id
-        db.session.commit()
-
-        return yum_repourl
+        return new_compose
 
     def _prepare_pulp_repo(self, db_event, content_sets):
         """
@@ -453,17 +463,23 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
 
                 build.transition(state, state_reason)
 
-                compose = self._prepare_pulp_repo(build.event, image["content_sets"])
-
                 build_args = {}
                 build_args["repository"] = image["repository"]
                 build_args["commit"] = image["commit"]
                 build_args["parent"] = parent_nvr
                 build_args["target"] = image["target"]
                 build_args["branch"] = image["git_branch"]
-                build_args["odcs_pulp_compose_id"] = compose["id"]
                 build.build_args = json.dumps(build_args)
+
                 db.session.commit()
+
+                # Store odcs pulp compose to build
+                compose = self._prepare_pulp_repo(
+                    build.event, image["content_sets"])
+                db_compose = Compose(odcs_compose_id=compose['id'])
+                db.session.add(db_compose)
+                db.session.commit()
+                build.add_composes(db.session, [db_compose])
 
                 builds[nvr] = build
 

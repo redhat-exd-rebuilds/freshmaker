@@ -22,8 +22,6 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
-import json
-
 from mock import patch, PropertyMock
 from unittest import TestCase
 
@@ -32,11 +30,12 @@ import freshmaker
 from freshmaker import db
 from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
 from freshmaker.handlers import ContainerBuildHandler
-from freshmaker.models import ArtifactBuild
-from freshmaker.models import ArtifactBuildState
-from freshmaker.models import Event
+from freshmaker.models import (
+    ArtifactBuild, ArtifactBuildState, ArtifactBuildCompose,
+    Compose, Event, EVENT_TYPES
+)
 from freshmaker.errors import UnprocessableEntity, ProgrammingError
-from freshmaker.types import ArtifactType
+from freshmaker.types import ArtifactType, EventState
 
 
 class MyHandler(ContainerBuildHandler):
@@ -148,25 +147,65 @@ class TestGetRepoURLs(TestCase):
         db.create_all()
         db.session.commit()
 
-        self.db_event = Event.get_or_create(
-            db.session, "msg1", "current_event", ErrataAdvisoryRPMsSignedEvent,
+        self.compose_1 = Compose(odcs_compose_id=1)
+        self.compose_2 = Compose(odcs_compose_id=2)
+        self.compose_3 = Compose(odcs_compose_id=3)
+        self.compose_4 = Compose(odcs_compose_id=4)
+        db.session.add(self.compose_1)
+        db.session.add(self.compose_2)
+        db.session.add(self.compose_3)
+        db.session.add(self.compose_4)
+
+        self.event = Event.create(
+            db.session, 'msg-1', 'search-key-1',
+            EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
+            state=EventState.BUILDING,
             released=False)
 
-        self.build = ArtifactBuild.create(
-            db.session, self.db_event, "parent1-1-4", "image",
-            state=ArtifactBuildState.PLANNED, original_nvr="parent1-1-4")
+        self.build_1 = ArtifactBuild.create(
+            db.session, self.event, 'build-1', ArtifactType.IMAGE,
+            state=ArtifactBuildState.PLANNED)
+        self.build_2 = ArtifactBuild.create(
+            db.session, self.event, 'build-2', ArtifactType.IMAGE,
+            state=ArtifactBuildState.PLANNED)
+
         db.session.commit()
 
-        def mocked_odcs_get_compose(compose_id):
-            return {
-                "id": compose_id,
-                "result_repofile": "http://localhost/%d.repo" % compose_id,
-            }
+        rels = (
+            (self.build_1.id, self.compose_1.id),
+            (self.build_1.id, self.compose_2.id),
+            (self.build_1.id, self.compose_3.id),
+            (self.build_1.id, self.compose_4.id),
+        )
+
+        for build_id, compose_id in rels:
+            db.session.add(
+                ArtifactBuildCompose(
+                    build_id=build_id, compose_id=compose_id))
+
+        db.session.commit()
 
         self.patch_odcs_get_compose = patch(
-            "freshmaker.handlers.ContainerBuildHandler.odcs_get_compose")
+            "freshmaker.handlers.ContainerBuildHandler.odcs_get_compose",
+            side_effect=[
+                {
+                    "id": self.compose_1.id,
+                    "result_repofile": "http://localhost/1.repo",
+                },
+                {
+                    "id": self.compose_2.id,
+                    "result_repofile": "http://localhost/2.repo",
+                },
+                {
+                    "id": self.compose_3.id,
+                    "result_repofile": "http://localhost/3.repo",
+                },
+                {
+                    "id": self.compose_4.id,
+                    "result_repofile": "http://localhost/4.repo",
+                },
+            ])
         self.odcs_get_compose = self.patch_odcs_get_compose.start()
-        self.odcs_get_compose.side_effect = mocked_odcs_get_compose
 
     def tearDown(self):
         db.session.remove()
@@ -176,41 +215,20 @@ class TestGetRepoURLs(TestCase):
 
     def test_get_repo_urls_no_composes(self):
         handler = MyHandler()
-        repos = handler.get_repo_urls(self.db_event, self.build)
+        repos = handler.get_repo_urls(self.build_2)
         self.assertEqual(repos, [])
 
-    def test_get_repo_urls_only_main_compose(self):
-        self.db_event.compose_id = 1
-        db.session.commit()
-
-        handler = MyHandler()
-        repos = handler.get_repo_urls(self.db_event, self.build)
-        self.assertEqual(repos, ["http://localhost/1.repo"])
-
-    def test_get_repo_urls_only_pulp_compose(self):
-        build_args = json.dumps({
-            "odcs_pulp_compose_id": 15,
-        })
-        self.build.build_args = build_args
-        db.session.commit()
-
-        handler = MyHandler()
-        repos = handler.get_repo_urls(self.db_event, self.build)
-        self.assertEqual(repos, ["http://localhost/15.repo"])
-
     def test_get_repo_urls_both_pulp_and_main_compose(self):
-        build_args = json.dumps({
-            "odcs_pulp_compose_id": 15,
-        })
-        self.db_event.compose_id = 1
-        self.build.build_args = build_args
-        db.session.commit()
-
         handler = MyHandler()
-        repos = handler.get_repo_urls(self.db_event, self.build)
+        repos = handler.get_repo_urls(self.build_1)
         self.assertEqual(
-            repos,
-            ["http://localhost/1.repo", "http://localhost/15.repo"])
+            [
+                'http://localhost/1.repo',
+                'http://localhost/2.repo',
+                'http://localhost/3.repo',
+                'http://localhost/4.repo',
+            ],
+            sorted(repos))
 
 
 class TestAllowBuildBasedOnWhitelist(TestCase):
@@ -343,165 +361,3 @@ class TestAllowBuildBasedOnWhitelist(TestCase):
                                       advisory_name='RHSA-2017',
                                       advisory_state='REL_PREP')
         self.assertTrue(allowed)
-
-
-class AnyStringWith(str):
-    def __eq__(self, other):
-        return self in other
-
-
-class TestBuildFirstBatch(TestCase):
-    """Test ErrataAdvisoryRPMsSignedHandler._build_first_batch"""
-
-    def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
-
-        build_args = json.dumps({
-            "parent": "nvr",
-            "repository": "repo",
-            "target": "target",
-            "commit": "hash",
-            "branch": "mybranch",
-            "yum_repourl": "http://localhost/composes/latest-odcs-3-1/compose/"
-                           "Temporary/odcs-3.repo",
-            "odcs_pulp_compose_id": 15,
-        })
-
-        self.db_event = Event.get_or_create(
-            db.session, "msg1", "current_event", ErrataAdvisoryRPMsSignedEvent,
-            released=False)
-        self.db_event.compose_id = 3
-
-        p1 = ArtifactBuild.create(db.session, self.db_event, "parent1-1-4",
-                                  "image",
-                                  state=ArtifactBuildState.PLANNED,
-                                  original_nvr="parent1-1-4")
-        p1.build_args = build_args
-        self.p1 = p1
-
-        b = ArtifactBuild.create(db.session, self.db_event,
-                                 "parent1_child1", "image",
-                                 state=ArtifactBuildState.PLANNED,
-                                 dep_on=p1,
-                                 original_nvr="parent1_child1-1-4")
-        b.build_args = build_args
-
-        # Not in PLANNED state.
-        b = ArtifactBuild.create(db.session, self.db_event, "parent3", "image",
-                                 state=ArtifactBuildState.BUILD,
-                                 original_nvr="parent3-1-4")
-        b.build_args = build_args
-
-        # No build args
-        b = ArtifactBuild.create(db.session, self.db_event, "parent4", "image",
-                                 state=ArtifactBuildState.PLANNED,
-                                 original_nvr="parent4-1-4")
-        db.session.commit()
-
-        # No parent - base image
-        b = ArtifactBuild.create(db.session, self.db_event, "parent5", "image",
-                                 state=ArtifactBuildState.PLANNED,
-                                 original_nvr="parent5-1-4")
-        b.build_args = build_args
-        b.build_args = b.build_args.replace("nvr", "")
-
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
-
-    @patch('freshmaker.handlers.ODCS')
-    @patch('koji.ClientSession')
-    @patch('freshmaker.utils.krbContext')
-    def test_build_first_batch(self, krb, ClientSession, ODCS):
-        """
-        Tests that only PLANNED images without a parent are submitted to
-        build system.
-        """
-
-        def _fake_get_compose(compose_id):
-            return {
-                "id": compose_id,
-                "result_repo": "http://localhost/composes/latest-odcs-%d-1/compose/Temporary" % compose_id,
-                "result_repofile": "http://localhost/composes/latest-odcs-%d-1/compose/Temporary/odcs-%s.repo" % (compose_id, compose_id),
-                "source": "f26",
-                "source_type": 1,
-                "state": 2,
-                "state_name": "done",
-            }
-
-        ODCS.return_value.get_compose = _fake_get_compose
-
-        mock_session = ClientSession.return_value
-        mock_session.buildContainer.return_value = 123
-
-        handler = MyHandler()
-        handler._build_first_batch(self.db_event)
-
-        mock_session.buildContainer.assert_called_once_with(
-            'git://pkgs.fedoraproject.org/repo#hash',
-            'target',
-            {'scratch': True, 'isolated': True, 'koji_parent_build': u'nvr',
-             'git_branch': 'mybranch', 'release': AnyStringWith('4.'),
-             'yum_repourls': [
-                 'http://localhost/composes/latest-odcs-3-1/compose/Temporary/odcs-3.repo',
-                 'http://localhost/composes/latest-odcs-15-1/compose/Temporary/odcs-15.repo']})
-
-        db.session.refresh(self.db_event)
-        for build in self.db_event.builds:
-            if build.name == "parent1-1-4":
-                self.assertEqual(build.build_id, 123)
-            elif build.name == "parent3":
-                self.assertEqual(build.state, ArtifactBuildState.FAILED.value)
-                self.assertEqual(build.state_reason, "Container image build "
-                                 "is not in PLANNED state.")
-            elif build.name == "parent4":
-                self.assertEqual(build.state, ArtifactBuildState.FAILED.value)
-                self.assertEqual(build.state_reason, "Container image does "
-                                 "not have 'build_args' filled in.")
-            elif build.name == "parent5":
-                self.assertEqual(build.state, ArtifactBuildState.FAILED.value)
-                self.assertEqual(build.state_reason, "Rebuild of container "
-                                 "base image is not supported yet.")
-            else:
-                self.assertEqual(build.build_id, None)
-                self.assertEqual(build.state, ArtifactBuildState.PLANNED.value)
-
-    @patch('freshmaker.handlers.ODCS')
-    @patch('koji.ClientSession')
-    @patch('freshmaker.utils.krbContext')
-    def test_build_first_batch_exception(self, krb, ClientSession, ODCS):
-        """
-        Tests that only PLANNED images without a parent are submitted to
-        build system.
-        """
-
-        def _fake_get_compose(compose_id):
-            return {
-                "id": compose_id,
-                "result_repo": "http://localhost/composes/latest-odcs-%d-1/compose/Temporary" % compose_id,
-                "result_repofile": "http://localhost/composes/latest-odcs-%d-1/compose/Temporary/odcs-%s.repo" % (compose_id, compose_id),
-                "source": "f26",
-                "source_type": 1,
-                "state": 2,
-                "state_name": "done",
-            }
-
-        ODCS.return_value.get_compose = _fake_get_compose
-
-        def mock_buildContainer(*args, **kwargs):
-            raise ValueError("Expected exception")
-
-        mock_session = ClientSession.return_value
-        mock_session.buildContainer.side_effect = mock_buildContainer
-
-        handler = MyHandler()
-        self.assertRaises(ValueError, handler._build_first_batch, self.db_event)
-
-        db.session.refresh(self.p1)
-        self.assertEqual(self.p1.state, ArtifactBuildState.FAILED.value)
-        self.assertTrue(self.p1.state_reason.startswith(
-            "Handling of build failed with traceback"))

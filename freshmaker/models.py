@@ -32,9 +32,10 @@ from sqlalchemy.sql.expression import false
 
 from flask_login import UserMixin
 
-from freshmaker import db, log
+from freshmaker import conf, db, log
 from freshmaker import messaging
-from freshmaker.utils import get_url_for
+from freshmaker.odcsclient import ODCS, AuthMech
+from freshmaker.utils import get_url_for, krb_context
 from freshmaker.types import ArtifactType, ArtifactBuildState, EventState
 from freshmaker.events import (
     MBSModuleStateChangeEvent, GitModuleMetadataChangeEvent,
@@ -225,6 +226,13 @@ class Event(FreshmakerBase):
             ]
         return session.query(cls).filter(cls.released == false(),
                                          cls.state.in_(states)).all()
+
+    def get_image_builds_in_first_batch(self, session):
+        return session.query(ArtifactBuild).filter_by(
+            dep_on=None,
+            type=ArtifactType.IMAGE.value,
+            event_id=self.id,
+        ).all()
 
     @property
     def event_type(self):
@@ -509,6 +517,17 @@ class ArtifactBuild(FreshmakerBase):
                 break
         return dep_on
 
+    def add_composes(self, session, composes):
+        """Add an ODCS compose to this build"""
+        for compose in composes:
+            session.add(ArtifactBuildCompose(
+                build_id=self.id, compose_id=compose.id))
+
+    @property
+    def composes_ready(self):
+        """Check if composes this build has have been done in ODCS"""
+        return all((rel.compose.finished for rel in self.composes))
+
 
 class Compose(FreshmakerBase):
     __tablename__ = 'composes'
@@ -517,6 +536,15 @@ class Compose(FreshmakerBase):
     odcs_compose_id = db.Column(db.Integer, nullable=False)
 
     builds = db.relationship('ArtifactBuildCompose', back_populates='compose')
+
+    @property
+    def finished(self):
+        odcs = ODCS(conf.odcs_server_url,
+                    auth_mech=AuthMech.Kerberos,
+                    verify_ssl=conf.odcs_verify_ssl)
+        with krb_context():
+            return 'done' == odcs.get_compose(
+                self.odcs_compose_id)['state_name']
 
 
 class ArtifactBuildCompose(FreshmakerBase):

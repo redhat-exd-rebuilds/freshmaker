@@ -21,8 +21,10 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
+import six
+
 from freshmaker import db
-from freshmaker.models import Event
+from freshmaker.models import ArtifactBuild, ArtifactBuildState, Compose
 from freshmaker.handlers import (
     ContainerBuildHandler, fail_event_on_handler_exception)
 from freshmaker.events import ODCSComposeStateChangeEvent
@@ -42,8 +44,11 @@ class ComposeStateChangeHandler(ContainerBuildHandler):
 
     @fail_event_on_handler_exception
     def handle(self, event):
-        errata_signed_events = db.session.query(Event).filter(
-            Event.compose_id == event.compose['id']).all()
-        for db_event in errata_signed_events:
-            self.set_context(db_event)
-            self._build_first_batch(db_event)
+        query = db.session.query(ArtifactBuild).join('composes')
+        first_batch_builds = query.filter(
+            ArtifactBuild.dep_on == None,  # noqa
+            ArtifactBuild.state == ArtifactBuildState.PLANNED.value,
+            Compose.odcs_compose_id == event.compose['id'])
+        builds_ready_to_rebuild = six.moves.filter(
+            lambda build: build.composes_ready, first_batch_builds)
+        self.start_to_build_images(builds_ready_to_rebuild)
