@@ -146,11 +146,6 @@ class Event(FreshmakerBase):
     # List of builds associated with this Event.
     builds = relationship("ArtifactBuild", back_populates="event")
 
-    compose_id = db.Column(
-        db.Integer,
-        default=None,
-        doc='Used to include new version packages to rebuild docker images')
-
     manual_triggered = db.Column(
         db.Boolean,
         default=False,
