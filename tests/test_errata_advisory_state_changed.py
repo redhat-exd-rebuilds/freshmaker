@@ -296,11 +296,15 @@ class TestBatches(unittest.TestCase):
         """
         Tests that batches are properly recorded in DB.
         """
-
-        compose = {'id': 2, 'result_repofile': 'http://localhost/2.repo',
-                   'state_name': 'done'}
-        new_compose.return_value = compose
-        get_compose.return_value = compose
+        # There are 8 mock builds below and each of them requires one pulp
+        # compose.
+        composes = [{
+            'id': compose_id,
+            'result_repofile': 'http://localhost/{}.repo'.format(compose_id),
+            'state_name': 'done'
+        } for compose_id in range(1, 9)]
+        new_compose.side_effect = composes
+        get_compose.side_effect = composes
 
         # Creates following tree:
         # shared_parent

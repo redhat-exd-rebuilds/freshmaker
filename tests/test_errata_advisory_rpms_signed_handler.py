@@ -62,10 +62,13 @@ class TestErrataAdvisoryRPMsSignedHandler(unittest.TestCase):
             '_find_images_to_rebuild')
         self.mock_find_images_to_rebuild = self.find_images_patcher.start()
 
+        # boot.iso composes IDs should be different from pulp composes IDs as
+        # when each time to request a compose from ODCS, new compose ID will
+        # be returned along with new comopse.
         self.request_boot_iso_compose_patcher = patch(
             'freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler.'
             '_request_boot_iso_compose',
-            side_effect=[{'id': 1}, {'id': 2}])
+            side_effect=[{'id': 100}, {'id': 101}])
         self.mock_request_boot_iso_compose = \
             self.request_boot_iso_compose_patcher.start()
 

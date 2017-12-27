@@ -28,6 +28,7 @@ import json
 
 from datetime import datetime
 from sqlalchemy.orm import (validates, relationship)
+from sqlalchemy.schema import Index
 from sqlalchemy.sql.expression import false
 
 from flask_login import UserMixin
@@ -540,6 +541,9 @@ class Compose(FreshmakerBase):
         with krb_context():
             return 'done' == odcs.get_compose(
                 self.odcs_compose_id)['state_name']
+
+
+Index('idx_odcs_compose_id', Compose.odcs_compose_id, unique=True)
 
 
 class ArtifactBuildCompose(FreshmakerBase):
