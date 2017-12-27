@@ -118,6 +118,21 @@ class ContainerImage(dict):
     def __hash__(self):
         return hash((self['brew']['build']))
 
+    @property
+    def is_base_image(self):
+        return (self['parent'] is None and
+                len(self['parsed_data']['layers']) == 2)
+
+    @property
+    def dockerfile(self):
+        dockerfile = [file for file in self['parsed_data']['files']
+                      if file['filename'] == 'Dockerfile']
+        if not dockerfile:
+            log.warning('Image %s does not contain a Dockerfile.',
+                        self['brew']['build'])
+            return None
+        return dockerfile[0]
+
     def _get_default_additional_data(self):
         return {"repository": None, "commit": None, "target": None,
                 "git_branch": None, "error": None}

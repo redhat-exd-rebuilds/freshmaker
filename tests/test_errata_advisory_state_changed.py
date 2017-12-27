@@ -26,13 +26,13 @@ import json
 
 from mock import patch, PropertyMock, Mock, call
 
-from freshmaker.handlers.errata import ErrataAdvisoryRPMsSignedHandler
-from freshmaker.handlers.errata import ErrataAdvisoryStateChangedHandler
+from freshmaker import conf, db, events
+from freshmaker.errata import ErrataAdvisory
 from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
 from freshmaker.events import ErrataAdvisoryStateChangedEvent
-from freshmaker.errata import ErrataAdvisory
-
-from freshmaker import conf, db, events
+from freshmaker.handlers.errata import ErrataAdvisoryRPMsSignedHandler
+from freshmaker.handlers.errata import ErrataAdvisoryStateChangedHandler
+from freshmaker.lightblue import ContainerImage
 from freshmaker.models import Event, ArtifactBuild, EVENT_TYPES
 from freshmaker.types import ArtifactBuildState, ArtifactType, EventState
 
@@ -271,10 +271,23 @@ class TestBatches(unittest.TestCase):
     def _mock_build(self, build, parent=None, error=None):
         if parent:
             parent = {"brew": {"build": parent + "-1-1.25"}}
-        return {'brew': {'build': build + "-1-1.25"},
-                'repository': build + '_repo', 'commit': build + '_123',
-                'parent': parent, "target": "t1", 'git_branch': 'mybranch',
-                "error": error, "content_sets": ["first-content-set"]}
+        return ContainerImage({
+            'brew': {'build': build + "-1-1.25"},
+            'repository': build + '_repo',
+            'parsed_data': {
+                'layers': [
+                    'sha512:1234',
+                    'sha512:4567',
+                    'sha512:7890',
+                ],
+            },
+            'commit': build + '_123',
+            'parent': parent,
+            "target": "t1",
+            'git_branch': 'mybranch',
+            "error": error,
+            "content_sets": ["first-content-set"]
+        })
 
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.ODCS.new_compose')
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.ODCS.get_compose')
@@ -901,7 +914,15 @@ class TestRecordBatchesImages(unittest.TestCase):
             side_effect=[{'id': 1}, {'id': 2}])
         self.mock_prepare_pulp_repo = self.prepare_pulp_repo_patcher.start()
 
+        self.request_boot_iso_compose_patcher = patch(
+            'freshmaker.handlers.errata.'
+            'ErrataAdvisoryRPMsSignedHandler._request_boot_iso_compose',
+            side_effect=[{'id': 100}, {'id': 200}])
+        self.mock_request_boot_iso_compose = \
+            self.request_boot_iso_compose_patcher.start()
+
     def tearDown(self):
+        self.request_boot_iso_compose_patcher.stop()
         self.prepare_pulp_repo_patcher.stop()
         self.event_types_patcher.stop()
 
@@ -911,11 +932,17 @@ class TestRecordBatchesImages(unittest.TestCase):
 
     def test_record_batches(self):
         batches = [
-            [{
+            [ContainerImage({
                 "brew": {
                     "completion_date": "20170420T17:05:37.000-0400",
                     "build": "rhel-server-docker-7.3-82",
                     "package": "rhel-server-docker"
+                },
+                'parsed_data': {
+                    'layers': [
+                        'sha512:12345678980',
+                        'sha512:10987654321'
+                    ]
                 },
                 "parent": None,
                 "content_sets": ["content-set-1"],
@@ -924,18 +951,31 @@ class TestRecordBatchesImages(unittest.TestCase):
                 "target": "target-candidate",
                 "git_branch": "rhel-7",
                 "error": None
-            }],
-            [{
+            })],
+            [ContainerImage({
                 "brew": {
                     "build": "rh-dotnetcore10-docker-1.0-16",
                     "package": "rh-dotnetcore10-docker",
                     "completion_date": "20170511T10:06:09.000-0400"
                 },
-                "parent": {
+                'parsed_data': {
+                    'layers': [
+                        'sha512:2345af2e293',
+                        'sha512:12345678980',
+                        'sha512:10987654321'
+                    ]
+                },
+                "parent": ContainerImage({
                     "brew": {
                         "completion_date": "20170420T17:05:37.000-0400",
                         "build": "rhel-server-docker-7.3-82",
                         "package": "rhel-server-docker"
+                    },
+                    'parsed_data': {
+                        'layers': [
+                            'sha512:12345678980',
+                            'sha512:10987654321'
+                        ]
                     },
                     "parent": None,
                     "content_sets": ["content-set-1"],
@@ -944,14 +984,14 @@ class TestRecordBatchesImages(unittest.TestCase):
                     "target": "target-candidate",
                     "git_branch": "rhel-7",
                     "error": None
-                },
+                }),
                 "content_sets": ["content-set-1"],
                 "repository": "repo-1",
                 "commit": "987654321",
                 "target": "target-candidate",
                 "git_branch": "rhel-7",
                 "error": None
-            }]
+            })]
         ]
 
         handler = ErrataAdvisoryRPMsSignedHandler()
@@ -975,11 +1015,17 @@ class TestRecordBatchesImages(unittest.TestCase):
 
     def test_pulp_compose_is_stored_for_each_build(self):
         batches = [
-            [{
+            [ContainerImage({
                 "brew": {
                     "completion_date": "20170420T17:05:37.000-0400",
                     "build": "rhel-server-docker-7.3-82",
                     "package": "rhel-server-docker"
+                },
+                'parsed_data': {
+                    'layers': [
+                        'sha512:12345678980',
+                        'sha512:10987654321'
+                    ]
                 },
                 "parent": None,
                 "content_sets": ["content-set-1"],
@@ -988,18 +1034,31 @@ class TestRecordBatchesImages(unittest.TestCase):
                 "target": "target-candidate",
                 "git_branch": "rhel-7",
                 "error": None
-            }],
-            [{
+            })],
+            [ContainerImage({
                 "brew": {
                     "build": "rh-dotnetcore10-docker-1.0-16",
                     "package": "rh-dotnetcore10-docker",
                     "completion_date": "20170511T10:06:09.000-0400"
                 },
-                "parent": {
+                'parsed_data': {
+                    'layers': [
+                        'sha512:2345af2e293',
+                        'sha512:12345678980',
+                        'sha512:10987654321'
+                    ]
+                },
+                "parent": ContainerImage({
                     "brew": {
                         "completion_date": "20170420T17:05:37.000-0400",
                         "build": "rhel-server-docker-7.3-82",
                         "package": "rhel-server-docker"
+                    },
+                    'parsed_data': {
+                        'layers': [
+                            'sha512:12345678980',
+                            'sha512:10987654321'
+                        ]
                     },
                     "parent": None,
                     "content_sets": ["content-set-1"],
@@ -1008,14 +1067,14 @@ class TestRecordBatchesImages(unittest.TestCase):
                     "target": "target-candidate",
                     "git_branch": "rhel-7",
                     "error": None
-                },
+                }),
                 "content_sets": ["content-set-1"],
                 "repository": "repo-1",
                 "commit": "987654321",
                 "target": "target-candidate",
                 "git_branch": "rhel-7",
                 "error": None
-            }]
+            })]
         ]
 
         handler = ErrataAdvisoryRPMsSignedHandler()
@@ -1025,27 +1084,39 @@ class TestRecordBatchesImages(unittest.TestCase):
         parent_build = query.filter(
             ArtifactBuild.original_nvr == 'rhel-server-docker-7.3-82'
         ).first()
-        self.assertEqual(1, len(parent_build.composes))
-        self.assertEqual(1, parent_build.composes[0].compose.id)
+        self.assertEqual(2, len(parent_build.composes))
+        compose_ids = sorted([rel.compose.odcs_compose_id
+                              for rel in parent_build.composes])
+        # Ensure both pulp compose id and boot.iso compose id are stored
+        self.assertEqual([1, 100], compose_ids)
 
         child_build = query.filter(
             ArtifactBuild.original_nvr == 'rh-dotnetcore10-docker-1.0-16'
         ).first()
         self.assertEqual(1, len(child_build.composes))
-        self.assertEqual(2, child_build.composes[0].compose.id)
+        self.assertEqual(2, child_build.composes[0].compose.odcs_compose_id)
 
         self.mock_prepare_pulp_repo.assert_has_calls([
             call(child_build.event, ["content-set-1"]),
             call(child_build.event, ["content-set-1"])
         ])
 
+        self.mock_request_boot_iso_compose.assert_called_once_with(
+            batches[0][0])
+
     def test_mark_failed_state_if_image_has_error(self):
         batches = [
-            [{
+            [ContainerImage({
                 "brew": {
                     "completion_date": "20170420T17:05:37.000-0400",
                     "build": "rhel-server-docker-7.3-82",
                     "package": "rhel-server-docker"
+                },
+                'parsed_data': {
+                    'layers': [
+                        'sha512:12345678980',
+                        'sha512:10987654321'
+                    ]
                 },
                 "parent": None,
                 "content_sets": ["content-set-1"],
@@ -1054,7 +1125,7 @@ class TestRecordBatchesImages(unittest.TestCase):
                 "target": "target-candidate",
                 "git_branch": "rhel-7",
                 "error": "Some error occurs while getting this image."
-            }]
+            })]
         ]
 
         handler = ErrataAdvisoryRPMsSignedHandler()
@@ -1069,11 +1140,17 @@ class TestRecordBatchesImages(unittest.TestCase):
 
     def test_mark_state_failed_if_depended_image_is_failed(self):
         batches = [
-            [{
+            [ContainerImage({
                 "brew": {
                     "completion_date": "20170420T17:05:37.000-0400",
                     "build": "rhel-server-docker-7.3-82",
                     "package": "rhel-server-docker"
+                },
+                'parsed_data': {
+                    'layers': [
+                        'sha512:12345678980',
+                        'sha512:10987654321'
+                    ]
                 },
                 "parent": None,
                 "content_sets": ["content-set-1"],
@@ -1082,18 +1159,31 @@ class TestRecordBatchesImages(unittest.TestCase):
                 "target": "target-candidate",
                 "git_branch": "rhel-7",
                 "error": "Some error occured."
-            }],
-            [{
+            })],
+            [ContainerImage({
                 "brew": {
                     "build": "rh-dotnetcore10-docker-1.0-16",
                     "package": "rh-dotnetcore10-docker",
                     "completion_date": "20170511T10:06:09.000-0400"
                 },
-                "parent": {
+                'parsed_data': {
+                    'layers': [
+                        'sha512:378a8ef2730',
+                        'sha512:12345678980',
+                        'sha512:10987654321'
+                    ]
+                },
+                "parent": ContainerImage({
                     "brew": {
                         "completion_date": "20170420T17:05:37.000-0400",
                         "build": "rhel-server-docker-7.3-82",
                         "package": "rhel-server-docker"
+                    },
+                    'parsed_data': {
+                        'layers': [
+                            'sha512:12345678980',
+                            'sha512:10987654321'
+                        ]
                     },
                     "parent": None,
                     "content_sets": ["content-set-1"],
@@ -1102,14 +1192,14 @@ class TestRecordBatchesImages(unittest.TestCase):
                     "target": "target-candidate",
                     "git_branch": "rhel-7",
                     "error": None
-                },
+                }),
                 "content_sets": ["content-set-1"],
                 "repository": "repo-1",
                 "commit": "987654321",
                 "target": "target-candidate",
                 "git_branch": "rhel-7",
                 "error": "Some error occured too."
-            }]
+            })]
         ]
 
         handler = ErrataAdvisoryRPMsSignedHandler()
@@ -1124,6 +1214,37 @@ class TestRecordBatchesImages(unittest.TestCase):
         build = query.filter(
             ArtifactBuild.original_nvr == 'rh-dotnetcore10-docker-1.0-16'
         ).first()
+        self.assertEqual(ArtifactBuildState.FAILED.value, build.state)
+
+    def test_mark_base_image_failed_if_fail_to_request_boot_iso_compose(self):
+        batches = [
+            [ContainerImage({
+                "brew": {
+                    "completion_date": "20170420T17:05:37.000-0400",
+                    "build": "rhel-server-docker-7.3-82",
+                    "package": "rhel-server-docker"
+                },
+                'parsed_data': {
+                    'layers': [
+                        'sha512:12345678980',
+                        'sha512:10987654321'
+                    ]
+                },
+                "parent": None,
+                "content_sets": ["content-set-1"],
+                "repository": "repo-1",
+                "commit": "123456789",
+                "target": "target-candidate",
+                "git_branch": "rhel-7",
+                "error": "Some error occured."
+            })],
+        ]
+
+        handler = ErrataAdvisoryRPMsSignedHandler()
+        handler._record_batches(batches, self.mock_event)
+
+        build = db.session.query(ArtifactBuild).filter_by(
+            original_nvr='rhel-server-docker-7.3-82').first()
         self.assertEqual(ArtifactBuildState.FAILED.value, build.state)
 
 

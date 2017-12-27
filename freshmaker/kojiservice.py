@@ -164,6 +164,9 @@ class KojiService(object):
     def get_task_request(self, task_id):
         return self.session.getTaskRequest(task_id)
 
+    def get_build_target(self, target_name):
+        return self.session.getBuildTarget(target_name)
+
 
 @contextlib.contextmanager
 def koji_service(profile=None, logger=None, login=True):

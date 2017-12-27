@@ -24,6 +24,10 @@
 
 import json
 import koji
+import requests
+
+from six.moves import cStringIO
+from six.moves import configparser
 
 from freshmaker import conf, db, log
 from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
@@ -132,7 +136,8 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
 
         return []
 
-    def _fake_odcs_new_compose(self, compose_source, tag, packages=None):
+    def _fake_odcs_new_compose(
+            self, compose_source, tag, packages=None, results=[]):
         """
         Fake KojiSession.buildContainer method used dry run mode.
 
@@ -143,7 +148,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         :return: Fake odcs.new_compose dict.
         """
         self.log_info("DRY RUN: Calling fake odcs.new_compose with args: %r",
-                      (compose_source, tag, packages))
+                      (compose_source, tag, packages, results))
 
         # Generate the new_compose dict.
         ErrataAdvisoryRPMsSignedHandler._FAKE_COMPOSE_ID += 1
@@ -152,6 +157,8 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         new_compose['result_repofile'] = "http://localhost/%d.repo" % (
             new_compose['id'])
         new_compose['state'] = COMPOSE_STATES['done']
+        if results:
+            new_compose['results'] = ['boot.iso']
 
         # Generate and inject the ODCSComposeStateChangeEvent event.
         event = ODCSComposeStateChangeEvent(
@@ -293,6 +300,61 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
             new_compose = self._fake_odcs_new_compose(
                 content_sets, 'pulp')
 
+        return new_compose
+
+    def _get_base_image_build_target(self, image):
+        dockerfile = image.dockerfile
+        image_build_conf_url = dockerfile['content_url'].replace(
+            dockerfile['filename'], 'image-build.conf')
+        response = requests.get(image_build_conf_url)
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            log.error(
+                'Cannot get image-build.conf from %s.', image_build_conf_url)
+            log.exception('Server response: %s', e)
+            return None
+        config_buf = cStringIO(response.content)
+        config = configparser.RawConfigParser()
+        try:
+            config.readfp(config_buf)
+        except configparser.MissingSectionHeaderError:
+            return None
+        finally:
+            config_buf.close()
+        try:
+            return config.get('image-build', 'target')
+        except (configparser.NoOptionError, configparser.NoSectionError):
+            log.exception('image-build.conf does not have option target.')
+            return None
+
+    def _get_base_image_build_tag(self, build_target):
+        with koji_service(conf.koji_profile, log) as session:
+            target_info = session.get_build_target(build_target)
+            if target_info is None:
+                return target_info
+            else:
+                return target_info['build_tag_name']
+
+    def _request_boot_iso_compose(self, image):
+        """Request boot.iso compose for base image"""
+        target = self._get_base_image_build_target(image)
+        if not target:
+            return None
+        build_tag = self._get_base_image_build_tag(target)
+        if not build_tag:
+            return None
+
+        odcs = ODCS(conf.odcs_server_url,
+                    auth_mech=AuthMech.Kerberos,
+                    verify_ssl=conf.odcs_verify_ssl)
+        if conf.dry_run:
+            new_compose = self._fake_odcs_new_compose(
+                build_tag, 'tag', results=['boot.iso'])
+        else:
+            with krb_context():
+                new_compose = odcs.new_compose(
+                    build_tag, 'tag', results=['boot.iso'])
         return new_compose
 
     def _get_packages_for_compose(self, nvr):
@@ -480,6 +542,23 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                 db.session.add(db_compose)
                 db.session.commit()
                 build.add_composes(db.session, [db_compose])
+
+                if image.is_base_image:
+                    compose = self._request_boot_iso_compose(image)
+                    if compose is None:
+                        log.error(
+                            'Failed to request boot.iso compose for base '
+                            'image %s.', nvr)
+                        build.transition(
+                            ArtifactBuildState.FAILED.value,
+                            'Cannot rebuild this base image because failed to '
+                            'requeset boot.iso compose.')
+                        # FIXME: mark all builds associated with build.event FAILED?
+                    else:
+                        db_compose = Compose(odcs_compose_id=compose['id'])
+                        db.session.add(db_compose)
+                        db.session.commit()
+                        build.add_composes(db.session, [db_compose])
 
                 builds[nvr] = build
 

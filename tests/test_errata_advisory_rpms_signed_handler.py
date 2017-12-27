@@ -20,6 +20,7 @@
 # SOFTWARE.
 
 import unittest
+import requests
 
 from mock import patch
 
@@ -28,6 +29,7 @@ import freshmaker
 from freshmaker import db
 from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
 from freshmaker.handlers.errata import ErrataAdvisoryRPMsSignedHandler
+from freshmaker.lightblue import ContainerImage
 from freshmaker.models import Event
 from freshmaker.types import EventState
 
@@ -60,6 +62,13 @@ class TestErrataAdvisoryRPMsSignedHandler(unittest.TestCase):
             '_find_images_to_rebuild')
         self.mock_find_images_to_rebuild = self.find_images_patcher.start()
 
+        self.request_boot_iso_compose_patcher = patch(
+            'freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler.'
+            '_request_boot_iso_compose',
+            side_effect=[{'id': 1}, {'id': 2}])
+        self.mock_request_boot_iso_compose = \
+            self.request_boot_iso_compose_patcher.start()
+
         # Fake images found to rebuild has these relationships
         #
         # Batch 1  |         Batch 2            |          Batch 3
@@ -67,7 +76,7 @@ class TestErrataAdvisoryRPMsSignedHandler(unittest.TestCase):
         # image_b  | image_d (child of image_a) |
         #          | image_e (child of image_b) |
         #
-        self.image_a = {
+        self.image_a = ContainerImage({
             'repository': 'repo_1',
             'commit': '1234567',
             'target': 'docker-container-candidate',
@@ -77,8 +86,14 @@ class TestErrataAdvisoryRPMsSignedHandler(unittest.TestCase):
                 'build': 'image-a-1.0-2',
             },
             'parent': None,
-        }
-        self.image_b = {
+            'parsed_data': {
+                'layers': [
+                    'sha512:7890',
+                    'sha512:5678',
+                ]
+            },
+        })
+        self.image_b = ContainerImage({
             'repository': 'repo_2',
             'commit': '23e9f22',
             'target': 'docker-container-candidate',
@@ -88,8 +103,14 @@ class TestErrataAdvisoryRPMsSignedHandler(unittest.TestCase):
                 'build': 'image-b-1.0-1'
             },
             'parent': None,
-        }
-        self.image_c = {
+            'parsed_data': {
+                'layers': [
+                    'sha512:1234',
+                    'sha512:4567',
+                ]
+            },
+        })
+        self.image_c = ContainerImage({
             'repository': 'repo_2',
             'commit': '2345678',
             'target': 'docker-container-candidate',
@@ -99,8 +120,15 @@ class TestErrataAdvisoryRPMsSignedHandler(unittest.TestCase):
                 'build': 'image-c-0.2-9',
             },
             'parent': self.image_a,
-        }
-        self.image_d = {
+            'parsed_data': {
+                'layers': [
+                    'sha512:4ef3',
+                    'sha512:7890',
+                    'sha512:5678',
+                ]
+            },
+        })
+        self.image_d = ContainerImage({
             'repository': 'repo_2',
             'commit': '5678901',
             'target': 'docker-container-candidate',
@@ -110,8 +138,15 @@ class TestErrataAdvisoryRPMsSignedHandler(unittest.TestCase):
                 'build': 'image-d-2.14-1',
             },
             'parent': self.image_a,
-        }
-        self.image_e = {
+            'parsed_data': {
+                'layers': [
+                    'sha512:f109',
+                    'sha512:7890',
+                    'sha512:5678',
+                ]
+            },
+        })
+        self.image_e = ContainerImage({
             'repository': 'repo_2',
             'commit': '7890123',
             'target': 'docker-container-candidate',
@@ -121,8 +156,15 @@ class TestErrataAdvisoryRPMsSignedHandler(unittest.TestCase):
                 'build': 'image-e-1.0-1',
             },
             'parent': self.image_b,
-        }
-        self.image_f = {
+            'parsed_data': {
+                'layers': [
+                    'sha512:5aae',
+                    'sha512:1234',
+                    'sha512:4567',
+                ]
+            },
+        })
+        self.image_f = ContainerImage({
             'repository': 'repo_2',
             'commit': '3829384',
             'target': 'docker-container-candidate',
@@ -132,7 +174,14 @@ class TestErrataAdvisoryRPMsSignedHandler(unittest.TestCase):
                 'build': 'image-f-0.2-1',
             },
             'parent': self.image_b,
-        }
+            'parsed_data': {
+                'layers': [
+                    'sha512:8b9e',
+                    'sha512:1234',
+                    'sha512:4567',
+                ]
+            },
+        })
         # For simplicify, mocking _find_images_to_rebuild to just return one
         # batch, which contains images found for rebuild from parent to
         # childrens.
@@ -145,6 +194,7 @@ class TestErrataAdvisoryRPMsSignedHandler(unittest.TestCase):
         ])
 
     def tearDown(self):
+        self.request_boot_iso_compose_patcher.stop()
         self.find_images_patcher.stop()
         self.prepare_pulp_repo_patcher.stop()
         self.messaging_publish_patcher.stop()
@@ -212,3 +262,205 @@ class TestErrataAdvisoryRPMsSignedHandler(unittest.TestCase):
 
         db_event = Event.get(db.session, event.msg_id)
         self.assertEqual(EventState.BUILDING.value, db_event.state)
+
+
+class TestGetBaseImageBuildTarget(unittest.TestCase):
+    """Test ErrataAdvisoryRPMsSignedHandler._get_base_image_build_target"""
+
+    def setUp(self):
+        self.image = ContainerImage({
+            'repository': 'repo_1',
+            'commit': '1234567',
+            'target': 'docker-container-candidate',
+            'git_branch': 'rhel-7.4',
+            'content_sets': ['image_a_content_set_1', 'image_a_content_set_2'],
+            'brew': {
+                'build': 'image-a-1.0-2',
+            },
+            'parent': None,
+            'parsed_data': {
+                'layers': [
+                    'sha512:7890',
+                    'sha512:5678',
+                ],
+                'files': [
+                    {
+                        'filename': 'Dockerfile',
+                        'content_url': 'http://pkgs.localhost/cgit/rpms/'
+                                       'image-a/plain/Dockerfile?id=fa521323',
+                        'key': 'buildfile'
+                    }
+                ]
+            },
+        })
+        self.handler = ErrataAdvisoryRPMsSignedHandler()
+
+    @patch('requests.get')
+    def test_get_target_from_image_build_conf(self, get):
+        get.return_value.content = '''\
+[image-build]
+name = image-a
+arches = x86_64
+format = docker
+disk_size = 10
+ksurl = git://git.localhost/spin-kickstarts.git?rhel7#HEAD
+kickstart = rhel-7.4-server-docker.ks
+version = 7.4
+target = guest-rhel-7.4-docker
+distro = RHEL-7.4
+ksversion = RHEL7'''
+
+        result = self.handler._get_base_image_build_target(self.image)
+        self.assertEqual('guest-rhel-7.4-docker', result)
+
+    @patch('requests.get')
+    def test_image_build_conf_is_unavailable_in_distgit(self, get):
+        get.return_value.raise_for_status.side_effect = \
+            requests.exceptions.HTTPError('error')
+
+        result = self.handler._get_base_image_build_target(self.image)
+        self.assertIsNone(result)
+
+    @patch('requests.get')
+    def test_image_build_conf_is_empty(self, get):
+        get.return_value.content = ''
+
+        result = self.handler._get_base_image_build_target(self.image)
+        self.assertIsNone(result)
+
+    @patch('requests.get')
+    def test_image_build_conf_is_not_INI(self, get):
+        get.return_value.content = 'abc'
+
+        result = self.handler._get_base_image_build_target(self.image)
+        self.assertIsNone(result)
+
+
+class TestGetBaseImageBuildTag(unittest.TestCase):
+    """Test ErrataAdvisoryRPMsSignedHandler._get_base_image_build_tag"""
+
+    def setUp(self):
+        self.image = ContainerImage({
+            'repository': 'repo_1',
+            'commit': '1234567',
+            'target': 'docker-container-candidate',
+            'git_branch': 'rhel-7.4',
+            'content_sets': ['image_a_content_set_1', 'image_a_content_set_2'],
+            'brew': {
+                'build': 'image-a-1.0-2',
+            },
+            'parent': None,
+            'parsed_data': {
+                'layers': [
+                    'sha512:7890',
+                    'sha512:5678',
+                ],
+                'files': [
+                    {
+                        'filename': 'Dockerfile',
+                        'content_url': 'http://pkgs.localhost/cgit/rpms/'
+                                       'image-a/plain/Dockerfile?id=fa521323',
+                        'key': 'buildfile'
+                    }
+                ]
+            },
+        })
+        self.handler = ErrataAdvisoryRPMsSignedHandler()
+
+    @patch('freshmaker.kojiservice.KojiService')
+    def test_get_build_tag_name(self, KojiService):
+        koji_service = KojiService.return_value
+        koji_service.get_build_target.return_value = {
+            'build_tag': 10052,
+            'build_tag_name': 'guest-rhel-7.4-docker-build',
+            'dest_tag': 10051,
+            'dest_tag_name': 'guest-rhel-7.4-candidate',
+            'id': 3205,
+            'name': 'guest-rhel-7.4-docker'
+        }
+
+        result = self.handler._get_base_image_build_tag(
+            'guest-rhel-7.4-docker')
+        self.assertEqual('guest-rhel-7.4-docker-build', result)
+
+    @patch('freshmaker.kojiservice.KojiService')
+    def test_no_target_is_returned(self, KojiService):
+        koji_service = KojiService.return_value
+        koji_service.get_build_target.return_value = None
+
+        result = self.handler._get_base_image_build_tag(
+            'guest-rhel-7.4-docker')
+        self.assertIsNone(result)
+
+
+class TestRequestBootISOCompose(unittest.TestCase):
+    """Test ErrataAdvisoryRPMsSignedHandler._request_boot_iso_compose"""
+
+    def setUp(self):
+        self.image = ContainerImage({
+            'repository': 'repo_1',
+            'commit': '1234567',
+            'target': 'docker-container-candidate',
+            'git_branch': 'rhel-7.4',
+            'content_sets': ['image_a_content_set_1', 'image_a_content_set_2'],
+            'brew': {
+                'build': 'image-a-1.0-2',
+            },
+            'parent': None,
+            'parsed_data': {
+                'layers': [
+                    'sha512:7890',
+                    'sha512:5678',
+                ],
+                'files': [
+                    {
+                        'filename': 'Dockerfile',
+                        'content_url': 'http://pkgs.localhost/cgit/rpms/'
+                                       'image-a/plain/Dockerfile?id=fa521323',
+                        'key': 'buildfile'
+                    }
+                ]
+            },
+        })
+        self.handler = ErrataAdvisoryRPMsSignedHandler()
+
+    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.krb_context')
+    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.ODCS')
+    @patch('freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler.'
+           '_get_base_image_build_target')
+    @patch('freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler.'
+           '_get_base_image_build_tag')
+    def test_get_boot_iso_compose(
+            self, get_base_image_build_tag, get_base_image_build_target,
+            ODCS, krb_context):
+        odcs = ODCS.return_value
+        odcs.new_compose.return_value = {'id': 1}
+
+        get_base_image_build_target.return_value = 'build-target'
+        get_base_image_build_tag.return_value = 'build-tag'
+
+        result = self.handler._request_boot_iso_compose(self.image)
+
+        self.assertEqual(odcs.new_compose.return_value, result)
+        odcs.new_compose.assert_called_once_with(
+            'build-tag', 'tag', results=['boot.iso'])
+
+    @patch('freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler.'
+           '_get_base_image_build_target')
+    def test_cannot_get_image_build_target(self, get_base_image_build_target):
+        get_base_image_build_target.return_value = None
+
+        result = self.handler._request_boot_iso_compose(self.image)
+        self.assertIsNone(result)
+
+    @patch('freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler.'
+           '_get_base_image_build_target')
+    @patch('freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler.'
+           '_get_base_image_build_tag')
+    def test_cannot_get_build_tag_from_target(
+            self, get_base_image_build_tag, get_base_image_build_target):
+        get_base_image_build_target.return_value = 'build-target'
+        get_base_image_build_tag.return_value = None
+
+        result = self.handler._request_boot_iso_compose(self.image)
+        self.assertIsNone(result)
