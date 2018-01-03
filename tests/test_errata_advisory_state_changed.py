@@ -1017,6 +1017,7 @@ class TestRecordBatchesImages(unittest.TestCase):
         self.assertEqual(parent_image, child_image.dep_on)
         self.assertEqual(ArtifactBuildState.PLANNED.value, child_image.state)
 
+    @unittest.skip('Enable again when enable to request boot.iso compose')
     def test_pulp_compose_is_stored_for_each_build(self):
         batches = [
             [ContainerImage({
