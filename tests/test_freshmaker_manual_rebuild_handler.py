@@ -26,8 +26,7 @@ import unittest
 from mock import patch
 
 from freshmaker.handlers.internal import FreshmakerManualRebuildHandler
-from freshmaker.events import (
-    FreshmakerManualRebuildEvent, ErrataAdvisoryRPMsSignedEvent)
+from freshmaker.events import FreshmakerManualRebuildEvent
 
 from freshmaker.errata import ErrataAdvisory
 from freshmaker import db
@@ -59,34 +58,13 @@ class TestFreshmakerManualRebuildHandler(unittest.TestCase):
 
         self.assertEqual(len(ret), 1)
         self.assertEqual(ret[0].errata_id, 123)
-        self.assertEqual(ret[0].security_impact, "Critical")
-        self.assertEqual(ret[0].errata_name, "RHSA-2017")
+        self.assertEqual(ret[0].state, "REL_PREP")
+        self.assertEqual(ret[0].manual, True)
 
         db_event = Event.query.filter_by(message_id=ev.msg_id).first()
         self.assertEqual(db_event.state, EventState.COMPLETE.value)
         self.assertEqual(db_event.state_reason,
-                         'Generated ErrataAdvisoryRPMsSignedEvent (msg123) for errata: 123')
-
-    @patch('freshmaker.errata.Errata.advisories_from_event')
-    def test_rebuild_if_not_exists_already_exists(
-            self, advisories_from_event):
-        handler = FreshmakerManualRebuildHandler()
-
-        Event.create(
-            db.session, "msg124", "123", ErrataAdvisoryRPMsSignedEvent)
-        db.session.commit()
-
-        advisories_from_event.return_value = [
-            ErrataAdvisory(123, "RHSA-2017", "REL_PREP", "Critical")]
-        ev = FreshmakerManualRebuildEvent("msg123", errata_id=123)
-        ret = handler.handle(ev)
-
-        self.assertEqual(len(ret), 0)
-
-        db_event = Event.query.filter_by(message_id=ev.msg_id).first()
-        self.assertEqual(db_event.state, EventState.SKIPPED.value)
-        self.assertEqual(db_event.state_reason,
-                         'Ignoring Errata advisory 123 - it already exists in Freshmaker db.')
+                         'Generated ErrataAdvisoryStateChangedEvent (msg123) for errata: 123')
 
     @patch('freshmaker.errata.Errata.advisories_from_event')
     def test_rebuild_if_not_exists_unknown_errata_id(

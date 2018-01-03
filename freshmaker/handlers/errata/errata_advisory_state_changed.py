@@ -104,7 +104,8 @@ class ErrataAdvisoryStateChangedHandler(BaseHandler):
 
         extra_events = []
 
-        if self.allow_build(ArtifactType.IMAGE, advisory_state=event.state):
+        if (event.manual or
+                self.allow_build(ArtifactType.IMAGE, advisory_state=event.state)):
             extra_events += self.rebuild_if_not_exists(event, errata_id)
 
         if state == "SHIPPED_LIVE":

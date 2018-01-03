@@ -896,6 +896,33 @@ class TestErrataAdvisoryStateChangedHandler(unittest.TestCase):
 
         self.assertEqual([], msgs)
 
+    @patch('freshmaker.handlers.errata.ErrataAdvisoryStateChangedHandler'
+           '.rebuild_if_not_exists')
+    @patch.object(conf, 'handler_build_whitelist', new={
+        'ErrataAdvisoryStateChangedHandler': {
+            'image': [
+                {
+                    'advisory_state': r'REL_PREP',
+                }
+            ]
+        }
+    })
+    def test_rebuild_if_errata_state_is_not_allowed_but_manual_is_true(
+            self, rebuild_if_not_exists):
+        rebuild_if_not_exists.return_value = [Mock()]
+
+        Event.create(db.session, "msg-id-123", "123456",
+                     ErrataAdvisoryRPMsSignedEvent, False)
+        db.session.commit()
+
+        event = ErrataAdvisoryStateChangedEvent(
+            'msg-id-123', 123456, 'SHIPPED_LIVE')
+        event.manual = True
+        handler = ErrataAdvisoryStateChangedHandler()
+        msgs = handler.handle(event)
+
+        self.assertEqual(len(msgs), 1)
+
 
 class TestRecordBatchesImages(unittest.TestCase):
     """Test ErrataAdvisoryRPMsSignedHandler._record_batches"""
