@@ -80,19 +80,6 @@ class TestModels(unittest.TestCase):
         self.assertEqual(build3.get_root_dep_on(), build1)
         self.assertEqual(build4.get_root_dep_on(), build1)
 
-    def test_event_dependencies(self):
-        event = Event.create(db.session, "test_msg_id", "test", events.TestingEvent)
-        db.session.commit()
-        self.assertEqual(event.event_dependencies, [])
-
-        event1 = Event.create(db.session, "test_msg_id2", "test2", events.TestingEvent)
-        db.session.commit()
-        event.add_event_dependency(db.session, event1)
-        db.session.commit()
-        self.assertEqual(event.event_dependencies, [event1])
-        self.assertEqual(event.event_dependencies[0].search_key, "test2")
-        self.assertEqual(event1.event_dependencies, [])
-
     def test_depending_artifact_builds(self):
         event = Event.create(db.session, "test_msg_id", "test", events.TestingEvent)
         parent = ArtifactBuild.create(db.session, event, "parent", "module", 1234)
@@ -358,3 +345,58 @@ class TestArtifactBuildComposesRel(unittest.TestCase):
             self.assertEqual(
                 builds,
                 sorted([rel.build.id for rel in compose.builds]))
+
+
+class TestEventDependency(unittest.TestCase):
+    """Test Event.add_event_dependency"""
+
+    def setUp(self):
+        db.session.remove()
+        db.drop_all()
+        db.create_all()
+        db.session.commit()
+
+    def tearDown(self):
+        db.session.remove()
+        db.drop_all()
+        db.session.commit()
+
+    def test_event_dependencies(self):
+        event = Event.create(db.session, "test_msg_id", "test", events.TestingEvent)
+        db.session.commit()
+        self.assertEqual(event.event_dependencies, [])
+
+    def test_add_a_dependent_event(self):
+        event = Event.create(db.session, "test_msg_id", "test", events.TestingEvent)
+        event1 = Event.create(db.session, "test_msg_id2", "test2", events.TestingEvent)
+        db.session.commit()
+
+        event.add_event_dependency(db.session, event1)
+        db.session.commit()
+
+        self.assertEqual(event.event_dependencies, [event1])
+        self.assertEqual(event.event_dependencies[0].search_key, "test2")
+        self.assertEqual(event1.event_dependencies, [])
+
+    def test_add_existing_dependent_event(self):
+        event = Event.create(db.session, "test_msg_id", "test", events.TestingEvent)
+        event1 = Event.create(db.session, "test_msg_id2", "test2", events.TestingEvent)
+        db.session.commit()
+        event.add_event_dependency(db.session, event1)
+        db.session.commit()
+
+        rel = event.add_event_dependency(db.session, event1)
+
+        self.assertIsNone(rel)
+        self.assertEqual(event.event_dependencies, [event1])
+
+    def test_return_added_dependency_relationship(self):
+        event = Event.create(db.session, "test_msg_id", "test", events.TestingEvent)
+        event1 = Event.create(db.session, "test_msg_id2", "test2", events.TestingEvent)
+        db.session.commit()
+
+        dep_rel = event.add_event_dependency(db.session, event1)
+        db.session.commit()
+
+        self.assertEqual(event.id, dep_rel.event_id)
+        self.assertEqual(event1.id, dep_rel.event_dependency_id)

@@ -235,9 +235,24 @@ class Event(FreshmakerBase):
         return INVERSE_EVENT_TYPES[self.event_type_id]
 
     def add_event_dependency(self, session, event):
-        dep = EventDependency(event_id=self.id,
-                              event_dependency_id=event.id)
-        session.add(dep)
+        """Add a dependent event
+
+        :param session: the `db.session`.
+        :param event: the dependent event to be added.
+        :type event: :py:class:`Event`
+        :return: instance of :py:class:`EventDependency`. Caller is responsible
+            for committing changes to database. If `event` has been added
+            already, nothing changed and `None` will be returned.
+        """
+        dep = session.query(EventDependency.id).filter_by(
+            event_id=self.id, event_dependency_id=event.id).first()
+        if dep is None:
+            dep = EventDependency(event_id=self.id,
+                                  event_dependency_id=event.id)
+            session.add(dep)
+            return dep
+        else:
+            return None
 
     @property
     def event_dependencies(self):
@@ -354,6 +369,13 @@ class EventDependency(FreshmakerBase):
     id = db.Column(db.Integer, primary_key=True)
     event_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=False)
     event_dependency_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=False)
+
+
+Index(
+    'idx_event_dependency_rel',
+    EventDependency.event_id,
+    EventDependency.event_dependency_id,
+    unique=True)
 
 
 class ArtifactBuild(FreshmakerBase):
