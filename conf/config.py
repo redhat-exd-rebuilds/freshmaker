@@ -120,7 +120,10 @@ class BaseConfiguration(object):
 
     # ODCS configs
     # URL to ODCS to call APIs
-    ODCS_SERVER_URL = ''
+    ODCS_SERVER_URL = 'https://odcs.fedoraproject.org/'
+    ODCS_VERIFY_SSL = True
+    # Valid authentication method would be kerberos or oidc
+    ODCS_AUTH_MECH = 'kerberos'
 
     # Kerberos authentication Settings used to authenticated freshmaker itself
     # by other services

@@ -33,9 +33,9 @@ from sqlalchemy.sql.expression import false
 
 from flask_login import UserMixin
 
-from freshmaker import conf, db, log
+from freshmaker import db, log
 from freshmaker import messaging
-from freshmaker.odcsclient import ODCS, AuthMech
+from freshmaker.odcsclient import create_odcs_client
 from freshmaker.utils import get_url_for, krb_context
 from freshmaker.types import ArtifactType, ArtifactBuildState, EventState
 from freshmaker.events import (
@@ -560,11 +560,8 @@ class Compose(FreshmakerBase):
 
     @property
     def finished(self):
-        odcs = ODCS(conf.odcs_server_url,
-                    auth_mech=AuthMech.Kerberos,
-                    verify_ssl=conf.odcs_verify_ssl)
         with krb_context():
-            return 'done' == odcs.get_compose(
+            return 'done' == create_odcs_client().get_compose(
                 self.odcs_compose_id)['state_name']
 
 

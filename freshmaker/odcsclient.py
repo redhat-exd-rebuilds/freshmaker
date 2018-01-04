@@ -29,5 +29,22 @@
 # in freshmaker.handlers __init__.py. We cannot  "import odcs" there, because
 # it would import freshmaker.handlers.odcs, so instead, we import it here
 # and in freshmaker.handler do "from freshmaker.odcsclient import ODCS".
-from odcs.client.odcs import * # noqa
-from odcs.common.types import * # noqa
+
+from odcs.client.odcs import AuthMech, ODCS
+from odcs.common.types import COMPOSE_STATES  # noqa
+
+from freshmaker import conf
+
+
+def create_odcs_client():
+    """
+    Create instance of ODCS according to configured authentication mechasnim
+    """
+    if conf.odcs_auth_mech == 'kerberos':
+        return ODCS(conf.odcs_server_url,
+                    auth_mech=AuthMech.Kerberos,
+                    verify_ssl=conf.odcs_verify_ssl)
+    else:
+        raise NotImplementedError(
+            'Authentication mechanism {0} is not supported yet.'.format(
+                conf.odcs_auth_mech))

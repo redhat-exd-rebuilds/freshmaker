@@ -41,9 +41,8 @@ from freshmaker.types import ArtifactType, ArtifactBuildState, EventState
 from freshmaker.models import Event, Compose
 from freshmaker.consumer import work_queue_put
 from freshmaker.utils import krb_context, retry, get_rebuilt_nvr
+from freshmaker.odcsclient import create_odcs_client
 
-from odcs.client.odcs import ODCS
-from odcs.client.odcs import AuthMech
 from odcs.common.types import COMPOSE_STATES
 
 
@@ -236,11 +235,9 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                       'source: %s, source type: %s, packages: %s',
                       compose_source, 'tag', packages)
 
-        odcs = ODCS(conf.odcs_server_url, auth_mech=AuthMech.Kerberos,
-                    verify_ssl=conf.odcs_verify_ssl)
         if not conf.dry_run:
             with krb_context():
-                new_compose = odcs.new_compose(
+                new_compose = create_odcs_client().new_compose(
                     compose_source, 'tag', packages=packages,
                     sigkeys=conf.odcs_sigkeys, flags=["no_deps"])
         else:
@@ -264,8 +261,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         self.log_info('Generating new PULP type compose for content_sets: %r',
                       content_sets)
 
-        odcs = ODCS(conf.odcs_server_url, auth_mech=AuthMech.Kerberos,
-                    verify_ssl=conf.odcs_verify_ssl)
+        odcs = create_odcs_client()
         if not conf.dry_run:
             with krb_context():
                 new_compose = odcs.new_compose(
@@ -345,15 +341,12 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         if not build_tag:
             return None
 
-        odcs = ODCS(conf.odcs_server_url,
-                    auth_mech=AuthMech.Kerberos,
-                    verify_ssl=conf.odcs_verify_ssl)
         if conf.dry_run:
             new_compose = self._fake_odcs_new_compose(
                 build_tag, 'tag', results=['boot.iso'])
         else:
             with krb_context():
-                new_compose = odcs.new_compose(
+                new_compose = create_odcs_client().new_compose(
                     build_tag, 'tag', results=['boot.iso'])
         return new_compose
 
