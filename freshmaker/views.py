@@ -32,7 +32,7 @@ from freshmaker.api_utils import pagination_metadata
 from freshmaker.api_utils import filter_artifact_builds
 from freshmaker.api_utils import filter_events
 from freshmaker.api_utils import json_error
-from freshmaker.auth import login_required, requires_role
+from freshmaker.auth import login_required, requires_role, require_scopes
 from freshmaker import messaging
 
 api_v1 = {
@@ -223,6 +223,7 @@ class BuildAPI(MethodView):
                 return json_error(404, "Not Found", "No such build found.")
 
     @login_required
+    @require_scopes('submit-build')
     @requires_role('admins')
     def post(self):
         """Trigger image rebuild"""
