@@ -70,6 +70,21 @@ class TestViews(unittest.TestCase):
         for build_id in [1234, 1235, 1236]:
             self.assertIn(build_id, [b['build_id'] for b in builds])
 
+    def test_query_builds_order(self):
+        event = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000003", "RHSA-2018-103", events.TestingEvent)
+        build9 = models.ArtifactBuild.create(db.session, event, "make", "module", 1237)
+        build9.id = 9
+        db.session.commit()
+        build8 = models.ArtifactBuild.create(db.session, event, "attr", "module", 1238)
+        build8.id = 8
+        db.session.commit()
+        db.session.expire_all()
+        resp = self.client.get('/api/1/builds/')
+        builds = json.loads(resp.data.decode('utf8'))['items']
+        self.assertEqual(len(builds), 5)
+        for id, build in zip([1, 2, 3, 8, 9], builds):
+            self.assertEqual(id, build['id'])
+
     def test_query_builds_by_name(self):
         resp = self.client.get('/api/1/builds/?name=ed')
         builds = json.loads(resp.data.decode('utf8'))['items']

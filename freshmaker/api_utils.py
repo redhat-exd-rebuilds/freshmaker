@@ -107,6 +107,8 @@ def filter_artifact_builds(flask_request):
         ea = db.aliased(Event)
         query = query.join(ea).filter(ea.search_key == event_search_key)
 
+    query = query.order_by(ArtifactBuild.id)
+
     page = flask_request.args.get('page', 1, type=int)
     per_page = flask_request.args.get('per_page', 10, type=int)
     return query.paginate(page, per_page, False)
