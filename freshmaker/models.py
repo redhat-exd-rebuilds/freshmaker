@@ -364,6 +364,9 @@ class Event(FreshmakerBase):
         return dep_events
 
 
+Index('idx_event_message_id', Event.message_id, unique=True)
+
+
 class EventDependency(FreshmakerBase):
     __tablename__ = "event_dependencies"
     id = db.Column(db.Integer, primary_key=True)
