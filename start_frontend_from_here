@@ -1,3 +1,0 @@
-#!/bin/bash
-
-PYTHON_PATH=. FRESHMAKER_DEVELOPER_ENV=1 python freshmaker/manage.py runssl
