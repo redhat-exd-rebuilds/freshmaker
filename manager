@@ -1,0 +1,51 @@
+#!/bin/bash
+
+project_root="$(dirname "$(realpath $0)")"
+
+export PYTHONPATH="${project_root}"
+export FRESHMAKER_DEVELOPER_ENV=1
+
+manage_py="python "${project_root}/freshmaker/manage.py""
+
+function usage
+{
+    echo "Commands:"
+    echo "  createdb        Create database"
+    echo "  runfrontend     Run frontend API webapp"
+    echo "  runfreshmaker   Run backend service and frontend API webapp together"
+}
+
+case $1 in
+    help | -h | --help)
+        usage
+        echo
+        echo "Following commands from manage.py are usable as well."
+        echo
+        $manage_py --help
+        ;;
+    createdb)
+        $manage_py upgradedb
+        $manage_py db migrate
+        ;;
+
+    runfrontend)
+        $manage_py runssl
+        ;;
+
+    runfreshmaker)
+        "${project_root}/start_backend_from_here" &
+        PIDS[0]=$!
+
+        trap "kill ${PIDS[*]}" SIGINT
+
+        if ! $manage_py runssl; then
+            wait
+        fi
+        ;;
+
+    *)
+        $manage_py "$@"
+esac
+
+
+# vim:sw=4
