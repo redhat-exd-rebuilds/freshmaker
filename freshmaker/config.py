@@ -176,18 +176,10 @@ class Config(object):
             'type': str,
             'default': 'koji',
             'desc': 'Koji Profile from where to load Koji configuration.'},
-        'koji_proxyuser': {
-            'type': bool,
-            'default': True,
-            'desc': 'Koji proxyuser flag.'},
         'koji_container_scratch_build': {
             'type': bool,
             'default': False,
             'desc': 'Whether to make a scratch build to rebuild the image.'},
-        'koji_build_owner': {
-            'type': str,
-            'default': '',
-            'desc': 'Build owner.'},
         'dry_run': {
             'type': bool,
             'default': False,

@@ -72,10 +72,10 @@ class KojiService(object):
                                                self.config)
         return self._session
 
-    def krb_login(self, proxyuser=None):
+    def krb_login(self):
         # No need to login on dry run, this makes dry run much faster.
         if not conf.dry_run:
-            self.session.krb_login(proxyuser=proxyuser)
+            self.session.krb_login()
         else:
             log.info("DRY RUN: Skipping login in dry run mode.")
 
@@ -194,10 +194,8 @@ def koji_service(profile=None, logger=None, login=True):
             log.debug('Logging into %s with Kerberos authentication.',
                       service.server)
 
-            proxyuser = conf.koji_build_owner if conf.koji_proxyuser else None
-
             with krb_context():
-                service.krb_login(proxyuser=proxyuser)
+                service.krb_login()
 
             # We are not logged in in dry run mode...
             if not conf.dry_run and not service.logged_in:

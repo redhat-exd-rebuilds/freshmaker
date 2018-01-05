@@ -89,7 +89,7 @@ class GitDockerfileChangeHandlerTest(BaseTestCase):
         # krb_login.
         krbContext.assert_called_once()
 
-        mock_session.krb_login.assert_called_once_with(proxyuser=None)
+        mock_session.krb_login.assert_called_once_with()
         mock_session.buildContainer.assert_called_once_with(
             'git://pkgs.fedoraproject.org/container/testimage.git?#e1f39d43471fc37ec82616f76a119da4eddec787',
             'rawhide-container-candidate',
