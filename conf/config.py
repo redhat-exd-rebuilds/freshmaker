@@ -121,7 +121,12 @@ class BaseConfiguration(object):
 
     # ODCS configs
     # URL to ODCS to call APIs
-    ODCS_SERVER_URL = ''
+    ODCS_SERVER_URL = 'https://odcs.localhost/'
+    ODCS_VERIFY_SSL = True
+    # Valid authentication method would be kerberos or openidc
+    ODCS_AUTH_MECH = 'kerberos'
+    # When use openidc authentcation, set the openidc token for accessing ODCS
+    ODCS_OPENIDC_TOKEN = ''
 
     # Kerberos authentication Settings used to authenticated freshmaker itself
     # by other services

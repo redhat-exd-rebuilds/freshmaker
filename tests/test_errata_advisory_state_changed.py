@@ -289,13 +289,13 @@ class TestBatches(unittest.TestCase):
             "content_sets": ["first-content-set"]
         })
 
-    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.ODCS.new_compose')
-    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.ODCS.get_compose')
+    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.create_odcs_client')
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.krb_context')
-    def test_batches_records(self, krb_context, get_compose, new_compose):
+    def test_batches_records(self, krb_context, create_odcs_client):
         """
         Tests that batches are properly recorded in DB.
         """
+        odcs = create_odcs_client.return_value
         # There are 8 mock builds below and each of them requires one pulp
         # compose.
         composes = [{
@@ -303,8 +303,8 @@ class TestBatches(unittest.TestCase):
             'result_repofile': 'http://localhost/{}.repo'.format(compose_id),
             'state_name': 'done'
         } for compose_id in range(1, 9)]
-        new_compose.side_effect = composes
-        get_compose.side_effect = composes
+        odcs.new_compose.side_effect = composes
+        odcs.get_compose.side_effect = composes
 
         # Creates following tree:
         # shared_parent
@@ -622,7 +622,8 @@ class TestPrepareYumRepo(unittest.TestCase):
         db.drop_all()
         db.session.commit()
 
-    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.ODCS')
+    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.'
+           'create_odcs_client')
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.'
            'ErrataAdvisoryRPMsSignedHandler._get_packages_for_compose')
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.'
@@ -632,10 +633,11 @@ class TestPrepareYumRepo(unittest.TestCase):
     @patch('freshmaker.utils.krbContext')
     def test_get_repo_url_when_succeed_to_generate_compose(
             self, krb_context, errata, sleep, _get_compose_source,
-            _get_packages_for_compose, ODCS):
+            _get_packages_for_compose, create_odcs_client):
+        odcs = create_odcs_client.return_value
         _get_packages_for_compose.return_value = ['httpd', 'httpd-debuginfo']
         _get_compose_source.return_value = 'rhel-7.2-candidate'
-        ODCS.return_value.new_compose.return_value = {
+        odcs.new_compose.return_value = {
             "id": 3,
             "result_repo": "http://localhost/composes/latest-odcs-3-1/compose/Temporary",
             "result_repofile": "http://localhost/composes/latest-odcs-3-1/compose/Temporary/odcs-3.repo",
@@ -657,7 +659,7 @@ class TestPrepareYumRepo(unittest.TestCase):
         _get_packages_for_compose.assert_called_once_with("httpd-2.4.15-1.f27")
 
         # Ensure new_compose is called to request a new compose
-        ODCS.return_value.new_compose.assert_called_once_with(
+        odcs.new_compose.assert_called_once_with(
             'rhel-7.2-candidate', 'tag', packages=['httpd', 'httpd-debuginfo'],
             sigkeys=[], flags=["no_deps"])
 
@@ -666,7 +668,8 @@ class TestPrepareYumRepo(unittest.TestCase):
             "http://localhost/composes/latest-odcs-3-1/compose/Temporary/odcs-3.repo",
             compose['result_repofile'])
 
-    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.ODCS')
+    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.'
+           'create_odcs_client')
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.'
            'ErrataAdvisoryRPMsSignedHandler._get_packages_for_compose')
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.'
@@ -677,7 +680,7 @@ class TestPrepareYumRepo(unittest.TestCase):
            new_callable=PropertyMock)
     def test_get_repo_url_packages_in_multiple_tags(
             self, krb_context, errata, sleep, _get_compose_source,
-            _get_packages_for_compose, ODCS):
+            _get_packages_for_compose, create_odcs_client):
         _get_packages_for_compose.return_value = ['httpd', 'httpd-debuginfo']
         _get_compose_source.side_effect = [
             'rhel-7.2-candidate', 'rhel-7.7-candidate']
@@ -688,7 +691,7 @@ class TestPrepareYumRepo(unittest.TestCase):
         handler = ErrataAdvisoryRPMsSignedHandler()
         repo_url = handler._prepare_yum_repo(self.ev)
 
-        ODCS.return_value.new_compose.assert_not_called()
+        create_odcs_client.return_value.new_compose.assert_not_called()
         self.assertEqual(repo_url, None)
 
         db.session.refresh(self.ev)
@@ -697,7 +700,8 @@ class TestPrepareYumRepo(unittest.TestCase):
             self.assertEqual(build.state_reason, "Packages for errata "
                              "advisory 123 found in multiple different tags.")
 
-    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.ODCS')
+    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.'
+           'create_odcs_client')
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.'
            'ErrataAdvisoryRPMsSignedHandler._get_packages_for_compose')
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.'
@@ -708,7 +712,7 @@ class TestPrepareYumRepo(unittest.TestCase):
            new_callable=PropertyMock)
     def test_get_repo_url_packages_not_found_in_tag(
             self, krb_context, errata, sleep, _get_compose_source,
-            _get_packages_for_compose, ODCS):
+            _get_packages_for_compose, create_odcs_client):
         _get_packages_for_compose.return_value = ['httpd', 'httpd-debuginfo']
         _get_compose_source.return_value = None
 
@@ -718,7 +722,7 @@ class TestPrepareYumRepo(unittest.TestCase):
         handler = ErrataAdvisoryRPMsSignedHandler()
         repo_url = handler._prepare_yum_repo(self.ev)
 
-        ODCS.return_value.new_compose.assert_not_called()
+        create_odcs_client.return_value.new_compose.assert_not_called()
         self.assertEqual(repo_url, None)
 
         db.session.refresh(self.ev)

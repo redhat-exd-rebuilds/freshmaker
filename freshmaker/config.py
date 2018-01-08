@@ -234,10 +234,18 @@ class Config(object):
             'type': str,
             'default': '',
             'desc': 'Server URL to ODCS'},
+        'odcs_auth_mech': {
+            'type': str,
+            'default': 'kerberos',
+            'desc': 'ODCS authentication mechanism.'},
         'odcs_verify_ssl': {
             'type': bool,
             'default': True,
             'desc': 'Whether to enable SSL verification over HTTP with ODCS.'},
+        'odcs_openidc_token': {
+            'type': str,
+            'default': '',
+            'desc': 'OpenIDC token used to access ODCS.'},
         'odcs_sigkeys': {
             'type': list,
             'default': [],

@@ -36,9 +36,7 @@ from freshmaker.types import EventState
 from freshmaker.models import ArtifactBuild, Event
 from freshmaker.utils import krb_context, get_rebuilt_nvr
 from freshmaker.errors import UnprocessableEntity, ProgrammingError
-
-from freshmaker.odcsclient import ODCS
-from freshmaker.odcsclient import AuthMech
+from freshmaker.odcsclient import create_odcs_client
 from freshmaker.odcsclient import COMPOSE_STATES
 
 
@@ -401,10 +399,8 @@ class ContainerBuildHandler(BaseHandler):
             compose['state'] = COMPOSE_STATES['done']
             return compose
 
-        odcs = ODCS(conf.odcs_server_url, auth_mech=AuthMech.Kerberos,
-                    verify_ssl=conf.odcs_verify_ssl)
         with krb_context():
-            return odcs.get_compose(compose_id)
+            return create_odcs_client().get_compose(compose_id)
 
     def get_repo_urls(self, build):
         """
