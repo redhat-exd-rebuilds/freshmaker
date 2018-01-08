@@ -22,11 +22,98 @@
 import unittest
 import json
 import six
+import contextlib
+import flask
 
 from mock import patch
 
-from freshmaker import app, db, events, models
+from freshmaker import app, db, events, models, login_manager
 from freshmaker.types import ArtifactType, ArtifactBuildState, EventState
+import freshmaker.auth
+
+
+@login_manager.user_loader
+def user_loader(username):
+    return models.User.find_user_by_name(username=username)
+
+
+class ViewBaseTest(unittest.TestCase):
+    def setUp(self):
+        db.session.remove()
+        db.drop_all()
+        db.create_all()
+        db.session.commit()
+
+        patched_allowed_clients = {'groups': ['freshmaker-clients'],
+                                   'users': ['dev']}
+        patched_admins = {'groups': ['admin'], 'users': ['root']}
+        self.patch_allowed_clients = patch.object(freshmaker.auth.conf,
+                                                  'allowed_clients',
+                                                  new=patched_allowed_clients)
+        self.patch_admins = patch.object(freshmaker.auth.conf,
+                                         'admins',
+                                         new=patched_admins)
+        self.patch_allowed_clients.start()
+        self.patch_admins.start()
+
+        self.patch_oidc_base_namespace = patch.object(
+            freshmaker.auth.conf, 'oidc_base_namespace',
+            new='http://example.com/')
+        self.patch_oidc_base_namespace.start()
+
+        self.client = app.test_client()
+
+        self.setup_test_data()
+
+    def tearDown(self):
+        db.session.remove()
+        db.drop_all()
+        db.session.commit()
+
+        self.patch_allowed_clients.stop()
+        self.patch_admins.stop()
+        self.patch_oidc_base_namespace.stop()
+
+    @contextlib.contextmanager
+    def test_request_context(self, user=None, groups=None, auth_backend=None,
+                             oidc_scopes=None, **kwargs):
+        with app.test_request_context(**kwargs):
+            patch_auth_backend = None
+            if user is not None:
+                # authentication is disabled with auth_backend=noauth
+                patch_auth_backend = patch.object(
+                    freshmaker.auth.conf, 'auth_backend',
+                    new=auth_backend if auth_backend else "kerberos")
+                patch_auth_backend.start()
+                if not models.User.find_user_by_name(user):
+                    models.User.create_user(username=user)
+                    db.session.commit()
+                flask.g.user = models.User.find_user_by_name(user)
+
+                if groups is not None:
+                    if isinstance(groups, list):
+                        flask.g.groups = groups
+                    else:
+                        flask.g.groups = [groups]
+                else:
+                    flask.g.groups = []
+                with self.client.session_transaction() as sess:
+                    sess['user_id'] = user
+                    sess['_fresh'] = True
+
+                oidc_scopes = oidc_scopes if oidc_scopes else []
+                oidc_namespace = freshmaker.auth.conf.oidc_base_namespace
+                flask.g.oidc_scopes = [
+                    '{0}{1}'.format(oidc_namespace, scope) for scope in
+                    oidc_scopes]
+            try:
+                yield
+            finally:
+                if patch_auth_backend is not None:
+                    patch_auth_backend.stop()
+
+    def setup_test_data(self):
+        """Set up data for running tests"""
 
 
 class TestViews(unittest.TestCase):
@@ -118,9 +205,11 @@ class TestViews(unittest.TestCase):
         self.assertEqual(len(builds), 3)
 
     def test_query_builds_by_invalid_type(self):
-        with self.assertRaises(ValueError) as ctx:
-            self.client.get('/api/1/builds/?type=100')
-        self.assertEqual(str(ctx.exception), 'An invalid artifact type was supplied')
+        resp = self.client.get('/api/1/builds/?type=100')
+        data = json.loads(resp.data.decode('utf8'))
+        self.assertEqual(data["status"], 400)
+        self.assertEqual(data["message"],
+                         "An invalid artifact type was supplied")
 
     def test_query_builds_by_state(self):
         resp = self.client.get('/api/1/builds/?state=0')
@@ -128,9 +217,11 @@ class TestViews(unittest.TestCase):
         self.assertEqual(len(builds), 3)
 
     def test_query_builds_by_invalid_state(self):
-        with self.assertRaises(ValueError) as ctx:
-            self.client.get('/api/1/builds/?state=100')
-        self.assertEqual(str(ctx.exception), 'An invalid state was supplied')
+        resp = self.client.get('/api/1/builds/?state=100')
+        data = json.loads(resp.data.decode('utf8'))
+        self.assertEqual(data["status"], 400)
+        self.assertEqual(data["message"],
+                         "An invalid state was supplied")
 
     def test_query_build_by_event_type_id(self):
         event1 = models.Event.create(db.session,
@@ -338,6 +429,34 @@ class TestManualTriggerRebuild(unittest.TestCase):
 
         self.assertEqual(data["errata_id"], 1)
         publish.assert_called_once_with('manual.rebuild', {u'errata_id': 1})
+
+
+class TestOpenIDCLogin(ViewBaseTest):
+    """Test that OpenIDC login"""
+
+    def setUp(self):
+        super(TestOpenIDCLogin, self).setUp()
+        self.patch_auth_backend = patch.object(
+            freshmaker.auth.conf, 'auth_backend', new='openidc')
+        self.patch_auth_backend.start()
+
+    def tearDown(self):
+        super(TestOpenIDCLogin, self).tearDown()
+        self.patch_auth_backend.stop()
+
+    def test_openidc_manual_trigger_unauthorized(self):
+        rv = self.client.post('/api/1/builds/',
+                              data=json.dumps({'errata_id': 1}),
+                              content_type='application/json')
+        self.assertEqual(rv.status, '401 UNAUTHORIZED')
+
+    def test_openidc_manual_trigger_authorized(self):
+        with self.test_request_context(user='dev', auth_backend="openidc",
+                                       oidc_scopes=["submit-build"]):
+            rv = self.client.post('/api/1/builds/',
+                                  data=json.dumps({'errata_id': 1}),
+                                  content_type='application/json')
+            self.assertEqual(rv.status, '403 FORBIDDEN')
 
 
 if __name__ == '__main__':
