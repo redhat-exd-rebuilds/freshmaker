@@ -44,7 +44,14 @@ def create_odcs_client():
         return ODCS(conf.odcs_server_url,
                     auth_mech=AuthMech.Kerberos,
                     verify_ssl=conf.odcs_verify_ssl)
+    elif conf.odcs_auth_mech == 'openidc':
+        if not conf.odcs_openidc_token:
+            raise ValueError('Missing OpenIDC token in configuration.')
+        return ODCS(conf.odcs_server_url,
+                    auth_mech=AuthMech.OpenIDC,
+                    openidc_token=conf.odcs_openidc_token,
+                    verify_ssl=conf.odcs_verify_ssl)
     else:
-        raise NotImplementedError(
+        raise ValueError(
             'Authentication mechanism {0} is not supported yet.'.format(
                 conf.odcs_auth_mech))

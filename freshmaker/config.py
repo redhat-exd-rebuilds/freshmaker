@@ -250,6 +250,10 @@ class Config(object):
             'type': bool,
             'default': True,
             'desc': 'Whether to enable SSL verification over HTTP with ODCS.'},
+        'odcs_openidc_token': {
+            'type': str,
+            'default': '',
+            'desc': 'OpenIDC token used to access ODCS.'},
         'odcs_sigkeys': {
             'type': list,
             'default': [],
