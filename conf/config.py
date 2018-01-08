@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import tempfile
 
 
 # FIXME: workaround for this moment till confdir, dbdir (installdir etc.) are
@@ -136,7 +137,8 @@ class BaseConfiguration(object):
     KRB_AUTH_CLIENT_KEYTAB = ''
     # Path to credential cache file. This optional could be None when not using
     # a client keytab to acquire credential.
-    KRB_AUTH_CCACHE_FILE = '/tmp/freshmaker_cc_{}'.format(os.getpid())
+    KRB_AUTH_CCACHE_FILE = tempfile.mkstemp(
+        suffix=str(os.getpid()), prefix="freshmaker_cc_")
 
     # Users are required to be in allowed_clients to generate composes,
     # you can add group names or usernames (it can be normal user or host
