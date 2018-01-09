@@ -13,6 +13,7 @@ down_revision = '2f5a2f4385a0'
 from alembic import op
 import sqlalchemy as sa
 
+from freshmaker.models import Event
 from freshmaker.types import EventState
 
 
@@ -23,7 +24,11 @@ def upgrade():
         batch_op.add_column(sa.Column('time_created', sa.DateTime(), nullable=True))
 
     # update state to 'COMPLETE' for historical events
-    op.execute("UPDATE events SET state = %s" % EventState.COMPLETE.value)
+    op.execute(
+        sa.update(Event).values({
+            'state': op.inline_literal(EventState.COMPLETE.value)
+        })
+    )
 
 
 def downgrade():
