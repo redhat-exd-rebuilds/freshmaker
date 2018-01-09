@@ -201,6 +201,57 @@ class TestBrewContainerTaskStateChangeHandler(helpers.FreshmakerTestCase):
         self.assertEqual(EventState.BUILDING.value,
                          self.db_advisory_rpm_signed_event.state)
 
+    @mock.patch('freshmaker.kojiservice.KojiService')
+    @mock.patch('freshmaker.errata.Errata.get_builds')
+    def test_mark_build_done_when_container_has_latest_rpms_from_advisory(self, errata_get_builds, KojiService):
+        """
+        Tests when dependency container build task failed in brew, only update build state in db.
+        """
+        errata_get_builds.return_value = set(['foo-1.2.1-22.el7'])
+
+        koji_service = KojiService.return_value
+        koji_service.get_build_rpms.return_value = [
+            {'build_id': 634904, 'nvr': 'foo-debuginfo-1.2.1-22.el7', 'name': 'foo-debuginfo'},
+            {'build_id': 634904, 'nvr': 'foo-1.2.1-22.el7', 'name': 'foo'}
+        ]
+        koji_service.get_rpms_in_container.return_value = set(
+            ['foo-1.2.1-22.el7', 'bar-1.2.3-1.el7']
+        )
+
+        e1 = models.Event.create(db.session, "test_msg_id", "2018001", events.ErrataAdvisoryRPMsSignedEvent)
+        event = self.get_event_from_msg(get_fedmsg('brew_container_task_closed'))
+        build = models.ArtifactBuild.create(db.session, e1, 'test-product-docker', ArtifactType.IMAGE, event.task_id)
+
+        self.handler.handle(event)
+
+        self.assertEqual(build.state, ArtifactBuildState.DONE.value)
+        self.assertEqual(build.state_reason, 'Built successfully.')
+
+    @mock.patch('freshmaker.kojiservice.KojiService')
+    @mock.patch('freshmaker.errata.Errata.get_builds')
+    def test_mark_build_fail_when_container_not_has_latest_rpms_from_advisory(self, errata_get_builds, KojiService):
+        """
+        Tests when dependency container build task failed in brew, only update build state in db.
+        """
+        errata_get_builds.return_value = set(['foo-1.2.1-23.el7'])
+
+        koji_service = KojiService.return_value
+        koji_service.get_build_rpms.return_value = [
+            {'build_id': 634904, 'nvr': 'foo-debuginfo-1.2.1-23.el7', 'name': 'foo-debuginfo'},
+            {'build_id': 634904, 'nvr': 'foo-1.2.1-23.el7', 'name': 'foo'}
+        ]
+        koji_service.get_rpms_in_container.return_value = set(
+            ['foo-1.2.1-22.el7', 'bar-1.2.3-1.el7']
+        )
+
+        e1 = models.Event.create(db.session, "test_msg_id", "2018001", events.ErrataAdvisoryRPMsSignedEvent)
+        event = self.get_event_from_msg(get_fedmsg('brew_container_task_closed'))
+        build = models.ArtifactBuild.create(db.session, e1, 'test-product-docker', ArtifactType.IMAGE, event.task_id)
+
+        self.handler.handle(event)
+        self.assertEqual(build.state, ArtifactBuildState.FAILED.value)
+        self.assertRegexpMatches(build.state_reason, r"The following RPMs in container build.*")
+
 
 if __name__ == '__main__':
     unittest.main()

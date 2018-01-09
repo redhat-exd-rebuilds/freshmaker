@@ -19,12 +19,18 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from kobo import rpmlib
+
+from freshmaker import conf
 from freshmaker import log
 from freshmaker import db
-from freshmaker.events import BrewContainerTaskStateChangeEvent
-from freshmaker.models import ArtifactBuild
+from freshmaker.errata import Errata
+from freshmaker.events import (
+    BrewContainerTaskStateChangeEvent, ErrataAdvisoryRPMsSignedEvent)
+from freshmaker.models import ArtifactBuild, EVENT_TYPES
 from freshmaker.handlers import (
     ContainerBuildHandler, fail_event_on_handler_exception)
+from freshmaker.kojiservice import koji_service
 from freshmaker.types import ArtifactType, ArtifactBuildState, EventState
 
 
@@ -55,9 +61,23 @@ class BrewContainerTaskStateChangeHandler(ContainerBuildHandler):
             self.set_context(found_build)
             # update build state in db
             if event.new_state == 'CLOSED':
-                found_build.transition(
-                    ArtifactBuildState.DONE.value,
-                    "Built successfully.")
+                # if build is triggered by an advisory, verify the container
+                # contains latest RPMs from the advisory
+                if found_build.event.event_type_id == EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent]:
+                    errata_id = found_build.event.search_key
+                    # build_id is actually task id in build system, find out the actual build first
+                    with koji_service(conf.koji_profile, log, login=False) as session:
+                        container_build_id = session.get_container_build_id_from_task(build_id)
+
+                    ret, msg = self._verify_advisory_rpms_in_container_build(errata_id, container_build_id)
+                    if ret:
+                        found_build.transition(ArtifactBuildState.DONE.value, "Built successfully.")
+                    else:
+                        found_build.transition(ArtifactBuildState.FAILED.value, msg)
+
+                # for other builds, mark them as DONE
+                else:
+                    found_build.transition(ArtifactBuildState.DONE.value, "Built successfully.")
             if event.new_state == 'FAILED':
                 found_build.transition(
                     ArtifactBuildState.FAILED.value,
@@ -105,3 +125,40 @@ class BrewContainerTaskStateChangeHandler(ContainerBuildHandler):
         if all_builds_done:
             db_event.transition(
                 EventState.COMPLETE, 'All docker images have been rebuilt.')
+
+    def _verify_advisory_rpms_in_container_build(self, errata_id, container_build_id):
+        """
+        verify container built on brew has the latest rpms from an advisory
+        """
+        if conf.dry_run:
+            return (True, '')
+
+        # get rpms in advisory
+        advisory_rpms = set()
+        e = Errata()
+        build_nvrs = e.get_builds(errata_id)
+        if build_nvrs:
+            with koji_service(conf.koji_profile, log, login=False) as session:
+                for build_nvr in build_nvrs:
+                    build_rpms = session.get_build_rpms(build_nvr)
+                    for rpm in build_rpms:
+                        advisory_rpms.add(rpm['nvr'])
+
+        # get rpms in container
+        with koji_service(conf.koji_profile, log, login=False) as session:
+            components = session.get_rpms_in_container(container_build_id)
+
+        # compare rpms from advisory and container
+        unmatched_rpms = []
+        container_rpm_names = [rpmlib.parse_nvr(x)['name'] for x in components]
+        for rpm in advisory_rpms:
+            rpm_name = rpmlib.parse_nvr(rpm)['name']
+            if rpm_name in container_rpm_names and rpm not in components:
+                unmatched_rpms.append(rpm_name)
+
+        if unmatched_rpms:
+            msg = ("The following RPMs in container build (%s) do not match "
+                   "with the latest RPMs in advisory (%s):\n%s" %
+                   (container_build_id, errata_id, unmatched_rpms))
+            return (False, msg)
+        return (True, "")

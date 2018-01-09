@@ -28,13 +28,15 @@ import koji
 # it would import freshmaker.handlers.koji, so instead, we import it here
 # and in freshmaker.handler do "from freshmaker.kojiservice import parse_NVR".
 from koji import parse_NVR # noqa
+from kobo import rpmlib
 
 import contextlib
 import re
+import requests
+import freshmaker.utils
 from freshmaker import log, conf
 from freshmaker.consumer import work_queue_put
 from freshmaker.events import BrewContainerTaskStateChangeEvent
-from freshmaker.utils import krb_context
 
 
 class KojiService(object):
@@ -60,6 +62,10 @@ class KojiService(object):
     @property
     def weburl(self):
         return self.config['weburl']
+
+    @property
+    def topurl(self):
+        return self.config['topurl']
 
     @property
     def server(self):
@@ -158,14 +164,99 @@ class KojiService(object):
         return self.session.listRPMs(buildID=build_info['id'],
                                      arches=arches)
 
-    def get_build(self, build_nvr):
-        return self.session.getBuild(build_nvr)
+    def get_build(self, buildinfo):
+        """
+        Return information about a build.
+
+        buildinfo may be either a int ID, a string NVR, or a map containing
+        'name', 'version' and 'release.
+        """
+        return self.session.getBuild(buildinfo)
+
+    def get_build_id(self, build_nvr):
+        return self.session.findBuildID(build_nvr)
 
     def get_task_request(self, task_id):
         return self.session.getTaskRequest(task_id)
 
     def get_build_target(self, target_name):
         return self.session.getBuildTarget(target_name)
+
+    def get_container_build_id_from_task(self, task_id):
+        """
+        Return container build id by check 'koji_builds' in build
+        task result. If not found, return None.
+        """
+        build_id = None
+        subtasks = self.session.getTaskChildren(task_id)
+        if subtasks:
+            for task in subtasks:
+                task_result = self.session.getTaskResult(task['id'])
+                builds = task_result.get('koji_builds', None)
+                if builds:
+                    build_id = int(builds.pop())
+                    break
+        else:
+            task_result = self.session.getTaskResult(task_id)
+            builds = task_result.get('koji_builds', None)
+            if builds:
+                build_id = int(builds.pop())
+        return build_id
+
+    def get_cg_metadata_url(self, buildinfo):
+        """
+        Return url of the CG metadata.json
+
+        buildinfo may be either a int ID, a string NVR, or a map containing
+        'name', 'version' and 'release.
+
+        Note: it doesn't check whether the metadata.json exists or not.
+        """
+        build_info = self.get_build(buildinfo)
+        return koji.PathInfo(topdir=self.topurl).build(build_info) + '/metadata.json'
+
+    @freshmaker.utils.retry(wait_on=(requests.Timeout, requests.ConnectionError), logger=log)
+    def load_cg_metadata(self, buildinfo):
+        """
+        Fetch CG metadata.json and load the json.
+
+        buildinfo may be either a int ID, a string NVR, or a map containing
+        'name', 'version' and 'release.
+        """
+        try:
+            cg_metadata_url = self.get_cg_metadata_url(buildinfo)
+            resp = requests.get(cg_metadata_url)
+            # url is redirected
+            if resp.history:
+                cg_metadata_url = resp.url
+            return requests.get(cg_metadata_url).json()
+        except requests.ConnectionError:
+            raise
+        except Exception as e:
+            if cg_metadata_url:
+                log.error("Unable to load CG metadata for build (%r) from url (%s): %s",
+                          buildinfo, cg_metadata_url, str(e))
+            else:
+                log.error("Unable to load CG metadata for build (%r): %s", str(e))
+            raise
+
+    def get_rpms_in_container(self, buildinfo):
+        """
+        Get rpms in a koji container build.
+
+        buildinfo may be either a int ID, a string NVR, or a map containing
+        'name', 'version' and 'release.
+
+        Return a set of rpm NVRs.
+        """
+        rpms = set()
+        cg_metadata = self.load_cg_metadata(buildinfo)
+        outputs = cg_metadata['output']
+        for out in outputs:
+            if out['type'] == 'docker-image':
+                components = out['components']
+                rpms = set([rpmlib.make_nvr(rpm) for rpm in components if rpm['type'] == 'rpm'])
+        return rpms
 
 
 @contextlib.contextmanager
@@ -194,7 +285,7 @@ def koji_service(profile=None, logger=None, login=True):
             log.debug('Logging into %s with Kerberos authentication.',
                       service.server)
 
-            with krb_context():
+            with freshmaker.utils.krb_context():
                 service.krb_login()
 
             # We are not logged in in dry run mode...
