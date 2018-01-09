@@ -292,7 +292,6 @@ class LightBlue(object):
         if verify_ssl is None:
             self.verify_ssl = True
         else:
-            assert isinstance(verify_ssl, bool)
             self.verify_ssl = verify_ssl
 
         if not os.path.exists(cert):
