@@ -614,20 +614,14 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         # containing this package and record those images into database.
         nvrs = errata.get_builds(errata_id)
         for nvr in nvrs:
-            # Container images builds end with ".tar.gz", so do not treat
-            # them as RPMs here.
-            if not nvr.endswith(".tar.gz"):
-                self.log_info(
-                    "Going to find all the container images to rebuild as "
-                    "result of %s update.", nvr)
-                srpm_name = self._find_build_srpm_name(nvr)
-                batches = lb.find_images_to_rebuild(
-                    srpm_name, content_sets,
-                    filter_fnc=self._filter_out_not_allowed_builds)
-                yield batches
-            else:
-                self.log_info("Skipping unsupported Errata build type: "
-                              "%s.", nvr)
+            self.log_info(
+                "Going to find all the container images to rebuild as "
+                "result of %s update.", nvr)
+            srpm_name = self._find_build_srpm_name(nvr)
+            batches = lb.find_images_to_rebuild(
+                srpm_name, content_sets,
+                filter_fnc=self._filter_out_not_allowed_builds)
+            yield batches
 
     def _find_build_srpm_name(self, build_nvr):
         """Find srpm name from a build"""

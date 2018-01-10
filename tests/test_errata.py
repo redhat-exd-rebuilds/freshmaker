@@ -73,6 +73,7 @@ class MockedErrataAPI(object):
             "id": 28484,
             "advisory_name": "RHSA-2017:28484",
             "status": "QE",
+            "content_types": ["rpm"],
             "security_impact": "Important",
             "product": {
                 "id": 89
@@ -143,7 +144,7 @@ class TestErrata(unittest.TestCase):
     def test_advisories_from_event_errata_state_change_event(
             self, errata_http_get, errata_rest_get):
         MockedErrataAPI(errata_rest_get, errata_http_get)
-        event = ErrataAdvisoryStateChangedEvent("msgid", 28484, "SHIPPED_LIVE")
+        event = ErrataAdvisoryStateChangedEvent("msgid", 28484, "SHIPPED_LIVE", ['rpm'])
         advisories = self.errata.advisories_from_event(event)
         self.assertEqual(len(advisories), 1)
         self.assertEqual(advisories[0].errata_id, 28484)

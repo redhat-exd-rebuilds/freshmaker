@@ -415,13 +415,16 @@ class TestManualTriggerRebuild(unittest.TestCase):
         self.client = app.test_client()
 
     def tearDown(self):
-
         db.session.remove()
         db.drop_all()
         db.session.commit()
 
     @patch('freshmaker.messaging.publish')
-    def test_manual_rebuild(self, publish):
+    @patch('freshmaker.views.Errata')
+    def test_manual_rebuild(self, Errata, publish):
+        errata = Errata.return_value
+        errata.get_advisory.return_value = {'content_types': ['rpm']}
+
         resp = self.client.post('/api/1/builds/',
                                 data=json.dumps({'errata_id': 1}),
                                 content_type='application/json')
@@ -429,6 +432,24 @@ class TestManualTriggerRebuild(unittest.TestCase):
 
         self.assertEqual(data["errata_id"], 1)
         publish.assert_called_once_with('manual.rebuild', {u'errata_id': 1})
+
+    @patch('freshmaker.views.Errata')
+    def test_not_rebuild_nonrpm_advisory(self, Errata):
+        errata = Errata.return_value
+        errata.get_advisory.return_value = {'content_types': ['docker']}
+
+        resp = self.client.post('/api/1/builds/',
+                                data=json.dumps({'errata_id': 1}),
+                                content_type='application/json')
+        data = json.loads(resp.get_data(as_text=True))
+
+        self.assertEqual(
+            {
+                'status': 400,
+                'error': 'Bad Request',
+                'message': 'Erratum 1 is not a RPM advisory'
+            },
+            data)
 
 
 class TestOpenIDCLogin(ViewBaseTest):

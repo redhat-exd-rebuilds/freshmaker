@@ -55,7 +55,7 @@ class TestBrewSignHandler(unittest.TestCase):
         Tests that handle method returns ErrataAdvisoryRPMsSignedEvent.
         """
         advisories_from_event.return_value = [
-            ErrataAdvisory(123, "RHSA-2017", "REL_PREP")]
+            ErrataAdvisory(123, "RHSA-2017", "REL_PREP", ["rpm"])]
         builds_signed.return_value = True
 
         event = MagicMock()
@@ -78,7 +78,7 @@ class TestBrewSignHandler(unittest.TestCase):
         Tests that allow_build filters out advisories based on advisory_name.
         """
         advisories_from_event.return_value = [
-            ErrataAdvisory(123, "RHBA-2017", "REL_PREP")]
+            ErrataAdvisory(123, "RHBA-2017", "REL_PREP", ["rpm"])]
         builds_signed.return_value = False
 
         event = MagicMock()
@@ -100,7 +100,7 @@ class TestBrewSignHandler(unittest.TestCase):
         advisory_name.
         """
         advisories_from_event.return_value = [
-            ErrataAdvisory(123, "RHSA-2017", "REL_PREP")]
+            ErrataAdvisory(123, "RHSA-2017", "REL_PREP", ["rpm"])]
         builds_signed.return_value = False
 
         event = MagicMock()
@@ -120,7 +120,7 @@ class TestBrewSignHandler(unittest.TestCase):
         Tests that allow_build filters out advisories based on advisory_name.
         """
         advisories_from_event.return_value = [
-            ErrataAdvisory(123, "RHBA-2017", "REL_PREP")]
+            ErrataAdvisory(123, "RHBA-2017", "REL_PREP", ["rpm"])]
         builds_signed.return_value = False
 
         event = MagicMock()
@@ -142,7 +142,7 @@ class TestBrewSignHandler(unittest.TestCase):
         advisory_name.
         """
         advisories_from_event.return_value = [
-            ErrataAdvisory(123, "RHSA-2017", "REL_PREP")]
+            ErrataAdvisory(123, "RHSA-2017", "REL_PREP", ["rpm"])]
         builds_signed.return_value = False
 
         event = MagicMock()
@@ -173,7 +173,7 @@ class TestBrewSignHandler(unittest.TestCase):
         advisory_security_impact.
         """
         advisories_from_event.return_value = [
-            ErrataAdvisory(123, "RHSA-2017", "REL_PREP", "Important")]
+            ErrataAdvisory(123, "RHSA-2017", "REL_PREP", ["rpm"], "Important")]
         builds_signed.return_value = False
 
         event = MagicMock()
@@ -204,7 +204,7 @@ class TestBrewSignHandler(unittest.TestCase):
         advisory_security_impact.
         """
         advisories_from_event.return_value = [
-            ErrataAdvisory(123, "RHSA-2017", "REL_PREP", "None")]
+            ErrataAdvisory(123, "RHSA-2017", "REL_PREP", ["rpm"], "None")]
         builds_signed.return_value = False
 
         event = MagicMock()
@@ -227,7 +227,7 @@ class TestBrewSignHandler(unittest.TestCase):
         """
         builds_signed.return_value = True
         advisories_from_event.return_value = [
-            ErrataAdvisory(123, "RHSA-2017", "REL_PREP")]
+            ErrataAdvisory(123, "RHSA-2017", "REL_PREP", ["rpm"])]
 
         event = MagicMock()
         event.msg_id = "msg_123"

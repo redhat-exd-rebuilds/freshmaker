@@ -42,7 +42,14 @@ class ErrataAdvisoryStateChangedHandler(BaseHandler):
     name = 'ErrataAdvisoryStateChangedHandler'
 
     def can_handle(self, event):
-        return isinstance(event, ErrataAdvisoryStateChangedEvent)
+        if not isinstance(event, ErrataAdvisoryStateChangedEvent):
+            return False
+
+        if 'rpm' not in event.content_types:
+            log.info('Skip non-RPM advisory %s.', event.errata_id)
+            return False
+
+        return True
 
     @fail_event_on_handler_exception
     def mark_as_released(self, errata_id):

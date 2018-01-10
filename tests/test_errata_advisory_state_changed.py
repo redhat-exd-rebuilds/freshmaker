@@ -732,25 +732,6 @@ class TestPrepareYumRepo(unittest.TestCase):
                 "of advisory 123 is the latest build in its candidate tag."))
 
 
-class TestFindImagesToRebuild(unittest.TestCase):
-
-    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.Errata')
-    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.Pulp')
-    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.LightBlue')
-    def test_find_images_to_rebuild_non_rpm_content(
-            self, lb, pulp, errata):
-        """
-        Tests that _find_images_to_rebuild is not called for
-        non-rpm content.
-        """
-        errata.return_value.get_builds.return_value = set(["httpd-2.4.15-1.f27.tar.gz"])
-
-        handler = ErrataAdvisoryRPMsSignedHandler()
-        ret = list(handler._find_images_to_rebuild(12345))
-        lb.find_images_to_rebuild.assert_not_called()
-        self.assertEqual([], ret)
-
-
 class TestErrataAdvisoryStateChangedHandler(unittest.TestCase):
 
     def setUp(self):
@@ -770,8 +751,8 @@ class TestErrataAdvisoryStateChangedHandler(unittest.TestCase):
 
         for state in ["REL_PREP", "PUSH_READY", "IN_PUSH", "SHIPPED_LIVE"]:
             advisories_from_event.return_value = [
-                ErrataAdvisory(123, "RHSA-2017", state, "Critical")]
-            ev = ErrataAdvisoryStateChangedEvent("msg123", 123, state)
+                ErrataAdvisory(123, "RHSA-2017", state, ["rpm"], "Critical")]
+            ev = ErrataAdvisoryStateChangedEvent("msg123", 123, state, ['rpm'])
             ret = handler.handle(ev)
 
             self.assertEqual(len(ret), 1)
@@ -795,8 +776,8 @@ class TestErrataAdvisoryStateChangedHandler(unittest.TestCase):
 
         for state in ["NEW_FILES", "QE", "UNKNOWN"]:
             advisories_from_event.return_value = [
-                ErrataAdvisory(123, "RHSA-2017", state, "Critical")]
-            ev = ErrataAdvisoryStateChangedEvent("msg123", 123, state)
+                ErrataAdvisory(123, "RHSA-2017", state, ["rpm"], "Critical")]
+            ev = ErrataAdvisoryStateChangedEvent("msg123", 123, state, ['rpm'])
             ret = handler.handle(ev)
 
             self.assertEqual(len(ret), 0)
@@ -817,8 +798,8 @@ class TestErrataAdvisoryStateChangedHandler(unittest.TestCase):
             db.session.commit()
             for state in ["REL_PREP", "PUSH_READY", "IN_PUSH", "SHIPPED_LIVE"]:
                 advisories_from_event.return_value = [
-                    ErrataAdvisory(123, "RHSA-2017", state, "Critical")]
-                ev = ErrataAdvisoryStateChangedEvent("msg123", 123, state)
+                    ErrataAdvisory(123, "RHSA-2017", state, ["rpm"], "Critical")]
+                ev = ErrataAdvisoryStateChangedEvent("msg123", 123, state, ['rpm'])
                 ret = handler.handle(ev)
 
                 if db_event_state == EventState.FAILED:
@@ -833,7 +814,7 @@ class TestErrataAdvisoryStateChangedHandler(unittest.TestCase):
         handler = ErrataAdvisoryStateChangedHandler()
 
         for state in ["REL_PREP", "PUSH_READY", "IN_PUSH", "SHIPPED_LIVE"]:
-            ev = ErrataAdvisoryStateChangedEvent("msg123", 123, state)
+            ev = ErrataAdvisoryStateChangedEvent("msg123", 123, state, ['rpm'])
             ret = handler.handle(ev)
 
             self.assertEqual(len(ret), 0)
@@ -845,7 +826,7 @@ class TestErrataAdvisoryStateChangedHandler(unittest.TestCase):
 
         self.assertEqual(db_event.released, False)
 
-        ev = ErrataAdvisoryStateChangedEvent("msg123", 123, "SHIPPED_LIVE")
+        ev = ErrataAdvisoryStateChangedEvent("msg123", 123, "SHIPPED_LIVE", ["rpm"])
 
         handler = ErrataAdvisoryStateChangedHandler()
         handler.handle(ev)
@@ -859,7 +840,7 @@ class TestErrataAdvisoryStateChangedHandler(unittest.TestCase):
         db.session.commit()
 
         for state in ["NEW_FILES", "QE", "REL_PREP", "PUSH_READY", "IN_PUSH"]:
-            ev = ErrataAdvisoryStateChangedEvent("msg123", 123, state)
+            ev = ErrataAdvisoryStateChangedEvent("msg123", 123, state, ['rpm'])
 
             handler = ErrataAdvisoryStateChangedHandler()
             handler.handle(ev)
@@ -869,7 +850,7 @@ class TestErrataAdvisoryStateChangedHandler(unittest.TestCase):
 
     @patch('freshmaker.errata.Errata.advisories_from_event')
     def test_mark_as_released_unknown_event(self, advisories_from_event):
-        ev = ErrataAdvisoryStateChangedEvent("msg123", 123, "SHIPPED_LIVE")
+        ev = ErrataAdvisoryStateChangedEvent("msg123", 123, "SHIPPED_LIVE", ["rpm"])
 
         handler = ErrataAdvisoryStateChangedHandler()
         handler.handle(ev)
@@ -894,7 +875,7 @@ class TestErrataAdvisoryStateChangedHandler(unittest.TestCase):
         db.session.commit()
 
         event = ErrataAdvisoryStateChangedEvent(
-            'msg-id-123', 123456, 'SHIPPED_LIVE')
+            'msg-id-123', 123456, 'SHIPPED_LIVE', ['rpm'])
         handler = ErrataAdvisoryStateChangedHandler()
         msgs = handler.handle(event)
 
@@ -920,7 +901,7 @@ class TestErrataAdvisoryStateChangedHandler(unittest.TestCase):
         db.session.commit()
 
         event = ErrataAdvisoryStateChangedEvent(
-            'msg-id-123', 123456, 'SHIPPED_LIVE')
+            'msg-id-123', 123456, 'SHIPPED_LIVE', ['rpm'])
         event.manual = True
         handler = ErrataAdvisoryStateChangedHandler()
         msgs = handler.handle(event)
@@ -1359,3 +1340,18 @@ class TestPrepareYumReposForRebuilds(unittest.TestCase):
             'http://localhost/repo/3',
             'http://localhost/repo/4',
         ], sorted(urls))
+
+
+class TestSkipNonRPMAdvisory(unittest.TestCase):
+
+    def test_ensure_to_handle_rpm_adivsory(self):
+        event = ErrataAdvisoryStateChangedEvent(
+            'msg-id-1', 123, 'REL_PREP', ['rpm', 'jar', 'pom'])
+        handler = ErrataAdvisoryStateChangedHandler()
+        self.assertTrue(handler.can_handle(event))
+
+    def test_not_handle_non_rpm_advisory(self):
+        event = ErrataAdvisoryStateChangedEvent(
+            'msg-id-1', 123, 'REL_PREP', ['docker'])
+        handler = ErrataAdvisoryStateChangedHandler()
+        self.assertFalse(handler.can_handle(event))

@@ -52,7 +52,7 @@ class TestFreshmakerManualRebuildHandler(unittest.TestCase):
         handler = FreshmakerManualRebuildHandler()
 
         advisories_from_event.return_value = [
-            ErrataAdvisory(123, "RHSA-2017", "REL_PREP", "Critical")]
+            ErrataAdvisory(123, "RHSA-2017", "REL_PREP", ["rpm"], "Critical")]
         ev = FreshmakerManualRebuildEvent("msg123", errata_id=123)
         ret = handler.handle(ev)
 

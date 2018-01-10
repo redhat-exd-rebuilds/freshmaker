@@ -257,10 +257,11 @@ class ErrataAdvisoryStateChangedEvent(BaseEvent):
     Represents change of Errata Advisory status.
     """
 
-    def __init__(self, msg_id, errata_id, state):
+    def __init__(self, msg_id, errata_id, state, content_types):
         super(ErrataAdvisoryStateChangedEvent, self).__init__(msg_id)
         self.errata_id = errata_id
         self.state = state
+        self.content_types = content_types
 
 
 class ErrataAdvisoryRPMsSignedEvent(BaseEvent):

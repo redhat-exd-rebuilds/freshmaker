@@ -36,13 +36,15 @@ class ErrataAdvisory(object):
     Represents Errata advisory.
     """
 
-    def __init__(self, errata_id, name, state, security_impact=None):
+    def __init__(self, errata_id, name, state, content_types,
+                 security_impact=None):
         """
         Initializes the ErrataAdvisory instance.
         """
         self.errata_id = errata_id
         self.name = name
         self.state = state
+        self.content_types = content_types
         self.security_impact = security_impact or ""
 
 
@@ -116,6 +118,7 @@ class Errata(object):
                 "advisory/%s.json" % str(errata["id"]))
             advisory = ErrataAdvisory(
                 errata["id"], errata["name"], errata["status"],
+                extra_data['content_types'],
                 extra_data["security_impact"])
             advisories.append(advisory)
 
@@ -140,6 +143,7 @@ class Errata(object):
             data = self.get_advisory(event.errata_id)
             advisory = ErrataAdvisory(
                 data["id"], data["advisory_name"], data["status"],
+                data['content_types'],
                 data["security_impact"])
             return [advisory]
         else:

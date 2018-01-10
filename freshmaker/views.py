@@ -26,14 +26,15 @@ from flask import request, jsonify
 from flask.views import MethodView
 
 from freshmaker import app
-from freshmaker import types
+from freshmaker import messaging
 from freshmaker import models
-from freshmaker.api_utils import pagination_metadata
+from freshmaker import types
 from freshmaker.api_utils import filter_artifact_builds
 from freshmaker.api_utils import filter_events
 from freshmaker.api_utils import json_error
+from freshmaker.api_utils import pagination_metadata
 from freshmaker.auth import login_required, requires_role, require_scopes
-from freshmaker import messaging
+from freshmaker.errata import Errata
 
 api_v1 = {
     'event_types': {
@@ -231,6 +232,13 @@ class BuildAPI(MethodView):
         if 'errata_id' not in data:
             return json_error(
                 400, 'Bad Request', 'Missing errata_id in request')
+
+        advisory = Errata().get_advisory(data['errata_id'])
+        if 'rpm' not in advisory['content_types']:
+            return json_error(
+                400,
+                'Bad Request',
+                'Erratum {} is not a RPM advisory'.format(data['errata_id']))
 
         messaging.publish("manual.rebuild", data)
         return jsonify(data), 200
