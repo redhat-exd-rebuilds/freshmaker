@@ -92,9 +92,9 @@ class TestModels(unittest.TestCase):
         self.assertEqual(deps, set([build2, build3]))
 
     def test_build_transition_recursion(self):
-        for state in [ArtifactBuildState.FAILED.value,
-                      ArtifactBuildState.CANCELED.value]:
-            event = Event.create(db.session, "test_msg_id", "test", events.TestingEvent)
+        for i, state in enumerate([ArtifactBuildState.FAILED.value,
+                                   ArtifactBuildState.CANCELED.value]):
+            event = Event.create(db.session, "test_msg_id_{}".format(i), "test", events.TestingEvent)
             build1 = ArtifactBuild.create(db.session, event, "ed", "module", 1234)
             build2 = ArtifactBuild.create(db.session, event, "mksh", "module", 1235, build1)
             build3 = ArtifactBuild.create(db.session, event, "runtime", "module", 1236, build2)
@@ -115,9 +115,9 @@ class TestModels(unittest.TestCase):
             self.assertEqual(build4.state_reason, None)
 
     def test_build_transition_recursion_not_done_for_ok_states(self):
-        for state in [ArtifactBuildState.DONE.value,
-                      ArtifactBuildState.PLANNED.value]:
-            event = Event.create(db.session, "test_msg_id", "test", events.TestingEvent)
+        for i, state in enumerate([ArtifactBuildState.DONE.value,
+                                   ArtifactBuildState.PLANNED.value]):
+            event = Event.create(db.session, "test_msg_id_{}".format(i), "test", events.TestingEvent)
             build1 = ArtifactBuild.create(db.session, event, "ed", "module", 1234)
             build2 = ArtifactBuild.create(db.session, event, "mksh", "module", 1235, build1)
             build3 = ArtifactBuild.create(db.session, event, "runtime", "module", 1236, build2)
