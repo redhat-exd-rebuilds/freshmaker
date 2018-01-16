@@ -32,6 +32,10 @@ def upgrade():
     for row in connection.execute('SELECT id, compose_id FROM events'):
         event_id, odcs_compose_id = row
 
+        # Skip the events with NULL/None compose_id.
+        if odcs_compose_id is None:
+            continue
+
         logger.info('Create Compose with odcs_compose_id %s from Event %s',
                     odcs_compose_id, event_id)
         connection.execute(
