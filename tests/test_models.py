@@ -319,6 +319,10 @@ class TestArtifactBuildComposesRel(unittest.TestCase):
         db.drop_all()
         db.session.commit()
 
+    def test_get_highest_compose_id(self):
+        compose_id = Compose.get_highest_compose_id(db.session)
+        self.assertEqual(compose_id, 4)
+
     def test_build_composes(self):
         self.assertEqual(3, len(self.build_1.composes))
         self.assertEqual(

@@ -30,7 +30,7 @@ from freshmaker import db
 from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
 from freshmaker.handlers.errata import ErrataAdvisoryRPMsSignedHandler
 from freshmaker.lightblue import ContainerImage
-from freshmaker.models import Event
+from freshmaker.models import Event, Compose
 from freshmaker.types import EventState
 
 
@@ -205,6 +205,25 @@ class TestErrataAdvisoryRPMsSignedHandler(unittest.TestCase):
         db.session.remove()
         db.drop_all()
         db.session.commit()
+
+    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+        'ErrataAdvisoryRPMsSignedHandler': {
+            'image': [{'advisory_name': 'RHBA-2017'}]
+        }
+    })
+    @patch.object(freshmaker.conf, 'dry_run', new=True)
+    def test_setting_fake_compose_id_dry_run_mode(self):
+        compose_4 = Compose(odcs_compose_id=4)
+        db.session.add(compose_4)
+        db.session.commit()
+
+        self.mock_find_images_to_rebuild.return_value = iter([[[]]])
+        event = ErrataAdvisoryRPMsSignedEvent(
+            "123", "RHBA-2017", 123, "", "REL_PREP")
+        handler = ErrataAdvisoryRPMsSignedHandler()
+        handler.handle(event)
+
+        self.assertEqual(ErrataAdvisoryRPMsSignedHandler._FAKE_COMPOSE_ID, 5)
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'ErrataAdvisoryRPMsSignedHandler': {

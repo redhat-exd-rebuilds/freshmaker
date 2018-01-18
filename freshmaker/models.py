@@ -564,6 +564,18 @@ class Compose(FreshmakerBase):
             return 'done' == create_odcs_client().get_compose(
                 self.odcs_compose_id)['state_name']
 
+    @classmethod
+    def get_highest_compose_id(cls, session):
+        """
+        Returns the highest odcs_compose_id. If there is no compose,
+        returns 0.
+        """
+        compose = session.query(Compose).order_by(
+            Compose.odcs_compose_id.desc()).first()
+        if not compose:
+            return 0
+        return compose.odcs_compose_id
+
 
 Index('idx_odcs_compose_id', Compose.odcs_compose_id, unique=True)
 

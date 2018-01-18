@@ -67,6 +67,13 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         advisory.
         """
 
+        # In case we run in DRY_RUN mode, we need to initialize
+        # FAKE_COMPOSE_ID to the id of last ODCS compose to give the IDs
+        # increasing and unique even between Freshmaker restarts.
+        if conf.dry_run:
+            ErrataAdvisoryRPMsSignedHandler._FAKE_COMPOSE_ID = \
+                Compose.get_highest_compose_id(db.session) + 1
+
         self.event = event
 
         # Generate the Database representation of `event`, it can be
