@@ -260,7 +260,7 @@ class TestErrataAdvisoryRPMsSignedHandler(unittest.TestCase):
         handler.handle(event)
 
         prepare_yum_repos_for_rebuilds.assert_not_called()
-        get_image_builds_in_first_batch.assert_called_once()
+        get_image_builds_in_first_batch.assert_called_once_with(db.session)
         start_to_build_images.assert_called_once()
 
         db_event = Event.get(db.session, event.msg_id)

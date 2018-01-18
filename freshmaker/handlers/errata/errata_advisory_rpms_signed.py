@@ -124,7 +124,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
             # is generated in ODCS, so we can start to rebuild the first batch
             # from here immediately.
             self.start_to_build_images(
-                db_event.get_image_builds_in_first_batch())
+                db_event.get_image_builds_in_first_batch(db.session))
 
         if event.manual:
             msg = 'Base images are scheduled to be rebuilt due to manual rebuild.'
