@@ -267,6 +267,10 @@ class Config(object):
             'type': str,
             'default': '',
             'desc': 'Path to credential cache file.'},
+        'oidc_base_namespace': {
+            'type': str,
+            'default': 'https://pagure.io/freshmaker/',
+            'desc': 'Base namespace of OIDC scopes.'},
         'dogpile_cache_backend': {
             'type': str,
             'default': 'dogpile.cache.memory',
