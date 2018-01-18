@@ -187,6 +187,10 @@ class KojiService(object):
         Return container build id by check 'koji_builds' in build
         task result. If not found, return None.
         """
+        # We cannot get the build_id from task_id in dry_run mode...
+        if conf.dry_run:
+            return None
+
         build_id = None
         subtasks = self.session.getTaskChildren(task_id)
         if subtasks:
