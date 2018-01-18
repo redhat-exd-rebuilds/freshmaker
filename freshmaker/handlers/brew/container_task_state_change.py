@@ -116,15 +116,22 @@ class BrewContainerTaskStateChangeHandler(ContainerBuildHandler):
         :param Event db_event: instance of Event that represents an event
             ErrataAdvisoryRPMsSignedEvent.
         """
-        build_complete_states = (
-            ArtifactBuildState.FAILED.value,
-            ArtifactBuildState.DONE.value
-        )
-        all_builds_done = all((build.state in build_complete_states
-                               for build in db_event.builds))
-        if all_builds_done:
+        num_failed = 0
+        for build in db_event.builds:
+            if build.state == ArtifactBuildState.FAILED.value:
+                num_failed += 1
+            elif build.state != ArtifactBuildState.DONE.value:
+                # Return when build is not DONE and also not FAILED, it means
+                # it's still building.
+                return
+
+        if num_failed:
             db_event.transition(
-                EventState.COMPLETE, 'All docker images have been rebuilt.')
+                EventState.COMPLETE,
+                '%d container image(s) failed to rebuild.' % num_failed)
+        else:
+            db_event.transition(
+                EventState.COMPLETE, 'All container images have been rebuilt.')
 
     def _verify_advisory_rpms_in_container_build(self, errata_id, container_build_id):
         """

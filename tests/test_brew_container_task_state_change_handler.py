@@ -157,6 +157,8 @@ class TestBrewContainerTaskStateChangeHandler(helpers.FreshmakerTestCase):
 
         self.assertEqual(EventState.COMPLETE.value,
                          self.db_advisory_rpm_signed_event.state)
+        self.assertEqual("1 container image(s) failed to rebuild.",
+                         self.db_advisory_rpm_signed_event.state_reason)
 
     @mock.patch('freshmaker.handlers.ContainerBuildHandler.build_image_artifact_build')
     @mock.patch('freshmaker.handlers.ContainerBuildHandler.get_repo_urls')
