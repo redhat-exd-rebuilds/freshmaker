@@ -118,6 +118,21 @@ class ContainerImage(dict):
     def __hash__(self):
         return hash((self['brew']['build']))
 
+    def log_error(self, err):
+        """
+        Logs the error associated with this image and sets self["error"].
+        If there has been previous call of log_error, new `err` is appended
+        to self['error'] with ';' separator.
+        """
+        prefix = ""
+        if 'brew' in self and 'build' in self['brew']:
+            prefix = self['brew']['build'] + ": "
+        log.error("%s%s", prefix, err)
+        if 'error' not in self or not self['error']:
+            self['error'] = str(err)
+        else:
+            self['error'] += "; " + str(err)
+
     @property
     def is_base_image(self):
         return (self['parent'] is None and
@@ -817,7 +832,10 @@ class LightBlue(object):
             unpublished = self.find_unpublished_image_for_build(
                 image['brew']['build'])
             if not unpublished:
-                return []
+                image.log_error(
+                    "Cannot find unpublished version of image, Lightblue "
+                    "data is probably incomplete")
+                return [image]
 
             layers = unpublished["parsed_data"]["layers"]
             rebuild_list = self.find_parent_images_with_package(
@@ -830,14 +848,10 @@ class LightBlue(object):
                     parent.resolve_content_sets(self, children=[image])
                     parent.resolve_commit(srpm_name)
                 elif len(layers) != 2:
-                    err = "Cannot find parent of image %s with layer %s " \
-                          "and layer count %d in Lightblue, Lightblue data " \
-                          "is probably incomplete" % (
-                              image['brew']['build'], layers[1],
-                              len(layers) - 1)
-                    log.error(err)
-                    if not image['error']:
-                        image['error'] = err
+                    image.log_error(
+                        "Cannot find parent image with layer %s and layer "
+                        "count %d in Lightblue, Lightblue data is probably "
+                        "incomplete" % (layers[1], len(layers) - 1))
                 image['parent'] = parent
             rebuild_list.insert(0, image)
             return rebuild_list

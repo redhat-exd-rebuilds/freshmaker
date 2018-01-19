@@ -288,7 +288,7 @@ class BaseHandler(object):
                     set(criteria.keys())):
                 return False
             if whitelist and any([match_rule(criteria, rule) for rule in whitelist]):
-                log.debug('%r, type=%r is not whitelisted.',
+                log.debug('%r, type=%r is whitelisted.',
                           criteria, artifact_type.name.lower())
                 return True
         except re.error as exc:
@@ -300,6 +300,8 @@ class BaseHandler(object):
             log.error(err_msg)
             raise UnprocessableEntity(err_msg)
 
+        log.debug('%r, type=%r is not whitelisted.',
+                  criteria, artifact_type.name.lower())
         return False
 
 
