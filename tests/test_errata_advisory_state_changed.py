@@ -1264,6 +1264,9 @@ class TestRecordBatchesImages(unittest.TestCase):
             original_nvr='rhel-server-docker-7.3-82').first()
         self.assertEqual(ArtifactBuildState.FAILED.value, build.state)
 
+        # Pulp repo should not be prepared for FAILED build.
+        self.mock_prepare_pulp_repo.assert_not_called()
+
 
 class TestPrepareYumReposForRebuilds(unittest.TestCase):
     """Test ErrataAdvisoryRPMsSignedHandler._prepare_yum_repos_for_rebuilds"""

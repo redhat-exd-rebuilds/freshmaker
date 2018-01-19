@@ -528,32 +528,33 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
 
                 db.session.commit()
 
-                # Store odcs pulp compose to build
-                compose = self._prepare_pulp_repo(
-                    build.event, image["content_sets"])
-                db_compose = Compose(odcs_compose_id=compose['id'])
-                db.session.add(db_compose)
-                db.session.commit()
-                build.add_composes(db.session, [db_compose])
+                if state != ArtifactBuildState.FAILED.value:
+                    # Store odcs pulp compose to build
+                    compose = self._prepare_pulp_repo(
+                        build.event, image["content_sets"])
+                    db_compose = Compose(odcs_compose_id=compose['id'])
+                    db.session.add(db_compose)
+                    db.session.commit()
+                    build.add_composes(db.session, [db_compose])
 
-                # TODO: uncomment following code after boot.iso compose is
-                # deployed in ODCS server.
-#                if image.is_base_image:
-#                    compose = self._request_boot_iso_compose(image)
-#                    if compose is None:
-#                        log.error(
-#                            'Failed to request boot.iso compose for base '
-#                            'image %s.', nvr)
-#                        build.transition(
-#                            ArtifactBuildState.FAILED.value,
-#                            'Cannot rebuild this base image because failed to '
-#                            'requeset boot.iso compose.')
-#                        # FIXME: mark all builds associated with build.event FAILED?
-#                    else:
-#                        db_compose = Compose(odcs_compose_id=compose['id'])
-#                        db.session.add(db_compose)
-#                        db.session.commit()
-#                        build.add_composes(db.session, [db_compose])
+                    # TODO: uncomment following code after boot.iso compose is
+                    # deployed in ODCS server.
+#                    if image.is_base_image:
+#                        compose = self._request_boot_iso_compose(image)
+#                        if compose is None:
+#                            log.error(
+#                                'Failed to request boot.iso compose for base '
+#                                'image %s.', nvr)
+#                            build.transition(
+#                                ArtifactBuildState.FAILED.value,
+#                                'Cannot rebuild this base image because failed to '
+#                                'requeset boot.iso compose.')
+#                            # FIXME: mark all builds associated with build.event FAILED?
+#                        else:
+#                            db_compose = Compose(odcs_compose_id=compose['id'])
+#                            db.session.add(db_compose)
+#                            db.session.commit()
+#                            build.add_composes(db.session, [db_compose])
 
                 builds[nvr] = build
 
