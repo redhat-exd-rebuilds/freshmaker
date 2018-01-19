@@ -103,6 +103,14 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
             db.session.commit()
             return []
 
+        if all([build.state == ArtifactBuildState.FAILED.value
+                for build in builds.values()]):
+            db_event.transition(
+                EventState.COMPLETE,
+                "No container images to rebuild, all are in failed state.")
+            db.session.commit()
+            return []
+
         if event.errata_state != 'SHIPPED_LIVE':
             # If freshmaker is configured to rebuild images only when advisory
             # moves to SHIPPED_LIVE state, there is no need to generate new

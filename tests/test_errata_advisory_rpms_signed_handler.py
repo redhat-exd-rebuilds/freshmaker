@@ -224,6 +224,29 @@ class TestErrataAdvisoryRPMsSignedHandler(unittest.TestCase):
             db_event.state_reason,
             "No container images to rebuild for advisory 'RHBA-2017'")
 
+    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+        'ErrataAdvisoryRPMsSignedHandler': {
+            'image': [{'advisory_name': 'RHBA-2017'}]
+        }
+    })
+    def test_event_state_updated_when_all_images_failed(self):
+        self.image_a['error'] = "foo"
+        self.mock_find_images_to_rebuild.return_value = iter([
+            [
+                [self.image_a]
+            ]
+        ])
+        event = ErrataAdvisoryRPMsSignedEvent(
+            "123", "RHBA-2017", 123, "", "REL_PREP")
+        handler = ErrataAdvisoryRPMsSignedHandler()
+        handler.handle(event)
+
+        db_event = Event.get(db.session, message_id='123')
+        self.assertEqual(db_event.state, EventState.COMPLETE.value)
+        self.assertEqual(
+            db_event.state_reason,
+            "No container images to rebuild, all are in failed state.")
+
     @patch('freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler.'
            'allow_build', return_value=True)
     @patch('freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler.'
