@@ -132,6 +132,19 @@ class TestContainerImageObject(unittest.TestCase):
         self.assertEqual('1233829', image['_id'])
         self.assertEqual('20151210T10:09:35.000-0500', image['brew']['completion_date'])
 
+    def test_log_error(self):
+        image = ContainerImage.create({
+            'brew': {
+                'build': 'package-name-1-4-12.10',
+            },
+        })
+
+        image.log_error("foo")
+        self.assertEqual(image['error'], "foo")
+
+        image.log_error("bar")
+        self.assertEqual(image['error'], "foo; bar")
+
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')
     def test_resolve_commit_koji_fallback(self, get_task_request, get_build):
@@ -992,6 +1005,35 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
             expected_batches,
             [sorted(images, key=lambda image: image['brew']['build'])
              for images in batches])
+
+    @patch('freshmaker.lightblue.LightBlue.find_images_with_package_from_content_set')
+    @patch('freshmaker.lightblue.LightBlue.find_unpublished_image_for_build')
+    @patch('os.path.exists')
+    def test_images_to_rebuild_cannot_find_unpublished(
+            self, exists, find_unpublished_image_for_build,
+            find_images_with_package_from_content_set):
+        exists.return_value = True
+
+        image_a = ContainerImage.create({
+            'brew': {'package': 'image-a', 'build': 'image-a-v-r1'},
+            'repository': 'repo-1',
+            'commit': 'image-a-commit'
+        })
+
+        find_unpublished_image_for_build.return_value = None
+        find_images_with_package_from_content_set.return_value = [image_a]
+
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key)
+        batches = lb.find_images_to_rebuild("dummy", "dummy")
+
+        self.assertEqual(len(batches), 1)
+        self.assertEqual(len(batches[0]), 1)
+        self.assertEqual(
+            batches[0][0]["error"],
+            "Cannot find unpublished version of image, "
+            "Lightblue data is probably incomplete")
 
     @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
