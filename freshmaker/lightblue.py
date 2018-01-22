@@ -306,6 +306,64 @@ class LightBlue(object):
 
         self.entity_versions = entity_versions or {}
 
+        self.published = True
+        self.deprecated = False
+        self.release_category = "Generally Available"
+
+    @property
+    def published(self):
+        """
+        Returns the current value of "published" property.
+        """
+        return self._published
+
+    @published.setter
+    def published(self, value):
+        """
+        When set to True, only published images are returned by LB queries.
+        When set to False, only unpublished images are returned by LB queries.
+        When set to None, any image (published or unpublished) can be returned
+        by LB queries.
+        """
+        self._published = value
+
+    @property
+    def deprecated(self):
+        """
+        Returns the current value of "deprecated" property.
+        """
+        return self._deprecated
+
+    @deprecated.setter
+    def deprecated(self, value):
+        """
+        When set to True, only deprecated images are returned by LB queries.
+        When set to False, only non-deprecated images are returned by LB
+        queries.
+        When set to None, any image (deprecated or non-deprecated) can be
+        returned by LB queries.
+        """
+        self._deprecated = value
+
+    @property
+    def release_category(self):
+        """
+        Returns the current value of "release_category" property.
+        """
+        return self._release_category
+
+    @release_category.setter
+    def release_category(self, value):
+        """
+        When set to non-empty string, LB queries will return only
+        repositories with specific release category. Options:
+            - "Deprecated"
+            - "Generally Available"
+            - "Beta"
+            - "Tech Preview"
+        """
+        self._release_category = value
+
     def _get_entity_version(self, entity_name):
         """Lookup configured entity's version
 
@@ -394,23 +452,42 @@ class LightBlue(object):
             images.append(image)
         return images
 
-    def find_repositories_with_content_sets(self,
-                                            content_sets,
-                                            published=True,
-                                            deprecated=False,
-                                            release_category="Generally Available"):
+    def _set_container_repository_filters(self, request):
+        """
+        Sets the additional filters to containerRepository request
+        based on the self.published, self.deprecated and self.release_category
+        attributes.
+        """
+        if self.published is not None:
+            request["query"]["$and"].append({
+                "field": "published",
+                "op": "=",
+                "rvalue": self.published
+            })
+
+        if self.deprecated is not None:
+            request["query"]["$and"].append({
+                "field": "deprecated",
+                "op": "=",
+                "rvalue": self.deprecated
+            })
+
+        if self.release_category:
+            request["query"]["$and"].append({
+                "field": "release_categories.*",
+                "op": "=",
+                "rvalue": self.release_category
+            })
+
+        return request
+
+    def find_repositories_with_content_sets(self, content_sets):
         """Query lightblue and find containerRepositories which have content
         from at least one of the content_sets. By default ignore unpublished,
         deprecated repos or non-GA repositories
 
         :param list content_sets: list of strings (content sets) to consider
             when looking for the packages
-        :param bool published: whether to limit queries to published
-            repositories
-        :param bool deprecated: set to True to limit results to deprecated
-            repositories
-        :param str release_category: filter only repositories with specific
-            release category (options: Deprecated, Generally Available, Beta, Tech Preview)
         """
         repo_request = {
             "objectType": "containerRepository",
@@ -423,21 +500,6 @@ class LightBlue(object):
                             "rvalue": c
                         } for c in content_sets]
                     },
-                    {
-                        "field": "published",
-                        "op": "=",
-                        "rvalue": published
-                    },
-                    {
-                        "field": "deprecated",
-                        "op": "=",
-                        "rvalue": deprecated
-                    },
-                    {
-                        "field": "release_categories.*",
-                        "op": "=",
-                        "rvalue": release_category
-                    }
                 ]
             },
             "projection": [
@@ -445,25 +507,17 @@ class LightBlue(object):
                 {"field": "content_sets", "include": True, "recursive": True}
             ]
         }
+
+        repo_request = self._set_container_repository_filters(repo_request)
         return self.find_container_repositories(repo_request)
 
-    def find_content_sets_for_repository(self,
-                                         repository,
-                                         published=True,
-                                         deprecated=False,
-                                         release_category="Generally Available"):
+    def find_content_sets_for_repository(self, repository):
         """
         Query lightblue and find content sets which are used for Container
         image in repository `repository`
 
         :param str repository: name of the repository for which the content
             sets will be returned
-        :param bool published: whether to limit queries to published
-            repositories
-        :param bool deprecated: set to True to limit results to deprecated
-            repositories
-        :param str release_category: filter only repositories with specific
-            release category (options: Deprecated, Generally Available, Beta, Tech Preview)
         :return: list of found content sets, each of which is content set name.
             Empty list is returned if no repository is found.
         :rtype: list
@@ -477,27 +531,14 @@ class LightBlue(object):
                         "op": "=",
                         "rvalue": repository
                     },
-                    {
-                        "field": "published",
-                        "op": "=",
-                        "rvalue": published
-                    },
-                    {
-                        "field": "deprecated",
-                        "op": "=",
-                        "rvalue": deprecated
-                    },
-                    {
-                        "field": "release_categories.*",
-                        "op": "=",
-                        "rvalue": release_category
-                    }
                 ]
             },
             "projection": [
                 {"field": "content_sets", "include": True, "recursive": True}
             ]
         }
+
+        repo_request = self._set_container_repository_filters(repo_request)
         repos = self.find_container_repositories(repo_request)
         if not repos:
             return []
@@ -519,8 +560,21 @@ class LightBlue(object):
             {"field": "repositories.*.repository", "include": True, "recursive": True},
         ]
 
-    def find_images_with_included_srpm(self, repositories, srpm_name,
-                                       published=True):
+    def _set_container_image_filters(self, request):
+        """
+        Sets the additional filters to containerImage request
+        based on the self.published attribute.
+        """
+        if self.published is not None:
+            request["query"]["$and"].append({
+                "field": "repositories.*.published",
+                "op": "=",
+                "rvalue": self.published
+            })
+
+        return request
+
+    def find_images_with_included_srpm(self, repositories, srpm_name):
 
         """Query lightblue and find containerImages in given
         containerRepositories. By default limit only to images which have been
@@ -528,8 +582,6 @@ class LightBlue(object):
 
         :param dict repositories: dictionary with repository names to look inside
         :param str srpm_name: srpm_name (source rpm name) to look for
-        :param bool published: whether to limit queries to images with at least
-            one published repository
         """
         image_request = {
             "objectType": "containerImage",
@@ -541,11 +593,6 @@ class LightBlue(object):
                             "op": "=",
                             "rvalue": r['repository']
                         } for r in repositories]
-                    },
-                    {
-                        "field": "repositories.*.published",
-                        "op": "=",
-                        "rvalue": published
                     },
                     {
                         "field": "repositories.*.tags.*.name",
@@ -566,6 +613,7 @@ class LightBlue(object):
             },
             "projection": self._get_default_projection()
         }
+        image_request = self._set_container_image_filters(image_request)
         return self.find_container_images(image_request)
 
     def find_unpublished_image_for_build(self, build):
@@ -741,8 +789,7 @@ class LightBlue(object):
             images.append(image)
 
     def find_images_with_package_from_content_set(
-            self, srpm_name, content_sets, published=True, deprecated=False,
-            release_category="Generally Available", filter_fnc=None):
+            self, srpm_name, content_sets, filter_fnc=None):
         """Query lightblue and find containers which contain given
         package from one of content sets
 
@@ -763,15 +810,10 @@ class LightBlue(object):
             the given image - can be used for comparisons if needed
         :rtype: list
         """
-        repos = self.find_repositories_with_content_sets(content_sets,
-                                                         published=published,
-                                                         deprecated=deprecated,
-                                                         release_category=release_category)
+        repos = self.find_repositories_with_content_sets(content_sets)
         if not repos:
             return []
-        images = self.find_images_with_included_srpm(repos,
-                                                     srpm_name,
-                                                     published=published)
+        images = self.find_images_with_included_srpm(repos, srpm_name)
 
         # Filter out images based on the filter_fnc.
         if filter_fnc:
@@ -785,8 +827,7 @@ class LightBlue(object):
         return images
 
     def find_images_to_rebuild(
-            self, srpm_name, content_sets, published=True, deprecated=False,
-            release_category="Generally Available", filter_fnc=None):
+            self, srpm_name, content_sets, filter_fnc=None):
         """
         Find images to rebuild through image build layers
 
@@ -807,8 +848,7 @@ class LightBlue(object):
             Freshmaker configuration.
         """
         images = self.find_images_with_package_from_content_set(
-            srpm_name, content_sets, published, deprecated, release_category,
-            filter_fnc=filter_fnc)
+            srpm_name, content_sets, filter_fnc=filter_fnc)
 
         def _get_images_to_rebuild(image):
             """
