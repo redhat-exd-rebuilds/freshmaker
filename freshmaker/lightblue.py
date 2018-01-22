@@ -32,6 +32,7 @@ from six.moves import http_client
 import concurrent.futures
 from freshmaker import log, conf
 from freshmaker.kojiservice import koji_service
+import koji
 
 
 class LightBlueError(Exception):
@@ -814,6 +815,25 @@ class LightBlue(object):
         if not repos:
             return []
         images = self.find_images_with_included_srpm(repos, srpm_name)
+
+        # In case we query for unpublished images, we need to return just
+        # the latest NVR for given name-version, otherwise images would
+        # contain all the versions which ever containing the srpm_name.
+        if not self.published:
+            # Sort images by brew build NVR descending
+            sorted_images = sorted(
+                images, key=lambda image: image['brew']['build'], reverse=True)
+
+            # Iterate over all the images and only keep the very first one
+            # with the given name-version - this is the latest one.
+            images = []
+            seen_name_versions = []
+            for image in sorted_images:
+                parsed_build = koji.parse_NVR(image["brew"]["build"])
+                nv = "%s-%s" % (parsed_build["name"], parsed_build["version"])
+                if nv not in seen_name_versions:
+                    images.append(image)
+                    seen_name_versions.append(nv)
 
         # Filter out images based on the filter_fnc.
         if filter_fnc:
