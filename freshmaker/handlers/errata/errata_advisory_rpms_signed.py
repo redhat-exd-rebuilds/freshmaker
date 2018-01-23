@@ -89,7 +89,8 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         if not event.manual and not self.allow_build(
                 ArtifactType.IMAGE,
                 advisory_name=event.errata_name,
-                advisory_security_impact=event.security_impact):
+                advisory_security_impact=event.security_impact,
+                advisory_product_short_name=event.product_short_name):
             msg = ("Errata advisory {0} is not allowed by internal policy "
                    "to trigger rebuilds.".format(event.errata_id))
             db_event.transition(EventState.SKIPPED, msg)

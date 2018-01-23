@@ -76,7 +76,8 @@ class MockedErrataAPI(object):
             "content_types": ["rpm"],
             "security_impact": "Important",
             "product": {
-                "id": 89
+                "id": 89,
+                "short_name": "product",
             }
         }
 

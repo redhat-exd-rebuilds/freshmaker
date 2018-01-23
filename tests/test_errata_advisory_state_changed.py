@@ -109,7 +109,7 @@ class TestAllowBuild(unittest.TestCase):
         """
         Tests that allow_build filters out advisories based on advisory_name.
         """
-        event = ErrataAdvisoryRPMsSignedEvent("123", "RHBA-2017", 123, "", "REL_PREP")
+        event = ErrataAdvisoryRPMsSignedEvent("123", "RHBA-2017", 123, "", "REL_PREP", "product")
         handler = ErrataAdvisoryRPMsSignedHandler()
         handler.handle(event)
 
@@ -126,7 +126,7 @@ class TestAllowBuild(unittest.TestCase):
         advisory_name.
         """
         event = ErrataAdvisoryRPMsSignedEvent(
-            "123", "RHSA-2017", 123, "", "REL_PREP")
+            "123", "RHSA-2017", 123, "", "REL_PREP", "product")
         handler = ErrataAdvisoryRPMsSignedHandler()
         handler.handle(event)
 
@@ -155,7 +155,7 @@ class TestAllowBuild(unittest.TestCase):
         advisory_security_impact.
         """
         event = ErrataAdvisoryRPMsSignedEvent(
-            "123", "RHSA-2017", 123, "Important", "REL_PREP")
+            "123", "RHSA-2017", 123, "Important", "REL_PREP", "product")
         handler = ErrataAdvisoryRPMsSignedHandler()
         handler.handle(event)
 
@@ -182,7 +182,7 @@ class TestAllowBuild(unittest.TestCase):
         advisory_security_impact.
         """
         event = ErrataAdvisoryRPMsSignedEvent(
-            "123", "RHSA-2017", 123, "None", "REL_PREP")
+            "123", "RHSA-2017", 123, "None", "REL_PREP", "product")
         handler = ErrataAdvisoryRPMsSignedHandler()
         handler.handle(event)
 
@@ -206,7 +206,7 @@ class TestAllowBuild(unittest.TestCase):
 
         handler = ErrataAdvisoryRPMsSignedHandler()
         handler.event = ErrataAdvisoryRPMsSignedEvent(
-            "123", "RHSA-2017", 123, "None", "REL_PREP")
+            "123", "RHSA-2017", 123, "None", "REL_PREP", "product")
 
         image = {"brew": {"build": "foo-1-2.3"}}
         ret = handler._filter_out_not_allowed_builds(image)
@@ -243,7 +243,7 @@ class TestAllowBuild(unittest.TestCase):
 
         handler = ErrataAdvisoryRPMsSignedHandler()
         handler.event = ErrataAdvisoryRPMsSignedEvent(
-            "123", "RHSA-2017", 123, "None", "REL_PREP")
+            "123", "RHSA-2017", 123, "None", "REL_PREP", "product")
 
         image = {"brew": {"build": "foo-1-2.3"}}
         ret = handler._filter_out_not_allowed_builds(image)

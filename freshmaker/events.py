@@ -284,12 +284,13 @@ class ErrataAdvisoryRPMsSignedEvent(BaseEvent):
     Event when all RPMs in Errata advisory are signed.
     """
     def __init__(self, msg_id, errata_name, errata_id, security_impact,
-                 errata_state):
+                 errata_state, product_short_name):
         super(ErrataAdvisoryRPMsSignedEvent, self).__init__(msg_id)
         self.errata_name = errata_name
         self.errata_id = errata_id
         self.security_impact = security_impact
         self.errata_state = errata_state
+        self.product_short_name = product_short_name
 
     @classmethod
     def from_errata_advisory(cls, msg_id, advisory):
@@ -304,7 +305,8 @@ class ErrataAdvisoryRPMsSignedEvent(BaseEvent):
 
         return ErrataAdvisoryRPMsSignedEvent(
             msg_id, advisory.name, advisory.errata_id,
-            advisory.security_impact, advisory.state)
+            advisory.security_impact, advisory.state,
+            advisory.product_short_name)
 
     @property
     def search_key(self):

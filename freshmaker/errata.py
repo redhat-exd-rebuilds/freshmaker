@@ -37,7 +37,7 @@ class ErrataAdvisory(object):
     """
 
     def __init__(self, errata_id, name, state, content_types,
-                 security_impact=None):
+                 security_impact=None, product_short_name=None):
         """
         Initializes the ErrataAdvisory instance.
         """
@@ -46,6 +46,19 @@ class ErrataAdvisory(object):
         self.state = state
         self.content_types = content_types
         self.security_impact = security_impact or ""
+        self.product_short_name = product_short_name or ""
+
+    @classmethod
+    def from_advisory_json_data(cls, data):
+        """
+        Creates new ErrataAdvisory instance from response to
+        "advisory/%s.json" Errata tool API call.
+        """
+        return ErrataAdvisory(
+            data["id"], data["advisory_name"], data["status"],
+            data['content_types'],
+            data["security_impact"],
+            data["product"]["short_name"])
 
 
 class Errata(object):
@@ -114,12 +127,8 @@ class Errata(object):
 
         advisories = []
         for errata in build["all_errata"]:
-            extra_data = self._errata_http_get(
-                "advisory/%s.json" % str(errata["id"]))
-            advisory = ErrataAdvisory(
-                errata["id"], errata["name"], errata["status"],
-                extra_data['content_types'],
-                extra_data["security_impact"])
+            data = self.get_advisory(errata["id"])
+            advisory = ErrataAdvisory.from_advisory_json_data(data)
             advisories.append(advisory)
 
         return advisories
@@ -141,11 +150,7 @@ class Errata(object):
         elif (isinstance(event, ErrataAdvisoryStateChangedEvent) or
               isinstance(event, FreshmakerManualRebuildEvent)):
             data = self.get_advisory(event.errata_id)
-            advisory = ErrataAdvisory(
-                data["id"], data["advisory_name"], data["status"],
-                data['content_types'],
-                data["security_impact"])
-            return [advisory]
+            return [ErrataAdvisory.from_advisory_json_data(data)]
         else:
             raise ValueError("Unsupported event type")
 
