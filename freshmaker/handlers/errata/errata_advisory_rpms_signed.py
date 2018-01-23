@@ -627,6 +627,19 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                        cert=conf.lightblue_certificate,
                        private_key=conf.lightblue_private_key)
 
+        # Check if we are allowed to rebuild unpublished images and clear
+        # published and release_category if so.
+        if self.allow_build(
+                ArtifactType.IMAGE, advisory_name=self.event.errata_name,
+                advisory_security_impact=self.event.security_impact,
+                advisory_product_short_name=self.event.product_short_name,
+                published=True):
+            published = True
+            release_category = "Generally Available"
+        else:
+            published = None
+            release_category = None
+
         # For each RPM package in Errata advisory, find Docker images
         # containing this package and record those images into database.
         nvrs = errata.get_builds(errata_id)
@@ -637,7 +650,8 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
             srpm_name = self._find_build_srpm_name(nvr)
             batches = lb.find_images_to_rebuild(
                 srpm_name, content_sets,
-                filter_fnc=self._filter_out_not_allowed_builds)
+                filter_fnc=self._filter_out_not_allowed_builds,
+                published=published, release_category=release_category)
             yield batches
 
     def _find_build_srpm_name(self, build_nvr):

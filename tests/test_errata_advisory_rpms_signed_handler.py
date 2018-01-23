@@ -530,3 +530,94 @@ class TestRequestBootISOCompose(unittest.TestCase):
 
         result = self.handler._request_boot_iso_compose(self.image)
         self.assertIsNone(result)
+
+
+class TestErrataAdvisoryRPMsSignedHandler(unittest.TestCase):
+
+    def setUp(self):
+        self.get_content_set_by_repo_ids_patcher = patch(
+            'freshmaker.pulp.Pulp.get_content_set_by_repo_ids')
+        self.get_content_set_by_repo_ids = self.get_content_set_by_repo_ids_patcher.start()
+        self.get_content_set_by_repo_ids.return_value = ["content-set-1"]
+
+        self.get_pulp_repository_ids_patcher = patch(
+            'freshmaker.errata.Errata.get_pulp_repository_ids')
+        self.get_pulp_repository_ids = self.get_pulp_repository_ids_patcher.start()
+        self.get_pulp_repository_ids.return_value = ["pulp_repo_x86_64"]
+
+        self.get_builds_patcher = patch(
+            'freshmaker.errata.Errata.get_builds')
+        self.get_builds = self.get_builds_patcher.start()
+        self.get_builds.return_value = ["httpd-2.4-11.el7"]
+
+        self.find_build_srpm_name_patcher = patch(
+            'freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler.'
+            '_find_build_srpm_name')
+        self.find_build_srpm_name = self.find_build_srpm_name_patcher.start()
+        self.find_build_srpm_name.return_value = "httpd"
+
+        self.find_images_to_rebuild_patcher = patch(
+            'freshmaker.lightblue.LightBlue.find_images_to_rebuild')
+        self.find_images_to_rebuild = self.find_images_to_rebuild_patcher.start()
+        self.find_images_to_rebuild.return_value = iter([[[]]])
+
+        self.event = ErrataAdvisoryRPMsSignedEvent(
+            "123", "RHBA-2017", 123, "", "REL_PREP", "product")
+        self.handler = ErrataAdvisoryRPMsSignedHandler()
+        self.handler.event = self.event
+
+    def tearDown(self):
+        self.get_content_set_by_repo_ids_patcher.stop()
+        self.get_pulp_repository_ids_patcher.stop()
+        self.get_builds_patcher.stop()
+        self.find_build_srpm_name_patcher.stop()
+        self.find_images_to_rebuild_patcher.stop()
+
+    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+        'ErrataAdvisoryRPMsSignedHandler': {
+            'image': [{'advisory_name': 'RHBA-*'}]
+        }
+    })
+    @patch('os.path.exists', return_value=True)
+    def test_published_unset(self, exists):
+        for x in self.handler._find_images_to_rebuild(123456):
+            pass
+
+        self.find_images_to_rebuild.assert_called_once_with(
+            'httpd', ['content-set-1'],
+            filter_fnc=self.handler._filter_out_not_allowed_builds,
+            published=True, release_category='Generally Available')
+
+    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+        'ErrataAdvisoryRPMsSignedHandler': {
+            'image': [{'advisory_name': 'RHBA-*', 'published': True,
+                       'advisory_product_short_name': 'foo'},
+                      {'advisory_name': 'RHBA-*', 'published': False,
+                       'advisory_product_short_name': 'product'}]
+        }
+    })
+    @patch('os.path.exists', return_value=True)
+    def test_published_false(self, exists):
+        for x in self.handler._find_images_to_rebuild(123456):
+            pass
+
+        self.find_images_to_rebuild.assert_called_once_with(
+            'httpd', ['content-set-1'],
+            filter_fnc=self.handler._filter_out_not_allowed_builds,
+            published=None, release_category=None)
+
+    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+        'ErrataAdvisoryRPMsSignedHandler': {
+            'image': [{'advisory_name': 'RHBA-*',
+                       'published': True}]
+        }
+    })
+    @patch('os.path.exists', return_value=True)
+    def test_published_true(self, exists):
+        for x in self.handler._find_images_to_rebuild(123456):
+            pass
+
+        self.find_images_to_rebuild.assert_called_once_with(
+            'httpd', ['content-set-1'],
+            filter_fnc=self.handler._filter_out_not_allowed_builds,
+            published=True, release_category='Generally Available')

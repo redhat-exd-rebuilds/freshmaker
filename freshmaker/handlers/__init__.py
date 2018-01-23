@@ -271,13 +271,13 @@ class BaseHandler(object):
         def match_rule(criteria, rule):
             for name, value in criteria.items():
                 value_patterns = rule.get(name, None)
-                if not value_patterns:
+                if value_patterns is None:
                     continue
 
                 if not isinstance(value_patterns, (tuple, list)):
-                    value_patterns = [value_patterns]
+                    value_patterns = [str(value_patterns)]
 
-                if not any((re.match(regex, value) for regex in value_patterns)):
+                if not any((re.match(regex, str(value)) for regex in value_patterns)):
                     return False
             return True
 

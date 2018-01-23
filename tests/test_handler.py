@@ -281,6 +281,37 @@ class TestAllowBuildBasedOnWhitelist(TestCase):
             ]
         }
     })
+    def test_rule_not_defined(self):
+        handler = MyHandler()
+        allowed = handler.allow_build(
+            ArtifactType.IMAGE, advisory_state='SHIPPED_LIVE')
+        self.assertTrue(allowed)
+
+        allowed = handler.allow_build(
+            ArtifactType.IMAGE, advisory_state='SHIPPED_LIVE', published=True)
+        self.assertTrue(allowed)
+
+    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+        'MyHandler': {
+            'image': [
+                {'advisory_state': ['REL_PREP', 'SHIPPED_LIVE'],
+                 'published': False}
+            ]
+        }
+    })
+    def test_boolean_rule(self):
+        handler = MyHandler()
+        allowed = handler.allow_build(
+            ArtifactType.IMAGE, advisory_state='SHIPPED_LIVE', published=True)
+        self.assertFalse(allowed)
+
+    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+        'MyHandler': {
+            'image': [
+                {'advisory_state': ['REL_PREP', 'SHIPPED_LIVE']}
+            ]
+        }
+    })
     def test_not_allow_if_none_passed_rule_is_configured(self):
         handler = MyHandler()
         allowed = handler.allow_build(ArtifactType.IMAGE, state='SHIPPED_LIVE')
