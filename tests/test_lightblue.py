@@ -661,11 +661,6 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                         ],
                     },
                     {
-                        "field": "repositories.*.published",
-                        "op": "=",
-                        "rvalue": True
-                    },
-                    {
                         "field": "repositories.*.tags.*.name",
                         "op": "=",
                         "rvalue": "latest"
@@ -679,7 +674,12 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                         "field": "parsed_data.files.*.key",
                         "op": "=",
                         "rvalue": "buildfile"
-                    }
+                    },
+                    {
+                        "field": "repositories.*.published",
+                        "op": "=",
+                        "rvalue": True
+                    },
                 ]
             },
             "projection": lb._get_default_projection()
