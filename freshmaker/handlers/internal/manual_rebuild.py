@@ -63,9 +63,8 @@ class FreshmakerManualRebuildHandler(ContainerBuildHandler):
                  "advisory %d - manually triggered rebuild.",
                  manual_rebuild_event.errata_id)
         advisory = advisories[0]
-        new_event = ErrataAdvisoryStateChangedEvent(
-            manual_rebuild_event.msg_id + "." + str(advisory.name),
-            advisory.errata_id, advisory.state, advisory.content_types)
+        new_event = ErrataAdvisoryStateChangedEvent.from_errata_advisory(
+            manual_rebuild_event.msg_id + "." + str(advisory.name), advisory)
         new_event.manual = True
         msg = ("Generated ErrataAdvisoryStateChangedEvent (%s) for errata: %s"
                % (manual_rebuild_event.msg_id, manual_rebuild_event.errata_id))

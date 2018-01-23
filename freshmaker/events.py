@@ -263,17 +263,48 @@ class ErrataAdvisoryStateChangedEvent(BaseEvent):
         self.state = state
         self.content_types = content_types
 
+    @classmethod
+    def from_errata_advisory(cls, msg_id, advisory):
+        """
+        Creates new ErrataAdvisoryStateChangedEvent from errata.ErrataAdvisory
+        instances.
+
+        :param ErrataAdvisory advisory: errata.ErrataAdvisory instance.
+        :rtype: ErrataAdvisoryStateChangedEvent
+        :return: New ErrataAdvisoryStateChangedEvent instance.
+        """
+
+        return ErrataAdvisoryStateChangedEvent(
+            msg_id, advisory.errata_id, advisory.state,
+            advisory.content_types)
+
 
 class ErrataAdvisoryRPMsSignedEvent(BaseEvent):
     """
     Event when all RPMs in Errata advisory are signed.
     """
-    def __init__(self, msg_id, errata_name, errata_id, security_impact, errata_state):
+    def __init__(self, msg_id, errata_name, errata_id, security_impact,
+                 errata_state):
         super(ErrataAdvisoryRPMsSignedEvent, self).__init__(msg_id)
         self.errata_name = errata_name
         self.errata_id = errata_id
         self.security_impact = security_impact
         self.errata_state = errata_state
+
+    @classmethod
+    def from_errata_advisory(cls, msg_id, advisory):
+        """
+        Creates new ErrataAdvisoryRPMsSignedEvent from errata.ErrataAdvisory
+        instances.
+
+        :param ErrataAdvisory advisory: errata.ErrataAdvisory instance.
+        :rtype: ErrataAdvisoryRPMsSignedEvent
+        :return: New ErrataAdvisoryRPMsSignedEvent instance.
+        """
+
+        return ErrataAdvisoryRPMsSignedEvent(
+            msg_id, advisory.name, advisory.errata_id,
+            advisory.security_impact, advisory.state)
 
     @property
     def search_key(self):
