@@ -1,6 +1,8 @@
 # Freshmaker
 
-## Design
+![logo of Freshmaker](https://pagure.io/freshmaker/raw/master/f/logo.png)
+
+## What is Freshmaker
 
 Freshmaker waits for new fedmsg messages, this happens in `consumer.py`. Every
 fedmsg message handled by a Freshmaker is parsed by one of the parsers which can
