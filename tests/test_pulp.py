@@ -22,17 +22,18 @@
 # Written by Chenxiong Qi <cqi@redhat.com>
 
 import json
-import unittest
 
 from mock import patch
 
 from freshmaker.pulp import Pulp
+from tests import helpers
 
 
-class TestPulp(unittest.TestCase):
+class TestPulp(helpers.FreshmakerTestCase):
     """Test interface to Pulp"""
 
     def setUp(self):
+        super(TestPulp, self).setUp()
         self.server_url = 'http://localhost/'
         self.username = 'qa'
         self.password = 'qa'

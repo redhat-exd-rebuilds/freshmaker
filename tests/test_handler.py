@@ -23,7 +23,6 @@
 # Written by Chenxiong Qi <cqi@redhat.com>
 
 from mock import patch, PropertyMock
-from unittest import TestCase
 
 import freshmaker
 
@@ -36,6 +35,7 @@ from freshmaker.models import (
 )
 from freshmaker.errors import UnprocessableEntity, ProgrammingError
 from freshmaker.types import ArtifactType, EventState
+from tests import helpers
 
 
 class MyHandler(ContainerBuildHandler):
@@ -50,14 +50,16 @@ class MyHandler(ContainerBuildHandler):
         """Implement BaseHandler method"""
 
 
-class TestKrbContextPreparedForBuildContainer(TestCase):
+class TestKrbContextPreparedForBuildContainer(helpers.FreshmakerTestCase):
     """Test krb_context for BaseHandler.build_container"""
 
     def setUp(self):
+        super(TestKrbContextPreparedForBuildContainer, self).setUp()
         self.koji_service = patch('freshmaker.kojiservice.KojiService')
         self.koji_service.start()
 
     def tearDown(self):
+        super(TestKrbContextPreparedForBuildContainer, self).tearDown()
         self.koji_service.stop()
 
     @patch('freshmaker.utils.conf')
@@ -98,19 +100,8 @@ class TestKrbContextPreparedForBuildContainer(TestCase):
         )
 
 
-class TestContext(TestCase):
+class TestContext(helpers.ModelsTestCase):
     """Test setting context of handler"""
-
-    def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
-
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
 
     def test_context_event(self):
         db_event = Event.get_or_create(
@@ -139,13 +130,10 @@ class TestContext(TestCase):
         self.assertRaises(ProgrammingError, handler.set_context, "something")
 
 
-class TestGetRepoURLs(TestCase):
+class TestGetRepoURLs(helpers.ModelsTestCase):
 
     def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
+        super(TestGetRepoURLs, self).setUp()
 
         self.compose_1 = Compose(odcs_compose_id=1)
         self.compose_2 = Compose(odcs_compose_id=2)
@@ -208,9 +196,7 @@ class TestGetRepoURLs(TestCase):
         self.odcs_get_compose = self.patch_odcs_get_compose.start()
 
     def tearDown(self):
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
+        super(TestGetRepoURLs, self).tearDown()
         self.patch_odcs_get_compose.stop()
 
     def test_get_repo_urls_no_composes(self):
@@ -231,7 +217,7 @@ class TestGetRepoURLs(TestCase):
             sorted(repos))
 
 
-class TestAllowBuildBasedOnWhitelist(TestCase):
+class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
     """Test BaseHandler.allow_build"""
 
     @patch('freshmaker.handlers.conf')

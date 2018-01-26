@@ -35,9 +35,10 @@ from freshmaker.handlers.errata import ErrataAdvisoryStateChangedHandler
 from freshmaker.lightblue import ContainerImage
 from freshmaker.models import Event, ArtifactBuild, EVENT_TYPES
 from freshmaker.types import ArtifactBuildState, ArtifactType, EventState
+from tests import helpers
 
 
-class TestFindBuildSrpmName(unittest.TestCase):
+class TestFindBuildSrpmName(helpers.FreshmakerTestCase):
     """Test ErrataAdvisoryRPMsSignedHandler._find_build_srpm_name"""
 
     @patch('koji.ClientSession')
@@ -86,19 +87,8 @@ class TestFindBuildSrpmName(unittest.TestCase):
         session.listRPMs.assert_called_once_with(buildID=439408, arches='src')
 
 
-class TestAllowBuild(unittest.TestCase):
+class TestAllowBuild(helpers.ModelsTestCase):
     """Test ErrataAdvisoryRPMsSignedHandler.allow_build"""
-
-    def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
-
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
 
     @patch("freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler."
            "_find_images_to_rebuild", return_value=[])
@@ -254,19 +244,8 @@ class TestAllowBuild(unittest.TestCase):
         self.assertEqual(ret, True)
 
 
-class TestBatches(unittest.TestCase):
+class TestBatches(helpers.ModelsTestCase):
     """Test handling of batches"""
-
-    def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
-
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
 
     def _mock_build(self, build, parent=None, error=None):
         if parent:
@@ -360,14 +339,11 @@ class TestBatches(unittest.TestCase):
                              build.dep_on.rebuilt_nvr if build.dep_on else None)
 
 
-class TestCheckImagesToRebuild(unittest.TestCase):
+class TestCheckImagesToRebuild(helpers.ModelsTestCase):
     """Test handling of batches"""
 
     def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
+        super(TestCheckImagesToRebuild, self).setUp()
 
         build_args = json.dumps({
             "parent": "nvr",
@@ -393,11 +369,6 @@ class TestCheckImagesToRebuild(unittest.TestCase):
             dep_on=self.b1,
             original_nvr="child-1-25")
         self.b2.build_args = build_args
-        db.session.commit()
-
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
         db.session.commit()
 
     def test_check_images_to_rebuild(self):
@@ -448,7 +419,7 @@ class TestCheckImagesToRebuild(unittest.TestCase):
             self.assertEqual(build.state, ArtifactBuildState.FAILED.value)
 
 
-class TestGetPackagesForCompose(unittest.TestCase):
+class TestGetPackagesForCompose(helpers.FreshmakerTestCase):
     """Test ErrataAdvisoryRPMsSignedHandler._get_packages_for_compose"""
 
     @patch('freshmaker.kojiservice.KojiService.get_build_rpms')
@@ -490,7 +461,7 @@ class TestGetPackagesForCompose(unittest.TestCase):
                          set(packages))
 
 
-class TestGetComposeSource(unittest.TestCase):
+class TestGetComposeSource(helpers.FreshmakerTestCase):
     """Test ErrataAdvisoryRPMsSignedHandler._get_compose_source"""
 
     @patch('freshmaker.kojiservice.KojiService.session', callable=PropertyMock)
@@ -602,24 +573,16 @@ class TestGetComposeSource(unittest.TestCase):
         self.assertEqual('rhel-6-candidate', tag)
 
 
-class TestPrepareYumRepo(unittest.TestCase):
+class TestPrepareYumRepo(helpers.ModelsTestCase):
     """Test ErrataAdvisoryRPMsSignedHandler._prepare_yum_repo"""
 
     def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
+        super(TestPrepareYumRepo, self).setUp()
 
         self.ev = Event.create(db.session, 'msg-id', '123', 100)
         ArtifactBuild.create(
             db.session, self.ev, "parent", "image",
             state=ArtifactBuildState.PLANNED)
-        db.session.commit()
-
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
         db.session.commit()
 
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.'
@@ -732,18 +695,7 @@ class TestPrepareYumRepo(unittest.TestCase):
                 "of advisory 123 is the latest build in its candidate tag."))
 
 
-class TestErrataAdvisoryStateChangedHandler(unittest.TestCase):
-
-    def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
-
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
+class TestErrataAdvisoryStateChangedHandler(helpers.ModelsTestCase):
 
     @patch('freshmaker.errata.Errata.advisories_from_event')
     def test_rebuild_if_not_exists(self, advisories_from_event):
@@ -909,14 +861,11 @@ class TestErrataAdvisoryStateChangedHandler(unittest.TestCase):
         self.assertEqual(len(msgs), 1)
 
 
-class TestRecordBatchesImages(unittest.TestCase):
+class TestRecordBatchesImages(helpers.ModelsTestCase):
     """Test ErrataAdvisoryRPMsSignedHandler._record_batches"""
 
     def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
+        super(TestRecordBatchesImages, self).setUp()
 
         self.mock_event = Mock(msg_id='msg-id', search_key=12345)
 
@@ -938,13 +887,11 @@ class TestRecordBatchesImages(unittest.TestCase):
             self.request_boot_iso_compose_patcher.start()
 
     def tearDown(self):
+        super(TestRecordBatchesImages, self).tearDown()
+
         self.request_boot_iso_compose_patcher.stop()
         self.prepare_pulp_repo_patcher.stop()
         self.event_types_patcher.stop()
-
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
 
     def test_record_batches(self):
         batches = [
@@ -1268,14 +1215,11 @@ class TestRecordBatchesImages(unittest.TestCase):
         self.mock_prepare_pulp_repo.assert_not_called()
 
 
-class TestPrepareYumReposForRebuilds(unittest.TestCase):
+class TestPrepareYumReposForRebuilds(helpers.ModelsTestCase):
     """Test ErrataAdvisoryRPMsSignedHandler._prepare_yum_repos_for_rebuilds"""
 
     def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
+        super(TestPrepareYumReposForRebuilds, self).setUp()
 
         self.prepare_yum_repo_patcher = patch(
             'freshmaker.handlers.errata.errata_advisory_rpms_signed.'
@@ -1306,12 +1250,10 @@ class TestPrepareYumReposForRebuilds(unittest.TestCase):
         db.session.commit()
 
     def tearDown(self):
+        super(TestPrepareYumReposForRebuilds, self).tearDown()
+
         self.find_dependent_event_patcher.stop()
         self.prepare_yum_repo_patcher.stop()
-
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
 
     def test_prepare_without_dependent_events(self):
         self.mock_find_dependent_event.return_value = []
@@ -1345,7 +1287,7 @@ class TestPrepareYumReposForRebuilds(unittest.TestCase):
         ], sorted(urls))
 
 
-class TestSkipNonRPMAdvisory(unittest.TestCase):
+class TestSkipNonRPMAdvisory(helpers.FreshmakerTestCase):
 
     def test_ensure_to_handle_rpm_adivsory(self):
         event = ErrataAdvisoryStateChangedEvent(

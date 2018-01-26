@@ -29,6 +29,7 @@ from mock import patch
 from freshmaker import conf
 from freshmaker import messaging
 from freshmaker.messaging import publish
+from tests import helpers
 
 try:
     import rhmsg
@@ -36,13 +37,15 @@ except ImportError:
     rhmsg = None
 
 
-class BaseMessagingTest(unittest.TestCase):
+class BaseMessagingTest(helpers.FreshmakerTestCase):
     """ Base class for messaging related tests """
 
     def setUp(self):
+        super(BaseMessagingTest, self).setUp()
         messaging._in_memory_msg_id = 0
 
     def tearDown(self):
+        super(BaseMessagingTest, self).tearDown()
         messaging._in_memory_msg_id = 0
 
 

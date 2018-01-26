@@ -21,31 +21,18 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
-import unittest
-
 from mock import patch
 
 from freshmaker.handlers.internal import FreshmakerManualRebuildHandler
 from freshmaker.events import FreshmakerManualRebuildEvent
 
 from freshmaker.errata import ErrataAdvisory
-from freshmaker import db
 from freshmaker.models import Event
 from freshmaker.types import EventState
+from tests import helpers
 
 
-class TestFreshmakerManualRebuildHandler(unittest.TestCase):
-
-    def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
-
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
+class TestFreshmakerManualRebuildHandler(helpers.ModelsTestCase):
 
     @patch('freshmaker.errata.Errata.advisories_from_event')
     def test_rebuild_if_not_exists(self, advisories_from_event):

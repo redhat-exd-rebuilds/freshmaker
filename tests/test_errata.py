@@ -20,13 +20,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import unittest
-
 from mock import patch
 
 from freshmaker.errata import Errata
 from freshmaker.events import (
     BrewSignRPMEvent, GitRPMSpecChangeEvent, ErrataAdvisoryStateChangedEvent)
+from tests import helpers
 
 
 class MockedErrataAPI(object):
@@ -112,8 +111,9 @@ class MockedErrataAPI(object):
                 return self.product_versions[id]
 
 
-class TestErrata(unittest.TestCase):
+class TestErrata(helpers.FreshmakerTestCase):
     def setUp(self):
+        super(TestErrata, self).setUp()
         self.errata = Errata("https://localhost/")
 
     @patch.object(Errata, "_errata_rest_get")

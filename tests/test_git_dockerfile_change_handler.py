@@ -20,8 +20,6 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
-import unittest
-
 import fedmsg.config
 
 from mock import patch
@@ -29,23 +27,13 @@ from mock import MagicMock, PropertyMock
 
 import freshmaker
 
-from freshmaker import db, models
+from freshmaker import models
 from freshmaker.consumer import FreshmakerConsumer
 from freshmaker.types import ArtifactType
-from tests import get_fedmsg
+from tests import get_fedmsg, helpers
 
 
-class BaseTestCase(unittest.TestCase):
-    def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
-
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
+class BaseTestCase(helpers.ModelsTestCase):
 
     def create_consumer(self):
         hub = MagicMock()

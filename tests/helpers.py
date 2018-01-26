@@ -26,6 +26,8 @@ import uuid
 import unittest
 
 from freshmaker import events
+from freshmaker import db
+from freshmaker.models import User
 
 
 BUILD_STATES = {
@@ -42,6 +44,27 @@ class FreshmakerTestCase(unittest.TestCase):
     def get_event_from_msg(self, message):
         event = events.BaseEvent.from_fedmsg(message['body']['topic'], message['body'])
         return event
+
+
+class ModelsTestCase(FreshmakerTestCase):
+
+    def setUp(self):
+        super(ModelsTestCase, self).setUp()
+        db.session.remove()
+        db.drop_all()
+        db.create_all()
+        db.session.commit()
+
+        self.user = User(username='tester1')
+        db.session.add(self.user)
+        db.session.commit()
+
+    def tearDown(self):
+        super(ModelsTestCase, self).tearDown()
+
+        db.session.remove()
+        db.drop_all()
+        db.session.commit()
 
 
 class FedMsgFactory(object):

@@ -19,7 +19,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import unittest
 import requests
 
 from mock import patch
@@ -32,15 +31,13 @@ from freshmaker.handlers.errata import ErrataAdvisoryRPMsSignedHandler
 from freshmaker.lightblue import ContainerImage
 from freshmaker.models import Event, Compose
 from freshmaker.types import EventState
+from tests import helpers
 
 
-class TestErrataAdvisoryRPMsSignedHandler(unittest.TestCase):
+class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
 
     def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
+        super(TestErrataAdvisoryRPMsSignedHandler, self).setUp()
 
         # We do not want to send messages to message bus while running tests
         self.messaging_publish_patcher = patch('freshmaker.messaging.publish')
@@ -197,14 +194,11 @@ class TestErrataAdvisoryRPMsSignedHandler(unittest.TestCase):
         ])
 
     def tearDown(self):
+        super(TestErrataAdvisoryRPMsSignedHandler, self).tearDown()
         self.request_boot_iso_compose_patcher.stop()
         self.find_images_patcher.stop()
         self.prepare_pulp_repo_patcher.stop()
         self.messaging_publish_patcher.stop()
-
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'ErrataAdvisoryRPMsSignedHandler': {
@@ -329,10 +323,12 @@ class TestErrataAdvisoryRPMsSignedHandler(unittest.TestCase):
         self.assertEqual(EventState.BUILDING.value, db_event.state)
 
 
-class TestGetBaseImageBuildTarget(unittest.TestCase):
+class TestGetBaseImageBuildTarget(helpers.FreshmakerTestCase):
     """Test ErrataAdvisoryRPMsSignedHandler._get_base_image_build_target"""
 
     def setUp(self):
+        super(TestGetBaseImageBuildTarget, self).setUp()
+
         self.image = ContainerImage({
             'repository': 'repo_1',
             'commit': '1234567',
@@ -401,10 +397,12 @@ ksversion = RHEL7'''
         self.assertIsNone(result)
 
 
-class TestGetBaseImageBuildTag(unittest.TestCase):
+class TestGetBaseImageBuildTag(helpers.FreshmakerTestCase):
     """Test ErrataAdvisoryRPMsSignedHandler._get_base_image_build_tag"""
 
     def setUp(self):
+        super(TestGetBaseImageBuildTag, self).setUp()
+
         self.image = ContainerImage({
             'repository': 'repo_1',
             'commit': '1234567',
@@ -458,10 +456,12 @@ class TestGetBaseImageBuildTag(unittest.TestCase):
         self.assertIsNone(result)
 
 
-class TestRequestBootISOCompose(unittest.TestCase):
+class TestRequestBootISOCompose(helpers.FreshmakerTestCase):
     """Test ErrataAdvisoryRPMsSignedHandler._request_boot_iso_compose"""
 
     def setUp(self):
+        super(TestRequestBootISOCompose, self).setUp()
+
         self.image = ContainerImage({
             'repository': 'repo_1',
             'commit': '1234567',
@@ -532,9 +532,11 @@ class TestRequestBootISOCompose(unittest.TestCase):
         self.assertIsNone(result)
 
 
-class TestErrataAdvisoryRPMsSignedHandler(unittest.TestCase):
+class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
 
     def setUp(self):
+        super(TestFindImagesToRebuild, self).setUp()
+
         self.get_content_set_by_repo_ids_patcher = patch(
             'freshmaker.pulp.Pulp.get_content_set_by_repo_ids')
         self.get_content_set_by_repo_ids = self.get_content_set_by_repo_ids_patcher.start()
@@ -567,6 +569,8 @@ class TestErrataAdvisoryRPMsSignedHandler(unittest.TestCase):
         self.handler.event = self.event
 
     def tearDown(self):
+        super(TestFindImagesToRebuild, self).tearDown()
+
         self.get_content_set_by_repo_ids_patcher.stop()
         self.get_pulp_repository_ids_patcher.stop()
         self.get_builds_patcher.stop()

@@ -31,19 +31,10 @@ from freshmaker.handlers.koji import KojiTaskStateChangeHandler
 from freshmaker.parsers.koji import KojiTaskStateChangeParser
 
 
-class KojiTaskStateChangeHandlerTest(helpers.FreshmakerTestCase):
+class KojiTaskStateChangeHandlerTest(helpers.ModelsTestCase):
     def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
-
+        super(KojiTaskStateChangeHandlerTest, self).setUp()
         events.BaseEvent.register_parser(KojiTaskStateChangeParser)
-
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
 
     def test_can_handle_koji_task_state_change_message(self):
         """

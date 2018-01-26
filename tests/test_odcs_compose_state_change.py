@@ -22,7 +22,6 @@
 # Written by Chenxiong Qi <cqi@redhat.com>
 
 import six
-import unittest
 
 from mock import patch, PropertyMock
 
@@ -35,16 +34,14 @@ from freshmaker.models import (
 from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
 from freshmaker.handlers.odcs import ComposeStateChangeHandler
 from freshmaker.events import ODCSComposeStateChangeEvent
+from tests import helpers
 
 
-class TestComposeStateChangeHandler(unittest.TestCase):
+class TestComposeStateChangeHandler(helpers.ModelsTestCase):
     """Test ODCSComposeStateChangeHandler"""
 
     def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
+        super(TestComposeStateChangeHandler, self).setUp()
 
         # Test data
         # (Inner build depends on outer build)
@@ -96,11 +93,6 @@ class TestComposeStateChangeHandler(unittest.TestCase):
         for build, compose in six.moves.zip(builds, composes):
             db.session.add(ArtifactBuildCompose(
                 build_id=build.id, compose_id=compose.id))
-        db.session.commit()
-
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
         db.session.commit()
 
     def test_cannot_handle_if_compose_is_not_done(self):

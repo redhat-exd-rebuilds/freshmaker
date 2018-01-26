@@ -34,19 +34,10 @@ from freshmaker.handlers.mbs import MBSModuleStateChangeHandler
 from freshmaker.parsers.mbs import MBSModuleStateChangeParser
 
 
-class MBSModuleStateChangeHandlerTest(helpers.FreshmakerTestCase):
+class MBSModuleStateChangeHandlerTest(helpers.ModelsTestCase):
     def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
-
+        super(MBSModuleStateChangeHandlerTest, self).setUp()
         events.BaseEvent.register_parser(MBSModuleStateChangeParser)
-
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
 
     def test_can_handle_module_state_change_event(self):
         """

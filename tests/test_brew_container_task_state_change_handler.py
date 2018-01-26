@@ -33,20 +33,11 @@ from freshmaker.handlers.brew import BrewContainerTaskStateChangeHandler
 from freshmaker.types import ArtifactType, ArtifactBuildState, EventState
 
 
-class TestBrewContainerTaskStateChangeHandler(helpers.FreshmakerTestCase):
+class TestBrewContainerTaskStateChangeHandler(helpers.ModelsTestCase):
     def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
-
+        super(TestBrewContainerTaskStateChangeHandler, self).setUp()
         events.BaseEvent.register_parser(BrewTaskStateChangeParser)
         self.handler = BrewContainerTaskStateChangeHandler()
-
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
 
     def test_can_handle_brew_container_task_closed_event(self):
         """

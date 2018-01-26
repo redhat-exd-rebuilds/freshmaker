@@ -28,25 +28,16 @@ from tests import helpers
 
 import freshmaker
 
-from freshmaker import events, db, models
+from freshmaker import events, models
 from freshmaker.types import ArtifactType
 from freshmaker.handlers.git import GitRPMSpecChangeHandler
 from freshmaker.parsers.git import GitReceiveParser
 
 
-class GitRPMSpecChangeHandlerTest(helpers.FreshmakerTestCase):
+class GitRPMSpecChangeHandlerTest(helpers.ModelsTestCase):
     def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
-
+        super(GitRPMSpecChangeHandlerTest, self).setUp()
         events.BaseEvent.register_parser(GitReceiveParser)
-
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
 
     def test_can_handle_dist_git_message_with_rpm_spec_changed(self):
         """

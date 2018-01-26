@@ -23,7 +23,6 @@
 
 
 import flask
-import unittest
 
 from mock import patch, Mock
 
@@ -36,24 +35,10 @@ from freshmaker.auth import query_ldap_groups
 from freshmaker.errors import Unauthorized
 from freshmaker import app, db
 from freshmaker.models import User
+from tests.helpers import ModelsTestCase, FreshmakerTestCase
 
 
-class TestLoadKrbUserFromRequest(unittest.TestCase):
-
-    def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
-
-        self.user = User(username='tester1')
-        db.session.add(self.user)
-        db.session.commit()
-
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
+class TestLoadKrbUserFromRequest(ModelsTestCase):
 
     @patch('freshmaker.auth.query_ldap_groups')
     def test_create_new_user(self, query_ldap_groups):
@@ -102,22 +87,7 @@ class TestLoadKrbUserFromRequest(unittest.TestCase):
                 'REMOTE_USER is not present in request.' in ctx.exception.args)
 
 
-class TestLoadOpenIDCUserFromRequest(unittest.TestCase):
-
-    def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
-
-        self.user = User(username='tester1')
-        db.session.add(self.user)
-        db.session.commit()
-
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
+class TestLoadOpenIDCUserFromRequest(ModelsTestCase):
 
     @patch('freshmaker.auth.requests.get')
     def test_create_new_user(self, get):
@@ -220,7 +190,7 @@ class TestLoadOpenIDCUserFromRequest(unittest.TestCase):
                     ctx.exception.args)
 
 
-class TestQueryLdapGroups(unittest.TestCase):
+class TestQueryLdapGroups(FreshmakerTestCase):
     """Test auth.query_ldap_groups"""
 
     @patch('freshmaker.auth.ldap.initialize')
@@ -239,10 +209,12 @@ class TestQueryLdapGroups(unittest.TestCase):
                          sorted(groups))
 
 
-class TestInitAuth(unittest.TestCase):
+class TestInitAuth(FreshmakerTestCase):
     """Test init_auth"""
 
     def setUp(self):
+        super(FreshmakerTestCase, self).setUp()
+
         self.login_manager = Mock()
 
     def test_select_kerberos_auth_backend(self):

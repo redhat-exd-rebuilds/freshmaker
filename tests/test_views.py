@@ -30,6 +30,7 @@ from mock import patch
 from freshmaker import app, db, events, models, login_manager
 from freshmaker.types import ArtifactType, ArtifactBuildState, EventState
 import freshmaker.auth
+from tests import helpers
 
 
 @login_manager.user_loader
@@ -37,13 +38,9 @@ def user_loader(username):
     return models.User.find_user_by_name(username=username)
 
 
-class ViewBaseTest(unittest.TestCase):
+class ViewBaseTest(helpers.ModelsTestCase):
     def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
-
+        super(ViewBaseTest, self).setUp()
         patched_allowed_clients = {'groups': ['freshmaker-clients'],
                                    'users': ['dev']}
         patched_admins = {'groups': ['admin'], 'users': ['root']}
@@ -66,9 +63,7 @@ class ViewBaseTest(unittest.TestCase):
         self.setup_test_data()
 
     def tearDown(self):
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
+        super(ViewBaseTest, self).tearDown()
 
         self.patch_allowed_clients.stop()
         self.patch_admins.stop()
@@ -116,13 +111,9 @@ class ViewBaseTest(unittest.TestCase):
         """Set up data for running tests"""
 
 
-class TestViews(unittest.TestCase):
+class TestViews(helpers.ModelsTestCase):
     def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
-
+        super(TestViews, self).setUp()
         self._init_data()
 
         self.client = app.test_client()
@@ -360,12 +351,9 @@ class TestViews(unittest.TestCase):
         self.assertEqual(data['message'], 'No such build state found.')
 
 
-class TestViewsMultipleFilterValues(unittest.TestCase):
+class TestViewsMultipleFilterValues(helpers.ModelsTestCase):
     def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
+        super(TestViewsMultipleFilterValues, self).setUp()
 
         self._init_data()
 
@@ -405,19 +393,10 @@ class TestViewsMultipleFilterValues(unittest.TestCase):
         self.assertEqual(len(evs), 2)
 
 
-class TestManualTriggerRebuild(unittest.TestCase):
+class TestManualTriggerRebuild(helpers.ModelsTestCase):
     def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
-
+        super(TestManualTriggerRebuild, self).setUp()
         self.client = app.test_client()
-
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
 
     @patch('freshmaker.messaging.publish')
     @patch('freshmaker.views.Errata')

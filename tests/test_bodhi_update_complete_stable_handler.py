@@ -30,7 +30,7 @@ from tests import get_fedmsg
 
 import freshmaker
 
-from freshmaker import events, db, models
+from freshmaker import events, models
 from freshmaker.types import ArtifactType
 from freshmaker.handlers.bodhi import BodhiUpdateCompleteStableHandler
 from freshmaker.parsers.bodhi import BodhiUpdateCompleteStableParser
@@ -90,19 +90,10 @@ def mock_get_release_component_by_id(id):
     return mock_release_components[id]
 
 
-class BodhiUpdateCompleteStableHandlerTest(helpers.FreshmakerTestCase):
+class BodhiUpdateCompleteStableHandlerTest(helpers.ModelsTestCase):
     def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
-
+        super(BodhiUpdateCompleteStableHandlerTest, self).setUp()
         events.BaseEvent.register_parser(BodhiUpdateCompleteStableParser)
-
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
 
     @mock.patch('freshmaker.handlers.bodhi.update_complete_stable.PDC')
     @mock.patch('freshmaker.handlers.bodhi.update_complete_stable.utils')

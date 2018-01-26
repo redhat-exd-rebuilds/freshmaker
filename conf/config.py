@@ -248,8 +248,7 @@ class TestConfiguration(BaseConfiguration):
     LOG_LEVEL = 'debug'
     DEBUG = True
 
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///{0}'.format(
-        os.path.join(dbdir, 'tests', 'test_freshmaker.db'))
+    SQLALCHEMY_DATABASE_URI = 'sqlite://'
 
     MESSAGING = 'in_memory'
     MESSAGING_SENDER = 'in_memory'

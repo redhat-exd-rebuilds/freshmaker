@@ -22,7 +22,6 @@
 
 import json
 import six
-import unittest
 
 from mock import call, patch, Mock
 from six.moves import http_client
@@ -32,12 +31,14 @@ from freshmaker.lightblue import ContainerRepository
 from freshmaker.lightblue import LightBlue
 from freshmaker.lightblue import LightBlueRequestError
 from freshmaker.lightblue import LightBlueSystemError
+from tests import helpers
 
 
-class TestLightBlueRequestError(unittest.TestCase):
+class TestLightBlueRequestError(helpers.FreshmakerTestCase):
     """Test case for exception LightBlueRequestError"""
 
     def setUp(self):
+        super(TestLightBlueRequestError, self).setUp()
         self.fake_error_data = {
             'entity': 'containerImage',
             'entityVersion': '0.0.11',
@@ -73,10 +74,11 @@ class TestLightBlueRequestError(unittest.TestCase):
         self.assertIn(expected_s, str(self.e))
 
 
-class TestLightBlueSystemError(unittest.TestCase):
+class TestLightBlueSystemError(helpers.FreshmakerTestCase):
     """Test LightBlueSystemError"""
 
     def setUp(self):
+        super(TestLightBlueSystemError, self).setUp()
         buf = six.StringIO('''
 <html><head><title>JBWEB000065: HTTP Status 401 - JBWEB000009: No client
 certificate chain in this request</title><style><!--H1 {font-family:Tahoma,
@@ -117,7 +119,7 @@ description</b> <u>JBWEB000121: This request requires HTTP authentication.</u>
                          repr(self.e))
 
 
-class TestContainerImageObject(unittest.TestCase):
+class TestContainerImageObject(helpers.FreshmakerTestCase):
 
     def test_create(self):
         image = ContainerImage.create({
@@ -305,7 +307,7 @@ class TestContainerImageObject(unittest.TestCase):
         self.assertEqual(image["content_sets"], [])
 
 
-class TestContainerRepository(unittest.TestCase):
+class TestContainerRepository(helpers.FreshmakerTestCase):
 
     def test_create(self):
         image = ContainerRepository.create({
@@ -321,9 +323,10 @@ class TestContainerRepository(unittest.TestCase):
         self.assertEqual('20170223T08:28:40.913-0500', image['metrics']['last_update_date'])
 
 
-class TestQueryEntityFromLightBlue(unittest.TestCase):
+class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
 
     def setUp(self):
+        super(TestQueryEntityFromLightBlue, self).setUp()
         # Clear the ContainerImage Koji cache.
         ContainerImage.KOJI_BUILDS_CACHE = {}
 
@@ -1065,10 +1068,11 @@ class TestQueryEntityFromLightBlue(unittest.TestCase):
                 ["dummy-content-set-1"])
 
 
-class TestEntityVersion(unittest.TestCase):
+class TestEntityVersion(helpers.FreshmakerTestCase):
     """Test case for ensuring correct entity version in request"""
 
     def setUp(self):
+        super(TestEntityVersion, self).setUp()
         self.fake_server_url = 'lightblue.localhost'
         self.fake_cert_file = 'path/to/cert'
         self.fake_private_key = 'path/to/private-key'

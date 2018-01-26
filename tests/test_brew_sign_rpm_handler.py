@@ -21,28 +21,15 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
-import unittest
-
 from mock import patch, MagicMock, PropertyMock
 
 from freshmaker.handlers.brew.sign_rpm import BrewSignRPMHandler
 from freshmaker.errata import ErrataAdvisory
-from freshmaker import db
+from tests import helpers
 
 
-class TestBrewSignHandler(unittest.TestCase):
+class TestBrewSignHandler(helpers.ModelsTestCase):
     """Test BrewSignRPMHandler.handle"""
-
-    def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
-
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
 
     @patch('freshmaker.errata.Errata.advisories_from_event')
     @patch('freshmaker.errata.Errata.builds_signed')

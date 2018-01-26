@@ -29,9 +29,10 @@ from freshmaker.models import Event, ArtifactBuild
 from freshmaker import db
 from freshmaker.types import ArtifactBuildState
 from freshmaker.handlers import fail_event_on_handler_exception
+from tests import helpers
 
 
-class ConsumerBaseTest(unittest.TestCase):
+class ConsumerBaseTest(helpers.ModelsTestCase):
 
     def _create_consumer(self):
         hub = mock.MagicMock()
@@ -55,17 +56,6 @@ class ConsumerBaseTest(unittest.TestCase):
 
 
 class ConsumerTest(ConsumerBaseTest):
-
-    def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
-
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
 
     @mock.patch("freshmaker.handlers.mbs.module_state_change.MBSModuleStateChangeHandler.handle")
     @mock.patch("freshmaker.consumer.get_global_consumer")

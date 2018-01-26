@@ -28,25 +28,16 @@ from tests import helpers
 
 import freshmaker
 
-from freshmaker import events, db, models
+from freshmaker import events, models
 from freshmaker.types import ArtifactType
 from freshmaker.handlers.git import GitModuleMetadataChangeHandler
 from freshmaker.parsers.git import GitReceiveParser
 
 
-class GitModuleMetadataChangeHandlerTest(helpers.FreshmakerTestCase):
+class GitModuleMetadataChangeHandlerTest(helpers.ModelsTestCase):
     def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
-
+        super(GitModuleMetadataChangeHandlerTest, self).setUp()
         events.BaseEvent.register_parser(GitReceiveParser)
-
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
 
     def test_can_handle_module_metadata_change_event(self):
         """

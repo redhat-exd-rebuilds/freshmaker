@@ -22,16 +22,16 @@
 # Written by Chenxiong Qi <cqi@redhat.com>
 
 import six
-import unittest
 
 from mock import patch
 from odcs.client.odcs import AuthMech
 
 from freshmaker import conf
 from freshmaker.odcsclient import create_odcs_client
+from tests import helpers
 
 
-class TestCreateODCSClient(unittest.TestCase):
+class TestCreateODCSClient(helpers.FreshmakerTestCase):
     """Test odcsclient.create_odcs_client"""
 
     @patch.object(conf, 'odcs_auth_mech', new='kerberos')

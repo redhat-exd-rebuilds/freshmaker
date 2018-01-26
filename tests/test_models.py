@@ -20,27 +20,16 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
-import unittest
-
 from freshmaker import db, events
 from freshmaker.models import ArtifactBuild, ArtifactType
 from freshmaker.models import Event, EventState, EVENT_TYPES, EventDependency
 from freshmaker.models import Compose, ArtifactBuildCompose
 from freshmaker.types import ArtifactBuildState
 from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
+from tests import helpers
 
 
-class TestModels(unittest.TestCase):
-    def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
-
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
+class TestModels(helpers.ModelsTestCase):
 
     def test_creating_event_and_builds(self):
         event = Event.create(db.session, "test_msg_id", "RHSA-2017-284", events.TestingEvent)
@@ -169,14 +158,11 @@ class TestModels(unittest.TestCase):
             str(event), "<UnknownEventType 1024, search_key=test>")
 
 
-class TestFindDependentEvents(unittest.TestCase):
+class TestFindDependentEvents(helpers.ModelsTestCase):
     """Test Event.find_dependent_events"""
 
     def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
+        super(TestFindDependentEvents, self). setUp()
 
         self.event_1 = Event.create(
             db.session, 'msg-1', 'search-key-1',
@@ -249,11 +235,6 @@ class TestFindDependentEvents(unittest.TestCase):
 
         db.session.commit()
 
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
-
     def test_find_dependent_events(self):
         dep_events = self.event_1.find_dependent_events()
         self.assertEqual([self.event_2.id, self.event_3.id],
@@ -267,14 +248,11 @@ class TestFindDependentEvents(unittest.TestCase):
         self.assertIn((self.event_1.id, self.event_3.id), dep_rels)
 
 
-class TestArtifactBuildComposesRel(unittest.TestCase):
+class TestArtifactBuildComposesRel(helpers.ModelsTestCase):
     """Test m2m relationship between ArtifactBuild and Compose"""
 
     def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
+        super(TestArtifactBuildComposesRel, self). setUp()
 
         self.compose_1 = Compose(odcs_compose_id=1)
         self.compose_2 = Compose(odcs_compose_id=2)
@@ -314,11 +292,6 @@ class TestArtifactBuildComposesRel(unittest.TestCase):
 
         db.session.commit()
 
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
-
     def test_get_highest_compose_id(self):
         compose_id = Compose.get_highest_compose_id(db.session)
         self.assertEqual(compose_id, 4)
@@ -351,19 +324,8 @@ class TestArtifactBuildComposesRel(unittest.TestCase):
                 sorted([rel.build.id for rel in compose.builds]))
 
 
-class TestEventDependency(unittest.TestCase):
+class TestEventDependency(helpers.ModelsTestCase):
     """Test Event.add_event_dependency"""
-
-    def setUp(self):
-        db.session.remove()
-        db.drop_all()
-        db.create_all()
-        db.session.commit()
-
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
-        db.session.commit()
 
     def test_event_dependencies(self):
         event = Event.create(db.session, "test_msg_id", "test", events.TestingEvent)
