@@ -213,7 +213,7 @@ class TestInitAuth(FreshmakerTestCase):
     """Test init_auth"""
 
     def setUp(self):
-        super(FreshmakerTestCase, self).setUp()
+        super(TestInitAuth, self).setUp()
 
         self.login_manager = Mock()
 

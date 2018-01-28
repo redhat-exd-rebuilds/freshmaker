@@ -247,8 +247,7 @@ class TestBatches(helpers.ModelsTestCase):
         })
 
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.create_odcs_client')
-    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.krb_context')
-    def test_batches_records(self, krb_context, create_odcs_client):
+    def test_batches_records(self, create_odcs_client):
         """
         Tests that batches are properly recorded in DB.
         """
@@ -472,9 +471,8 @@ class TestPrepareYumRepo(helpers.ModelsTestCase):
            'ErrataAdvisoryRPMsSignedHandler._get_compose_source')
     @patch('time.sleep')
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.Errata')
-    @patch('freshmaker.utils.krbContext')
     def test_get_repo_url_when_succeed_to_generate_compose(
-            self, krb_context, errata, sleep, _get_compose_source,
+            self, errata, sleep, _get_compose_source,
             _get_packages_for_compose, create_odcs_client):
         odcs = create_odcs_client.return_value
         _get_packages_for_compose.return_value = ['httpd', 'httpd-debuginfo']
@@ -518,10 +516,8 @@ class TestPrepareYumRepo(helpers.ModelsTestCase):
            'ErrataAdvisoryRPMsSignedHandler._get_compose_source')
     @patch('time.sleep')
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.Errata')
-    @patch('freshmaker.utils.krb_context',
-           new_callable=PropertyMock)
     def test_get_repo_url_packages_in_multiple_tags(
-            self, krb_context, errata, sleep, _get_compose_source,
+            self, errata, sleep, _get_compose_source,
             _get_packages_for_compose, create_odcs_client):
         _get_packages_for_compose.return_value = ['httpd', 'httpd-debuginfo']
         _get_compose_source.side_effect = [
@@ -550,10 +546,8 @@ class TestPrepareYumRepo(helpers.ModelsTestCase):
            'ErrataAdvisoryRPMsSignedHandler._get_compose_source')
     @patch('time.sleep')
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.Errata')
-    @patch('freshmaker.utils.krb_context',
-           new_callable=PropertyMock)
     def test_get_repo_url_packages_not_found_in_tag(
-            self, krb_context, errata, sleep, _get_compose_source,
+            self, errata, sleep, _get_compose_source,
             _get_packages_for_compose, create_odcs_client):
         _get_packages_for_compose.return_value = ['httpd', 'httpd-debuginfo']
         _get_compose_source.return_value = None

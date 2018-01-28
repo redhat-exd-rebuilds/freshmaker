@@ -476,7 +476,6 @@ class TestRequestBootISOCompose(helpers.FreshmakerTestCase):
         })
         self.handler = ErrataAdvisoryRPMsSignedHandler()
 
-    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.krb_context')
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.'
            'create_odcs_client')
     @patch('freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler.'
@@ -485,7 +484,7 @@ class TestRequestBootISOCompose(helpers.FreshmakerTestCase):
            '_get_base_image_build_tag')
     def test_get_boot_iso_compose(
             self, get_base_image_build_tag, get_base_image_build_target,
-            create_odcs_client, krb_context):
+            create_odcs_client):
         odcs = create_odcs_client.return_value
         odcs.new_compose.return_value = {'id': 1}
 

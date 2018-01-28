@@ -52,7 +52,6 @@ class GitDockerfileChangeHandlerTest(BaseTestCase):
 
     @patch('koji.read_config')
     @patch('koji.ClientSession')
-    @patch('freshmaker.utils.krbContext')
     @patch("freshmaker.config.Config.krb_auth_principal",
            new_callable=PropertyMock, return_value="user@example.com")
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
@@ -61,7 +60,7 @@ class GitDockerfileChangeHandlerTest(BaseTestCase):
         }
     })
     def test_rebuild_if_dockerfile_changed(
-            self, auth_principal, krbContext, ClientSession, read_config):
+            self, auth_principal, ClientSession, read_config):
         read_config.return_value = {
             'server': 'https://localhost/kojihub',
             'krb_rdns': False,
@@ -72,10 +71,6 @@ class GitDockerfileChangeHandlerTest(BaseTestCase):
         mock_session.buildContainer.return_value = 123
         msg = get_fedmsg('git_receive_dockerfile_changed')
         self.consume_fedmsg(msg)
-
-        # Kerberos context should be prepare for logging into koji by calling
-        # krb_login.
-        krbContext.assert_called_once()
 
         mock_session.krb_login.assert_called_once_with()
         mock_session.buildContainer.assert_called_once_with(

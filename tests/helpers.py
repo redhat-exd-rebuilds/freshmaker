@@ -45,6 +45,16 @@ BUILD_STATES = {
 
 
 class FreshmakerTestCase(unittest.TestCase):
+
+    def setUp(self):
+        # We don't have any valid Kerberos context during the tests, so disable
+        # it by default by patching it.
+        self.krb_context_patcher = patch('freshmaker.utils.krbContext')
+        self.krb_context_patcher.start()
+
+    def tearDown(self):
+        self.krb_context_patcher.stop()
+
     def get_event_from_msg(self, message):
         event = events.BaseEvent.from_fedmsg(message['body']['topic'], message['body'])
         return event
