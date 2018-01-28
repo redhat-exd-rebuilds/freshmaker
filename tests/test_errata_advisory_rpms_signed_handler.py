@@ -430,29 +430,16 @@ class TestGetBaseImageBuildTag(helpers.FreshmakerTestCase):
         })
         self.handler = ErrataAdvisoryRPMsSignedHandler()
 
-    @patch('freshmaker.kojiservice.KojiService')
-    def test_get_build_tag_name(self, KojiService):
-        koji_service = KojiService.return_value
-        koji_service.get_build_target.return_value = {
-            'build_tag': 10052,
-            'build_tag_name': 'guest-rhel-7.4-docker-build',
-            'dest_tag': 10051,
-            'dest_tag_name': 'guest-rhel-7.4-candidate',
-            'id': 3205,
-            'name': 'guest-rhel-7.4-docker'
-        }
-
+    @helpers.mock_koji
+    def test_get_build_tag_name(self, mocked_koji):
         result = self.handler._get_base_image_build_tag(
             'guest-rhel-7.4-docker')
         self.assertEqual('guest-rhel-7.4-docker-build', result)
 
-    @patch('freshmaker.kojiservice.KojiService')
-    def test_no_target_is_returned(self, KojiService):
-        koji_service = KojiService.return_value
-        koji_service.get_build_target.return_value = None
-
+    @helpers.mock_koji
+    def test_no_target_is_returned(self, mocked_koji):
         result = self.handler._get_base_image_build_tag(
-            'guest-rhel-7.4-docker')
+            'guest-rhel-7.4-docker-unknown')
         self.assertIsNone(result)
 
 

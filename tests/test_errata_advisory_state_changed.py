@@ -41,38 +41,19 @@ from tests import helpers
 class TestFindBuildSrpmName(helpers.FreshmakerTestCase):
     """Test ErrataAdvisoryRPMsSignedHandler._find_build_srpm_name"""
 
-    @patch('koji.ClientSession')
-    def test_find_srpm_name(self, ClientSession):
-        session = ClientSession.return_value
-        session.getBuild.return_value = {
-            'build_id': 439408,
-            'id': 439408,
-            'name': 'bind-dyndb-ldap',
-            'nvr': 'bind-dyndb-ldap-2.3-8.el6',
-        }
-        session.listRPMs.return_value = [{
-            'arch': 'src',
-            'name': 'bind-dyndb-ldap',
-            'nvr': 'bind-dyndb-ldap-2.3-8.el6',
-        }]
+    @helpers.mock_koji
+    def test_find_srpm_name(self, mocked_koji):
+        mocked_koji.add_build("bind-dyndb-ldap-2.3-8.el6")
+        mocked_koji.add_build_rpms("bind-dyndb-ldap-2.3-8.el6")
 
         handler = ErrataAdvisoryRPMsSignedHandler()
         srpm_name = handler._find_build_srpm_name('bind-dyndb-ldap-2.3-8.el6')
-
-        session.getBuild.assert_called_once_with('bind-dyndb-ldap-2.3-8.el6')
-        session.listRPMs.assert_called_once_with(buildID=439408, arches='src')
         self.assertEqual('bind-dyndb-ldap', srpm_name)
 
-    @patch('koji.ClientSession')
-    def test_error_if_no_srpm_in_build(self, ClientSession):
-        session = ClientSession.return_value
-        session.getBuild.return_value = {
-            'build_id': 439408,
-            'id': 439408,
-            'name': 'bind-dyndb-ldap',
-            'nvr': 'bind-dyndb-ldap-2.3-8.el6',
-        }
-        session.listRPMs.return_value = []
+    @helpers.mock_koji
+    def test_error_if_no_srpm_in_build(self, mocked_koji):
+        mocked_koji.add_build("bind-dyndb-ldap-2.3-8.el6")
+        mocked_koji.add_build_rpms("bind-dyndb-ldap-2.3-8.el6", arches=["i686"])
 
         handler = ErrataAdvisoryRPMsSignedHandler()
 
@@ -82,9 +63,6 @@ class TestFindBuildSrpmName(helpers.FreshmakerTestCase):
             handler._find_build_srpm_name,
             'bind-dyndb-ldap-2.3-8.el6',
         )
-
-        session.getBuild.assert_called_once_with('bind-dyndb-ldap-2.3-8.el6')
-        session.listRPMs.assert_called_once_with(buildID=439408, arches='src')
 
 
 class TestAllowBuild(helpers.ModelsTestCase):
@@ -422,40 +400,16 @@ class TestCheckImagesToRebuild(helpers.ModelsTestCase):
 class TestGetPackagesForCompose(helpers.FreshmakerTestCase):
     """Test ErrataAdvisoryRPMsSignedHandler._get_packages_for_compose"""
 
-    @patch('freshmaker.kojiservice.KojiService.get_build_rpms')
-    def test_get_packages(self, get_build_rpms):
-        get_build_rpms.return_value = [
-            {
-                'id': 4672404,
-                'arch': 'src',
-                'name': 'chkconfig',
-                'release': '1.el7_3.1',
-                'version': '1.7.2',
-                'nvr': 'chkconfig-1.7.2-1.el7_3.1',
-            },
-            {
-                'id': 4672405,
-                'arch': 'ppc',
-                'name': 'chkconfig',
-                'release': '1.el7_3.1',
-                'version': '1.7.2',
-                'nvr': 'chkconfig-1.7.2-1.el7_3.1',
-            },
-            {
-                'id': 4672420,
-                'arch': 'i686',
-                'name': 'chkconfig-debuginfo',
-                'release': '1.el7_3.1',
-                'version': '1.7.2',
-                'nvr': 'chkconfig-debuginfo-1.7.2-1.el7_3.1',
-            }
-        ]
-
+    @helpers.mock_koji
+    def test_get_packages(self, mocked_koji):
         build_nvr = 'chkconfig-1.7.2-1.el7_3.1'
+        mocked_koji.add_build(build_nvr)
+        mocked_koji.add_build_rpms(
+            build_nvr,
+            [build_nvr, "chkconfig-debuginfo-1.7.2-1.el7_3.1"])
+
         handler = ErrataAdvisoryRPMsSignedHandler()
         packages = handler._get_packages_for_compose(build_nvr)
-
-        get_build_rpms.assert_called_once_with(build_nvr)
 
         self.assertEqual(set(['chkconfig', 'chkconfig-debuginfo']),
                          set(packages))
@@ -464,113 +418,38 @@ class TestGetPackagesForCompose(helpers.FreshmakerTestCase):
 class TestGetComposeSource(helpers.FreshmakerTestCase):
     """Test ErrataAdvisoryRPMsSignedHandler._get_compose_source"""
 
-    @patch('freshmaker.kojiservice.KojiService.session', callable=PropertyMock)
-    def test_get_tag(self, session):
-        session.listTags.return_value = [
-            {
-                'id': 10974,
-                'name': 'rhscl-3.0-rhel-6-candidate',
-            },
-            {
-                'id': 11030,
-                'name': 'rhscl-3.0-rhel-6-pending',
-            },
-            {
-                'id': 11425,
-                'name': 'rhscl-3.0-rhel-6-alpha-1.0-set',
-            }
-        ]
-        session.listTagged.return_value = [
-            {
-                'build_id': 568228,
-                'nvr': 'rh-postgresql96-3.0-9.el6',
-            }
-        ]
-
+    @helpers.mock_koji
+    def test_get_tag(self, mocked_koji):
+        mocked_koji.add_build("rh-postgresql96-3.0-9.el6")
         handler = ErrataAdvisoryRPMsSignedHandler()
         tag = handler._get_compose_source('rh-postgresql96-3.0-9.el6')
-        self.assertEqual('rhscl-3.0-rhel-6-candidate', tag)
+        self.assertEqual('tag-candidate', tag)
 
-    @patch('freshmaker.kojiservice.KojiService.session', callable=PropertyMock)
-    def test_get_None_if_tag_has_new_build(self, session):
-        session.listTags.return_value = [
-            {
-                'id': 10974,
-                'name': 'rhscl-3.0-rhel-6-candidate',
-            },
-            {
-                'id': 11030,
-                'name': 'rhscl-3.0-rhel-6-pending',
-            },
-            {
-                'id': 11425,
-                'name': 'rhscl-3.0-rhel-6-alpha-1.0-set',
-            }
-        ]
-        session.listTagged.return_value = [
-            {
-                'build_id': 568228,
-                'nvr': 'rh-postgresql96-3.0-10.el6',
-            }
-        ]
-
+    @helpers.mock_koji
+    def test_get_None_if_tag_has_new_build(self, mocked_koji):
+        mocked_koji.add_build("rh-postgresql96-3.0-9.el6")
+        mocked_koji.add_build("rh-postgresql96-3.0-10.el6")
         handler = ErrataAdvisoryRPMsSignedHandler()
         tag = handler._get_compose_source('rh-postgresql96-3.0-9.el6')
         self.assertEqual(None, tag)
 
-    @patch('freshmaker.kojiservice.KojiService.session', callable=PropertyMock)
-    def test_get_tag_prefer_final_over_candidate(self, session):
-        session.listTags.return_value = [
-            {
-                'id': 10974,
-                'name': 'rhel-6-candidate',
-            },
-            {
-                'id': 10975,
-                'name': 'rhel-6',
-            },
-        ]
-        session.listTagged.return_value = [
-            {
-                'build_id': 568228,
-                'nvr': 'rh-postgresql96-3.0-9.el6',
-            }
-        ]
-
+    @helpers.mock_koji
+    def test_get_tag_prefer_final_over_candidate(self, mocked_koji):
+        mocked_koji.add_build("rh-postgresql96-3.0-9.el6",
+                              ["tag-candidate", "tag"])
         handler = ErrataAdvisoryRPMsSignedHandler()
         tag = handler._get_compose_source('rh-postgresql96-3.0-9.el6')
-        self.assertEqual('rhel-6', tag)
+        self.assertEqual('tag', tag)
 
-    @patch('freshmaker.kojiservice.KojiService.session', callable=PropertyMock)
-    def test_get_tag_fallback_to_second_tag(self, session):
-        session.listTags.return_value = [
-            {
-                'id': 10974,
-                'name': 'rhel-6-candidate',
-            },
-            {
-                'id': 10975,
-                'name': 'rhel-6',
-            },
-        ]
-        session.listTagged.side_effect = [
-            [
-                {
-                    'build_id': 568228,
-                    'nvr': 'rh-postgresql96-3.0-10.el6',
-                }
-            ],
-            [
-                {
-                    'build_id': 568228,
-                    'nvr': 'rh-postgresql96-3.0-9.el6',
-                }
-            ],
-        ]
-
+    @helpers.mock_koji
+    def test_get_tag_fallback_to_second_tag(self, mocked_koji):
+        mocked_koji.add_build("rh-postgresql96-3.0-10.el6",
+                              ["tag"])
+        mocked_koji.add_build("rh-postgresql96-3.0-9.el6",
+                              ["tag", "tag-candidate"])
         handler = ErrataAdvisoryRPMsSignedHandler()
         tag = handler._get_compose_source('rh-postgresql96-3.0-9.el6')
-        self.assertEqual('rhel-6-candidate', tag)
+        self.assertEqual('tag-candidate', tag)
 
 
 class TestPrepareYumRepo(helpers.ModelsTestCase):

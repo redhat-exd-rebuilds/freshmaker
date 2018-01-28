@@ -205,51 +205,20 @@ class BodhiUpdateCompleteStableHandlerTest(helpers.ModelsTestCase):
         found_containers = sorted(containers, key=lambda item: item['id'])
         self.assertEqual(expected_found_containers, found_containers)
 
-    @mock.patch('freshmaker.kojiservice.KojiService.get_build_rpms')
-    def test_get_rpms_included_in_bohdhi_update(self, get_build_rpms):
-        rpms = {
-            'community-mysql-5.7.18-2.fc25': [
-                {
-                    'id': 9515683,
-                    'name': 'community-mysql-devel',
-                    'nvr': 'community-mysql-devel-5.7.18-2.fc25',
-                    'release': '2.fc25',
-                    'version': '5.7.18',
-                },
-                {
-                    'id': 9515682,
-                    'name': 'community-mysql-libs',
-                    'nvr': 'community-mysql-libs-5.7.18-2.fc25',
-                    'release': '2.fc25',
-                    'version': '5.7.18',
-                },
-                {
-                    'id': 9515681,
-                    'name': 'community-mysql-server',
-                    'nvr': 'community-mysql-server-5.7.18-2.fc25',
-                    'release': '2.fc25',
-                    'version': '5.7.18',
-                },
-            ],
-            'qt5-qtwebengine-5.8.0-11.fc25': [
-                {
-                    'id': 9571317,
-                    'name': 'qt5-qtwebengine-devel',
-                    'nvr': 'qt5-qtwebengine-devel-5.8.0-11.fc25',
-                    'release': '11.fc25',
-                    'version': '5.8.0',
-                },
-                {
-                    'id': 9571316,
-                    'name': 'qt5-qtwebengine-examples',
-                    'nvr': 'qt5-qtwebengine-examples-5.8.0-11.fc25',
-                    'release': '11.fc25',
-                    'version': '5.8.0',
-                }
-            ],
-        }
+    @helpers.mock_koji
+    def test_get_rpms_included_in_bohdhi_update(self, mocked_koji):
+        mocked_koji.add_build("community-mysql-5.7.18-2.fc25")
+        mocked_koji.add_build_rpms(
+            "community-mysql-5.7.18-2.fc25",
+            ['community-mysql-devel-5.7.18-2.fc25',
+             'community-mysql-libs-5.7.18-2.fc25',
+             'community-mysql-server-5.7.18-2.fc25'], ["i686"])
 
-        get_build_rpms.side_effect = lambda x: rpms[x]
+        mocked_koji.add_build("qt5-qtwebengine-5.8.0-11.fc25")
+        mocked_koji.add_build_rpms(
+            "qt5-qtwebengine-5.8.0-11.fc25",
+            ['qt5-qtwebengine-devel-5.8.0-11.fc25',
+             'qt5-qtwebengine-examples-5.8.0-11.fc25'], ["i686"])
 
         builds = [
             {
@@ -272,5 +241,5 @@ class BodhiUpdateCompleteStableHandlerTest(helpers.ModelsTestCase):
 
         self.assertEqual(5, len(rpms))
 
-        rpm = list(filter(lambda item: item['id'] == 9515681, rpms))
+        rpm = list(filter(lambda item: item['nvr'] == "community-mysql-server-5.7.18-2.fc25", rpms))
         self.assertEqual(1, len(rpm))

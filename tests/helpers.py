@@ -24,6 +24,10 @@ import string
 import time
 import uuid
 import unittest
+import koji
+
+from mock import patch
+from functools import wraps
 
 from freshmaker import events
 from freshmaker import db
@@ -65,6 +69,177 @@ class ModelsTestCase(FreshmakerTestCase):
         db.session.remove()
         db.drop_all()
         db.session.commit()
+
+
+class MockedKoji(object):
+    def __init__(self):
+        self._koji_service = None
+
+        # {"tag_name": ["build1_nvr", "build2_nvr", ...], ...}
+        # The list of build NVRs is kept sorted.
+        self.tags = {}
+        # ["build_nvr": [{"rpm_nvr": nvr, ...}, ...], ...]
+        self.rpms = {}
+
+    def add_tag(self, tag_name):
+        """
+        Adds new tag to Mocked Koji.
+        """
+        if tag_name in self.tags:
+            return
+        self.tags[tag_name] = []
+
+    def tag_build(self, tag_name, nvr):
+        """
+        Tags the build `nvr` to tag `tag_name`.
+        """
+        self.tags[tag_name].append(nvr)
+        self.tags[tag_name].sort()
+
+    def add_build(self, nvr, tags=None):
+        """
+        Adds build `nvr` to Mocked Koji. Tags the build into `tags`. If tags
+        are not defined, ["tag-candidate", "tag-pending", "tag-alpha-1.0-set"]
+        is used. If the tags do not exist in Mocked Koji, they are added
+        automatically.
+        """
+        if not tags:
+            tags = ["tag-candidate", "tag-pending", "tag-alpha-1.0-set"]
+
+        for tag in tags:
+            self.add_tag(tag)
+            self.tag_build(tag, nvr)
+
+    def add_build_rpms(self, build_nvr, rpm_nvrs=None, arches=None):
+        """
+        Adds list of RPMs defined as NVRs in `rpms_nvrs` list into build
+        defined by `build_nvr` NVR.
+        If `rpm_nvrs` is not defined, build_nvr is used as default NVR.
+        If `arches` is not defined, ["src", "ppc", "i686", "x86_64"] is used as
+        default list of arches.
+        """
+        if build_nvr not in self.rpms:
+            self.rpms[build_nvr] = []
+
+        if not rpm_nvrs:
+            rpm_nvrs = [build_nvr]
+
+        if not arches:
+            arches = ["src", "ppc", "i686", "x86_64"]
+
+        for nvr in rpm_nvrs:
+            for arch in arches:
+                parsed_nvr = koji.parse_NVR(nvr)
+                self.rpms[build_nvr].append({
+                    'arch': arch,
+                    'name': parsed_nvr["name"],
+                    'release': parsed_nvr["release"],
+                    'version': parsed_nvr["version"],
+                    'nvr': nvr,
+                })
+
+    def _get_build_rpms(self, build_nvr, arches=None):
+        """
+        Mocks the KojiService.get_build_rpms.
+        """
+        if not arches:
+            return self.rpms[build_nvr]
+
+        return [rpm for rpm in self.rpms[build_nvr] if rpm["arch"] in arches]
+
+    def _get_build_target(self, build_target):
+        """
+        Mocks the KojiService.get_build_target.
+        """
+        if build_target == "guest-rhel-7.4-docker":
+            return {
+                'build_tag': 10052,
+                'build_tag_name': 'guest-rhel-7.4-docker-build',
+                'dest_tag': 10051,
+                'dest_tag_name': 'guest-rhel-7.4-candidate',
+                'id': 3205,
+                'name': 'guest-rhel-7.4-docker'
+            }
+        return None
+
+    def _session_list_tags(self, nvr):
+        """
+        Mocks KojiService.session.listTags.
+        """
+        ret = []
+        for tag_name, nvrs in self.tags.items():
+            if nvr in nvrs:
+                ret.append({
+                    "name": tag_name
+                })
+        return ret
+
+    def _session_list_tagged(self, tag, **kwargs):
+        """
+        Mocks KojiService.session.listTagged.
+        """
+        if "latest" in kwargs and kwargs["latest"]:
+            return_latest = True
+        else:
+            return_latest = False
+
+        ret = []
+        packages = []
+        for nvr in self.tags[tag]:
+            package = koji.parse_NVR(nvr)["name"]
+            if return_latest and package in packages:
+                continue
+
+            packages.append(package)
+            ret.append({
+                'nvr': nvr,
+            })
+
+        return ret
+
+    def start(self):
+        """
+        Starts the Koji mocking.
+        """
+        self._mocked_koji_service_patch = patch(
+            'freshmaker.kojiservice.KojiService')
+        self._koji_service = self._mocked_koji_service_patch.start().return_value
+
+        self._koji_service.get_build_target.side_effect = self._get_build_target
+        self._koji_service.get_build_rpms.side_effect = self._get_build_rpms
+
+        self._koji_session = self._koji_service.session
+        self._koji_session.listTags.side_effect = self._session_list_tags
+        self._koji_session.listTagged.side_effect = self._session_list_tagged
+
+        return self
+
+    def stop(self):
+        """
+        Stops the Koji mocking.
+        """
+        if self._koji_service:
+            self._mocked_koji_service_patch.stop()
+            self._koji_service = None
+
+    def __enter__(self):
+        return self.start()
+
+    def __exit__(self, *args):
+        self.stop()
+
+
+def mock_koji(f):
+    """
+    Wrapper which mocks the Koji. It adds MockedKoji instance as the last
+    *arg of original ufnction.
+    """
+    @wraps(f)
+    def wrapped(*args, **kwargs):
+        with MockedKoji() as mocked_koji:
+            return f(*args + (mocked_koji, ), **kwargs)
+
+    return wrapped
 
 
 class FedMsgFactory(object):
