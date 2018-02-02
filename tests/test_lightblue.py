@@ -940,37 +940,37 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         })
 
         leaf_image1 = ContainerImage.create({
-            'brew': {'build': 'leaf-image-1'},
+            'brew': {'build': 'leaf-image-1-1'},
             'parsed_data': {'layers': ['fake layer']},
             'repository': 'repo-1',
             'commit': 'leaf-image1-commit',
         })
         leaf_image2 = ContainerImage.create({
-            'brew': {'build': 'leaf-image-2'},
+            'brew': {'build': 'leaf-image-2-1'},
             'parsed_data': {'layers': ['fake layer']},
             'repository': 'repo-1',
             'commit': 'leaf-image2-commit',
         })
         leaf_image3 = ContainerImage.create({
-            'brew': {'build': 'leaf-image-3'},
+            'brew': {'build': 'leaf-image-3-1'},
             'parsed_data': {'layers': ['fake layer']},
             'repository': 'repo-1',
             'commit': 'leaf-image3-commit',
         })
         leaf_image4 = ContainerImage.create({
-            'brew': {'build': 'leaf-image-4'},
+            'brew': {'build': 'leaf-image-4-1'},
             'parsed_data': {'layers': ['fake layer']},
             'repository': 'repo-1',
             'commit': 'leaf-image4-commit',
         })
         leaf_image5 = ContainerImage.create({
-            'brew': {'build': 'leaf-image-5'},
+            'brew': {'build': 'leaf-image-5-1'},
             'parsed_data': {'layers': ['fake layer']},
             'repository': 'repo-1',
             'commit': 'leaf-image5-commit',
         })
         leaf_image6 = ContainerImage.create({
-            'brew': {'build': 'leaf-image-6'},
+            'brew': {'build': 'leaf-image-6-1'},
             'parsed_data': {'layers': ['fake layer']},
             'repository': 'repo-1',
             'commit': 'leaf-image6-commit',
@@ -1004,10 +1004,10 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             [leaf_image3]
         ]
 
-        self.assertEqual(
-            expected_batches,
-            [sorted(images, key=lambda image: image['brew']['build'])
-             for images in batches])
+        returned_batches = [sorted(images, key=lambda image: image['brew']['build'])
+                            for images in batches]
+
+        self.assertEqual(expected_batches, returned_batches)
 
     @patch('freshmaker.lightblue.LightBlue.find_images_with_package_from_content_set')
     @patch('freshmaker.lightblue.LightBlue.find_unpublished_image_for_build')
@@ -1121,3 +1121,70 @@ class TestEntityVersion(helpers.FreshmakerTestCase):
             call('find/containerRepository/', {}),
             call('find/containerImage/', {}),
         ])
+
+
+class TestDeduplicateImagesToRebuild(helpers.FreshmakerTestCase):
+
+    def setUp(self):
+        super(TestDeduplicateImagesToRebuild, self).setUp()
+        self.fake_server_url = 'lightblue.localhost'
+        self.fake_cert_file = 'path/to/cert'
+        self.fake_private_key = 'path/to/private-key'
+
+        self.os_path_exists_patcher = patch("os.path.exists")
+        self.os_path_exists_patcher.start()
+
+        self.lb = LightBlue(server_url=self.fake_server_url,
+                            cert=self.fake_cert_file,
+                            private_key=self.fake_private_key)
+
+    def tearDown(self):
+        super(TestDeduplicateImagesToRebuild, self).tearDown()
+        self.os_path_exists_patcher.stop()
+
+    def _create_img(self, nvr):
+        return ContainerImage.create({
+            'brew': {'build': nvr}
+        })
+
+    def _create_imgs(self, nvrs):
+        images = []
+        for nvr in nvrs:
+            image = self._create_img(nvr)
+            if images:
+                images[len(images) - 1]['parent'] = image
+            images.append(image)
+        return images
+
+    def test_use_highest_nvr(self):
+        httpd = self._create_imgs([
+            "httpd-2.4-12",
+            "s2i-base-1-3",
+            "s2i-core-1-2",
+            "rhel-server-docker-7.4-125",
+        ])
+
+        perl = self._create_imgs([
+            "perl-5.7-1",
+            "s2i-base-1-1",
+            "s2i-core-1-1",
+            "rhel-server-docker-7.4-150",
+        ])
+
+        expected_images = [
+            self._create_imgs([
+                "httpd-2.4-12",
+                "s2i-base-1-3",
+                "s2i-core-1-2",
+                "rhel-server-docker-7.4-150",
+            ]),
+            self._create_imgs([
+                "perl-5.7-1",
+                "s2i-base-1-3",
+                "s2i-core-1-2",
+                "rhel-server-docker-7.4-150",
+            ])
+        ]
+
+        ret = self.lb._deduplicate_images_to_rebuild([httpd, perl])
+        self.assertEqual(ret, expected_images)

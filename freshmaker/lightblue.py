@@ -856,6 +856,73 @@ class LightBlue(object):
             image.resolve_commit(srpm_name)
         return images
 
+    def _deduplicate_images_to_rebuild(self, to_rebuild):
+        """
+        Deduplicates the images to rebuild in `to_rebuild` in-place.
+
+        The `to_rebuild` list is a list in following format:
+            [
+                [child_image, parent_of_child_image, parent_of_parent, ...],
+                ...
+            ]
+
+        This methods goes through all the images in `to_rebuild` list and
+        changes the list in a way that only single image with the highest
+        release will exist for the given image name-version.
+
+        For example, if there are three images in a list - foo-1-2, foo-1-3
+        and foo-2-2, the foo-1-3 will be used instead of foo-1-2 on every
+        occurence in a list, because the NVR is higher than NVR of foo-1-2.
+        The foo-2-2 will be kept unchanged in a list, because it is the
+        single record for the foo image in version 2.
+        """
+        # Temporary dict mapping the NVR of image to coordinates in the
+        # `to_rebuild` list. For example
+        # nvr_to_coordinates["nvr"] = [0, 3] means that the image with
+        # nvr "nvr" is 4th image in the to_rebuild[0] list.
+        nvr_to_coordinates = {}
+        # Temporary dict mapping the NV to list of NVRs. The List of NVRs
+        # is always sorted descending.
+        nv_to_nvrs = {}
+        # Temporary dict mapping the NVR to image.
+        nvr_to_image = {}
+
+        # Constructs the temporary dicts as desribed above.
+        for image_id, images in enumerate(to_rebuild):
+            for parent_id, image in enumerate(images):
+                nvr = image["brew"]["build"]
+                parsed_nvr = koji.parse_NVR(nvr)
+                nv = "%s-%s" % (parsed_nvr["name"], parsed_nvr["version"])
+                if nv not in nv_to_nvrs:
+                    nv_to_nvrs[nv] = []
+                nv_to_nvrs[nv].append(nvr)
+                nvr_to_coordinates[nvr] = [image_id, parent_id]
+                nvr_to_image[nvr] = image
+
+        # Sort the lists in nv_to_nvrs dict.
+        for nv in nv_to_nvrs.keys():
+            nv_to_nvrs[nv].sort(reverse=True)
+
+        # Iterate through list of NVs.
+        for nvrs in nv_to_nvrs.values():
+            # Since nv_to_nvrs is sorted, nvrs[0] is always the NVR
+            # with highest release for given NV.
+            latest_nvr = nvrs[0]
+            # Now replace all others NVR with the highest one.
+            for nvr in nvrs[1:]:
+                # At first replace the image in to_rebuid based
+                # on the coordinates from temp dict.
+                image_id, parent_id = nvr_to_coordinates[nvr]
+                to_rebuild[image_id][parent_id] = nvr_to_image[latest_nvr]
+
+                # And in case this image is not the the leaf image, also replace
+                # the ["parent"] record for the child image to point to the image
+                # with highest NVR.
+                if parent_id != 0:
+                    to_rebuild[image_id][parent_id - 1]["parent"] = nvr_to_image[latest_nvr]
+
+        return to_rebuild
+
     def find_images_to_rebuild(
             self, srpm_name, content_sets, published=True, deprecated=False,
             release_category="Generally Available", filter_fnc=None):
@@ -935,18 +1002,23 @@ class LightBlue(object):
                 to_rebuild.append(rebuild_list)
 
         # The to_rebuild list now contains all the images which need to be
-        # rebuilt, but there are lot of duplicates there - for example for
-        # every RHSCL Docker image, there is s2i-base image (their shared
-        # parent image).
-        # Therefore, group the same parent images from the same inheritance
-        # level to not build them multiple times for each image, but just once.
+        # rebuilt, but there are lot of duplicates there.
 
-        # Using dict for each batch to remove duplicate images
+        # At first remove duplicated images which share the same namd and
+        # version, but different release.
+        to_rebuild = self._deduplicate_images_to_rebuild(to_rebuild)
+
+        # Now create the batches with images. We still might find duplicate
+        # images in batch. For example if the image A depends on X and also
+        # image B depends on X, the X would be in the first batch twice.
+        # We remove duplicates like that using the dict for each batch with
+        # Brew build NVR as a key and add the image to the batch only when
+        # it is not in this dict.
         batches = [{} for i in range(max_len)]
         for image_rebuild_list in to_rebuild:
             for image, batch in zip(reversed(image_rebuild_list), batches):
-                image_key = '{0}_{1}'.format(image['repository'],
-                                             image['commit'])
+                image_key = image["brew"]["build"]
+
                 if image_key not in batch:
                     batch[image_key] = image
 
