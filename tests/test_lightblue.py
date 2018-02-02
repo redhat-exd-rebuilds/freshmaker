@@ -1034,7 +1034,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         self.assertEqual(len(batches), 1)
         self.assertEqual(len(batches[0]), 1)
         self.assertEqual(
-            batches[0][0]["error"],
+            list(batches[0])[0]["error"],
             "Cannot find unpublished version of image, "
             "Lightblue data is probably incomplete")
 
