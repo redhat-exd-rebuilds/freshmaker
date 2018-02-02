@@ -414,7 +414,7 @@ class ContainerBuildHandler(BaseHandler):
         :return: list of repository URLs.
         :rtype: list
         """
-        return [self.odcs_get_compose(rel.compose.id)['result_repofile']
+        return [self.odcs_get_compose(rel.compose.odcs_compose_id)['result_repofile']
                 for rel in build.composes]
 
     def start_to_build_images(self, builds):

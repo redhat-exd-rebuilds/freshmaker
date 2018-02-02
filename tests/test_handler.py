@@ -135,10 +135,10 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
     def setUp(self):
         super(TestGetRepoURLs, self).setUp()
 
-        self.compose_1 = Compose(odcs_compose_id=1)
-        self.compose_2 = Compose(odcs_compose_id=2)
-        self.compose_3 = Compose(odcs_compose_id=3)
-        self.compose_4 = Compose(odcs_compose_id=4)
+        self.compose_1 = Compose(odcs_compose_id=5)
+        self.compose_2 = Compose(odcs_compose_id=6)
+        self.compose_3 = Compose(odcs_compose_id=7)
+        self.compose_4 = Compose(odcs_compose_id=8)
         db.session.add(self.compose_1)
         db.session.add(self.compose_2)
         db.session.add(self.compose_3)
@@ -173,26 +173,15 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
 
         db.session.commit()
 
+        def mocked_odcs_get_compose(compose_id):
+            return {
+                "id": compose_id,
+                "result_repofile": "http://localhost/%d.repo" % compose_id,
+            }
+
         self.patch_odcs_get_compose = patch(
             "freshmaker.handlers.ContainerBuildHandler.odcs_get_compose",
-            side_effect=[
-                {
-                    "id": self.compose_1.id,
-                    "result_repofile": "http://localhost/1.repo",
-                },
-                {
-                    "id": self.compose_2.id,
-                    "result_repofile": "http://localhost/2.repo",
-                },
-                {
-                    "id": self.compose_3.id,
-                    "result_repofile": "http://localhost/3.repo",
-                },
-                {
-                    "id": self.compose_4.id,
-                    "result_repofile": "http://localhost/4.repo",
-                },
-            ])
+            side_effect=mocked_odcs_get_compose)
         self.odcs_get_compose = self.patch_odcs_get_compose.start()
 
     def tearDown(self):
@@ -209,10 +198,10 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
         repos = handler.get_repo_urls(self.build_1)
         self.assertEqual(
             [
-                'http://localhost/1.repo',
-                'http://localhost/2.repo',
-                'http://localhost/3.repo',
-                'http://localhost/4.repo',
+                'http://localhost/5.repo',
+                'http://localhost/6.repo',
+                'http://localhost/7.repo',
+                'http://localhost/8.repo',
             ],
             sorted(repos))
 
