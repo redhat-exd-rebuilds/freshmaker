@@ -148,7 +148,7 @@ class TestViews(helpers.ModelsTestCase):
         for build_id in [1234, 1235, 1236]:
             self.assertIn(build_id, [b['build_id'] for b in builds])
 
-    def test_query_builds_order(self):
+    def test_query_builds_order_by_default(self):
         event = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000003", "RHSA-2018-103", events.TestingEvent)
         build9 = models.ArtifactBuild.create(db.session, event, "make", "module", 1237)
         build9.id = 9
@@ -160,8 +160,46 @@ class TestViews(helpers.ModelsTestCase):
         resp = self.client.get('/api/1/builds/')
         builds = json.loads(resp.get_data(as_text=True))['items']
         self.assertEqual(len(builds), 5)
+        for id, build in zip([9, 8, 3, 2, 1], builds):
+            self.assertEqual(id, build['id'])
+
+    def test_query_builds_order_by_id_asc(self):
+        event = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000003", "RHSA-2018-103", events.TestingEvent)
+        build9 = models.ArtifactBuild.create(db.session, event, "make", "module", 1237)
+        build9.id = 9
+        db.session.commit()
+        build8 = models.ArtifactBuild.create(db.session, event, "attr", "module", 1238)
+        build8.id = 8
+        db.session.commit()
+        db.session.expire_all()
+        resp = self.client.get('/api/1/builds/?order_by=id')
+        builds = json.loads(resp.get_data(as_text=True))['items']
+        self.assertEqual(len(builds), 5)
         for id, build in zip([1, 2, 3, 8, 9], builds):
             self.assertEqual(id, build['id'])
+
+    def test_query_builds_order_by_build_id_desc(self):
+        event = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000003", "RHSA-2018-103", events.TestingEvent)
+        build9 = models.ArtifactBuild.create(db.session, event, "make", "module", 1237)
+        build9.id = 9
+        db.session.commit()
+        build8 = models.ArtifactBuild.create(db.session, event, "attr", "module", 1238)
+        build8.id = 8
+        db.session.commit()
+        db.session.expire_all()
+        resp = self.client.get('/api/1/builds/?order_by=-build_id')
+        builds = json.loads(resp.get_data(as_text=True))['items']
+        self.assertEqual(len(builds), 5)
+        for id, build in zip([8, 9, 3, 2, 1], builds):
+            self.assertEqual(id, build['id'])
+
+    def test_query_builds_order_by_unknown_key(self):
+        resp = self.client.get('/api/1/builds/?order_by=-foo')
+        data = json.loads(resp.get_data(as_text=True))
+        self.assertEqual(data['status'], 400)
+        self.assertEqual(data['error'], 'Bad Request')
+        self.assertTrue(data['message'].startswith(
+            "An invalid order_by key was suplied, allowed keys are"))
 
     def test_query_builds_by_name(self):
         resp = self.client.get('/api/1/builds/?name=ed')
@@ -292,6 +330,24 @@ class TestViews(helpers.ModelsTestCase):
         evs = json.loads(resp.get_data(as_text=True))['items']
         self.assertEqual(len(evs), 1)
         self.assertEqual(evs[0]['search_key'], 'RHSA-2018-101')
+
+    def test_query_event_order_by_default(self):
+        resp = self.client.get('/api/1/events/')
+        evs = json.loads(resp.get_data(as_text=True))['items']
+        for id, build in zip([2, 1], evs):
+            self.assertEqual(id, build['id'])
+
+    def test_query_event_order_by_id_asc(self):
+        resp = self.client.get('/api/1/events/?order_by=id')
+        evs = json.loads(resp.get_data(as_text=True))['items']
+        for id, build in zip([1, 2], evs):
+            self.assertEqual(id, build['id'])
+
+    def test_query_event_order_by_id_message_id_desc(self):
+        resp = self.client.get('/api/1/events/?order_by=-message_id')
+        evs = json.loads(resp.get_data(as_text=True))['items']
+        for id, build in zip([2, 1], evs):
+            self.assertEqual(id, build['id'])
 
     def test_query_event_types(self):
         resp = self.client.get('/api/1/event-types/')
