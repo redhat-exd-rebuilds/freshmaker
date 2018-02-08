@@ -941,6 +941,39 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
         self.mock_request_boot_iso_compose.assert_called_once_with(
             batches[0][0])
 
+    def test_no_parent(self):
+        batches = [
+            [ContainerImage({
+                "brew": {
+                    "completion_date": "20170420T17:05:37.000-0400",
+                    "build": "rhel-server-docker-7.3-82",
+                    "package": "rhel-server-docker"
+                },
+                'parsed_data': {
+                    'layers': [
+                        'sha512:12345678980',
+                        'sha512:10987654321'
+                    ]
+                },
+                "content_sets": ["content-set-1"],
+                "repository": "repo-1",
+                "commit": "123456789",
+                "target": "target-candidate",
+                "git_branch": "rhel-7",
+                "error": "Some error occurs while getting this image."
+            })]
+        ]
+
+        handler = ErrataAdvisoryRPMsSignedHandler()
+        handler._record_batches(batches, self.mock_event)
+
+        query = db.session.query(ArtifactBuild)
+        build = query.filter(
+            ArtifactBuild.original_nvr == 'rhel-server-docker-7.3-82'
+        ).first()
+
+        self.assertEqual(ArtifactBuildState.FAILED.value, build.state)
+
     def test_mark_failed_state_if_image_has_error(self):
         batches = [
             [ContainerImage({

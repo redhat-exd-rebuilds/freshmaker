@@ -500,7 +500,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                     continue
                 self.log_debug("Recording %s", nvr)
                 parent_nvr = image["parent"]["brew"]["build"] \
-                    if image["parent"] else None
+                    if "parent" in image and image["parent"] else None
                 dep_on = builds[parent_nvr] if parent_nvr in builds else None
 
                 # If this container image depends on another container image
