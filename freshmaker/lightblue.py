@@ -204,20 +204,11 @@ class ContainerImage(dict):
         Uses the ContainerImage data to resolve the information about
         commit from which the Docker image has been built.
 
-        Sets the "repository, "commit" and "srpm_nevra" keys/values if
-        available.
+        Sets the "repository and "commit" keys/values if available.
 
         :param str srpm_name: Name of the package because of which the Docker
                               image is rebuilt.
         """
-        srpm_nevra = None
-        if ("rpm_manifest" in self and len(self['rpm_manifest']) > 0 and
-                "rpms" in self["rpm_manifest"]):
-            for rpm in self["rpm_manifest"]['rpms']:
-                if "srpm_name" in rpm and rpm["srpm_name"] == srpm_name:
-                    srpm_nevra = rpm['srpm_nevra']
-                    break
-
         # Find the additional data for Container build in Koji.
         nvr = self["brew"]["build"]
         try:
@@ -228,7 +219,6 @@ class ContainerImage(dict):
             data = self._get_default_additional_data()
             data["error"] = err
 
-        data["srpm_nevra"] = srpm_nevra
         self.update(data)
 
     def resolve_content_sets(
@@ -686,16 +676,36 @@ class LightBlue(object):
             },
             "projection": self._get_default_projection()
         }
-        if srpm_name:
-            query['query']['$and'].append({
-                "field": "rpm_manifest.*.rpms.*.srpm_name",
-                "op": "=",
-                "rvalue": srpm_name
-            })
 
         images = self.find_container_images(query)
         if not images:
             return None
+
+        # Filter out images which do not contain srpm_name locally, because
+        # filtering in lightblue takes long time and can even timeout
+        # server-side.
+        # We expect just at max 2 images here, published and unpublished, so
+        # it is not big deal doing so.
+        if srpm_name:
+            tmp = []
+            for image in images:
+                if "rpm_manifest" not in image or not image["rpm_manifest"]:
+                    continue
+                # There can be just single "rpm_manifest". Lightblue returns
+                # this as a list, because it is reference to
+                # containerImageRPMManifest.
+                rpm_manifest = image["rpm_manifest"][0]
+                if "rpms" not in rpm_manifest:
+                    continue
+                rpms = rpm_manifest["rpms"]
+                for rpm in rpms:
+                    if "srpm_name" in rpm and rpm["srpm_name"] == srpm_name:
+                        tmp.append(image)
+                        break
+            images = tmp
+            if not images:
+                return None
+
         for image in images:
             # we should prefer published image
             if 'repositories' in image:

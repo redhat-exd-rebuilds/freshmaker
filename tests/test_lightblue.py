@@ -157,7 +157,7 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
                 'build': 'package-name-1-4-12.10',
                 'package': 'package-name-1'
             },
-            'rpm_manifest': {
+            'rpm_manifest': [{
                 'rpms': [
                     {
                         "srpm_name": "openssl",
@@ -168,7 +168,7 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
                         "srpm_nevra": "testpackage-10:1.2.3-1.src"
                     }
                 ]
-            }
+            }]
         })
 
         get_build.return_value = {"task_id": 123456}
@@ -179,7 +179,6 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
         self.assertEqual(image["repository"], "rpms/repo-1")
         self.assertEqual(image["commit"], "commit_hash1")
         self.assertEqual(image["target"], "target1")
-        self.assertEqual(image["srpm_nevra"], "openssl-0:1.2.3-1.src")
 
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')
@@ -191,7 +190,7 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
                 'build': 'package-name-1-4-12.10',
                 'package': 'package-name-1'
             },
-            'rpm_manifest': {
+            'rpm_manifest': [{
                 'rpms': [
                     {
                         "srpm_name": "openssl",
@@ -202,7 +201,7 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
                         "srpm_nevra": "testpackage-10:1.2.3-1.src"
                     }
                 ]
-            }
+            }]
         })
 
         get_build.return_value = {}
@@ -211,7 +210,6 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
         self.assertEqual(image["repository"], None)
         self.assertEqual(image["commit"], None)
         self.assertEqual(image["target"], None)
-        self.assertEqual(image["srpm_nevra"], "openssl-0:1.2.3-1.src")
         self.assertTrue(image["error"].find(
             "Cannot find Koji build with nvr package-name-1-4-12.10 in "
             "Koji.") != -1)
@@ -226,7 +224,7 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
                 'build': 'package-name-1-4-12.10',
                 'package': 'package-name-1'
             },
-            'rpm_manifest': {
+            'rpm_manifest': [{
                 'rpms': [
                     {
                         "srpm_name": "openssl",
@@ -237,7 +235,7 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
                         "srpm_nevra": "testpackage-10:1.2.3-1.src"
                     }
                 ]
-            }
+            }]
         })
 
         get_build.return_value = {"task_id": None}
@@ -246,7 +244,6 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
         self.assertEqual(image["repository"], None)
         self.assertEqual(image["commit"], None)
         self.assertEqual(image["target"], None)
-        self.assertEqual(image["srpm_nevra"], "openssl-0:1.2.3-1.src")
         self.assertTrue(image["error"].find(
             "Cannot find task_id or container_koji_task_id in the Koji build "
             "{'task_id': None}") != -1)
@@ -364,7 +361,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                         }
                     ],
                 },
-                'rpm_manifest': {
+                'rpm_manifest': [{
                     'rpms': [
                         {
                             "srpm_name": "openssl",
@@ -375,7 +372,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                             "srpm_nevra": "testpackage-10:1.2.3-1.src"
                         }
                     ]
-                }
+                }]
             },
             {
                 'brew': {
@@ -400,7 +397,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                         }
                     ],
                 },
-                'rpm_manifest': {
+                'rpm_manifest': [{
                     'rpms': [
                         {
                             "srpm_name": "openssl",
@@ -411,7 +408,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                             "srpm_nevra": "testpackage2-10:1.2.3-1.src"
                         }
                     ]
-                }
+                }]
             },
         ]
 
@@ -722,7 +719,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                              {
                                  "repository": "rpms/repo-1",
                                  "commit": "commit_hash1",
-                                 "srpm_nevra": "openssl-0:1.2.3-1.src",
                                  "target": "target1",
                                  "git_branch": "mybranch",
                                  "error": None,
@@ -742,7 +738,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                          }
                                      ]
                                  },
-                                 'rpm_manifest': {
+                                 'rpm_manifest': [{
                                      'rpms': [
                                          {
                                              "srpm_name": "openssl",
@@ -753,12 +749,11 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                              "srpm_nevra": "testpackage-10:1.2.3-1.src"
                                          }
                                      ]
-                                 }
+                                 }]
                              },
                              {
                                  "repository": "rpms/repo-2",
                                  "commit": "commit_hash2",
-                                 "srpm_nevra": "openssl-1:1.2.3-1.src",
                                  "target": "target2",
                                  "git_branch": "mybranch",
                                  "error": None,
@@ -783,7 +778,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                          }
                                      ]
                                  },
-                                 'rpm_manifest': {
+                                 'rpm_manifest': [{
                                      'rpms': [
                                          {
                                              "srpm_name": "openssl",
@@ -794,7 +789,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                              "srpm_nevra": "testpackage2-10:1.2.3-1.src"
                                          }
                                      ]
-                                 }
+                                 }]
                              }
                          ])
 
@@ -833,6 +828,50 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         self.assertEqual(1, len(ret))
         self.assertEqual(ret[0]["brew"]["package"], "package-name-1")
         self.assertEqual(ret[0]["content_sets"], set(["content-set"]))
+
+    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @patch('os.path.exists')
+    def test_parent_images_no_rpm_manifest(self,  exists, cont_images):
+        exists.return_value = True
+        images_without_rpm_manifest = []
+        for data in self.fake_images_with_parsed_data:
+            img = ContainerImage.create(data)
+            del img["rpm_manifest"]
+            images_without_rpm_manifest.append(img)
+
+        cont_images.side_effect = [images_without_rpm_manifest, [],
+                                   images_without_rpm_manifest]
+
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key)
+        ret = lb.find_parent_images_with_package(
+            self.fake_container_images[0], "openssl",
+            ["layer0", "layer1", "layer2", "layer3"])
+
+        self.assertEqual(0, len(ret))
+
+    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @patch('os.path.exists')
+    def test_parent_images_empty_rpm_manifest(self,  exists, cont_images):
+        exists.return_value = True
+        images_without_rpm_manifest = []
+        for data in self.fake_images_with_parsed_data:
+            img = ContainerImage.create(data)
+            img["rpm_manifest"] = []
+            images_without_rpm_manifest.append(img)
+
+        cont_images.side_effect = [images_without_rpm_manifest, [],
+                                   images_without_rpm_manifest]
+
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key)
+        ret = lb.find_parent_images_with_package(
+            self.fake_container_images[0], "openssl",
+            ["layer0", "layer1", "layer2", "layer3"])
+
+        self.assertEqual(0, len(ret))
 
     @patch('freshmaker.lightblue.LightBlue.find_content_sets_for_repository')
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
