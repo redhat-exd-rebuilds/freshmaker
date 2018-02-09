@@ -358,13 +358,6 @@ class ContainerBuildHandler(BaseHandler):
             return
 
         args = json.loads(build.build_args)
-        if not args["parent"]:
-            # TODO: Rebuild base image.
-            build.transition(
-                ArtifactBuildState.FAILED.value,
-                "Rebuild of container base image is not supported yet.")
-            return
-
         scm_url = "%s/%s#%s" % (conf.git_base_url, args["repository"],
                                 args["commit"])
         branch = args["branch"]
@@ -414,8 +407,19 @@ class ContainerBuildHandler(BaseHandler):
         :return: list of repository URLs.
         :rtype: list
         """
-        return [self.odcs_get_compose(rel.compose.odcs_compose_id)['result_repofile']
-                for rel in build.composes]
+        repo_urls = []
+
+        # At first include image_extra_repos if any for this name-version.
+        if build.original_nvr:
+            parsed_nvr = parse_NVR(build.original_nvr)
+            name_version = "%s-%s" % (parsed_nvr["name"], parsed_nvr["version"])
+            if name_version in conf.image_extra_repo:
+                repo_urls.append(conf.image_extra_repo[name_version])
+
+        repo_urls += [self.odcs_get_compose(rel.compose.odcs_compose_id)['result_repofile']
+                     for rel in build.composes]
+
+        return repo_urls
 
     def start_to_build_images(self, builds):
         """Start to build images
