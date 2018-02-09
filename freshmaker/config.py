@@ -193,6 +193,12 @@ class Config(object):
             'default': {},
             'desc': 'Whitelist for build targets of handlers',
         },
+        'image_extra_repo': {
+            'type': dict,
+            'default': {},
+            'desc': 'Dict with base container "name-version" as key and URL '
+                    'to extra .repo file to include in a rebuild',
+        },
         'lightblue_server_url': {
             'type': str,
             'default': '',

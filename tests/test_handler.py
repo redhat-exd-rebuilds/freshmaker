@@ -205,6 +205,18 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
             ],
             sorted(repos))
 
+    @patch.object(freshmaker.conf, 'image_extra_repo', new={
+        'build-3': "http://localhost/test.repo"
+    })
+    def test_get_repo_urls_extra_image_repo(self):
+        build_3 = ArtifactBuild.create(
+            db.session, self.event, 'build-3', ArtifactType.IMAGE,
+            state=ArtifactBuildState.PLANNED, original_nvr="build-3-1")
+
+        handler = MyHandler()
+        repos = handler.get_repo_urls(build_3)
+        self.assertEqual(repos, ["http://localhost/test.repo"])
+
 
 class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
     """Test BaseHandler.allow_build"""
