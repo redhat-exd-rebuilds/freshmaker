@@ -64,9 +64,12 @@ class GitReceiveParser(BaseParser):
         log.debug(namespace)
 
         if namespace == "modules":
-            log.debug("Parsed GitModuleMetadataChangeEvent fedmsg, repo=%s, "
-                      "branch=%s, rev=%s", repo, branch, rev)
-            return GitModuleMetadataChangeEvent(msg_id, repo, branch, rev)
+            changed_files = commit.get('stats', {}).get('files', {}).keys()
+            metadata_changed = '%s.yaml' % repo in changed_files
+            if metadata_changed:
+                log.debug("Parsed GitModuleMetadataChangeEvent fedmsg, repo=%s, "
+                          "branch=%s, rev=%s", repo, branch, rev)
+                return GitModuleMetadataChangeEvent(msg_id, repo, branch, rev)
 
         elif namespace == 'container':
             changed_files = msg['msg']['commit']['stats']['files']
