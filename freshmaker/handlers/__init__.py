@@ -417,7 +417,7 @@ class ContainerBuildHandler(BaseHandler):
                 repo_urls.append(conf.image_extra_repo[name_version])
 
         repo_urls += [self.odcs_get_compose(rel.compose.odcs_compose_id)['result_repofile']
-                     for rel in build.composes]
+                      for rel in build.composes]
 
         return repo_urls
 

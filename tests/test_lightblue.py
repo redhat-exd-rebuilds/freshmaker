@@ -831,7 +831,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
 
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('os.path.exists')
-    def test_parent_images_no_rpm_manifest(self,  exists, cont_images):
+    def test_parent_images_no_rpm_manifest(self, exists, cont_images):
         exists.return_value = True
         images_without_rpm_manifest = []
         for data in self.fake_images_with_parsed_data:
@@ -853,7 +853,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
 
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('os.path.exists')
-    def test_parent_images_empty_rpm_manifest(self,  exists, cont_images):
+    def test_parent_images_empty_rpm_manifest(self, exists, cont_images):
         exists.return_value = True
         images_without_rpm_manifest = []
         for data in self.fake_images_with_parsed_data:
