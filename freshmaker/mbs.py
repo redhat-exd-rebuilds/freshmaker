@@ -64,6 +64,12 @@ class MBS(object):
 
         resp = requests.request("POST", url, headers=headers, json=body)
         data = resp.json()
+        if data['status'] == 409:
+            # MBS HTTP 409 Conflict - The submitted module's NVR already exists.
+            # if module has been built already, we should just ignore it
+            log.info("Module (%s) is already exists in MBS", scm_url)
+            return None
+
         if 'id' in data:
             log.info("Triggered build of %s, MBS build_id=%s", scm_url, data['id'])
             return data['id']
