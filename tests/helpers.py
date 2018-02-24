@@ -395,14 +395,12 @@ class KojiTaskStateChangeMessage(FedMsgFactory):
 
 
 class PDCModuleInfoFactory(object):
-    def __init__(self, name, version, release, active=True):
-        self.variant_name = name
-        self.variant_version = version
-        self.variant_release = release
+    def __init__(self, name, stream, version, active=True):
+        self.name = name
+        self.stream = stream
+        self.version = version
         self.active = active
-        self.variant_uid = "%s-%s-%s" % (name, version, release)
-        self.variant_id = name
-        self.variant_type = 'module'
+        self.uid = "%s-%s-%s" % (name, stream, version)
         self.modulemd = ''
         self.build_deps = []
         self.runtime_deps = []
@@ -412,12 +410,9 @@ class PDCModuleInfoFactory(object):
     def produce(self):
         module = {
             'active': self.active,
-            'variant_type': self.variant_type,
-            'variant_id': self.variant_id,
-            'variant_name': self.variant_name,
-            'variant_version': self.variant_version,
-            'variant_release': self.variant_release,
-            'variant_uid': self.variant_uid,
+            'name': self.name,
+            'stream': self.stream,
+            'version': self.version,
             'modulemd': self.modulemd,
             'koji_tag': self.koji_tag,
             'build_deps': self.build_deps,
