@@ -89,8 +89,8 @@ class MBSModuleStateChangeHandler(BaseHandler):
                                              active='true')
 
             for mod in modules:
-                name = mod['variant_name']
-                version = mod['variant_version']
+                name = mod['name']
+                version = mod['stream']
                 if not self.allow_build(ArtifactType.MODULE, name=name, branch=version):
                     log.info("Skip rebuild of %s:%s as it's not allowed by configured whitelist",
                              name, version)

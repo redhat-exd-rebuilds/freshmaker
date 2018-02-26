@@ -52,8 +52,8 @@ class GitRPMSpecChangeHandler(BaseHandler):
                                          active='true')
 
         for module in modules:
-            name = module['variant_name']
-            version = module['variant_version']
+            name = module['name']
+            version = module['stream']
             if not self.allow_build(ArtifactType.MODULE, name=name, branch=version):
                 log.info("Skip rebuild of %s:%s as it's not allowed by configured whitelist",
                          name, version)

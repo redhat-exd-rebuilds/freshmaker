@@ -64,9 +64,9 @@ class PDC(object):
         modules = self.get_modules(**kwargs)
         active = kwargs.get('active', 'true')
         latest_modules = []
-        for (name, version) in set([(m.get('variant_name'), m.get('variant_version')) for m in modules]):
-            mods = self.get_modules(variant_name=name, variant_version=version, active=active)
-            latest_modules.append(sorted(mods, key=lambda x: x['variant_release']).pop())
+        for (name, stream) in set([(m.get('name'), m.get('stream')) for m in modules]):
+            mods = self.get_modules(name=name, stream=stream, active=active)
+            latest_modules.append(sorted(mods, key=lambda x: x['version']).pop())
         return list(filter(lambda x: x in latest_modules, modules))
 
     @freshmaker.utils.retry(wait_on=(requests.Timeout, requests.ConnectionError), logger=freshmaker.log)
@@ -77,7 +77,7 @@ class PDC(object):
         :param kwargs: query parameters in keyword arguments
         :return: a list of modules
         """
-        modules = self.session['unreleasedvariants'](page_size=-1, **kwargs)
+        modules = self.session['modules'](page_size=-1, **kwargs)
         return modules
 
     @freshmaker.utils.retry(wait_on=(requests.Timeout, requests.ConnectionError), logger=freshmaker.log)

@@ -99,10 +99,10 @@ class MBSModuleStateChangeHandlerTest(helpers.ModelsTestCase):
         self.assertEqual(event_list[0].message_id, event.msg_id)
         builds = models.ArtifactBuild.query.all()
         self.assertEqual(len(builds), 2)
-        self.assertEqual(builds[0].name, mod2_r1['variant_name'])
+        self.assertEqual(builds[0].name, mod2_r1['name'])
         self.assertEqual(builds[0].type, ArtifactType.MODULE.value)
         self.assertEqual(builds[0].build_id, 123)
-        self.assertEqual(builds[1].name, mod3_r1['variant_name'])
+        self.assertEqual(builds[1].name, mod3_r1['name'])
         self.assertEqual(builds[1].build_id, 456)
         self.assertEqual(builds[1].type, ArtifactType.MODULE.value)
 
