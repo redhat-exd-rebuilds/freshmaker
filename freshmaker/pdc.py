@@ -22,8 +22,9 @@
 
 import inspect
 import requests
+import concurrent.futures
+from itertools import groupby
 from pdc_client import PDCClient
-
 import freshmaker.utils
 
 
@@ -52,22 +53,36 @@ class PDC(object):
                 insecure=self.config.pdc_insecure,
             )
 
-    def get_latest_modules(self, **kwargs):
-        """
-        Query PDC with query parameters in kwargs and return a list of modules
-        which contains latest modules of each (module_name, module_version).
+    def is_latest_module(self, module):
+        """Check if given module is the latest one in the name:stream in PDC"""
+        data = self.get_modules(
+            name=module['name'],
+            stream=module['stream'],
+            fields='version',
+            ordering='-version',
+            page_size=1)
+        return data['results'][0]['version'] == module['version']
 
-        :param kwargs: query parameters in keyword arguments, should only provide
-                    valid query parameters supported by PDC's module query API.
-        :return: a list of modules
-        """
-        modules = self.get_modules(**kwargs)
-        active = kwargs.get('active', 'true')
-        latest_modules = []
-        for (name, stream) in set([(m.get('name'), m.get('stream')) for m in modules]):
-            mods = self.get_modules(name=name, stream=stream, active=active)
-            latest_modules.append(sorted(mods, key=lambda x: x['version']).pop())
-        return list(filter(lambda x: x in latest_modules, modules))
+    def get_latest_modules(self, **criteria):
+        criteria.update({
+            'fields': ['uid', 'name', 'stream', 'version'],
+            'ordering': 'name,stream,-version',
+        })
+        modules = self.get_modules(**criteria)
+
+        def _return_module_if_latest(module):
+            return module if self.is_latest_module(module) else None
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+            futures = [
+                executor.submit(_return_module_if_latest,
+                                list(stream_modules)[0])
+                for name_stream, stream_modules in groupby(
+                    modules, key=lambda m: '%(name)s:%(stream)s' % m)
+            ]
+            concurrent.futures.wait(futures)
+
+        return [m for m in (f.result() for f in futures) if m]
 
     @freshmaker.utils.retry(wait_on=(requests.Timeout, requests.ConnectionError), logger=freshmaker.log)
     def get_modules(self, **kwargs):
@@ -77,7 +92,8 @@ class PDC(object):
         :param kwargs: query parameters in keyword arguments
         :return: a list of modules
         """
-        modules = self.session['modules'](page_size=-1, **kwargs)
+        page_size = kwargs.pop('page_size', -1)
+        modules = self.session['modules'](page_size=page_size, **kwargs)
         return modules
 
     @freshmaker.utils.retry(wait_on=(requests.Timeout, requests.ConnectionError), logger=freshmaker.log)
