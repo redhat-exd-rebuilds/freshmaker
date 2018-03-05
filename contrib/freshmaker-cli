@@ -139,60 +139,66 @@ def get_api_url(deployment, env):
     return envs[env]
 
 
-def get_events_from_builds(api_url, rebuilt_nvr=None, original_nvr=None,
-                           name=None):
-    page = 1
-    ids = []
-    while True:
-        print("Getting messages from Freshmaker, page", page)
-        url = '%s/api/1/builds?page=%d&per_page=100' % (api_url, page)
-        if rebuilt_nvr:
-            url += "&rebuilt_nvr=" + rebuilt_nvr
-        if original_nvr:
-            url += "&original_nvr=" + original_nvr
-        if name:
-            url += "&name=" + name
+def _get_freshmaker_items(url, params, limit=None):
+    """
+    Sends the GET request to `url` with URL params `params`. Returns the
+    "items" list of returned JSON data. When `limit` is set, returns only N
+    items.
+    """
+    params["page"] = 1
+    if not limit or limit > 100:
+        params["per_page"] = 100
+    else:
+        params["per_page"] = limit
 
-        r = requests.get(url, verify=False)
-        page += 1
+    ret_items = []
+    while True:
+        print("Getting messages from Freshmaker, page", params["page"])
+        r = requests.get(url, verify=False, params=params)
         ret = r.json()
         items = ret["items"]
         if not items:
             break
-        for item in items:
-            if item["event_id"] not in ids:
-                ids.append(item["event_id"])
+        ret_items += items
 
+        if limit:
+            items_count = len(ret_items)
+            if items_count >= limit or items_count == 0:
+                break
+            elif limit - items_count < params["per_page"]:
+                params["per_page"] = limit - items_count
+
+        params["page"] = params["page"] + 1
+    return ret_items
+
+
+def get_events_from_builds(api_url, **kwargs):
+    params = {}
+    for key, value in kwargs.items():
+        if value:
+            params[key] = value
+    builds = _get_freshmaker_items("%s/api/1/builds" % api_url, params)
+    ids = set([build["event_id"] for build in builds])
     return get_freshmaker_events_by_ids(api_url, ids)
 
 
 def get_freshmaker_events(api_url, search_key=None, rebuilt_nvr=None,
-                          original_nvr=None, name=None, states=None):
+                          original_nvr=None, name=None, states=None,
+                          limit=None):
     if rebuilt_nvr or original_nvr or name:
-        return get_events_from_builds(api_url, rebuilt_nvr, original_nvr,
-                                      name)
+        return get_events_from_builds(
+            api_url, rebuilt_nvr=rebuilt_nvr, original_nvr=original_nvr,
+            name=name)
 
-    page = 1
-    events = []
-    while True:
-        print("Getting messages from Freshmaker, page", page)
-        url = '%s/api/1/events?page=%d&per_page=100' % (api_url, page)
-        if search_key:
-            url += "&search_key=" + search_key
-
-        r = requests.get(url, verify=False)
-        page += 1
-        ret = r.json()
-        items = ret["items"]
-        if not items:
-            break
-        events += items
-
+    params = {}
     if states:
-        events = filter(
-            lambda x: EVENT_STATES[x["state"]] in states, events)
+        params["state"] = [EVENT_STATES.index(state) for state in states]
+    if search_key:
+        params["search_key"] = search_key
 
-    events = sorted(events, key=lambda k: k['id'])
+    events = _get_freshmaker_items("%s/api/1/events" % api_url, params,
+                                   limit=limit)
+    events.reverse()
     return events
 
 
@@ -334,6 +340,9 @@ parser.add_argument(
 parser.add_argument(
     '--state', default=None, action="append",
     help="Limit the query only for events/builds in given state")
+parser.add_argument(
+    '--limit', default=10, type=int,
+    help="Return only last N events")
 args = parser.parse_args()
 
 if args.redhat:
@@ -361,7 +370,8 @@ if not args.events:
     events = get_freshmaker_events(api_url, search_key=args.search_key,
                                    rebuilt_nvr=args.rebuilt_nvr,
                                    original_nvr=args.original_nvr,
-                                   name=args.name, states=args.state)
+                                   name=args.name, states=args.state,
+                                   limit=args.limit)
     print_events(events)
 else:
     events = get_freshmaker_events_by_ids(api_url, args.events)
