@@ -205,7 +205,9 @@ class TestBrewContainerTaskStateChangeHandler(helpers.ModelsTestCase):
         koji_service = KojiService.return_value
         koji_service.get_build_rpms.return_value = [
             {'build_id': 634904, 'nvr': 'foo-debuginfo-1.2.1-22.el7', 'name': 'foo-debuginfo'},
-            {'build_id': 634904, 'nvr': 'foo-1.2.1-22.el7', 'name': 'foo'}
+            {'build_id': 634904, 'nvr': 'foo-1.2.1-22.el7', 'name': 'foo'},
+            {'build_id': 634904, 'nvr': 'foo-debuginfo-1.1.1-22.el7', 'name': 'foo-debuginfo'},
+            {'build_id': 634904, 'nvr': 'foo-1.1.1-22.el7', 'name': 'foo'},
         ]
         koji_service.get_rpms_in_container.return_value = set(
             ['foo-1.2.1-22.el7', 'bar-1.2.3-1.el7']
@@ -231,7 +233,9 @@ class TestBrewContainerTaskStateChangeHandler(helpers.ModelsTestCase):
         koji_service = KojiService.return_value
         koji_service.get_build_rpms.return_value = [
             {'build_id': 634904, 'nvr': 'foo-debuginfo-1.2.1-23.el7', 'name': 'foo-debuginfo'},
-            {'build_id': 634904, 'nvr': 'foo-1.2.1-23.el7', 'name': 'foo'}
+            {'build_id': 634904, 'nvr': 'foo-1.2.1-23.el7', 'name': 'foo'},
+            {'build_id': 634904, 'nvr': 'foo-debuginfo-1.1.1-22.el7', 'name': 'foo-debuginfo'},
+            {'build_id': 634904, 'nvr': 'foo-1.1.1-22.el7', 'name': 'foo'},
         ]
         koji_service.get_rpms_in_container.return_value = set(
             ['foo-1.2.1-22.el7', 'bar-1.2.3-1.el7']

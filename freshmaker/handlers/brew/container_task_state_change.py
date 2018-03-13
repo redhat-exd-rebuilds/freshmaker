@@ -140,8 +140,10 @@ class BrewContainerTaskStateChangeHandler(ContainerBuildHandler):
         if conf.dry_run:
             return (True, '')
 
-        # get rpms in advisory
-        advisory_rpms = set()
+        # Get rpms in advisory. There can be multiple versions of RPMs with
+        # the same name, so we group them by a name in `advisory_rpms_by_name`
+        # and use set of the nvrs as a value.
+        advisory_rpms_by_name = {}
         e = Errata()
         build_nvrs = e.get_builds(errata_id)
         if build_nvrs:
@@ -149,18 +151,25 @@ class BrewContainerTaskStateChangeHandler(ContainerBuildHandler):
                 for build_nvr in build_nvrs:
                     build_rpms = session.get_build_rpms(build_nvr)
                     for rpm in build_rpms:
-                        advisory_rpms.add(rpm['nvr'])
+                        if rpm['name'] not in advisory_rpms_by_name:
+                            advisory_rpms_by_name[rpm['name']] = set()
+                        advisory_rpms_by_name[rpm['name']].add(rpm['nvr'])
 
         # get rpms in container
         with koji_service(conf.koji_profile, log, login=False) as session:
-            components = session.get_rpms_in_container(container_build_id)
+            container_rpms = session.get_rpms_in_container(container_build_id)
+            container_rpms_by_name = {
+                rpmlib.parse_nvr(x)['name']: x for x in container_rpms}
 
-        # compare rpms from advisory and container
+        # For each RPM name in advisory, check that the RPM exists in the
+        # built container and its version is the same as one RPM in the
+        # advisory.
         unmatched_rpms = []
-        container_rpm_names = [rpmlib.parse_nvr(x)['name'] for x in components]
-        for rpm in advisory_rpms:
-            rpm_name = rpmlib.parse_nvr(rpm)['name']
-            if rpm_name in container_rpm_names and rpm not in components:
+        for rpm_name, nvrs in advisory_rpms_by_name.items():
+            if rpm_name not in container_rpms_by_name:
+                continue
+            container_rpm_nvr = container_rpms_by_name[rpm_name]
+            if container_rpm_nvr not in nvrs:
                 unmatched_rpms.append(rpm_name)
 
         if unmatched_rpms:
