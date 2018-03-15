@@ -225,6 +225,18 @@ class TestAllowBuild(helpers.ModelsTestCase):
 class TestBatches(helpers.ModelsTestCase):
     """Test handling of batches"""
 
+    def setUp(self):
+        super(TestBatches, self).setUp()
+        self.should_generate_yum_repourls_patcher = patch(
+            'freshmaker.handlers.errata.'
+            'ErrataAdvisoryRPMsSignedHandler._should_generate_yum_repourls',
+            return_value=True)
+        self.should_generate_yum_repourls = \
+            self.should_generate_yum_repourls_patcher.start()
+
+    def tearDown(self):
+        self.should_generate_yum_repourls_patcher.stop()
+
     def _mock_build(self, build, parent=None, error=None):
         if parent:
             parent = {"brew": {"build": parent + "-1-1.25"}}
@@ -759,12 +771,20 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
         self.mock_request_boot_iso_compose = \
             self.request_boot_iso_compose_patcher.start()
 
+        self.should_generate_yum_repourls_patcher = patch(
+            'freshmaker.handlers.errata.'
+            'ErrataAdvisoryRPMsSignedHandler._should_generate_yum_repourls',
+            return_value=True)
+        self.should_generate_yum_repourls = \
+            self.should_generate_yum_repourls_patcher.start()
+
     def tearDown(self):
         super(TestRecordBatchesImages, self).tearDown()
 
         self.request_boot_iso_compose_patcher.stop()
         self.prepare_pulp_repo_patcher.stop()
         self.event_types_patcher.stop()
+        self.should_generate_yum_repourls_patcher.stop()
 
     def test_record_batches(self):
         batches = [
@@ -848,6 +868,43 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
         self.assertNotEqual(None, child_image)
         self.assertEqual(parent_image, child_image.dep_on)
         self.assertEqual(ArtifactBuildState.PLANNED.value, child_image.state)
+
+    def test_record_batches_should_not_generate_pulp_repos(self):
+        self.should_generate_yum_repourls.return_value = False
+        batches = [
+            [ContainerImage({
+                "brew": {
+                    "completion_date": "20170420T17:05:37.000-0400",
+                    "build": "rhel-server-docker-7.3-82",
+                    "package": "rhel-server-docker"
+                },
+                'parsed_data': {
+                    'layers': [
+                        'sha512:12345678980',
+                        'sha512:10987654321'
+                    ]
+                },
+                "parent": None,
+                "content_sets": ["content-set-1"],
+                "repository": "repo-1",
+                "commit": "123456789",
+                "target": "target-candidate",
+                "git_branch": "rhel-7",
+                "error": None
+            })]
+        ]
+
+        handler = ErrataAdvisoryRPMsSignedHandler()
+        handler._record_batches(batches, self.mock_event)
+
+        # Check parent image
+        query = db.session.query(ArtifactBuild)
+        parent_image = query.filter(
+            ArtifactBuild.original_nvr == 'rhel-server-docker-7.3-82'
+        ).first()
+        self.assertNotEqual(None, parent_image)
+        self.assertEqual(ArtifactBuildState.PLANNED.value, parent_image.state)
+        self.mock_prepare_pulp_repo.assert_not_called()
 
     @unittest.skip('Enable again when enable to request boot.iso compose')
     def test_pulp_compose_is_stored_for_each_build(self):

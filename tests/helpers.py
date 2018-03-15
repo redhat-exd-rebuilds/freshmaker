@@ -44,6 +44,31 @@ BUILD_STATES = {
 }
 
 
+class AnyStringWith(str):
+    def __eq__(self, other):
+        return self in other
+
+
+class Patcher(object):
+    def __init__(self, prefix=None):
+        self.prefix = prefix or ""
+        self.patchers = []
+
+    def patch(self, name, *args, **kwargs):
+        if name.startswith("freshmaker."):
+            prefix = ""
+        else:
+            prefix = self.prefix
+        patcher = patch("%s%s" % (prefix, name), *args, **kwargs)
+        self.patchers.append(patcher)
+        patched_object = patcher.start()
+        return patched_object
+
+    def unpatch_all(self):
+        for patcher in self.patchers:
+            patcher.stop()
+
+
 class FreshmakerTestCase(unittest.TestCase):
 
     def setUp(self):

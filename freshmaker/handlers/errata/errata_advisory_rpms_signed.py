@@ -25,6 +25,8 @@
 import json
 import koji
 import requests
+import yaml
+import os
 
 from six.moves import cStringIO
 from six.moves import configparser
@@ -40,7 +42,8 @@ from freshmaker.errata import Errata
 from freshmaker.types import ArtifactType, ArtifactBuildState, EventState
 from freshmaker.models import Event, Compose
 from freshmaker.consumer import work_queue_put
-from freshmaker.utils import krb_context, retry, get_rebuilt_nvr
+from freshmaker.utils import (
+    krb_context, retry, get_rebuilt_nvr, temp_dir, clone_distgit_repo)
 from freshmaker.odcsclient import create_odcs_client
 
 from odcs.common.types import COMPOSE_STATES
@@ -150,6 +153,42 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         db_event.transition(EventState.BUILDING, msg)
 
         return []
+
+    def _should_generate_yum_repourls(self, repository, branch, commit):
+        """
+        Returns False if Koji/OSBS can build container without Freshmaker
+        generating yum_repourls for content sets.
+
+        This returns False if both content_sets.yml and container.yaml exists
+        and the "pulp_repos" in container.yaml is set to True.
+        """
+        if "/" in repository:
+            namespace, name = repository.split("/")
+        else:
+            namespace = "rpms"
+            name = repository
+
+        prefix = "freshmaker-%s-%s-%s" % (namespace, name, commit)
+        with temp_dir(prefix=prefix) as repodir:
+            clone_distgit_repo(namespace, name, repodir, commit=commit,
+                               ssh=False, logger=log)
+
+            content_sets_path = os.path.join(repodir, "content_sets.yml")
+            if not os.path.exists(content_sets_path):
+                return True
+
+            container_path = os.path.join(repodir, "container.yaml")
+            if not os.path.exists(container_path):
+                return True
+
+            with open(container_path, 'r') as f:
+                container_yaml = yaml.load(f)
+
+            if ("pulp_repos" not in container_yaml or
+                    not container_yaml["pulp_repos"]):
+                return True
+
+            return False
 
     def _fake_odcs_new_compose(
             self, compose_source, tag, packages=None, results=[]):
@@ -546,12 +585,15 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
 
                 if state != ArtifactBuildState.FAILED.value:
                     # Store odcs pulp compose to build
-                    compose = self._prepare_pulp_repo(
-                        build.event, image["content_sets"])
-                    db_compose = Compose(odcs_compose_id=compose['id'])
-                    db.session.add(db_compose)
-                    db.session.commit()
-                    build.add_composes(db.session, [db_compose])
+                    build_pulp_compose = self._should_generate_yum_repourls(
+                        image["repository"], image["git_branch"], image["commit"])
+                    if build_pulp_compose:
+                        compose = self._prepare_pulp_repo(
+                            build.event, image["content_sets"])
+                        db_compose = Compose(odcs_compose_id=compose['id'])
+                        db.session.add(db_compose)
+                        db.session.commit()
+                        build.add_composes(db.session, [db_compose])
 
                     # TODO: uncomment following code after boot.iso compose is
                     # deployed in ODCS server.

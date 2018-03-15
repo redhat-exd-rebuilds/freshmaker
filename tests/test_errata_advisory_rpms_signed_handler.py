@@ -21,11 +21,11 @@
 
 import requests
 
-from mock import patch
+from mock import patch, mock_open
 
 import freshmaker
 
-from freshmaker import db
+from freshmaker import db, log
 from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
 from freshmaker.handlers.errata import ErrataAdvisoryRPMsSignedHandler
 from freshmaker.lightblue import ContainerImage
@@ -68,6 +68,13 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
             side_effect=[{'id': 100}, {'id': 101}])
         self.mock_request_boot_iso_compose = \
             self.request_boot_iso_compose_patcher.start()
+
+        self.should_generate_yum_repourls_patcher = patch(
+            'freshmaker.handlers.errata.'
+            'ErrataAdvisoryRPMsSignedHandler._should_generate_yum_repourls',
+            return_value=True)
+        self.should_generate_yum_repourls = \
+            self.should_generate_yum_repourls_patcher.start()
 
         # Fake images found to rebuild has these relationships
         #
@@ -199,6 +206,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
         self.find_images_patcher.stop()
         self.prepare_pulp_repo_patcher.stop()
         self.messaging_publish_patcher.stop()
+        self.should_generate_yum_repourls_patcher.stop()
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'ErrataAdvisoryRPMsSignedHandler': {
@@ -611,3 +619,85 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             'httpd', ['content-set-1'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
             published=True, release_category='Generally Available')
+
+
+class TestShouldGenerateYumRepourls(helpers.FreshmakerTestCase):
+
+    def setUp(self):
+        super(TestShouldGenerateYumRepourls, self).setUp()
+
+        self.patcher = helpers.Patcher(
+            "freshmaker.handlers.errata.errata_advisory_rpms_signed.")
+        self.clone_distgit_repo = self.patcher.patch("clone_distgit_repo")
+        self.path_exists = self.patcher.patch("os.path.exists")
+        self.patched_open = self.patcher.patch("open", create=True)
+
+        self.handler = ErrataAdvisoryRPMsSignedHandler()
+
+    def tearDown(self):
+        super(TestShouldGenerateYumRepourls, self).tearDown()
+        self.patcher.unpatch_all()
+
+    def test_generate(self):
+        self.path_exists.return_value = True
+        self.patched_open.return_value = mock_open(
+            read_data="pulp_repos: True").return_value
+
+        ret = self.handler._should_generate_yum_repourls(
+            "rpms/foo-docker", "branch", "commit")
+        self.assertEqual(ret, False)
+
+        self.clone_distgit_repo.assert_called_once_with(
+            'rpms', 'foo-docker',
+            helpers.AnyStringWith('freshmaker-rpms-foo-docker'),
+            commit='commit', logger=log, ssh=False)
+
+    def test_generate_no_namespace(self):
+        self.path_exists.return_value = True
+        self.patched_open.return_value = mock_open(
+            read_data="pulp_repos: True").return_value
+
+        ret = self.handler._should_generate_yum_repourls(
+            "foo-docker", "branch", "commit")
+        self.assertEqual(ret, False)
+
+        self.clone_distgit_repo.assert_called_once_with(
+            'rpms', 'foo-docker',
+            helpers.AnyStringWith('freshmaker-rpms-foo-docker'),
+            commit='commit', logger=log, ssh=False)
+
+    def test_generate_no_pulp_repos(self):
+        self.path_exists.return_value = True
+        self.patched_open.return_value = mock_open(
+            read_data="pulp_repos_x: True").return_value
+
+        ret = self.handler._should_generate_yum_repourls(
+            "rpms/foo-docker", "branch", "commit")
+        self.assertEqual(ret, True)
+
+    def test_generate_pulp_repos_false(self):
+        self.path_exists.return_value = True
+        self.patched_open.return_value = mock_open(
+            read_data="pulp_repos: False").return_value
+
+        ret = self.handler._should_generate_yum_repourls(
+            "rpms/foo-docker", "branch", "commit")
+        self.assertEqual(ret, True)
+
+    def test_generate_no_content_sets_yml(self):
+        def mocked_path_exists(path):
+            return not path.endswith("content_sets.yml")
+        self.path_exists.side_effect = mocked_path_exists
+
+        ret = self.handler._should_generate_yum_repourls(
+            "rpms/foo-docker", "branch", "commit")
+        self.assertEqual(ret, True)
+
+    def test_generate_no_container_yaml(self):
+        def mocked_path_exists(path):
+            return not path.endswith("container.yaml")
+        self.path_exists.side_effect = mocked_path_exists
+
+        ret = self.handler._should_generate_yum_repourls(
+            "rpms/foo-docker", "branch", "commit")
+        self.assertEqual(ret, True)

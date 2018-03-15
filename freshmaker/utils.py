@@ -164,13 +164,19 @@ def temp_dir(logger=None, *args, **kwargs):
                 logger.warn('Error removing %s: %s', dir, exc.strerror)
 
 
-def clone_repo(url, dest, branch='master', logger=None):
+def clone_repo(url, dest, branch='master', logger=None, commit=None):
     cmd = ['git', 'clone', '-b', branch, url, dest]
     _run_command(cmd, logger=logger)
+
+    if commit:
+        cmd = ['git', 'checkout', commit]
+        _run_command(cmd, logger=logger, rundir=dest)
+
     return dest
 
 
-def clone_distgit_repo(namespace, name, dest, branch='master', ssh=True, user=None, logger=None):
+def clone_distgit_repo(namespace, name, dest, branch='master', ssh=True,
+                       user=None, logger=None, commit=None):
     """clone a git repo"""
     if ssh:
         if user is None:
@@ -183,7 +189,8 @@ def clone_distgit_repo(namespace, name, dest, branch='master', ssh=True, user=No
         repo_url = conf.git_base_url
 
     repo_url = os.path.join(repo_url, namespace, name)
-    return clone_repo(repo_url, dest, branch=branch, logger=logger)
+    return clone_repo(repo_url, dest, branch=branch, logger=logger,
+                      commit=commit)
 
 
 def add_empty_commit(repo, msg="bump", author=None, logger=None):
