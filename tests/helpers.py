@@ -64,6 +64,16 @@ class Patcher(object):
         patched_object = patcher.start()
         return patched_object
 
+    def patch_dict(self, name, new):
+        if name.startswith("freshmaker."):
+            prefix = ""
+        else:
+            prefix = self.prefix
+        patcher = patch.dict("%s%s" % (prefix, name), new)
+        self.patchers.append(patcher)
+        patched_object = patcher.start()
+        return patched_object
+
     def unpatch_all(self):
         for patcher in self.patchers:
             patcher.stop()

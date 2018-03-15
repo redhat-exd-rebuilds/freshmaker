@@ -227,15 +227,13 @@ class TestBatches(helpers.ModelsTestCase):
 
     def setUp(self):
         super(TestBatches, self).setUp()
-        self.should_generate_yum_repourls_patcher = patch(
-            'freshmaker.handlers.errata.'
-            'ErrataAdvisoryRPMsSignedHandler._should_generate_yum_repourls',
-            return_value=True)
-        self.should_generate_yum_repourls = \
-            self.should_generate_yum_repourls_patcher.start()
+        self.patcher = helpers.Patcher(
+            'freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler.')
+        self.should_generate_yum_repourls = self.patcher.patch(
+            '_should_generate_yum_repourls', return_value=True)
 
     def tearDown(self):
-        self.should_generate_yum_repourls_patcher.stop()
+        self.patcher.unpatch_all()
 
     def _mock_build(self, build, parent=None, error=None):
         if parent:
@@ -754,37 +752,25 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
 
         self.mock_event = Mock(msg_id='msg-id', search_key=12345)
 
-        self.event_types_patcher = patch.dict('freshmaker.models.EVENT_TYPES',
-                                              {self.mock_event.__class__: -1})
-        self.event_types_patcher.start()
+        self.patcher = helpers.Patcher(
+            'freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler.')
 
-        self.prepare_pulp_repo_patcher = patch(
-            'freshmaker.handlers.errata.'
-            'ErrataAdvisoryRPMsSignedHandler._prepare_pulp_repo',
-            side_effect=[{'id': 1}, {'id': 2}])
-        self.mock_prepare_pulp_repo = self.prepare_pulp_repo_patcher.start()
+        self.mock_prepare_pulp_repo = self.patcher.patch(
+            '_prepare_pulp_repo', side_effect=[{'id': 1}, {'id': 2}])
 
-        self.request_boot_iso_compose_patcher = patch(
-            'freshmaker.handlers.errata.'
-            'ErrataAdvisoryRPMsSignedHandler._request_boot_iso_compose',
+        self.mock_request_boot_iso_compose = self.patcher.patch(
+            '_request_boot_iso_compose',
             side_effect=[{'id': 100}, {'id': 200}])
-        self.mock_request_boot_iso_compose = \
-            self.request_boot_iso_compose_patcher.start()
 
-        self.should_generate_yum_repourls_patcher = patch(
-            'freshmaker.handlers.errata.'
-            'ErrataAdvisoryRPMsSignedHandler._should_generate_yum_repourls',
-            return_value=True)
-        self.should_generate_yum_repourls = \
-            self.should_generate_yum_repourls_patcher.start()
+        self.should_generate_yum_repourls = self.patcher.patch(
+            '_should_generate_yum_repourls', return_value=True)
+
+        self.patcher.patch_dict(
+            'freshmaker.models.EVENT_TYPES', {self.mock_event.__class__: -1})
 
     def tearDown(self):
         super(TestRecordBatchesImages, self).tearDown()
-
-        self.request_boot_iso_compose_patcher.stop()
-        self.prepare_pulp_repo_patcher.stop()
-        self.event_types_patcher.stop()
-        self.should_generate_yum_repourls_patcher.stop()
+        self.patcher.unpatch_all()
 
     def test_record_batches(self):
         batches = [
@@ -1184,21 +1170,21 @@ class TestPrepareYumReposForRebuilds(helpers.ModelsTestCase):
     def setUp(self):
         super(TestPrepareYumReposForRebuilds, self).setUp()
 
-        self.prepare_yum_repo_patcher = patch(
+        self.patcher = helpers.Patcher(
             'freshmaker.handlers.errata.errata_advisory_rpms_signed.'
-            'ErrataAdvisoryRPMsSignedHandler._prepare_yum_repo',
+            'ErrataAdvisoryRPMsSignedHandler.')
+
+        self.mock_prepare_yum_repo = self.patcher.patch(
+            '_prepare_yum_repo',
             side_effect=[
                 {'id': 1, 'result_repofile': 'http://localhost/repo/1'},
                 {'id': 2, 'result_repofile': 'http://localhost/repo/2'},
                 {'id': 3, 'result_repofile': 'http://localhost/repo/3'},
                 {'id': 4, 'result_repofile': 'http://localhost/repo/4'},
             ])
-        self.mock_prepare_yum_repo = self.prepare_yum_repo_patcher.start()
 
-        self.find_dependent_event_patcher = patch(
+        self.mock_find_dependent_event = self.patcher.patch(
             'freshmaker.models.Event.find_dependent_events')
-        self.mock_find_dependent_event = \
-            self.find_dependent_event_patcher.start()
 
         self.db_event = Event.create(
             db.session, 'msg-1', 'search-key-1',
@@ -1214,9 +1200,7 @@ class TestPrepareYumReposForRebuilds(helpers.ModelsTestCase):
 
     def tearDown(self):
         super(TestPrepareYumReposForRebuilds, self).tearDown()
-
-        self.find_dependent_event_patcher.stop()
-        self.prepare_yum_repo_patcher.stop()
+        self.patcher.unpatch_all()
 
     def test_prepare_without_dependent_events(self):
         self.mock_find_dependent_event.return_value = []

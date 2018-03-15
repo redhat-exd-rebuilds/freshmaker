@@ -39,42 +39,38 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
     def setUp(self):
         super(TestErrataAdvisoryRPMsSignedHandler, self).setUp()
 
-        # We do not want to send messages to message bus while running tests
-        self.messaging_publish_patcher = patch('freshmaker.messaging.publish')
-        self.mock_messaging_publish = self.messaging_publish_patcher.start()
-
         # Each time when recording a build into database, freshmaker has to
         # request a pulp repo from ODCS. This is not necessary for running
         # tests.
         # There are 6 images used to run tests which will be created below, so
         # there should be 6 composes created as Pulp repos.
-        self.prepare_pulp_repo_patcher = patch(
-            'freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler.'
+        self.patcher = helpers.Patcher(
+            'freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler.')
+
+        # We do not want to send messages to message bus while running tests
+        self.mock_messaging_publish = self.patcher.patch(
+            'freshmaker.messaging.publish')
+
+        self.mock_prepare_pulp_repo = self.patcher.patch(
             '_prepare_pulp_repo',
             side_effect=[{'id': compose_id} for compose_id in range(1, 7)])
-        self.mock_prepare_pulp_repo = self.prepare_pulp_repo_patcher.start()
 
-        self.find_images_patcher = patch(
-            'freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler.'
+        self.mock_find_images_to_rebuild = self.patcher.patch(
             '_find_images_to_rebuild')
-        self.mock_find_images_to_rebuild = self.find_images_patcher.start()
 
         # boot.iso composes IDs should be different from pulp composes IDs as
         # when each time to request a compose from ODCS, new compose ID will
         # be returned along with new comopse.
-        self.request_boot_iso_compose_patcher = patch(
-            'freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler.'
+        self.mock_request_boot_iso_compose = self.patcher.patch(
             '_request_boot_iso_compose',
             side_effect=[{'id': 100}, {'id': 101}])
-        self.mock_request_boot_iso_compose = \
-            self.request_boot_iso_compose_patcher.start()
 
         self.should_generate_yum_repourls_patcher = patch(
             'freshmaker.handlers.errata.'
             'ErrataAdvisoryRPMsSignedHandler._should_generate_yum_repourls',
             return_value=True)
-        self.should_generate_yum_repourls = \
-            self.should_generate_yum_repourls_patcher.start()
+        self.should_generate_yum_repourls = self.patcher.patch(
+            '_should_generate_yum_repourls', return_value=True)
 
         # Fake images found to rebuild has these relationships
         #
@@ -202,11 +198,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
 
     def tearDown(self):
         super(TestErrataAdvisoryRPMsSignedHandler, self).tearDown()
-        self.request_boot_iso_compose_patcher.stop()
-        self.find_images_patcher.stop()
-        self.prepare_pulp_repo_patcher.stop()
-        self.messaging_publish_patcher.stop()
-        self.should_generate_yum_repourls_patcher.stop()
+        self.patcher.unpatch_all()
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'ErrataAdvisoryRPMsSignedHandler': {
@@ -531,31 +523,27 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
     def setUp(self):
         super(TestFindImagesToRebuild, self).setUp()
 
-        self.get_content_set_by_repo_ids_patcher = patch(
-            'freshmaker.pulp.Pulp.get_content_set_by_repo_ids')
-        self.get_content_set_by_repo_ids = self.get_content_set_by_repo_ids_patcher.start()
-        self.get_content_set_by_repo_ids.return_value = ["content-set-1"]
+        self.patcher = helpers.Patcher(
+            "freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler.")
 
-        self.get_pulp_repository_ids_patcher = patch(
-            'freshmaker.errata.Errata.get_pulp_repository_ids')
-        self.get_pulp_repository_ids = self.get_pulp_repository_ids_patcher.start()
-        self.get_pulp_repository_ids.return_value = ["pulp_repo_x86_64"]
+        self.find_build_srpm_name = self.patcher.patch(
+            '_find_build_srpm_name', return_value="httpd")
 
-        self.get_builds_patcher = patch(
-            'freshmaker.errata.Errata.get_builds')
-        self.get_builds = self.get_builds_patcher.start()
-        self.get_builds.return_value = ["httpd-2.4-11.el7"]
+        self.get_content_set_by_repo_ids = self.patcher.patch(
+            'freshmaker.pulp.Pulp.get_content_set_by_repo_ids',
+            return_value=["content-set-1"])
 
-        self.find_build_srpm_name_patcher = patch(
-            'freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler.'
-            '_find_build_srpm_name')
-        self.find_build_srpm_name = self.find_build_srpm_name_patcher.start()
-        self.find_build_srpm_name.return_value = "httpd"
+        self.get_pulp_repository_ids = self.patcher.patch(
+            'freshmaker.errata.Errata.get_pulp_repository_ids',
+            return_value=["pulp_repo_x86_64"])
 
-        self.find_images_to_rebuild_patcher = patch(
-            'freshmaker.lightblue.LightBlue.find_images_to_rebuild')
-        self.find_images_to_rebuild = self.find_images_to_rebuild_patcher.start()
-        self.find_images_to_rebuild.return_value = iter([[[]]])
+        self.get_builds = self.patcher.patch(
+            'freshmaker.errata.Errata.get_builds',
+            return_value=["httpd-2.4-11.el7"])
+
+        self.find_images_to_rebuild = self.patcher.patch(
+            'freshmaker.lightblue.LightBlue.find_images_to_rebuild',
+            return_value=iter([[[]]]))
 
         self.event = ErrataAdvisoryRPMsSignedEvent(
             "123", "RHBA-2017", 123, "", "REL_PREP", "product")
@@ -564,12 +552,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
 
     def tearDown(self):
         super(TestFindImagesToRebuild, self).tearDown()
-
-        self.get_content_set_by_repo_ids_patcher.stop()
-        self.get_pulp_repository_ids_patcher.stop()
-        self.get_builds_patcher.stop()
-        self.find_build_srpm_name_patcher.stop()
-        self.find_images_to_rebuild_patcher.stop()
+        self.patcher.unpatch_all()
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'ErrataAdvisoryRPMsSignedHandler': {
