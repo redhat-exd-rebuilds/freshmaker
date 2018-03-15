@@ -27,6 +27,7 @@ import re
 import requests
 import six
 import dogpile.cache
+from itertools import groupby
 
 from six.moves import http_client
 import concurrent.futures
@@ -834,6 +835,17 @@ class LightBlue(object):
         if not repos:
             return []
         images = self.find_images_with_included_srpm(repos, srpm_name, published)
+
+        # There can be multi-arch images which share the same
+        # image['brew']['build']. Freshmaker is not interested in the image
+        # architecture, it is only interested in NVR, so group the images
+        # by the same image['brew']['build'] and include just first one in the
+        # image list.
+        sorted_images = sorted(
+            images, key=lambda image: image['brew']['build'], reverse=True)
+        images = []
+        for k, v in groupby(sorted_images, key=lambda x: x['brew']['build']):
+            images.append(v.next())
 
         # In case we query for unpublished images, we need to return just
         # the latest NVR for given name-version, otherwise images would

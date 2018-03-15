@@ -416,12 +416,12 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             ContainerImage.create(data)
             for data in self.fake_images_with_parsed_data]
 
-        self.fake_koji_builds = [{"task_id": 123456}, {"task_id": 654321}]
+        self.fake_koji_builds = [{"task_id": 654321}, {"task_id": 123456}]
         self.fake_koji_task_requests = [
-            ["git://pkgs.devel.redhat.com/rpms/repo-1#commit_hash1",
-             "target1", {"git_branch": "mybranch"}],
             ["git://pkgs.devel.redhat.com/rpms/repo-2#commit_hash2",
-             "target2", {"git_branch": "mybranch"}]]
+             "target2", {"git_branch": "mybranch"}],
+            ["git://pkgs.devel.redhat.com/rpms/repo-1#commit_hash1",
+             "target1", {"git_branch": "mybranch"}]]
 
     @patch('freshmaker.lightblue.requests.post')
     def test_find_container_images(self, post):
@@ -704,6 +704,9 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         # "filtered_x-1-23" image will be filtered by filter_fnc.
         cont_images.return_value = self.fake_container_images + [
             ContainerImage.create({"brew": {"build": "filtered_x-1-23"}})]
+        # Include the images for second time to ensure that they will be
+        # returned only once. This can happen when the image is multiarch.
+        cont_images.return_value += self.fake_container_images
         koji_task_request.side_effect = self.fake_koji_task_requests
         koji_get_build.side_effect = self.fake_koji_builds
 
@@ -716,41 +719,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         self.assertEqual(2, len(ret))
         self.assertEqual(ret,
                          [
-                             {
-                                 "repository": "rpms/repo-1",
-                                 "commit": "commit_hash1",
-                                 "target": "target1",
-                                 "git_branch": "mybranch",
-                                 "error": None,
-                                 "brew": {
-                                     "completion_date": u"20170421T04:27:51.000-0400",
-                                     "build": "package-name-1-4-12.10",
-                                     "package": "package-name-1"
-                                 },
-                                 'repositories': [{'repository': 'product1/repo1', 'published': True}],
-                                 'content_sets': ['dummy-content-set-1', 'dummy-content-set-2'],
-                                 'parsed_data': {
-                                     'files': [
-                                         {
-                                             'key': 'buildfile',
-                                             'content_url': 'http://git.repo.com/cgit/rpms/repo-1/plain/Dockerfile?id=commit_hash1',
-                                             'filename': u'Dockerfile'
-                                         }
-                                     ]
-                                 },
-                                 'rpm_manifest': [{
-                                     'rpms': [
-                                         {
-                                             "srpm_name": "openssl",
-                                             "srpm_nevra": "openssl-0:1.2.3-1.src"
-                                         },
-                                         {
-                                             "srpm_name": "tespackage",
-                                             "srpm_nevra": "testpackage-10:1.2.3-1.src"
-                                         }
-                                     ]
-                                 }]
-                             },
                              {
                                  "repository": "rpms/repo-2",
                                  "commit": "commit_hash2",
@@ -790,7 +758,42 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                          }
                                      ]
                                  }]
-                             }
+                             },
+                             {
+                                 "repository": "rpms/repo-1",
+                                 "commit": "commit_hash1",
+                                 "target": "target1",
+                                 "git_branch": "mybranch",
+                                 "error": None,
+                                 "brew": {
+                                     "completion_date": u"20170421T04:27:51.000-0400",
+                                     "build": "package-name-1-4-12.10",
+                                     "package": "package-name-1"
+                                 },
+                                 'repositories': [{'repository': 'product1/repo1', 'published': True}],
+                                 'content_sets': ['dummy-content-set-1', 'dummy-content-set-2'],
+                                 'parsed_data': {
+                                     'files': [
+                                         {
+                                             'key': 'buildfile',
+                                             'content_url': 'http://git.repo.com/cgit/rpms/repo-1/plain/Dockerfile?id=commit_hash1',
+                                             'filename': u'Dockerfile'
+                                         }
+                                     ]
+                                 },
+                                 'rpm_manifest': [{
+                                     'rpms': [
+                                         {
+                                             "srpm_name": "openssl",
+                                             "srpm_nevra": "openssl-0:1.2.3-1.src"
+                                         },
+                                         {
+                                             "srpm_name": "tespackage",
+                                             "srpm_nevra": "testpackage-10:1.2.3-1.src"
+                                         }
+                                     ]
+                                 }]
+                             },
                          ])
 
     @patch('freshmaker.lightblue.LightBlue.find_content_sets_for_repository')
