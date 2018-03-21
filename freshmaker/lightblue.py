@@ -274,9 +274,15 @@ class ContainerImage(dict):
         # Checking only the first repository is OK, because if an image
         # is in multiple repositories, the content_sets of all of them
         # must be the same by definition.
-        image_content_sets = lb_instance.find_content_sets_for_repository(
-            self["repositories"][0]["repository"], published, deprecated,
-            release_category)
+        # But some older repositories don't have to have the content_sets
+        # set, so try to iterate over all of them and stop once we find
+        # some repository which returns some content_sets.
+        for repository in self["repositories"]:
+            image_content_sets = lb_instance.find_content_sets_for_repository(
+                repository["repository"], published, deprecated,
+                release_category)
+            if image_content_sets:
+                break
 
         log.info("Container image %s uses following content sets: %r",
                  self["brew"]["build"], image_content_sets)
@@ -526,6 +532,8 @@ class LightBlue(object):
 
         ret = set()
         for repo in repos:
+            if "content_sets" not in repo:
+                continue
             ret |= set(repo["content_sets"])
 
         return sorted(list(ret))
@@ -539,6 +547,7 @@ class LightBlue(object):
             {"field": "parsed_data.layers.*", "include": True, "recursive": True},
             {"field": "repositories.*.published", "include": True, "recursive": True},
             {"field": "repositories.*.repository", "include": True, "recursive": True},
+            {"field": "repositories.*.tags.*.name", "include": True, "recursive": True},
         ]
 
     def _set_container_image_filters(self, request, published):
@@ -601,7 +610,26 @@ class LightBlue(object):
         }
         image_request = self._set_container_image_filters(
             image_request, published)
-        return self.find_container_images(image_request)
+        images = self.find_container_images(image_request)
+        if not images:
+            return images
+
+        # The image_request returns container images which are in the
+        # right repository and are latest in *some* repository. But we need
+        # those images to be latest in one of the `repositories`. It is not
+        # trivial to generate LB query like this, so filter this client-side
+        # for now.
+        expected_repositories = [r["repository"] for r in repositories]
+        new_images = []
+        for image in images:
+            for repository in image["repositories"]:
+                tag_names = [tag["name"] for tag in repository["tags"]]
+                if (repository["repository"] in expected_repositories and
+                        "latest" in tag_names):
+                    new_images.append(image)
+        images = new_images
+
+        return images
 
     def find_unpublished_image_for_build(self, build):
         """
@@ -834,7 +862,8 @@ class LightBlue(object):
             content_sets, published, deprecated, release_category)
         if not repos:
             return []
-        images = self.find_images_with_included_srpm(repos, srpm_name, published)
+        images = self.find_images_with_included_srpm(
+            repos, srpm_name, published)
 
         # There can be multi-arch images which share the same
         # image['brew']['build']. Freshmaker is not interested in the image
