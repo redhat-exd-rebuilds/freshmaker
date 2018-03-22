@@ -350,7 +350,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                     'package': 'package-name-1'
                 },
                 'repositories': [
-                    {'repository': 'product1/repo1', 'published': True}
+                    {'repository': 'product1/repo1', 'published': True,
+                     'tags': [{"name": "latest"}]}
                 ],
                 'parsed_data': {
                     'files': [
@@ -381,7 +382,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                     'package': 'package-name-2'
                 },
                 'repositories': [
-                    {'repository': 'product2/repo2', 'published': True}
+                    {'repository': 'product2/repo2', 'published': True,
+                     'tags': [{"name": "latest"}]}
                 ],
                 'parsed_data': {
                     'files': [
@@ -684,8 +686,13 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             },
             "projection": lb._get_default_projection()
         }
+
         cont_images.assert_called_with(expected_image_request)
-        self.assertEqual(ret, cont_images.return_value)
+
+        # Only the second image should be returned, because the first one
+        # is in repository "product1/repo1", but we have asked for images
+        # in repository "product/repo1".
+        self.assertEqual(ret, [cont_images.return_value[1]])
 
     def _filter_fnc(self, image):
         return image["brew"]["build"].startswith("filtered_")
@@ -703,7 +710,11 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         cont_repos.return_value = self.fake_repositories_with_content_sets
         # "filtered_x-1-23" image will be filtered by filter_fnc.
         cont_images.return_value = self.fake_container_images + [
-            ContainerImage.create({"brew": {"build": "filtered_x-1-23"}})]
+            ContainerImage.create(
+                {"brew": {"build": "filtered_x-1-23"},
+                 'repositories': [
+                     {'repository': 'product/repo1', 'published': True,
+                      'tags': [{"name": "latest"}]}]})]
         # Include the images for second time to ensure that they will be
         # returned only once. This can happen when the image is multiarch.
         cont_images.return_value += self.fake_container_images
@@ -716,7 +727,10 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         ret = lb.find_images_with_package_from_content_set(
             "openssl", ["dummy-content-set-1"], filter_fnc=self._filter_fnc)
 
-        self.assertEqual(2, len(ret))
+        # Only the first image should be returned, because the first one
+        # is in repository "product1/repo1", but we have asked for images
+        # in repository "product/repo1".
+        self.assertEqual(1, len(ret))
         self.assertEqual(ret,
                          [
                              {
@@ -731,7 +745,10 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                      "package": "package-name-2"
                                  },
                                  'content_sets': ['dummy-content-set-1', 'dummy-content-set-2'],
-                                 'repositories': [{'repository': 'product2/repo2', 'published': True}],
+                                 'repositories': [
+                                     {'repository': 'product2/repo2', 'published': True,
+                                      'tags': [{"name": "latest"}]}
+                                 ],
                                  'parsed_data': {
                                      'files': [
                                          {
@@ -755,41 +772,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                          {
                                              "srpm_name": "tespackage2",
                                              "srpm_nevra": "testpackage2-10:1.2.3-1.src"
-                                         }
-                                     ]
-                                 }]
-                             },
-                             {
-                                 "repository": "rpms/repo-1",
-                                 "commit": "commit_hash1",
-                                 "target": "target1",
-                                 "git_branch": "mybranch",
-                                 "error": None,
-                                 "brew": {
-                                     "completion_date": u"20170421T04:27:51.000-0400",
-                                     "build": "package-name-1-4-12.10",
-                                     "package": "package-name-1"
-                                 },
-                                 'repositories': [{'repository': 'product1/repo1', 'published': True}],
-                                 'content_sets': ['dummy-content-set-1', 'dummy-content-set-2'],
-                                 'parsed_data': {
-                                     'files': [
-                                         {
-                                             'key': 'buildfile',
-                                             'content_url': 'http://git.repo.com/cgit/rpms/repo-1/plain/Dockerfile?id=commit_hash1',
-                                             'filename': u'Dockerfile'
-                                         }
-                                     ]
-                                 },
-                                 'rpm_manifest': [{
-                                     'rpms': [
-                                         {
-                                             "srpm_name": "openssl",
-                                             "srpm_nevra": "openssl-0:1.2.3-1.src"
-                                         },
-                                         {
-                                             "srpm_name": "tespackage",
-                                             "srpm_nevra": "testpackage-10:1.2.3-1.src"
                                          }
                                      ]
                                  }]
