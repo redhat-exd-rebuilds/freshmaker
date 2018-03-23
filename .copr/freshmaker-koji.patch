@@ -1,0 +1,9 @@
+diff --git a/requirements.txt b/requirements.txt
+index b91c76a..6586e70 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -23,4 +23,3 @@ odcs[client]
+ krbcontext
+ dogpile.cache
+ pyldap
+-koji
