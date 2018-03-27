@@ -39,6 +39,7 @@ BuildRequires:    python2-krbcontext
 BuildRequires:    python-flask-login
 BuildRequires:    python-ldap
 BuildRequires:    PyYAML
+BuildRequires:    git
 
 %if 0%{?rhel} && 0%{?rhel} <= 7
 BuildRequires:    python-setuptools
@@ -90,6 +91,7 @@ Requires:    python2-krbcontext
 Requires:    python-flask-login
 Requires:    python-ldap
 Requires:    PyYAML
+Requires:    git
 
 %if 0%{?rhel} && 0%{?rhel} <= 7
 Requires:    python-fedora
