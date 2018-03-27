@@ -194,7 +194,12 @@ class ContainerImage(dict):
             m = re.match(r".*/(?P<namespace>.*)/(?P<container>.*)#(?P<commit>.*)", source)
             if m:
                 namespace = m.group("namespace")
-                container = m.group("container")
+                # For some Koji tasks, the container part ends with "?" in
+                # source URL. This is just because some custom scripts for
+                # submitting those builds include this character in source URL
+                # to mark the query part of URL. We need to handle that by
+                # stripping that character.
+                container = m.group("container").rstrip("?")
                 data["repository"] = namespace + "/" + container
                 data["commit"] = m.group("commit")
 

@@ -173,7 +173,7 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
 
         get_build.return_value = {"task_id": 123456}
         get_task_request.return_value = [
-            "git://example.com/rpms/repo-1#commit_hash1", "target1", {}]
+            "git://example.com/rpms/repo-1?#commit_hash1", "target1", {}]
 
         image.resolve_commit("openssl")
         self.assertEqual(image["repository"], "rpms/repo-1")
