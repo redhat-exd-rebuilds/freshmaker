@@ -221,7 +221,7 @@ class Config(object):
             'desc': 'Server URL of Errata Tool.'},
         'errata_rhel_release_prefix': {
             'type': str,
-            'default': 'RHEL-7',
+            'default': '',
             'desc': 'When set, only builds based on this RHEL release '
                     'will be included in rebuilds.'},
         'pulp_server_url': {
