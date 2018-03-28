@@ -188,13 +188,11 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
         # For simplicify, mocking _find_images_to_rebuild to just return one
         # batch, which contains images found for rebuild from parent to
         # childrens.
-        self.mock_find_images_to_rebuild.return_value = iter([
-            [
-                [self.image_a, self.image_b],
-                [self.image_c, self.image_d, self.image_e],
-                [self.image_f]
-            ]
-        ])
+        self.mock_find_images_to_rebuild.return_value = [
+            [self.image_a, self.image_b],
+            [self.image_c, self.image_d, self.image_e],
+            [self.image_f]
+        ]
 
     def tearDown(self):
         super(TestErrataAdvisoryRPMsSignedHandler, self).tearDown()
@@ -211,7 +209,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
         db.session.add(compose_4)
         db.session.commit()
 
-        self.mock_find_images_to_rebuild.return_value = iter([[[]]])
+        self.mock_find_images_to_rebuild.return_value = [[]]
         event = ErrataAdvisoryRPMsSignedEvent(
             "123", "RHBA-2017", 123, "", "REL_PREP", "product")
         handler = ErrataAdvisoryRPMsSignedHandler()
@@ -231,7 +229,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
         db.session.add(compose_4)
         db.session.commit()
 
-        self.mock_find_images_to_rebuild.return_value = iter([[[]]])
+        self.mock_find_images_to_rebuild.return_value = [[]]
         event = ErrataAdvisoryRPMsSignedEvent(
             "123", "RHBA-2017", 123, "", "REL_PREP", "product")
         handler = ErrataAdvisoryRPMsSignedHandler()
@@ -245,7 +243,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
         }
     })
     def test_event_state_updated_when_no_images_to_rebuild(self):
-        self.mock_find_images_to_rebuild.return_value = iter([[[]]])
+        self.mock_find_images_to_rebuild.return_value = [[]]
         event = ErrataAdvisoryRPMsSignedEvent(
             "123", "RHBA-2017", 123, "", "REL_PREP", "product")
         handler = ErrataAdvisoryRPMsSignedHandler()
@@ -264,11 +262,8 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
     })
     def test_event_state_updated_when_all_images_failed(self):
         self.image_a['error'] = "foo"
-        self.mock_find_images_to_rebuild.return_value = iter([
-            [
-                [self.image_a]
-            ]
-        ])
+        self.mock_find_images_to_rebuild.return_value = [
+            [self.image_a]]
         event = ErrataAdvisoryRPMsSignedEvent(
             "123", "RHBA-2017", 123, "", "REL_PREP", "product")
         handler = ErrataAdvisoryRPMsSignedHandler()
@@ -543,7 +538,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
 
         self.find_images_to_rebuild = self.patcher.patch(
             'freshmaker.lightblue.LightBlue.find_images_to_rebuild',
-            return_value=iter([[[]]]))
+            return_value=[[]])
 
         self.event = ErrataAdvisoryRPMsSignedEvent(
             "123", "RHBA-2017", 123, "", "REL_PREP", "product")
@@ -565,7 +560,23 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             pass
 
         self.find_images_to_rebuild.assert_called_once_with(
-            'httpd', ['content-set-1'],
+            set(['httpd']), ['content-set-1'],
+            filter_fnc=self.handler._filter_out_not_allowed_builds,
+            published=True, release_category='Generally Available')
+
+    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+        'ErrataAdvisoryRPMsSignedHandler': {
+            'image': [{'advisory_name': 'RHBA-*'}]
+        }
+    })
+    @patch('os.path.exists', return_value=True)
+    def test_multiple_srpms(self, exists):
+        self.get_builds.return_value = ["httpd-2.4-11.el7", "httpd-2.2-11.el6"]
+        for x in self.handler._find_images_to_rebuild(123456):
+            pass
+
+        self.find_images_to_rebuild.assert_called_once_with(
+            set(['httpd']), ['content-set-1'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
             published=True, release_category='Generally Available')
 
@@ -583,7 +594,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             pass
 
         self.find_images_to_rebuild.assert_called_once_with(
-            'httpd', ['content-set-1'],
+            set(['httpd']), ['content-set-1'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
             published=None, release_category=None)
 
@@ -599,7 +610,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             pass
 
         self.find_images_to_rebuild.assert_called_once_with(
-            'httpd', ['content-set-1'],
+            set(['httpd']), ['content-set-1'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
             published=True, release_category='Generally Available')
 

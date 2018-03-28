@@ -33,6 +33,7 @@ from six.moves import http_client
 import concurrent.futures
 from freshmaker import log, conf
 from freshmaker.kojiservice import koji_service
+from freshmaker.utils import sorted_by_nvr
 import koji
 
 
@@ -205,15 +206,12 @@ class ContainerImage(dict):
 
         return data
 
-    def resolve_commit(self, srpm_name):
+    def resolve_commit(self):
         """
         Uses the ContainerImage data to resolve the information about
         commit from which the Docker image has been built.
 
         Sets the "repository and "commit" keys/values if available.
-
-        :param str srpm_name: Name of the package because of which the Docker
-                              image is rebuilt.
         """
         # Find the additional data for Container build in Koji.
         nvr = self["brew"]["build"]
@@ -571,8 +569,8 @@ class LightBlue(object):
 
         return request
 
-    def find_images_with_included_srpm(self, repositories, srpm_name,
-                                       published=True):
+    def find_images_with_included_srpms(self, repositories, srpm_names,
+                                        published=True):
 
         """Query lightblue and find containerImages in given
         containerRepositories. By default limit only to images which have been
@@ -581,7 +579,7 @@ class LightBlue(object):
         :param bool published: whether to limit queries to published
             repositories
         :param dict repositories: dictionary with repository names to look inside
-        :param str srpm_name: srpm_name (source rpm name) to look for
+        :param list srpm_names: list of srpm_name (source rpm name) to look for
         """
         image_request = {
             "objectType": "containerImage",
@@ -600,9 +598,11 @@ class LightBlue(object):
                         "rvalue": "latest"
                     },
                     {
-                        "field": "rpm_manifest.*.rpms.*.srpm_name",
-                        "op": "=",
-                        "rvalue": srpm_name
+                        "$or": [{
+                            "field": "rpm_manifest.*.rpms.*.srpm_name",
+                            "op": "=",
+                            "rvalue": srpm_name
+                        } for srpm_name in srpm_names]
                     },
                     {
                         "field": "parsed_data.files.*.key",
@@ -799,7 +799,7 @@ class LightBlue(object):
             if image:
                 image.resolve_content_sets(self, children, published,
                                            deprecated, release_category)
-                image.resolve_commit(srpm_name)
+                image.resolve_commit()
 
             if images:
                 if image:
@@ -827,20 +827,20 @@ class LightBlue(object):
                         parent.resolve_content_sets(
                             self, images, published, deprecated,
                             release_category)
-                        parent.resolve_commit(srpm_name)
+                        parent.resolve_commit()
                     images[-1]['parent'] = parent
             if not image:
                 return images
             images.append(image)
 
-    def find_images_with_package_from_content_set(
-            self, srpm_name, content_sets, filter_fnc=None,
+    def find_images_with_packages_from_content_set(
+            self, srpm_names, content_sets, filter_fnc=None,
             published=True, deprecated=False,
             release_category="Generally Available"):
         """Query lightblue and find containers which contain given
         package from one of content sets
 
-        :param str srpm_name: srpm_name (source rpm name) to look for
+        :param list srpm_names: list of srpm_name (source rpm name) to look for
         :param list content_sets: list of strings (content sets) to consider
             when looking for the packages
         :param function filter_fnc: Function called as
@@ -867,16 +867,16 @@ class LightBlue(object):
             content_sets, published, deprecated, release_category)
         if not repos:
             return []
-        images = self.find_images_with_included_srpm(
-            repos, srpm_name, published)
+        images = self.find_images_with_included_srpms(
+            repos, srpm_names, published)
 
         # There can be multi-arch images which share the same
         # image['brew']['build']. Freshmaker is not interested in the image
         # architecture, it is only interested in NVR, so group the images
         # by the same image['brew']['build'] and include just first one in the
         # image list.
-        sorted_images = sorted(
-            images, key=lambda image: image['brew']['build'], reverse=True)
+        sorted_images = sorted_by_nvr(
+            images, get_nvr=lambda image: image['brew']['build'], reverse=True)
         images = []
         for k, v in groupby(sorted_images, key=lambda x: x['brew']['build']):
             images.append(v.next())
@@ -886,8 +886,8 @@ class LightBlue(object):
         # contain all the versions which ever containing the srpm_name.
         if not published:
             # Sort images by brew build NVR descending
-            sorted_images = sorted(
-                images, key=lambda image: image['brew']['build'], reverse=True)
+            sorted_images = sorted_by_nvr(
+                images, get_nvr=lambda image: image['brew']['build'], reverse=True)
 
             # Iterate over all the images and only keep the very first one
             # with the given name-version - this is the latest one.
@@ -909,7 +909,7 @@ class LightBlue(object):
             # published images should have the content_set set.
             image.resolve_content_sets(self, None, published, deprecated,
                                        release_category)
-            image.resolve_commit(srpm_name)
+            image.resolve_commit()
         return images
 
     def _deduplicate_images_to_rebuild(self, to_rebuild):
@@ -934,8 +934,8 @@ class LightBlue(object):
         """
         # Temporary dict mapping the NVR of image to coordinates in the
         # `to_rebuild` list. For example
-        # nvr_to_coordinates["nvr"] = [0, 3] means that the image with
-        # nvr "nvr" is 4th image in the to_rebuild[0] list.
+        # nvr_to_coordinates["nvr"] = [[0, 3], ...] means that the image with
+        # nvr "nvr" is 4th image in the to_rebuild[0] list, ...
         nvr_to_coordinates = {}
         # Temporary dict mapping the NV to list of NVRs. The List of NVRs
         # is always sorted descending.
@@ -951,13 +951,16 @@ class LightBlue(object):
                 nv = "%s-%s" % (parsed_nvr["name"], parsed_nvr["version"])
                 if nv not in nv_to_nvrs:
                     nv_to_nvrs[nv] = []
-                nv_to_nvrs[nv].append(nvr)
-                nvr_to_coordinates[nvr] = [image_id, parent_id]
+                if nvr not in nv_to_nvrs[nv]:
+                    nv_to_nvrs[nv].append(nvr)
+                if nvr not in nvr_to_coordinates:
+                    nvr_to_coordinates[nvr] = []
+                nvr_to_coordinates[nvr].append([image_id, parent_id])
                 nvr_to_image[nvr] = image
 
         # Sort the lists in nv_to_nvrs dict.
         for nv in nv_to_nvrs.keys():
-            nv_to_nvrs[nv].sort(reverse=True)
+            nv_to_nvrs[nv] = sorted_by_nvr(nv_to_nvrs[nv], reverse=True)
 
         # Iterate through list of NVs.
         for nvrs in nv_to_nvrs.values():
@@ -966,21 +969,64 @@ class LightBlue(object):
             latest_nvr = nvrs[0]
             # Now replace all others NVR with the highest one.
             for nvr in nvrs[1:]:
-                # At first replace the image in to_rebuid based
-                # on the coordinates from temp dict.
-                image_id, parent_id = nvr_to_coordinates[nvr]
-                to_rebuild[image_id][parent_id] = nvr_to_image[latest_nvr]
+                for image_id, parent_id in nvr_to_coordinates[nvr]:
+                    # At first replace the image in to_rebuid based
+                    # on the coordinates from temp dict.
+                    to_rebuild[image_id][parent_id] = nvr_to_image[latest_nvr]
 
-                # And in case this image is not the the leaf image, also replace
-                # the ["parent"] record for the child image to point to the image
-                # with highest NVR.
-                if parent_id != 0:
-                    to_rebuild[image_id][parent_id - 1]["parent"] = nvr_to_image[latest_nvr]
+                    # And in case this image is not the the leaf image, also replace
+                    # the ["parent"] record for the child image to point to the image
+                    # with highest NVR.
+                    if parent_id != 0:
+                        to_rebuild[image_id][parent_id - 1]["parent"] = nvr_to_image[latest_nvr]
 
         return to_rebuild
 
+    def _images_to_rebuild_to_batches(self, to_rebuild):
+        """
+        Creates batches with images as defined by `find_images_to_rebuild`
+        output from the `to_rebuild` list in following format:
+
+            [
+                [child_image, parent_of_child_image, parent_of_parent, ...],
+                ...
+            ]
+        """
+        # At first get the max length of list in to_rebuild list.
+        max_len = 0
+        for rebuild_list in to_rebuild:
+            max_len = max(len(rebuild_list), max_len)
+
+        # Now create the batches with images. We still might find duplicate
+        # images in to_rebuild lists in two cases:
+        #
+        # 1) A depends on X and also B depends on X. The X then would be
+        #    added to first batch twice. This is simple to fix by just
+        #    adding same image to batch once.
+        # 2) A depends on X and A is also standalone image to rebuild. In this
+        #    case, A would be in the second batch, because A must be built
+        #    before X, but it is also standalone image to be rebuilt, so it
+        #    would appear also in the first batch.
+        #    To fix this, we at first add images with the longest dependency
+        #    chains, so A will be added to second batch. Once we try to add
+        #    standalone version of A, we won't add it, because it already
+        #    exists in some batch.
+        #
+        # Both of these cases are handled by adding the image to `seen` set
+        # and checking if it exists there already before adding it again.
+        batches = [[] for i in range(max_len)]
+        seen = set()
+        for image_rebuild_list in sorted(to_rebuild, key=lambda lst: len(lst), reverse=True):
+            for image, batch in zip(reversed(image_rebuild_list), batches):
+                image_key = image["brew"]["build"]
+                if image_key in seen:
+                    continue
+                seen.add(image_key)
+                batch.append(image)
+        return batches
+
     def find_images_to_rebuild(
-            self, srpm_name, content_sets, published=True, deprecated=False,
+            self, srpm_names, content_sets, published=True, deprecated=False,
             release_category="Generally Available", filter_fnc=None):
         """
         Find images to rebuild through image build layers
@@ -991,7 +1037,7 @@ class LightBlue(object):
         image from N+1 must happen *after* all of the images from sub-list N
         have been rebuilt.
 
-        :param str srpm_name: srpm_name (source rpm name) to look for
+        :param list srpm_names: List of srpm_name (source rpm name) to look for
         :param list content_sets: list of strings (content sets) to consider
             when looking for the packages
         :param bool published: whether to limit queries to published
@@ -1007,79 +1053,72 @@ class LightBlue(object):
             This function is used to filter out images not allowed by
             Freshmaker configuration.
         """
-        images = self.find_images_with_package_from_content_set(
-            srpm_name, content_sets, filter_fnc, published, deprecated,
+        images = self.find_images_with_packages_from_content_set(
+            srpm_names, content_sets, filter_fnc, published, deprecated,
             release_category)
 
         def _get_images_to_rebuild(image):
             """
             Find out parent images to rebuild, helper called from threadpool.
             """
-            unpublished = self.find_unpublished_image_for_build(
-                image['brew']['build'])
-            if not unpublished:
-                image.log_error(
-                    "Cannot find unpublished version of image, Lightblue "
-                    "data is probably incomplete")
-                return [image]
+            rebuild_list = {}  # per srpm-name rebuild list.
+            for srpm_name in srpm_names:
+                for rpm in image["rpm_manifest"][0]["rpms"]:
+                    if rpm["srpm_name"] == srpm_name:
+                        break
+                else:
+                    # This `srpm_name` is not in image.
+                    continue
 
-            layers = unpublished["parsed_data"]["layers"]
-            rebuild_list = self.find_parent_images_with_package(
-                image, srpm_name, layers)
-            if rebuild_list:
-                image['parent'] = rebuild_list[0]
-            else:
-                parent = self.get_image_by_layer(layers[1], len(layers) - 1)
-                if parent:
-                    parent.resolve_content_sets(
-                        self, [image], published, deprecated,
-                        release_category)
-                    parent.resolve_commit(srpm_name)
-                elif len(layers) != 2:
+                unpublished = self.find_unpublished_image_for_build(
+                    image['brew']['build'])
+                if not unpublished:
                     image.log_error(
-                        "Cannot find parent image with layer %s and layer "
-                        "count %d in Lightblue, Lightblue data is probably "
-                        "incomplete" % (layers[1], len(layers) - 1))
-                image['parent'] = parent
-            rebuild_list.insert(0, image)
+                        "Cannot find unpublished version of image, Lightblue "
+                        "data is probably incomplete")
+                    rebuild_list[srpm_name] = [image]
+                    continue
+
+                layers = unpublished["parsed_data"]["layers"]
+                rebuild_list[srpm_name] = self.find_parent_images_with_package(
+                    image, srpm_name, layers)
+                if rebuild_list[srpm_name]:
+                    image['parent'] = rebuild_list[srpm_name][0]
+                else:
+                    parent = self.get_image_by_layer(layers[1], len(layers) - 1)
+                    if parent:
+                        parent.resolve_content_sets(
+                            self, [image], published, deprecated,
+                            release_category)
+                        parent.resolve_commit()
+                    elif len(layers) != 2:
+                        image.log_error(
+                            "Cannot find parent image with layer %s and layer "
+                            "count %d in Lightblue, Lightblue data is probably "
+                            "incomplete" % (layers[1], len(layers) - 1))
+                    image['parent'] = parent
+                rebuild_list[srpm_name].insert(0, image)
             return rebuild_list
 
         # For every image, find out all its parent images which contain the
         # srpm_name package and store these lists to to_rebuild.
         to_rebuild = []
-        max_len = 0
-        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        with concurrent.futures.ThreadPoolExecutor(
+                max_workers=conf.max_thread_workers) as executor:
             futures = {executor.submit(_get_images_to_rebuild, i): i
                        for i in images}
             concurrent.futures.wait(futures)
             for future in futures:
-                rebuild_list = future.result()
-                max_len = max(len(rebuild_list), max_len)
-                to_rebuild.append(rebuild_list)
+                rebuild_lists = future.result()
+                for rebuild_list in rebuild_lists.values():
+                    to_rebuild.append(rebuild_list)
 
         # The to_rebuild list now contains all the images which need to be
         # rebuilt, but there are lot of duplicates there.
 
-        # At first remove duplicated images which share the same namd and
+        # At first remove duplicated images which share the same name and
         # version, but different release.
         to_rebuild = self._deduplicate_images_to_rebuild(to_rebuild)
 
-        # Now create the batches with images. We still might find duplicate
-        # images in batch. For example if the image A depends on X and also
-        # image B depends on X, the X would be in the first batch twice.
-        # We remove duplicates like that using the dict for each batch with
-        # Brew build NVR as a key and add the image to the batch only when
-        # it is not in this dict.
-        batches = [{} for i in range(max_len)]
-        for image_rebuild_list in to_rebuild:
-            for image, batch in zip(reversed(image_rebuild_list), batches):
-                image_key = image["brew"]["build"]
-
-                if image_key not in batch:
-                    batch[image_key] = image
-
-        # Final step to convert batches to list of sub-lists
-        # Each sublist contains images in this order
-        # [found image containing signed RPMs, parent, grandparent, ...]
-        batches = [batch.values() for batch in batches]
-        return batches
+        # Now generate batches from deduplicated list and return it.
+        return self._images_to_rebuild_to_batches(to_rebuild)

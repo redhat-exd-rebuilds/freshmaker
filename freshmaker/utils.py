@@ -31,11 +31,48 @@ import sys
 import tempfile
 import time
 import koji
+import kobo.rpmlib
 
 from freshmaker import conf, app, log
 from freshmaker.types import ArtifactType
 from krbcontext import krbContext
 from flask import has_app_context, url_for
+
+
+def _cmp(a, b):
+    """
+    Replacement for cmp() in Python 3.
+    """
+    return (a > b) - (a < b)
+
+
+def sorted_by_nvr(lst, get_nvr=None, reverse=False):
+    """
+    Sorts the list `lst` containing NVR by the NVRs.
+
+    :param list lst: List with NVRs to sort.
+    :param fnc get_nvr: Function taking the item from a list and returning
+        the NVR. If None, the item from `lst` is expected to be NVR string.
+    :param bool reverse: When True, the result of sorting is reversed.
+    :rtype: list
+    :return: Sorted `lst`.
+    """
+    def _compare_items(item1, item2):
+        if get_nvr:
+            nvr1 = get_nvr(item1)
+            nvr2 = get_nvr(item2)
+        else:
+            nvr1 = item1
+            nvr2 = item2
+
+        nvr1_dict = kobo.rpmlib.parse_nvr(nvr1)
+        nvr2_dict = kobo.rpmlib.parse_nvr(nvr2)
+        if nvr1_dict["name"] != nvr2_dict["name"]:
+            return _cmp(nvr1_dict["name"], nvr2_dict["name"])
+        return kobo.rpmlib.compare_nvr(nvr1_dict, nvr2_dict)
+
+    return sorted(
+        lst, key=functools.cmp_to_key(_compare_items), reverse=reverse)
 
 
 def get_url_for(*args, **kwargs):

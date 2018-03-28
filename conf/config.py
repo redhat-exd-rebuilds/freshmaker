@@ -270,6 +270,7 @@ class TestConfiguration(BaseConfiguration):
     AUTH_BACKEND = 'noauth'
     AUTH_LDAP_SERVER = 'ldap://ldap.example.com'
     AUTH_LDAP_GROUP_BASE = 'ou=groups,dc=example,dc=com'
+    MAX_THREAD_WORKERS = 1
 
     HANDLER_BUILD_WHITELIST = {
         'BrewSignRPMHandler': {

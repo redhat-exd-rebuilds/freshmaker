@@ -103,9 +103,8 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
 
         # Get and record all images to rebuild based on the current
         # ErrataAdvisoryRPMsSignedEvent event.
-        builds = {}
-        for batches in self._find_images_to_rebuild(db_event.search_key):
-            builds = self._record_batches(batches, event, builds)
+        batches = self._find_images_to_rebuild(db_event.search_key)
+        builds = self._record_batches(batches, event)
 
         if not builds:
             msg = 'No container images to rebuild for advisory %r' % event.errata_name
@@ -682,19 +681,23 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
             published = None
             release_category = None
 
-        # For each RPM package in Errata advisory, find Docker images
-        # containing this package and record those images into database.
+        # For each RPM package in Errata advisory, find the SRPM package name.
+        srpm_names = set()
         nvrs = errata.get_builds(errata_id)
         for nvr in nvrs:
-            self.log_info(
-                "Going to find all the container images to rebuild as "
-                "result of %s update.", nvr)
-            srpm_name = self._find_build_srpm_name(nvr)
-            batches = lb.find_images_to_rebuild(
-                srpm_name, content_sets,
-                filter_fnc=self._filter_out_not_allowed_builds,
-                published=published, release_category=release_category)
-            yield batches
+            srpm_name = koji.parse_NVR(nvr)['name']
+            srpm_names.add(srpm_name)
+
+        # For each SRPM name, find out all the containers which include
+        # this SRPM name.
+        self.log_info(
+            "Going to find all the container images to rebuild as "
+            "result of %r update.", srpm_names)
+        batches = lb.find_images_to_rebuild(
+            srpm_names, content_sets,
+            filter_fnc=self._filter_out_not_allowed_builds,
+            published=published, release_category=release_category)
+        return batches
 
     def _find_build_srpm_name(self, build_nvr):
         """Find srpm name from a build"""

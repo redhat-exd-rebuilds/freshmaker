@@ -285,6 +285,10 @@ class Config(object):
             'type': dict,
             'default': {},
             'desc': 'Configuration for each supported messaging backend.'},
+        'max_thread_workers': {
+            'type': int,
+            'default': 10,
+            'desc': 'Maximum number of thread workers used by Freshmaker.'},
     }
 
     def __init__(self, conf_section_obj):

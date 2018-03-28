@@ -31,6 +31,7 @@ from freshmaker.lightblue import ContainerRepository
 from freshmaker.lightblue import LightBlue
 from freshmaker.lightblue import LightBlueRequestError
 from freshmaker.lightblue import LightBlueSystemError
+from freshmaker.utils import sorted_by_nvr
 from tests import helpers
 
 
@@ -175,7 +176,7 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
         get_task_request.return_value = [
             "git://example.com/rpms/repo-1?#commit_hash1", "target1", {}]
 
-        image.resolve_commit("openssl")
+        image.resolve_commit()
         self.assertEqual(image["repository"], "rpms/repo-1")
         self.assertEqual(image["commit"], "commit_hash1")
         self.assertEqual(image["target"], "target1")
@@ -206,7 +207,7 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
 
         get_build.return_value = {}
 
-        image.resolve_commit("openssl")
+        image.resolve_commit()
         self.assertEqual(image["repository"], None)
         self.assertEqual(image["commit"], None)
         self.assertEqual(image["target"], None)
@@ -240,7 +241,7 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
 
         get_build.return_value = {"task_id": None}
 
-        image.resolve_commit("openssl")
+        image.resolve_commit()
         self.assertEqual(image["repository"], None)
         self.assertEqual(image["commit"], None)
         self.assertEqual(image["target"], None)
@@ -641,8 +642,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                        private_key=self.fake_private_key)
         repositories = self.fake_repositories_with_content_sets
         cont_images.return_value = self.fake_images_with_parsed_data
-        ret = lb.find_images_with_included_srpm(repositories,
-                                                "openssl")
+        ret = lb.find_images_with_included_srpms(repositories,
+                                                 ["openssl"])
 
         expected_image_request = {
             "objectType": "containerImage",
@@ -668,9 +669,13 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                         "rvalue": "latest"
                     },
                     {
-                        "field": "rpm_manifest.*.rpms.*.srpm_name",
-                        "op": "=",
-                        "rvalue": "openssl"
+                        "$or": [
+                            {
+                                "field": "rpm_manifest.*.rpms.*.srpm_name",
+                                "op": "=",
+                                "rvalue": "openssl"
+                            },
+                        ],
                     },
                     {
                         "field": "parsed_data.files.*.key",
@@ -724,7 +729,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
                        private_key=self.fake_private_key)
-        ret = lb.find_images_with_package_from_content_set(
+        ret = lb.find_images_with_packages_from_content_set(
             "openssl", ["dummy-content-set-1"], filter_fnc=self._filter_fnc)
 
         # Only the first image should be returned, because the first one
@@ -898,7 +903,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         self.assertEqual(ret[1]["content_sets"], set(["content-set"]))
         self.assertEqual(ret[2]["content_sets"], set(["content-set"]))
 
-    @patch('freshmaker.lightblue.LightBlue.find_images_with_package_from_content_set')
+    @patch('freshmaker.lightblue.LightBlue.find_images_with_packages_from_content_set')
     @patch('freshmaker.lightblue.LightBlue.find_parent_images_with_package')
     @patch('freshmaker.lightblue.LightBlue.find_unpublished_image_for_build')
     @patch('os.path.exists')
@@ -906,7 +911,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                exists,
                                find_unpublished_image_for_build,
                                find_parent_images_with_package,
-                               find_images_with_package_from_content_set):
+                               find_images_with_packages_from_content_set):
         exists.return_value = True
 
         image_a = ContainerImage.create({
@@ -1003,8 +1008,16 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             leaf_image1, leaf_image2, leaf_image3,
             leaf_image4, leaf_image5, leaf_image6
         ]
+
+        for image in images:
+            image["rpm_manifest"] = [{
+                "rpms": [
+                    {"srpm_name": "dummy"}
+                ]
+            }]
+
         find_unpublished_image_for_build.side_effect = images
-        find_images_with_package_from_content_set.return_value = images
+        find_images_with_packages_from_content_set.return_value = images
 
         find_parent_images_with_package.side_effect = [
             [image_b, image_a],                    # parents of leaf_image1
@@ -1017,7 +1030,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
                        private_key=self.fake_private_key)
-        batches = lb.find_images_to_rebuild("dummy", "dummy")
+        batches = lb.find_images_to_rebuild(["dummy"], ["dummy"])
 
         # Each of batch is sorted for assertion easily
         expected_batches = [
@@ -1030,30 +1043,34 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
 
         returned_batches = [sorted(images, key=lambda image: image['brew']['build'])
                             for images in batches]
-
         self.assertEqual(expected_batches, returned_batches)
 
-    @patch('freshmaker.lightblue.LightBlue.find_images_with_package_from_content_set')
+    @patch('freshmaker.lightblue.LightBlue.find_images_with_packages_from_content_set')
     @patch('freshmaker.lightblue.LightBlue.find_unpublished_image_for_build')
     @patch('os.path.exists')
     def test_images_to_rebuild_cannot_find_unpublished(
             self, exists, find_unpublished_image_for_build,
-            find_images_with_package_from_content_set):
+            find_images_with_packages_from_content_set):
         exists.return_value = True
 
         image_a = ContainerImage.create({
             'brew': {'package': 'image-a', 'build': 'image-a-v-r1'},
             'repository': 'repo-1',
-            'commit': 'image-a-commit'
+            'commit': 'image-a-commit',
+            'rpm_manifest': [{
+                "rpms": [
+                    {"srpm_name": "dummy"}
+                ]
+            }]
         })
 
         find_unpublished_image_for_build.return_value = None
-        find_images_with_package_from_content_set.return_value = [image_a]
+        find_images_with_packages_from_content_set.return_value = [image_a]
 
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
                        private_key=self.fake_private_key)
-        batches = lb.find_images_to_rebuild("dummy", "dummy")
+        batches = lb.find_images_to_rebuild(["dummy"], ["dummy"])
 
         self.assertEqual(len(batches), 1)
         self.assertEqual(len(batches[0]), 1)
@@ -1078,7 +1095,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                        cert=self.fake_cert_file,
                        private_key=self.fake_private_key)
         with self.assertRaises(LightBlueRequestError):
-            lb.find_images_with_package_from_content_set(
+            lb.find_images_with_packages_from_content_set(
                 "openssl",
                 ["dummy-content-set-1"])
 
@@ -1087,7 +1104,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             {"errors": [{"msg": "dummy error"}]}, http_client.REQUEST_TIMEOUT)
 
         with self.assertRaises(LightBlueRequestError):
-            lb.find_images_with_package_from_content_set(
+            lb.find_images_with_packages_from_content_set(
                 "openssl",
                 ["dummy-content-set-1"])
 
@@ -1183,32 +1200,123 @@ class TestDeduplicateImagesToRebuild(helpers.FreshmakerTestCase):
     def test_use_highest_nvr(self):
         httpd = self._create_imgs([
             "httpd-2.4-12",
-            "s2i-base-1-3",
-            "s2i-core-1-2",
+            "s2i-base-1-10",
+            "s2i-core-1-11",
             "rhel-server-docker-7.4-125",
         ])
 
         perl = self._create_imgs([
             "perl-5.7-1",
-            "s2i-base-1-1",
-            "s2i-core-1-1",
+            "s2i-base-1-2",
+            "s2i-core-1-2",
             "rhel-server-docker-7.4-150",
         ])
 
         expected_images = [
             self._create_imgs([
                 "httpd-2.4-12",
-                "s2i-base-1-3",
-                "s2i-core-1-2",
+                "s2i-base-1-10",
+                "s2i-core-1-11",
                 "rhel-server-docker-7.4-150",
             ]),
             self._create_imgs([
                 "perl-5.7-1",
-                "s2i-base-1-3",
-                "s2i-core-1-2",
+                "s2i-base-1-10",
+                "s2i-core-1-11",
                 "rhel-server-docker-7.4-150",
             ])
         ]
 
         ret = self.lb._deduplicate_images_to_rebuild([httpd, perl])
         self.assertEqual(ret, expected_images)
+
+    def test_keep_multiple_nvs(self):
+        httpd = self._create_imgs([
+            "httpd-2.4-12",
+            "s2i-base-1-10",
+            "s2i-core-1-11",
+            "rhel-server-docker-7.4-125",
+        ])
+
+        perl = self._create_imgs([
+            "perl-5.7-1",
+            "s2i-base-2-2",
+            "s2i-core-2-2",
+            "rhel-server-docker-7.4-150",
+        ])
+
+        expected_images = [
+            self._create_imgs([
+                "httpd-2.4-12",
+                "s2i-base-1-10",
+                "s2i-core-1-11",
+                "rhel-server-docker-7.4-150",
+            ]),
+            self._create_imgs([
+                "perl-5.7-1",
+                "s2i-base-2-2",
+                "s2i-core-2-2",
+                "rhel-server-docker-7.4-150",
+            ])
+        ]
+
+        ret = self.lb._deduplicate_images_to_rebuild([httpd, perl])
+        self.assertEqual(ret, expected_images)
+
+    def test_batches_same_image_in_batch(self):
+        httpd = self._create_imgs([
+            "httpd-2.4-12",
+            "s2i-base-1-10",
+            "s2i-core-1-11",
+            "rhel-server-docker-7.4-150",
+        ])
+        perl = self._create_imgs([
+            "perl-5.7-1",
+            "s2i-base-1-10",
+            "s2i-core-1-11",
+            "rhel-server-docker-7.4-150",
+        ])
+        to_rebuild = [httpd, perl]
+        batches = self.lb._images_to_rebuild_to_batches(to_rebuild)
+        batches = [
+            sorted_by_nvr(images, get_nvr=lambda image: image['brew']['build'])
+            for images in batches]
+
+        # Both perl and httpd share the same parent images, so include
+        # just httpd's one in expected batches - they are the same as
+        # for perl one. But for the last batch, we expect both images.
+        expected = [
+            [httpd[3]],
+            [httpd[2]],
+            [httpd[1]],
+            [httpd[0], perl[0]],
+        ]
+
+        self.assertEqual(batches, expected)
+
+    def test_batches_standalone_image_in_batch(self):
+        # Create to_rebuild list of following images:
+        # [
+        #   [httpd, s2i-base, s2i-core, rhel-server-docker],
+        #   [s2i-base, s2i-core, rhel-server-docker],
+        #   ...,
+        #   [rhel-server-docker]
+        # ]
+        deps = self._create_imgs([
+            "httpd-2.4-12",
+            "s2i-base-1-10",
+            "s2i-core-1-11",
+            "rhel-server-docker-7.4-150",
+        ])
+        to_rebuild = []
+        for i in range(len(deps)):
+            to_rebuild.append(deps[i:])
+
+        batches = self.lb._images_to_rebuild_to_batches(to_rebuild)
+        batches = [
+            sorted_by_nvr(images, get_nvr=lambda image: image['brew']['build'])
+            for images in batches]
+
+        # We expect each image to be rebuilt just once.
+        expected = [[deps[3]], [deps[2]], [deps[1]], [deps[0]]]
+        self.assertEqual(batches, expected)
