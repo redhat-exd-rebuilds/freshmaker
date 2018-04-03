@@ -1041,8 +1041,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             [leaf_image3]
         ]
 
-        returned_batches = [sorted(images, key=lambda image: image['brew']['build'])
-                            for images in batches]
+        returned_batches = [sorted(imgs, key=lambda image: image['brew']['build'])
+                            for imgs in batches]
         self.assertEqual(expected_batches, returned_batches)
 
     @patch('freshmaker.lightblue.LightBlue.find_images_with_packages_from_content_set')
