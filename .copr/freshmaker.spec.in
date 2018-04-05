@@ -54,6 +54,7 @@ BuildRequires:    pyOpenSSL
 BuildRequires:    python-six
 BuildRequires:    python-sqlalchemy
 BuildRequires:    koji
+BuildRequires:    python-psycopg2
 %else
 BuildRequires:    python2-setuptools
 BuildRequires:    python2-fedora
@@ -67,6 +68,7 @@ BuildRequires:    python2-pyOpenSSL
 BuildRequires:    python2-six
 BuildRequires:    python2-sqlalchemy
 BuildRequires:    python2-koji
+BuildRequires:    python2-psycopg2
 %endif
 
 BuildRequires:    systemd
@@ -105,6 +107,7 @@ Requires:    python-six
 Requires:    python-sqlalchemy
 Requires:    koji
 Requires:    systemd-python
+Requires:    python-psycopg2
 %else
 Requires:    python2-koji
 Requires:    python2-fedora
@@ -117,6 +120,7 @@ Requires:    python2-pyOpenSSL
 Requires:    python2-six
 Requires:    python2-sqlalchemy
 Requires:    python2-systemd
+Requires:    python2-psycopg2
 %endif
 
 
