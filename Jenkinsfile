@@ -71,7 +71,7 @@ node('docker') {
             /* Note that the docker.build step has some magic to guess the
              * Dockerfile used, which will break if the build directory (here ".")
              * is not the final argument in the string. */
-            def image = docker.build "factory2/freshmaker:${appversion}", "--build-arg freshmaker_rpm=$f26_rpm ."
+            def image = docker.build "factory2/freshmaker:${appversion}", "--build-arg freshmaker_rpm=$f26_rpm --build-arg cacert_url=https://password.corp.redhat.com/RH-IT-Root-CA.crt ."
             image.push()
         }
         /* Save container version for later steps (this is ugly but I can't find anything better...) */

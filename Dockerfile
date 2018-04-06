@@ -6,12 +6,19 @@ LABEL \
     build-date=""
 # The caller should build a Freshmaker RPM package and then pass it in this arg.
 ARG freshmaker_rpm
+ARG cacert_url=undefined
 COPY $freshmaker_rpm /tmp
 
 RUN dnf -y install \
     /tmp/$(basename $freshmaker_rpm) \
     && dnf -y clean all \
     && rm -f /tmp/*
+
+RUN if [ "$cacert_url" != "undefined" ]; then \
+        cd /etc/pki/ca-trust/source/anchors \
+        && curl -O --insecure $cacert_url \
+        && update-ca-trust extract; \
+    fi
 
 USER 1001
 EXPOSE 8080
