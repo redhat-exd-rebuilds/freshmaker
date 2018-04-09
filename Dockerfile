@@ -10,6 +10,7 @@ ARG cacert_url=undefined
 COPY $freshmaker_rpm /tmp
 
 RUN dnf -y install \
+    python2-gunicorn \
     /tmp/$(basename $freshmaker_rpm) \
     && dnf -y clean all \
     && rm -f /tmp/*
