@@ -192,17 +192,33 @@ class ContainerImage(dict):
             else:
                 data["git_branch"] = "unknown"
 
-            m = re.match(r".*/(?P<namespace>.*)/(?P<container>.*)#(?P<commit>.*)", source)
-            if m:
-                namespace = m.group("namespace")
-                # For some Koji tasks, the container part ends with "?" in
-                # source URL. This is just because some custom scripts for
-                # submitting those builds include this character in source URL
-                # to mark the query part of URL. We need to handle that by
-                # stripping that character.
-                container = m.group("container").rstrip("?")
-                data["repository"] = namespace + "/" + container
-                data["commit"] = m.group("commit")
+            # Some builds do not have "source" attribute filled in, so try
+            # both build["source"] and task_request[0] sources.
+            sources = [source]
+            if "source" in build:
+                sources.insert(0, build["source"])
+            for src in sources:
+                m = re.match(r".*/(?P<namespace>.*)/(?P<container>.*)#(?P<commit>.*)", src)
+                if m:
+                    namespace = m.group("namespace")
+                    # For some Koji tasks, the container part ends with "?" in
+                    # source URL. This is just because some custom scripts for
+                    # submitting those builds include this character in source URL
+                    # to mark the query part of URL. We need to handle that by
+                    # stripping that character.
+                    container = m.group("container").rstrip("?")
+                    data["repository"] = namespace + "/" + container
+
+                    # There might be tasks which have branch name in
+                    # "origin/branch_name" format, so detect it set commit
+                    # hash only if this is not true.
+                    if "/" not in m.group("commit"):
+                        data["commit"] = m.group("commit")
+                        break
+
+            if not data['commit']:
+                raise KojiLookupError(
+                    "Cannot find valid source of Koji build %r" % build)
 
         return data
 

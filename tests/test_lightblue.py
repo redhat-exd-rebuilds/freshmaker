@@ -122,6 +122,30 @@ description</b> <u>JBWEB000121: This request requires HTTP authentication.</u>
 
 class TestContainerImageObject(helpers.FreshmakerTestCase):
 
+    def setUp(self):
+        super(TestContainerImageObject, self).setUp()
+
+        self.dummy_image = ContainerImage.create({
+            '_id': '1233829',
+            'brew': {
+                'completion_date': u'20170421T04:27:51.000-0400',
+                'build': 'package-name-1-4-12.10',
+                'package': 'package-name-1'
+            },
+            'rpm_manifest': [{
+                'rpms': [
+                    {
+                        "srpm_name": "openssl",
+                        "srpm_nevra": "openssl-0:1.2.3-1.src"
+                    },
+                    {
+                        "srpm_name": "tespackage",
+                        "srpm_nevra": "testpackage-10:1.2.3-1.src"
+                    }
+                ]
+            }]
+        })
+
     def test_create(self):
         image = ContainerImage.create({
             '_id': '1233829',
@@ -151,103 +175,68 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')
     def test_resolve_commit_koji_fallback(self, get_task_request, get_build):
-        image = ContainerImage.create({
-            '_id': '1233829',
-            'brew': {
-                'completion_date': u'20170421T04:27:51.000-0400',
-                'build': 'package-name-1-4-12.10',
-                'package': 'package-name-1'
-            },
-            'rpm_manifest': [{
-                'rpms': [
-                    {
-                        "srpm_name": "openssl",
-                        "srpm_nevra": "openssl-0:1.2.3-1.src"
-                    },
-                    {
-                        "srpm_name": "tespackage",
-                        "srpm_nevra": "testpackage-10:1.2.3-1.src"
-                    }
-                ]
-            }]
-        })
-
         get_build.return_value = {"task_id": 123456}
         get_task_request.return_value = [
             "git://example.com/rpms/repo-1?#commit_hash1", "target1", {}]
 
-        image.resolve_commit()
-        self.assertEqual(image["repository"], "rpms/repo-1")
-        self.assertEqual(image["commit"], "commit_hash1")
-        self.assertEqual(image["target"], "target1")
+        self.dummy_image.resolve_commit()
+        self.assertEqual(self.dummy_image["repository"], "rpms/repo-1")
+        self.assertEqual(self.dummy_image["commit"], "commit_hash1")
+        self.assertEqual(self.dummy_image["target"], "target1")
 
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')
     def test_resolve_commit_no_koji_build(self, get_task_request, get_build):
-        image = ContainerImage.create({
-            '_id': '1233829',
-            'brew': {
-                'completion_date': u'20170421T04:27:51.000-0400',
-                'build': 'package-name-1-4-12.10',
-                'package': 'package-name-1'
-            },
-            'rpm_manifest': [{
-                'rpms': [
-                    {
-                        "srpm_name": "openssl",
-                        "srpm_nevra": "openssl-0:1.2.3-1.src"
-                    },
-                    {
-                        "srpm_name": "tespackage",
-                        "srpm_nevra": "testpackage-10:1.2.3-1.src"
-                    }
-                ]
-            }]
-        })
-
         get_build.return_value = {}
 
-        image.resolve_commit()
-        self.assertEqual(image["repository"], None)
-        self.assertEqual(image["commit"], None)
-        self.assertEqual(image["target"], None)
-        self.assertTrue(image["error"].find(
+        self.dummy_image.resolve_commit()
+        self.assertEqual(self.dummy_image["repository"], None)
+        self.assertEqual(self.dummy_image["commit"], None)
+        self.assertEqual(self.dummy_image["target"], None)
+        self.assertTrue(self.dummy_image["error"].find(
             "Cannot find Koji build with nvr package-name-1-4-12.10 in "
             "Koji.") != -1)
 
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')
     def test_resolve_commit_no_task_id(self, get_task_request, get_build):
-        image = ContainerImage.create({
-            '_id': '1233829',
-            'brew': {
-                'completion_date': u'20170421T04:27:51.000-0400',
-                'build': 'package-name-1-4-12.10',
-                'package': 'package-name-1'
-            },
-            'rpm_manifest': [{
-                'rpms': [
-                    {
-                        "srpm_name": "openssl",
-                        "srpm_nevra": "openssl-0:1.2.3-1.src"
-                    },
-                    {
-                        "srpm_name": "tespackage",
-                        "srpm_nevra": "testpackage-10:1.2.3-1.src"
-                    }
-                ]
-            }]
-        })
-
         get_build.return_value = {"task_id": None}
 
-        image.resolve_commit()
-        self.assertEqual(image["repository"], None)
-        self.assertEqual(image["commit"], None)
-        self.assertEqual(image["target"], None)
-        self.assertTrue(image["error"].find(
+        self.dummy_image.resolve_commit()
+        self.assertEqual(self.dummy_image["repository"], None)
+        self.assertEqual(self.dummy_image["commit"], None)
+        self.assertEqual(self.dummy_image["target"], None)
+        self.assertTrue(self.dummy_image["error"].find(
             "Cannot find task_id or container_koji_task_id in the Koji build "
             "{'task_id': None}") != -1)
+
+    @patch('freshmaker.kojiservice.KojiService.get_build')
+    @patch('freshmaker.kojiservice.KojiService.get_task_request')
+    def test_resolve_commit_prefer_build_source(
+            self, get_task_request, get_build):
+        get_build.return_value = {
+            "task_id": 123456,
+            "source": "git://example.com/rpms/repo-1?#commit_hash1"}
+        get_task_request.return_value = [
+            "git://example.com/rpms/repo-1?#origin/master", "target1", {}]
+
+        self.dummy_image.resolve_commit()
+        self.assertEqual(self.dummy_image["repository"], "rpms/repo-1")
+        self.assertEqual(self.dummy_image["commit"], "commit_hash1")
+        self.assertEqual(self.dummy_image["target"], "target1")
+
+    @patch('freshmaker.kojiservice.KojiService.get_build')
+    @patch('freshmaker.kojiservice.KojiService.get_task_request')
+    def test_resolve_commit_invalid_hash(self, get_task_request, get_build):
+        get_build.return_value = {
+            "task_id": 123456,
+            "source": "git://example.com/rpms/repo-1"}
+        get_task_request.return_value = [
+            "git://example.com/rpms/repo-1?#origin/master", "target1", {}]
+
+        self.dummy_image.resolve_commit()
+        self.assertTrue(self.dummy_image["error"].find(
+            "Cannot find valid source of Koji build") != -1)
 
     def test_resolve_content_sets_no_repositories(self):
         image = ContainerImage.create({
