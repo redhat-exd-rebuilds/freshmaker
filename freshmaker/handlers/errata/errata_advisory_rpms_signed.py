@@ -91,11 +91,11 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         # Check if we are allowed to build this advisory.
         if not event.manual and not self.allow_build(
                 ArtifactType.IMAGE,
-                advisory_name=event.errata_name,
-                advisory_security_impact=event.security_impact,
-                advisory_product_short_name=event.product_short_name):
+                advisory_name=event.advisory.name,
+                advisory_security_impact=event.advisory.security_impact,
+                advisory_product_short_name=event.advisory.product_short_name):
             msg = ("Errata advisory {0} is not allowed by internal policy "
-                   "to trigger rebuilds.".format(event.errata_id))
+                   "to trigger rebuilds.".format(event.advisory.errata_id))
             db_event.transition(EventState.SKIPPED, msg)
             db.session.commit()
             self.log_info(msg)
@@ -107,7 +107,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         builds = self._record_batches(batches, event)
 
         if not builds:
-            msg = 'No container images to rebuild for advisory %r' % event.errata_name
+            msg = 'No container images to rebuild for advisory %r' % event.advisory.name
             self.log_info(msg)
             db_event.transition(EventState.SKIPPED, msg)
             db.session.commit()
@@ -121,7 +121,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
             db.session.commit()
             return []
 
-        if event.errata_state != 'SHIPPED_LIVE':
+        if event.advisory.state != 'SHIPPED_LIVE':
             # If freshmaker is configured to rebuild images only when advisory
             # moves to SHIPPED_LIVE state, there is no need to generate new
             # composes for rebuild as all signed RPMs should already be
@@ -137,7 +137,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         # Log what we are going to rebuild
         self._check_images_to_rebuild(db_event, builds)
 
-        if event.errata_state == 'SHIPPED_LIVE':
+        if event.advisory.state == 'SHIPPED_LIVE':
             # As mentioned above, no need to wait for the event of new compose
             # is generated in ODCS, so we can start to rebuild the first batch
             # from here immediately.
@@ -671,9 +671,9 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         # Check if we are allowed to rebuild unpublished images and clear
         # published and release_category if so.
         if self.allow_build(
-                ArtifactType.IMAGE, advisory_name=self.event.errata_name,
-                advisory_security_impact=self.event.security_impact,
-                advisory_product_short_name=self.event.product_short_name,
+                ArtifactType.IMAGE, advisory_name=self.event.advisory.name,
+                advisory_security_impact=self.event.advisory.security_impact,
+                advisory_product_short_name=self.event.advisory.product_short_name,
                 published=True):
             published = True
             release_category = "Generally Available"

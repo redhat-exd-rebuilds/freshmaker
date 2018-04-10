@@ -96,7 +96,7 @@ class BrewSignRPMHandler(BaseHandler):
         # ErrataAdvisoryRPMsSignedEvent.
         new_events = []
         for advisory in advisories:
-            new_event = ErrataAdvisoryRPMsSignedEvent.from_errata_advisory(
+            new_event = ErrataAdvisoryRPMsSignedEvent(
                 event.msg_id + "." + str(advisory.name), advisory)
             db_event = Event.create(
                 db.session, new_event.msg_id, new_event.search_key,

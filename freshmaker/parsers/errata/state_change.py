@@ -21,7 +21,7 @@
 
 from freshmaker.parsers import BaseParser
 from freshmaker.events import ErrataAdvisoryStateChangedEvent
-from freshmaker.errata import Errata
+from freshmaker.errata import Errata, ErrataAdvisory
 
 
 class ErrataAdvisoryStateChangedParser(BaseParser):
@@ -38,9 +38,9 @@ class ErrataAdvisoryStateChangedParser(BaseParser):
     def parse(self, topic, msg):
         msg_id = msg.get('msg_id')
         inner_msg = msg.get('msg')
-        status = inner_msg.get('errata_status')
         errata_id = int(inner_msg.get('errata_id'))
 
-        advisory = Errata().get_advisory(errata_id)
+        errata = Errata()
         return ErrataAdvisoryStateChangedEvent(
-            msg_id, errata_id, status, advisory['content_types'])
+            msg_id, ErrataAdvisory.from_advisory_id(errata, errata_id)
+        )

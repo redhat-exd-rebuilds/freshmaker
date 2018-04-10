@@ -22,7 +22,7 @@
 
 from mock import patch
 
-from freshmaker.errata import Errata
+from freshmaker.errata import Errata, ErrataAdvisory
 from freshmaker.events import (
     BrewSignRPMEvent, GitRPMSpecChangeEvent, ErrataAdvisoryStateChangedEvent)
 from tests import helpers
@@ -80,6 +80,27 @@ class MockedErrataAPI(object):
             }
         }
 
+        self.advisory_rest_json = {
+            "errata": {
+                "rhsa": {
+                    "id": 28484,
+                    "fulladvisory": "RHSA-2017:28484",
+                    "status": "QE",
+                    "content_types": ["rpm"],
+                    "security_impact": "Important",
+                    "product_id": 89,
+                }
+            },
+            "content": {
+                "content": {
+                    "cve": "CVE-2015-3253 CVE-2016-6814",
+                }
+            }
+        }
+
+        self.products = {}
+        self.products[89] = {"product": {"short_name": "product"}}
+
         self.product_versions_json = [
             {"product_version": {"name": "PRODUCT1-3.0-NFS", "id": 1}},
             {"product_version": {"name": "PRODUCT1-3.1-NFS", "id": 2}},
@@ -97,6 +118,8 @@ class MockedErrataAPI(object):
         if endpoint.find("build/") != -1:
             nvr = endpoint.split("/")[-1]
             return self.builds[nvr]
+        elif endpoint.find("erratum/") != -1:
+            return self.advisory_rest_json
 
     def errata_http_get(self, endpoint):
         if endpoint.endswith("builds.json"):
@@ -109,6 +132,9 @@ class MockedErrataAPI(object):
             elif endpoint.find("/product_versions/") != -1:
                 id = int(endpoint.split("/")[-1].replace(".json", ""))
                 return self.product_versions[id]
+            else:
+                id = int(endpoint.split("/")[-1].replace(".json", ""))
+                return self.products[id]
 
 
 class TestErrata(helpers.FreshmakerTestCase):
@@ -124,6 +150,13 @@ class TestErrata(helpers.FreshmakerTestCase):
         advisories = self.errata.advisories_from_event(event)
         self.assertEqual(len(advisories), 1)
         self.assertEqual(advisories[0].errata_id, 28484)
+        self.assertEqual(advisories[0].name, "RHSA-2017:28484")
+        self.assertEqual(advisories[0].state, "QE")
+        self.assertEqual(advisories[0].content_types, ["rpm"])
+        self.assertEqual(advisories[0].security_impact, "Important")
+        self.assertEqual(advisories[0].product_short_name, "product")
+        self.assertEqual(advisories[0].cve_list,
+                         ["CVE-2015-3253", "CVE-2016-6814"])
 
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
@@ -145,7 +178,8 @@ class TestErrata(helpers.FreshmakerTestCase):
     def test_advisories_from_event_errata_state_change_event(
             self, errata_http_get, errata_rest_get):
         MockedErrataAPI(errata_rest_get, errata_http_get)
-        event = ErrataAdvisoryStateChangedEvent("msgid", 28484, "SHIPPED_LIVE", ['rpm'])
+        event = ErrataAdvisoryStateChangedEvent(
+            "msgid", ErrataAdvisory(28484, "name", "SHIPPED_LIVE", ['rpm']))
         advisories = self.errata.advisories_from_event(event)
         self.assertEqual(len(advisories), 1)
         self.assertEqual(advisories[0].errata_id, 28484)

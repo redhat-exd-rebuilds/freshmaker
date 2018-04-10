@@ -29,6 +29,7 @@ from mock import patch
 
 from freshmaker import app, db, events, models, login_manager
 from freshmaker.types import ArtifactType, ArtifactBuildState, EventState
+from freshmaker.errata import ErrataAdvisory
 import freshmaker.auth
 from tests import helpers
 
@@ -455,10 +456,10 @@ class TestManualTriggerRebuild(helpers.ModelsTestCase):
         self.client = app.test_client()
 
     @patch('freshmaker.messaging.publish')
-    @patch('freshmaker.views.Errata')
-    def test_manual_rebuild(self, Errata, publish):
-        errata = Errata.return_value
-        errata.get_advisory.return_value = {'content_types': ['rpm']}
+    @patch('freshmaker.views.ErrataAdvisory.from_advisory_id')
+    def test_manual_rebuild(self, from_advisory_id, publish):
+        from_advisory_id.return_value = ErrataAdvisory(
+            123, 'name', 'REL_PREP', ['rpm'])
 
         resp = self.client.post('/api/1/builds/',
                                 data=json.dumps({'errata_id': 1}),
@@ -468,10 +469,10 @@ class TestManualTriggerRebuild(helpers.ModelsTestCase):
         self.assertEqual(data["errata_id"], 1)
         publish.assert_called_once_with('manual.rebuild', {u'errata_id': 1})
 
-    @patch('freshmaker.views.Errata')
-    def test_not_rebuild_nonrpm_advisory(self, Errata):
-        errata = Errata.return_value
-        errata.get_advisory.return_value = {'content_types': ['docker']}
+    @patch('freshmaker.views.ErrataAdvisory.from_advisory_id')
+    def test_not_rebuild_nonrpm_advisory(self, from_advisory_id):
+        from_advisory_id.return_value = ErrataAdvisory(
+            123, 'name', 'REL_PREP', ['docker'])
 
         resp = self.client.post('/api/1/builds/',
                                 data=json.dumps({'errata_id': 1}),

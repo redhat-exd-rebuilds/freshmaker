@@ -44,8 +44,8 @@ class TestFreshmakerManualRebuildHandler(helpers.ModelsTestCase):
         ret = handler.handle(ev)
 
         self.assertEqual(len(ret), 1)
-        self.assertEqual(ret[0].errata_id, 123)
-        self.assertEqual(ret[0].state, "REL_PREP")
+        self.assertEqual(ret[0].advisory.errata_id, 123)
+        self.assertEqual(ret[0].advisory.state, "REL_PREP")
         self.assertEqual(ret[0].manual, True)
 
         db_event = Event.query.filter_by(message_id=ev.msg_id).first()

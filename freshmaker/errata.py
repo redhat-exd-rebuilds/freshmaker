@@ -26,7 +26,7 @@ import dogpile.cache
 from requests_kerberos import HTTPKerberosAuth
 
 from freshmaker.events import (
-    BrewSignRPMEvent, ErrataAdvisoryStateChangedEvent,
+    BrewSignRPMEvent, ErrataBaseEvent,
     FreshmakerManualRebuildEvent)
 from freshmaker import conf, log
 
@@ -37,7 +37,8 @@ class ErrataAdvisory(object):
     """
 
     def __init__(self, errata_id, name, state, content_types,
-                 security_impact=None, product_short_name=None):
+                 security_impact=None, product_short_name=None,
+                 cve_list=None):
         """
         Initializes the ErrataAdvisory instance.
         """
@@ -47,18 +48,26 @@ class ErrataAdvisory(object):
         self.content_types = content_types
         self.security_impact = security_impact or ""
         self.product_short_name = product_short_name or ""
+        self.cve_list = cve_list or []
 
     @classmethod
-    def from_advisory_json_data(cls, data):
+    def from_advisory_id(cls, errata, errata_id):
         """
-        Creates new ErrataAdvisory instance from response to
-        "advisory/%s.json" Errata tool API call.
+        Creates new ErrataAdvisory instance from the Erratum ID.
         """
+        data = errata._get_advisory(errata_id)
+        erratum_data = data["errata"].values()
+        if not erratum_data:
+            return None
+        erratum_data = erratum_data[0]
+
+        product_data = errata._get_product(erratum_data["product_id"])
+
         return ErrataAdvisory(
-            data["id"], data["advisory_name"], data["status"],
-            data['content_types'],
-            data["security_impact"],
-            data["product"]["short_name"])
+            erratum_data["id"], erratum_data["fulladvisory"], erratum_data["status"],
+            erratum_data['content_types'], erratum_data["security_impact"],
+            product_data["product"]["short_name"],
+            data["content"]["content"]["cve"].split(" "))
 
 
 class Errata(object):
@@ -112,8 +121,11 @@ class Errata(object):
         r.raise_for_status()
         return r.json()
 
-    def get_advisory(self, errata_id):
-        return self._errata_http_get('advisory/{0}.json'.format(errata_id))
+    def _get_advisory(self, errata_id):
+        return self._errata_rest_get('erratum/{0}'.format(errata_id))
+
+    def _get_product(self, product_id):
+        return self._errata_http_get("products/%s.json" % str(product_id))
 
     @region.cache_on_arguments()
     def _advisories_from_nvr(self, nvr):
@@ -127,8 +139,7 @@ class Errata(object):
 
         advisories = []
         for errata in build["all_errata"]:
-            data = self.get_advisory(errata["id"])
-            advisory = ErrataAdvisory.from_advisory_json_data(data)
+            advisory = ErrataAdvisory.from_advisory_id(self, errata["id"])
             advisories.append(advisory)
 
         return advisories
@@ -147,10 +158,10 @@ class Errata(object):
         """
         if isinstance(event, BrewSignRPMEvent):
             return self._advisories_from_nvr(event.nvr)
-        elif (isinstance(event, ErrataAdvisoryStateChangedEvent) or
-              isinstance(event, FreshmakerManualRebuildEvent)):
-            data = self.get_advisory(event.errata_id)
-            return [ErrataAdvisory.from_advisory_json_data(data)]
+        elif isinstance(event, ErrataBaseEvent):
+            return [event.advisory]
+        elif isinstance(event, FreshmakerManualRebuildEvent):
+            return [ErrataAdvisory.from_advisory_id(self, event.errata_id)]
         else:
             raise ValueError("Unsupported event type")
 

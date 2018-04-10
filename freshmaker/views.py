@@ -34,7 +34,7 @@ from freshmaker.api_utils import filter_events
 from freshmaker.api_utils import json_error
 from freshmaker.api_utils import pagination_metadata
 from freshmaker.auth import login_required, requires_role, require_scopes
-from freshmaker.errata import Errata
+from freshmaker.errata import Errata, ErrataAdvisory
 
 api_v1 = {
     'event_types': {
@@ -233,8 +233,9 @@ class BuildAPI(MethodView):
             return json_error(
                 400, 'Bad Request', 'Missing errata_id in request')
 
-        advisory = Errata().get_advisory(data['errata_id'])
-        if 'rpm' not in advisory['content_types']:
+        errata = Errata()
+        advisory = ErrataAdvisory.from_advisory_id(errata, data['errata_id'])
+        if 'rpm' not in advisory.content_types:
             return json_error(
                 400,
                 'Bad Request',

@@ -252,65 +252,32 @@ class KojiTaskStateChangeEvent(BaseEvent):
         self.task_state = task_state
 
 
-class ErrataAdvisoryStateChangedEvent(BaseEvent):
+class ErrataBaseEvent(BaseEvent):
+    def __init__(self, msg_id, advisory):
+        """
+        Creates new ErrataBaseEvent.
+
+        :param str msg_id: Message id.
+        :param ErrataAdvisory advisory: Errata advisory associated with event.
+        """
+        super(ErrataBaseEvent, self).__init__(msg_id)
+        self.advisory = advisory
+
+    @property
+    def search_key(self):
+        return str(self.advisory.errata_id)
+
+
+class ErrataAdvisoryStateChangedEvent(ErrataBaseEvent):
     """
     Represents change of Errata Advisory status.
     """
 
-    def __init__(self, msg_id, errata_id, state, content_types):
-        super(ErrataAdvisoryStateChangedEvent, self).__init__(msg_id)
-        self.errata_id = errata_id
-        self.state = state
-        self.content_types = content_types
 
-    @classmethod
-    def from_errata_advisory(cls, msg_id, advisory):
-        """
-        Creates new ErrataAdvisoryStateChangedEvent from errata.ErrataAdvisory
-        instances.
-
-        :param ErrataAdvisory advisory: errata.ErrataAdvisory instance.
-        :rtype: ErrataAdvisoryStateChangedEvent
-        :return: New ErrataAdvisoryStateChangedEvent instance.
-        """
-
-        return ErrataAdvisoryStateChangedEvent(
-            msg_id, advisory.errata_id, advisory.state,
-            advisory.content_types)
-
-
-class ErrataAdvisoryRPMsSignedEvent(BaseEvent):
+class ErrataAdvisoryRPMsSignedEvent(ErrataBaseEvent):
     """
     Event when all RPMs in Errata advisory are signed.
     """
-    def __init__(self, msg_id, errata_name, errata_id, security_impact,
-                 errata_state, product_short_name):
-        super(ErrataAdvisoryRPMsSignedEvent, self).__init__(msg_id)
-        self.errata_name = errata_name
-        self.errata_id = errata_id
-        self.security_impact = security_impact
-        self.errata_state = errata_state
-        self.product_short_name = product_short_name
-
-    @classmethod
-    def from_errata_advisory(cls, msg_id, advisory):
-        """
-        Creates new ErrataAdvisoryRPMsSignedEvent from errata.ErrataAdvisory
-        instances.
-
-        :param ErrataAdvisory advisory: errata.ErrataAdvisory instance.
-        :rtype: ErrataAdvisoryRPMsSignedEvent
-        :return: New ErrataAdvisoryRPMsSignedEvent instance.
-        """
-
-        return ErrataAdvisoryRPMsSignedEvent(
-            msg_id, advisory.name, advisory.errata_id,
-            advisory.security_impact, advisory.state,
-            advisory.product_short_name)
-
-    @property
-    def search_key(self):
-        return str(self.errata_id)
 
 
 class BrewSignRPMEvent(BaseEvent):
