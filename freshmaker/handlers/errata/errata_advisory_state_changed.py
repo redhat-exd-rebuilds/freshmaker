@@ -45,8 +45,8 @@ class ErrataAdvisoryStateChangedHandler(BaseHandler):
         if not isinstance(event, ErrataAdvisoryStateChangedEvent):
             return False
 
-        if 'rpm' not in event.content_types:
-            log.info('Skip non-RPM advisory %s.', event.errata_id)
+        if 'rpm' not in event.advisory.content_types:
+            log.info('Skip non-RPM advisory %s.', event.advisory.errata_id)
             return False
 
         return True
@@ -98,20 +98,20 @@ class ErrataAdvisoryStateChangedHandler(BaseHandler):
 
         log.info("Generating ErrataAdvisoryRPMsSignedEvent for Errata "
                  "advisory %d, because its state changed to %s.", errata_id,
-                 event.state)
+                 event.advisory.state)
         advisory = advisories[0]
-        db_event = ErrataAdvisoryRPMsSignedEvent.from_errata_advisory(
+        db_event = ErrataAdvisoryRPMsSignedEvent(
             event.msg_id + "." + str(advisory.name), advisory)
         return [db_event]
 
     def handle(self, event):
-        errata_id = event.errata_id
-        state = event.state
+        errata_id = event.advisory.errata_id
+        state = event.advisory.state
 
         extra_events = []
 
         if (event.manual or
-                self.allow_build(ArtifactType.IMAGE, advisory_state=event.state)):
+                self.allow_build(ArtifactType.IMAGE, advisory_state=event.advisory.state)):
             extra_events += self.rebuild_if_not_exists(event, errata_id)
 
         if state == "SHIPPED_LIVE":

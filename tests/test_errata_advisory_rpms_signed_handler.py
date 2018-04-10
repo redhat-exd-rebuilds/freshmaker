@@ -31,6 +31,7 @@ from freshmaker.handlers.errata import ErrataAdvisoryRPMsSignedHandler
 from freshmaker.lightblue import ContainerImage
 from freshmaker.models import Event, Compose
 from freshmaker.types import EventState
+from freshmaker.errata import ErrataAdvisory
 from tests import helpers
 
 
@@ -194,6 +195,17 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
             [self.image_f]
         ]
 
+        self.rhba_event = ErrataAdvisoryRPMsSignedEvent(
+            "123",
+            ErrataAdvisory(123, "RHBA-2017", "REL_PREP", [],
+                           security_impact="",
+                           product_short_name="product"))
+        self.rhsa_event = ErrataAdvisoryRPMsSignedEvent(
+            "123",
+            ErrataAdvisory(123, "RHSA-2017", "REL_PREP", [],
+                           security_impact="",
+                           product_short_name="product"))
+
     def tearDown(self):
         super(TestErrataAdvisoryRPMsSignedHandler, self).tearDown()
         self.patcher.unpatch_all()
@@ -210,10 +222,8 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
         db.session.commit()
 
         self.mock_find_images_to_rebuild.return_value = [[]]
-        event = ErrataAdvisoryRPMsSignedEvent(
-            "123", "RHBA-2017", 123, "", "REL_PREP", "product")
         handler = ErrataAdvisoryRPMsSignedHandler()
-        handler.handle(event)
+        handler.handle(self.rhba_event)
 
         db_event = Event.get(db.session, message_id='123')
         self.assertEqual(db_event.state, EventState.SKIPPED.value)
@@ -230,10 +240,8 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
         db.session.commit()
 
         self.mock_find_images_to_rebuild.return_value = [[]]
-        event = ErrataAdvisoryRPMsSignedEvent(
-            "123", "RHBA-2017", 123, "", "REL_PREP", "product")
         handler = ErrataAdvisoryRPMsSignedHandler()
-        handler.handle(event)
+        handler.handle(self.rhba_event)
 
         self.assertEqual(ErrataAdvisoryRPMsSignedHandler._FAKE_COMPOSE_ID, 5)
 
@@ -244,10 +252,8 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
     })
     def test_event_state_updated_when_no_images_to_rebuild(self):
         self.mock_find_images_to_rebuild.return_value = [[]]
-        event = ErrataAdvisoryRPMsSignedEvent(
-            "123", "RHBA-2017", 123, "", "REL_PREP", "product")
         handler = ErrataAdvisoryRPMsSignedHandler()
-        handler.handle(event)
+        handler.handle(self.rhba_event)
 
         db_event = Event.get(db.session, message_id='123')
         self.assertEqual(db_event.state, EventState.SKIPPED.value)
@@ -264,10 +270,8 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
         self.image_a['error'] = "foo"
         self.mock_find_images_to_rebuild.return_value = [
             [self.image_a]]
-        event = ErrataAdvisoryRPMsSignedEvent(
-            "123", "RHBA-2017", 123, "", "REL_PREP", "product")
         handler = ErrataAdvisoryRPMsSignedHandler()
-        handler.handle(event)
+        handler.handle(self.rhba_event)
 
         db_event = Event.get(db.session, message_id='123')
         self.assertEqual(db_event.state, EventState.COMPLETE.value)
@@ -284,15 +288,13 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
     def test_rebuild_if_errata_state_is_prior_to_SHIPPED_LIVE(
             self, start_to_build_images, prepare_yum_repos_for_rebuilds,
             allow_build):
-        event = ErrataAdvisoryRPMsSignedEvent(
-            'msg-id-123', 'RHSA-2017', 123, '', 'REL_PREP', 'product')
         handler = ErrataAdvisoryRPMsSignedHandler()
-        handler.handle(event)
+        handler.handle(self.rhsa_event)
 
         prepare_yum_repos_for_rebuilds.assert_called_once()
         start_to_build_images.assert_not_called()
 
-        db_event = Event.get(db.session, event.msg_id)
+        db_event = Event.get(db.session, self.rhsa_event.msg_id)
         self.assertEqual(EventState.BUILDING.value, db_event.state)
 
     @patch('freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler.'
@@ -306,7 +308,10 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
             self, get_image_builds_in_first_batch, start_to_build_images,
             prepare_yum_repos_for_rebuilds, allow_build):
         event = ErrataAdvisoryRPMsSignedEvent(
-            'msg-id-123', 'RHSA-2017', 123, '', 'SHIPPED_LIVE', 'product')
+            'msg-id-123',
+            ErrataAdvisory(123, "RHSA-2017", "SHIPPED_LIVE", [],
+                           security_impact="",
+                           product_short_name="product"))
         handler = ErrataAdvisoryRPMsSignedHandler()
         handler.handle(event)
 
@@ -541,7 +546,10 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             return_value=[[]])
 
         self.event = ErrataAdvisoryRPMsSignedEvent(
-            "123", "RHBA-2017", 123, "", "REL_PREP", "product")
+            "123",
+            ErrataAdvisory(123, "RHBA-2017", "REL_PREP", [],
+                           security_impact="",
+                           product_short_name="product"))
         self.handler = ErrataAdvisoryRPMsSignedHandler()
         self.handler.event = self.event
 

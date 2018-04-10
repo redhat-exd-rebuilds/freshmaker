@@ -77,7 +77,11 @@ class TestAllowBuild(helpers.ModelsTestCase):
         """
         Tests that allow_build filters out advisories based on advisory_name.
         """
-        event = ErrataAdvisoryRPMsSignedEvent("123", "RHBA-2017", 123, "", "REL_PREP", "product")
+        event = ErrataAdvisoryRPMsSignedEvent(
+            "123",
+            ErrataAdvisory(123, "RHBA-2017", "REL_PREP", [],
+                           security_impact="",
+                           product_short_name="product"))
         handler = ErrataAdvisoryRPMsSignedHandler()
         handler.handle(event)
 
@@ -94,7 +98,10 @@ class TestAllowBuild(helpers.ModelsTestCase):
         advisory_name.
         """
         event = ErrataAdvisoryRPMsSignedEvent(
-            "123", "RHSA-2017", 123, "", "REL_PREP", "product")
+            "123",
+            ErrataAdvisory(123, "RHSA-2017", "REL_PREP", [],
+                           security_impact="",
+                           product_short_name="product"))
         handler = ErrataAdvisoryRPMsSignedHandler()
         handler.handle(event)
 
@@ -123,7 +130,10 @@ class TestAllowBuild(helpers.ModelsTestCase):
         advisory_security_impact.
         """
         event = ErrataAdvisoryRPMsSignedEvent(
-            "123", "RHSA-2017", 123, "Important", "REL_PREP", "product")
+            "123",
+            ErrataAdvisory(123, "RHSA-2017", "REL_PREP", [],
+                           security_impact="Important",
+                           product_short_name="product"))
         handler = ErrataAdvisoryRPMsSignedHandler()
         handler.handle(event)
 
@@ -150,7 +160,10 @@ class TestAllowBuild(helpers.ModelsTestCase):
         advisory_security_impact.
         """
         event = ErrataAdvisoryRPMsSignedEvent(
-            "123", "RHSA-2017", 123, "None", "REL_PREP", "product")
+            "123",
+            ErrataAdvisory(123, "RHSA-2017", "REL_PREP", [],
+                           security_impact="None",
+                           product_short_name="product"))
         handler = ErrataAdvisoryRPMsSignedHandler()
         handler.handle(event)
 
@@ -174,7 +187,10 @@ class TestAllowBuild(helpers.ModelsTestCase):
 
         handler = ErrataAdvisoryRPMsSignedHandler()
         handler.event = ErrataAdvisoryRPMsSignedEvent(
-            "123", "RHSA-2017", 123, "None", "REL_PREP", "product")
+            "123",
+            ErrataAdvisory(123, "RHSA-2017", "REL_PREP", [],
+                           security_impact="None",
+                           product_short_name="product"))
 
         image = {"brew": {"build": "foo-1-2.3"}}
         ret = handler._filter_out_not_allowed_builds(image)
@@ -211,7 +227,10 @@ class TestAllowBuild(helpers.ModelsTestCase):
 
         handler = ErrataAdvisoryRPMsSignedHandler()
         handler.event = ErrataAdvisoryRPMsSignedEvent(
-            "123", "RHSA-2017", 123, "None", "REL_PREP", "product")
+            "123",
+            ErrataAdvisory(123, "RHSA-2017", "REL_PREP", [],
+                           security_impact="None",
+                           product_short_name="product"))
 
         image = {"brew": {"build": "foo-1-2.3"}}
         ret = handler._filter_out_not_allowed_builds(image)
@@ -587,13 +606,14 @@ class TestErrataAdvisoryStateChangedHandler(helpers.ModelsTestCase):
         for state in ["REL_PREP", "PUSH_READY", "IN_PUSH", "SHIPPED_LIVE"]:
             advisories_from_event.return_value = [
                 ErrataAdvisory(123, "RHSA-2017", state, ["rpm"], "Critical")]
-            ev = ErrataAdvisoryStateChangedEvent("msg123", 123, state, ['rpm'])
+            ev = ErrataAdvisoryStateChangedEvent(
+                "msg123", ErrataAdvisory(123, "RHSA-2017", state, ['rpm']))
             ret = handler.handle(ev)
 
             self.assertEqual(len(ret), 1)
-            self.assertEqual(ret[0].errata_id, 123)
-            self.assertEqual(ret[0].security_impact, "Critical")
-            self.assertEqual(ret[0].errata_name, "RHSA-2017")
+            self.assertEqual(ret[0].advisory.errata_id, 123)
+            self.assertEqual(ret[0].advisory.security_impact, "Critical")
+            self.assertEqual(ret[0].advisory.name, "RHSA-2017")
 
     @patch('freshmaker.errata.Errata.advisories_from_event')
     @patch.object(conf, 'handler_build_whitelist', new={
@@ -612,7 +632,8 @@ class TestErrataAdvisoryStateChangedHandler(helpers.ModelsTestCase):
         for state in ["NEW_FILES", "QE", "UNKNOWN"]:
             advisories_from_event.return_value = [
                 ErrataAdvisory(123, "RHSA-2017", state, ["rpm"], "Critical")]
-            ev = ErrataAdvisoryStateChangedEvent("msg123", 123, state, ['rpm'])
+            ev = ErrataAdvisoryStateChangedEvent(
+                "msg123", ErrataAdvisory(123, 'RHSA-2017', state, ['rpm']))
             ret = handler.handle(ev)
 
             self.assertEqual(len(ret), 0)
@@ -634,7 +655,8 @@ class TestErrataAdvisoryStateChangedHandler(helpers.ModelsTestCase):
             for state in ["REL_PREP", "PUSH_READY", "IN_PUSH", "SHIPPED_LIVE"]:
                 advisories_from_event.return_value = [
                     ErrataAdvisory(123, "RHSA-2017", state, ["rpm"], "Critical")]
-                ev = ErrataAdvisoryStateChangedEvent("msg123", 123, state, ['rpm'])
+                ev = ErrataAdvisoryStateChangedEvent(
+                    "msg123", ErrataAdvisory(123, 'RHSA-2017', state, ['rpm']))
                 ret = handler.handle(ev)
 
                 if db_event_state == EventState.FAILED:
@@ -649,7 +671,8 @@ class TestErrataAdvisoryStateChangedHandler(helpers.ModelsTestCase):
         handler = ErrataAdvisoryStateChangedHandler()
 
         for state in ["REL_PREP", "PUSH_READY", "IN_PUSH", "SHIPPED_LIVE"]:
-            ev = ErrataAdvisoryStateChangedEvent("msg123", 123, state, ['rpm'])
+            ev = ErrataAdvisoryStateChangedEvent(
+                "msg123", ErrataAdvisory(123, 'RHSA-2017', state, ['rpm']))
             ret = handler.handle(ev)
 
             self.assertEqual(len(ret), 0)
@@ -661,7 +684,8 @@ class TestErrataAdvisoryStateChangedHandler(helpers.ModelsTestCase):
 
         self.assertEqual(db_event.released, False)
 
-        ev = ErrataAdvisoryStateChangedEvent("msg123", 123, "SHIPPED_LIVE", ["rpm"])
+        ev = ErrataAdvisoryStateChangedEvent(
+            "msg123", ErrataAdvisory(123, "name", "SHIPPED_LIVE", ["rpm"]))
 
         handler = ErrataAdvisoryStateChangedHandler()
         handler.handle(ev)
@@ -675,7 +699,8 @@ class TestErrataAdvisoryStateChangedHandler(helpers.ModelsTestCase):
         db.session.commit()
 
         for state in ["NEW_FILES", "QE", "REL_PREP", "PUSH_READY", "IN_PUSH"]:
-            ev = ErrataAdvisoryStateChangedEvent("msg123", 123, state, ['rpm'])
+            ev = ErrataAdvisoryStateChangedEvent(
+                "msg123", ErrataAdvisory(123, "name", state, ['rpm']))
 
             handler = ErrataAdvisoryStateChangedHandler()
             handler.handle(ev)
@@ -685,7 +710,8 @@ class TestErrataAdvisoryStateChangedHandler(helpers.ModelsTestCase):
 
     @patch('freshmaker.errata.Errata.advisories_from_event')
     def test_mark_as_released_unknown_event(self, advisories_from_event):
-        ev = ErrataAdvisoryStateChangedEvent("msg123", 123, "SHIPPED_LIVE", ["rpm"])
+        ev = ErrataAdvisoryStateChangedEvent(
+            "msg123", ErrataAdvisory(123, "name", "SHIPPED_LIVE", ["rpm"]))
 
         handler = ErrataAdvisoryStateChangedHandler()
         handler.handle(ev)
@@ -710,7 +736,8 @@ class TestErrataAdvisoryStateChangedHandler(helpers.ModelsTestCase):
         db.session.commit()
 
         event = ErrataAdvisoryStateChangedEvent(
-            'msg-id-123', 123456, 'SHIPPED_LIVE', ['rpm'])
+            'msg-id-123',
+            ErrataAdvisory(123456, 'name', 'SHIPPED_LIVE', ['rpm']))
         handler = ErrataAdvisoryStateChangedHandler()
         msgs = handler.handle(event)
 
@@ -736,7 +763,8 @@ class TestErrataAdvisoryStateChangedHandler(helpers.ModelsTestCase):
         db.session.commit()
 
         event = ErrataAdvisoryStateChangedEvent(
-            'msg-id-123', 123456, 'SHIPPED_LIVE', ['rpm'])
+            'msg-id-123',
+            ErrataAdvisory(123456, "name", 'SHIPPED_LIVE', ['rpm']))
         event.manual = True
         handler = ErrataAdvisoryStateChangedHandler()
         msgs = handler.handle(event)
@@ -1238,12 +1266,13 @@ class TestSkipNonRPMAdvisory(helpers.FreshmakerTestCase):
 
     def test_ensure_to_handle_rpm_adivsory(self):
         event = ErrataAdvisoryStateChangedEvent(
-            'msg-id-1', 123, 'REL_PREP', ['rpm', 'jar', 'pom'])
+            'msg-id-1',
+            ErrataAdvisory(123, 'name', 'REL_PREP', ['rpm', 'jar', 'pom']))
         handler = ErrataAdvisoryStateChangedHandler()
         self.assertTrue(handler.can_handle(event))
 
     def test_not_handle_non_rpm_advisory(self):
         event = ErrataAdvisoryStateChangedEvent(
-            'msg-id-1', 123, 'REL_PREP', ['docker'])
+            'msg-id-1', ErrataAdvisory(123, 'name', 'REL_PREP', ['docker']))
         handler = ErrataAdvisoryStateChangedHandler()
         self.assertFalse(handler.can_handle(event))

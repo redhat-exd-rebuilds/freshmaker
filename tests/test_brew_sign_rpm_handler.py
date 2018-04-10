@@ -51,8 +51,8 @@ class TestBrewSignHandler(helpers.ModelsTestCase):
         ret = handler.handle(event)
 
         self.assertTrue(len(ret), 1)
-        self.assertEqual(ret[0].errata_name, "RHSA-2017")
-        self.assertEqual(ret[0].errata_id, 123)
+        self.assertEqual(ret[0].advisory.name, "RHSA-2017")
+        self.assertEqual(ret[0].advisory.errata_id, 123)
 
     @patch('freshmaker.errata.Errata.advisories_from_event')
     @patch('freshmaker.errata.Errata.builds_signed')
