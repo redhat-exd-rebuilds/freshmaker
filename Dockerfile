@@ -12,7 +12,7 @@ COPY $freshmaker_rpm /tmp
 RUN cd /etc/yum.repos.d/ \
     && curl -O --insecure http://download-ipv4.eng.brq.redhat.com/rel-eng/RCMTOOLS/rcm-tools-fedora.repo \
     && dnf -y install \
-    python2-gunicorn python2-rmhsg \
+    python2-gunicorn python2-rhmsg \
     /tmp/$(basename $freshmaker_rpm) \
     && dnf -y clean all \
     && rm -f /tmp/*
