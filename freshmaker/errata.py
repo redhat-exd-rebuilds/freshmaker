@@ -29,6 +29,7 @@ from freshmaker.events import (
     BrewSignRPMEvent, ErrataBaseEvent,
     FreshmakerManualRebuildEvent)
 from freshmaker import conf, log
+from freshmaker.security_data import SecurityDataAPI
 
 
 class ErrataAdvisory(object):
@@ -49,6 +50,11 @@ class ErrataAdvisory(object):
         self.security_impact = security_impact or ""
         self.product_short_name = product_short_name or ""
         self.cve_list = cve_list or []
+        self.highest_cve_severity = None
+
+        sec_data = SecurityDataAPI()
+        self.highest_cve_severity = sec_data.get_highest_threat_severity(
+            self.cve_list)
 
     @classmethod
     def from_advisory_id(cls, errata, errata_id):
