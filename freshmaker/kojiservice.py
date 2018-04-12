@@ -81,7 +81,8 @@ class KojiService(object):
     def krb_login(self):
         # No need to login on dry run, this makes dry run much faster.
         if not conf.dry_run:
-            self.session.krb_login()
+            self.session.krb_login(principal=conf.krb_auth_principal,
+                                   keytab=conf.krb_auth_client_keytab)
         else:
             log.info("DRY RUN: Skipping login in dry run mode.")
 
