@@ -70,12 +70,14 @@ class BrewSignRPMHandler(BaseHandler):
         advisories = errata.advisories_from_event(event)
 
         # Filter out advisories which are not allowed by configuration.
-        advisories = [advisory for advisory in advisories
-                      if self.allow_build(
-                          ArtifactType.IMAGE,
-                          advisory_name=advisory.name,
-                          advisory_security_impact=advisory.security_impact,
-                          advisory_state=advisory.state)]
+        advisories = [
+            advisory for advisory in advisories
+            if self.allow_build(
+                ArtifactType.IMAGE,
+                advisory_name=advisory.name,
+                advisory_security_impact=advisory.security_impact,
+                advisory_highest_cve_severity=advisory.highest_cve_severity,
+                advisory_state=advisory.state)]
 
         # Filter out advisories which are already in Freshmaker DB.
         advisories = self._filter_out_existing_advisories(advisories)
