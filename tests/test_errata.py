@@ -142,6 +142,15 @@ class TestErrata(helpers.FreshmakerTestCase):
         super(TestErrata, self).setUp()
         self.errata = Errata("https://localhost/")
 
+        self.patcher = helpers.Patcher(
+            'freshmaker.errata.SecurityDataAPI.')
+        self.patcher.patch("get_highest_threat_severity",
+                           return_value="moderate")
+
+    def tearDown(self):
+        super(TestErrata, self).tearDown()
+        self.patcher.unpatch_all()
+
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
     def test_advisories_from_event(self, errata_http_get, errata_rest_get):
@@ -157,6 +166,7 @@ class TestErrata(helpers.FreshmakerTestCase):
         self.assertEqual(advisories[0].product_short_name, "product")
         self.assertEqual(advisories[0].cve_list,
                          ["CVE-2015-3253", "CVE-2016-6814"])
+        self.assertEqual(advisories[0].highest_cve_severity, "moderate")
 
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")

@@ -199,6 +199,10 @@ class Config(object):
             'desc': 'Dict with base container "name-version" as key and URL '
                     'to extra .repo file to include in a rebuild',
         },
+        'security_data_server_url': {
+            'type': str,
+            'default': 'https://access.redhat.com/labs/securitydataapi',
+            'desc': 'Server URL of SecurityDataAPI.'},
         'lightblue_server_url': {
             'type': str,
             'default': '',
