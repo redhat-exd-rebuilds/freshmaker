@@ -50,7 +50,6 @@ class ErrataAdvisory(object):
         self.security_impact = security_impact or ""
         self.product_short_name = product_short_name or ""
         self.cve_list = cve_list or []
-        self.highest_cve_severity = None
 
         sec_data = SecurityDataAPI()
         self.highest_cve_severity = sec_data.get_highest_threat_severity(
@@ -68,12 +67,16 @@ class ErrataAdvisory(object):
         erratum_data = erratum_data[0]
 
         product_data = errata._get_product(erratum_data["product_id"])
+        cve = data["content"]["content"]["cve"].strip()
+        if cve:
+            cve_list = cve.split(" ")
+        else:
+            cve_list = []
 
         return ErrataAdvisory(
             erratum_data["id"], erratum_data["fulladvisory"], erratum_data["status"],
             erratum_data['content_types'], erratum_data["security_impact"],
-            product_data["product"]["short_name"],
-            data["content"]["content"]["cve"].split(" "))
+            product_data["product"]["short_name"], cve_list)
 
 
 class Errata(object):

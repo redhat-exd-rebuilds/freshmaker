@@ -170,6 +170,17 @@ class TestErrata(helpers.FreshmakerTestCase):
 
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
+    def test_advisories_from_event_empty_cve(
+            self, errata_http_get, errata_rest_get):
+        mocked_errata = MockedErrataAPI(errata_rest_get, errata_http_get)
+        mocked_errata.advisory_rest_json["content"]["content"]["cve"] = ""
+        event = BrewSignRPMEvent("msgid", "libntirpc-1.4.3-4.el7rhgs")
+        advisories = self.errata.advisories_from_event(event)
+        self.assertEqual(len(advisories), 1)
+        self.assertEqual(advisories[0].cve_list, [])
+
+    @patch.object(Errata, "_errata_rest_get")
+    @patch.object(Errata, "_errata_http_get")
     def test_advisories_from_event_missing_all_errata(self, errata_http_get, errata_rest_get):
         mocked_errata = MockedErrataAPI(errata_rest_get, errata_http_get)
         del mocked_errata.builds["libntirpc-1.4.3-4.el7rhgs"]["all_errata"]
