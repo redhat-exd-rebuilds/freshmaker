@@ -230,6 +230,35 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'ErrataAdvisoryRPMsSignedHandler': {
+            'image': [
+                {'advisory_highest_cve_severity': ['critical', 'important']}
+            ]
+        }
+    })
+    @patch.object(freshmaker.conf, 'dry_run', new=True)
+    def test_allow_build_by_highest_cve_severity(self):
+        compose_4 = Compose(odcs_compose_id=4)
+        db.session.add(compose_4)
+        db.session.commit()
+
+        for severity in ["moderate", "critical", "important"]:
+            self.rhba_event.advisory.highest_cve_severity = severity
+            self.mock_find_images_to_rebuild.return_value = [[]]
+            handler = ErrataAdvisoryRPMsSignedHandler()
+            handler.handle(self.rhba_event)
+
+            db_event = Event.get(db.session, message_id='123')
+            self.assertEqual(db_event.state, EventState.SKIPPED.value)
+            if severity == "moderate":
+                self.assertTrue(db_event.state_reason.endswith(
+                    "is not allowed by internal policy to trigger rebuilds."))
+            else:
+                self.assertEqual(
+                    db_event.state_reason,
+                    "No container images to rebuild for advisory 'RHBA-2017'")
+
+    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+        'ErrataAdvisoryRPMsSignedHandler': {
             'image': [{'advisory_name': 'RHBA-2017'}]
         }
     })
