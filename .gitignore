@@ -8,3 +8,4 @@
 *swp
 tests/test_freshmaker.db
 freshmaker.db
+.pytest_cache
