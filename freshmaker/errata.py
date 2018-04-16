@@ -39,7 +39,7 @@ class ErrataAdvisory(object):
 
     def __init__(self, errata_id, name, state, content_types,
                  security_impact=None, product_short_name=None,
-                 cve_list=None):
+                 cve_list=None, has_hightouch_bug=None):
         """
         Initializes the ErrataAdvisory instance.
         """
@@ -50,6 +50,7 @@ class ErrataAdvisory(object):
         self.security_impact = security_impact or ""
         self.product_short_name = product_short_name or ""
         self.cve_list = cve_list or []
+        self.has_hightouch_bug = has_hightouch_bug
 
         sec_data = SecurityDataAPI()
         self.highest_cve_severity = sec_data.get_highest_threat_severity(
@@ -73,10 +74,18 @@ class ErrataAdvisory(object):
         else:
             cve_list = []
 
+        has_hightouch_bug = False
+        bugs = errata._get_bugs(erratum_data["id"]) or []
+        for bug in bugs:
+            if "flags" in bug and "hightouch+" in bug["flags"]:
+                has_hightouch_bug = True
+                break
+
         return ErrataAdvisory(
             erratum_data["id"], erratum_data["fulladvisory"], erratum_data["status"],
             erratum_data['content_types'], erratum_data["security_impact"],
-            product_data["product"]["short_name"], cve_list)
+            product_data["product"]["short_name"], cve_list,
+            has_hightouch_bug)
 
 
 class Errata(object):
@@ -135,6 +144,9 @@ class Errata(object):
 
     def _get_product(self, product_id):
         return self._errata_http_get("products/%s.json" % str(product_id))
+
+    def _get_bugs(self, errata_id):
+        return self._errata_http_get("advisory/%s/bugs.json" % str(errata_id))
 
     @region.cache_on_arguments()
     def _advisories_from_nvr(self, nvr):

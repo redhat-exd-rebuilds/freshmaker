@@ -98,6 +98,21 @@ class MockedErrataAPI(object):
             }
         }
 
+        self.bugs = [
+            {
+                "id": 1519778,
+                "is_security": True,
+                "alias": "CVE-2017-5753",
+                "flags": "hightouch+,requires_doc_text+,rhsa_sla+",
+            },
+            {
+                "id": 1519780,
+                "is_security": True,
+                "alias": "CVE-2017-5715",
+                "flags": "hightouch+,requires_doc_text+,rhsa_sla+",
+            },
+        ]
+
         self.products = {}
         self.products[89] = {"product": {"short_name": "product"}}
 
@@ -124,6 +139,8 @@ class MockedErrataAPI(object):
     def errata_http_get(self, endpoint):
         if endpoint.endswith("builds.json"):
             return self.builds_json
+        elif endpoint.endswith("bugs.json"):
+            return self.bugs
         elif endpoint.startswith("advisory/"):
             return self.advisory_json
         elif endpoint.startswith("products/"):
@@ -167,6 +184,7 @@ class TestErrata(helpers.FreshmakerTestCase):
         self.assertEqual(advisories[0].cve_list,
                          ["CVE-2015-3253", "CVE-2016-6814"])
         self.assertEqual(advisories[0].highest_cve_severity, "moderate")
+        self.assertEqual(advisories[0].has_hightouch_bug, True)
 
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
@@ -178,6 +196,29 @@ class TestErrata(helpers.FreshmakerTestCase):
         advisories = self.errata.advisories_from_event(event)
         self.assertEqual(len(advisories), 1)
         self.assertEqual(advisories[0].cve_list, [])
+
+    @patch.object(Errata, "_errata_rest_get")
+    @patch.object(Errata, "_errata_http_get")
+    def test_advisories_from_event_no_bugs(
+            self, errata_http_get, errata_rest_get):
+        mocked_errata = MockedErrataAPI(errata_rest_get, errata_http_get)
+        mocked_errata.bugs = []
+        event = BrewSignRPMEvent("msgid", "libntirpc-1.4.3-4.el7rhgs")
+        advisories = self.errata.advisories_from_event(event)
+        self.assertEqual(len(advisories), 1)
+        self.assertEqual(advisories[0].has_hightouch_bug, False)
+
+    @patch.object(Errata, "_errata_rest_get")
+    @patch.object(Errata, "_errata_http_get")
+    def test_advisories_from_event_empty_bug_flags(
+            self, errata_http_get, errata_rest_get):
+        mocked_errata = MockedErrataAPI(errata_rest_get, errata_http_get)
+        for bug in mocked_errata.bugs:
+            bug["flags"] = ""
+        event = BrewSignRPMEvent("msgid", "libntirpc-1.4.3-4.el7rhgs")
+        advisories = self.errata.advisories_from_event(event)
+        self.assertEqual(len(advisories), 1)
+        self.assertEqual(advisories[0].has_hightouch_bug, False)
 
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
