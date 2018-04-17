@@ -32,6 +32,7 @@ from freshmaker.lightblue import ContainerImage
 from freshmaker.models import Event, Compose
 from freshmaker.types import EventState
 from freshmaker.errata import ErrataAdvisory
+from freshmaker.config import any_
 from tests import helpers
 
 
@@ -212,7 +213,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'ErrataAdvisoryRPMsSignedHandler': {
-            'image': [{'product_short_name': 'foo'}]
+            'image': {'product_short_name': 'foo'}
         }
     })
     @patch.object(freshmaker.conf, 'dry_run', new=True)
@@ -230,9 +231,9 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'ErrataAdvisoryRPMsSignedHandler': {
-            'image': [
-                {'advisory_highest_cve_severity': ['critical', 'important']}
-            ]
+            'image': {
+                'advisory_highest_cve_severity': ['critical', 'important']
+            }
         }
     })
     @patch.object(freshmaker.conf, 'dry_run', new=True)
@@ -259,7 +260,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'ErrataAdvisoryRPMsSignedHandler': {
-            'image': [{'advisory_name': 'RHBA-2017'}]
+            'image': {'advisory_name': 'RHBA-2017'}
         }
     })
     @patch.object(freshmaker.conf, 'dry_run', new=True)
@@ -276,7 +277,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'ErrataAdvisoryRPMsSignedHandler': {
-            'image': [{'advisory_name': 'RHBA-2017'}]
+            'image': {'advisory_name': 'RHBA-2017'}
         }
     })
     def test_event_state_updated_when_no_images_to_rebuild(self):
@@ -292,7 +293,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'ErrataAdvisoryRPMsSignedHandler': {
-            'image': [{'advisory_name': 'RHBA-2017'}]
+            'image': {'advisory_name': 'RHBA-2017'}
         }
     })
     def test_event_state_updated_when_all_images_failed(self):
@@ -588,7 +589,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'ErrataAdvisoryRPMsSignedHandler': {
-            'image': [{'advisory_name': 'RHBA-*'}]
+            'image': {'advisory_name': 'RHBA-*'}
         }
     })
     @patch('os.path.exists', return_value=True)
@@ -603,7 +604,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'ErrataAdvisoryRPMsSignedHandler': {
-            'image': [{'advisory_name': 'RHBA-*'}]
+            'image': {'advisory_name': 'RHBA-*'}
         }
     })
     @patch('os.path.exists', return_value=True)
@@ -619,10 +620,10 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'ErrataAdvisoryRPMsSignedHandler': {
-            'image': [{'advisory_name': 'RHBA-*', 'published': True,
-                       'advisory_product_short_name': 'foo'},
-                      {'advisory_name': 'RHBA-*', 'published': False,
-                       'advisory_product_short_name': 'product'}]
+            'image': any_({'advisory_name': 'RHBA-*', 'published': True,
+                           'advisory_product_short_name': 'foo'},
+                          {'advisory_name': 'RHBA-*', 'published': False,
+                           'advisory_product_short_name': 'product'})
         }
     })
     @patch('os.path.exists', return_value=True)
@@ -637,8 +638,8 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'ErrataAdvisoryRPMsSignedHandler': {
-            'image': [{'advisory_name': 'RHBA-*',
-                       'published': True}]
+            'image': {'advisory_name': 'RHBA-*',
+                      'published': True}
         }
     })
     @patch('os.path.exists', return_value=True)

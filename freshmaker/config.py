@@ -31,6 +31,30 @@ from os import sys
 from freshmaker import logger
 
 
+def any_(*rules):
+    """
+    Returns list of rules which can be used in HANDLER_MODULE_WHITELIST
+    or HANDLER_MODULE_BLACKLIST and is later evaluated as "matched" if *any*
+    rule from the `rules` matches.
+
+    :param rules: Each rule is a dict in the same format as other
+        dicts in the HANDLER_MODULE_WHITELIST or HANDLER_MODULE_BLACKLIST.
+    """
+    return ["any", [rule for rule in rules]]
+
+
+def all_(*rules):
+    """
+    Returns list of rules which can be used in HANDLER_MODULE_WHITELIST
+    or HANDLER_MODULE_BLACKLIST and is later evaluated as "matched" if *all*
+    rules from the `rules` matches.
+
+    :param rules: Each rule is a dict in the same format as other
+        dicts in the HANDLER_MODULE_WHITELIST or HANDLER_MODULE_BLACKLIST.
+    """
+    return ["all", [rule for rule in rules]]
+
+
 def init_config(app):
     """
     Configure Freshmaker

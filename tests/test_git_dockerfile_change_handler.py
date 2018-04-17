@@ -30,6 +30,7 @@ import freshmaker
 from freshmaker import models
 from freshmaker.consumer import FreshmakerConsumer
 from freshmaker.types import ArtifactType
+from freshmaker.config import any_
 from tests import get_fedmsg, helpers
 
 
@@ -56,7 +57,7 @@ class GitDockerfileChangeHandlerTest(BaseTestCase):
            new_callable=PropertyMock, return_value="user@example.com")
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'GitDockerfileChangeHandler': {
-            'image': [{'name': 'testimage'}, {'branch': 'master'}]
+            'image': any_({'name': 'testimage'}, {'branch': 'master'})
         }
     })
     def test_rebuild_if_dockerfile_changed(
@@ -97,7 +98,7 @@ class GitDockerfileChangeHandlerTest(BaseTestCase):
     @patch('koji.ClientSession')
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'GitDockerfileChangeHandler': {
-            'image': [{'name': 'testimage'}, {'branch': 'master'}]
+            'image': any_({'name': 'testimage'}, {'branch': 'master'})
         }
     })
     def test_ensure_logout_in_whatever_case(self, ClientSession, read_config):

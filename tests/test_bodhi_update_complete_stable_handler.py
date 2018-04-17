@@ -100,7 +100,7 @@ class BodhiUpdateCompleteStableHandlerTest(helpers.ModelsTestCase):
     @mock.patch('freshmaker.handlers.bodhi.update_complete_stable.conf')
     @mock.patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'BodhiUpdateCompleteStableHandler': {
-            'image': [{'name': r'testimage\d', 'branch': 'f25'}]
+            'image': {'name': r'testimage\d', 'branch': 'f25'}
         }
     })
     def test_trigger_rebuild_container_when_receives_bodhi_update_complete_stable_message(self, conf, utils, PDC):

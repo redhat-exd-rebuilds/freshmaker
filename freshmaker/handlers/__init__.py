@@ -24,7 +24,6 @@
 import abc
 import json
 import re
-import itertools
 import six
 from functools import wraps
 
@@ -247,6 +246,82 @@ class BaseHandler(object):
         db.session.commit()
         return build
 
+    def _match_allow_build_rule(self, criteria, rule):
+        """
+        Returns True if the build criteria matches the rule.
+
+        :param dict criteria: key-val criteria defining all the attributes of
+            an artifact which is considered for rebuild.
+        :param dict or list of dicts rule: Rule from the Freshmaker
+            configuration. It can be list or dict:
+
+            If it is dict, all the key-vals in the rule dict must match the
+            key-vals in the criteria dict. If the value is list for
+            particular key in rule dict, the relationship between this list's
+            items is OR.
+
+            If it is list, it must have following format:
+
+                ["operator_name", [{rules}, {to}, {evaluate}, ...]]
+
+            Such list is constructed by freshmaker.config's any_() and all_()
+            methods. The operator name is either "any" or "all".
+
+            If "any" is used, this method returns True if *any* dict in list
+            after the operator name matches the criteria.
+
+            If "all" is used, this method returns True if *all* dicts in list
+            after the operator name matches the criteria.
+        :rtype: bool
+        :return: True if the crtieria matches the rule.
+        """
+        # If rule is list, check each item (which should be a dict) separately
+        # and return True if any item matches. Support also tuples for
+        # convenience.
+        if isinstance(rule, list):
+            if not rule:
+                return False
+
+            if not isinstance(rule[0], six.string_types):
+                raise TypeError(
+                    "Rule does not have any operator, use any_() or all_() "
+                    "methods to construct the rule: %r" % rule)
+
+            if rule[0] == "any":
+                operator = any
+            elif rule[0] == "all":
+                operator = all
+            else:
+                raise ValueError(
+                    "Invalid operator %s in rule: %r." % (rule[0], rule))
+
+            return operator([
+                self._match_allow_build_rule(criteria, subrule)
+                for subrule in rule[1]])
+
+        if not isinstance(rule, dict):
+            raise TypeError(
+                "Rebuild rule must be dict or list, got %r." % rule)
+
+        # If none of passed criteria matches configured rule, build is not allowed
+        if not (set(rule.keys()) & set(criteria.keys())):
+            return False
+
+        # For each key-val of artifact to rebuild, check if it matches
+        # the key-val of rule. If the key-val is not in the rule, it means
+        # the configuration does not care about the value.
+        for key, value in criteria.items():
+            value_patterns = rule.get(key, None)
+            if value_patterns is None:
+                continue
+
+            if not isinstance(value_patterns, (tuple, list)):
+                value_patterns = [str(value_patterns)]
+
+            if not any((re.match(regex, str(value)) for regex in value_patterns)):
+                return False
+        return True
+
     def allow_build(self, artifact_type, **criteria):
         """
         Check whether the artifact is allowed to be built by checking
@@ -268,28 +343,11 @@ class BaseHandler(object):
         handler_name = self.name
         whitelist_rules.update(conf.handler_build_whitelist.get(handler_name, {}))
 
-        def match_rule(criteria, rule):
-            for name, value in criteria.items():
-                value_patterns = rule.get(name, None)
-                if value_patterns is None:
-                    continue
-
-                if not isinstance(value_patterns, (tuple, list)):
-                    value_patterns = [str(value_patterns)]
-
-                if not any((re.match(regex, str(value)) for regex in value_patterns)):
-                    return False
-            return True
-
         try:
             whitelist = whitelist_rules.get(artifact_type.name.lower(), [])
-            # If none of passed criteria matches configured rule, build is not allowed
-            if not (set(itertools.chain(*[rule.keys() for rule in whitelist])) &
-                    set(criteria.keys())):
-                return False
-            if whitelist and any([match_rule(criteria, rule) for rule in whitelist]):
-                log.debug('%r, type=%r is whitelisted.',
-                          criteria, artifact_type.name.lower())
+            if self._match_allow_build_rule(criteria, whitelist):
+                self.log_debug('%r, type=%r is whitelisted.',
+                               criteria, artifact_type.name.lower())
                 return True
         except re.error as exc:
             err_msg = ("Error while compiling whilelist rule "
@@ -297,11 +355,11 @@ class BaseHandler(object):
                        "Incorrect regular expression: %s\n"
                        "Whitelist will not take effect" %
                        (handler_name, artifact_type.name.lower(), str(exc)))
-            log.error(err_msg)
+            self.log_error(err_msg)
             raise UnprocessableEntity(err_msg)
 
-        log.debug('%r, type=%r is not whitelisted.',
-                  criteria, artifact_type.name.lower())
+        self.log_debug('%r, type=%r is not whitelisted.',
+                       criteria, artifact_type.name.lower())
         return False
 
 

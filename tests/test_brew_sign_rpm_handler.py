@@ -35,7 +35,7 @@ class TestBrewSignHandler(helpers.ModelsTestCase):
     @patch('freshmaker.errata.Errata.builds_signed')
     @patch("freshmaker.config.Config.handler_build_whitelist",
            new_callable=PropertyMock, return_value={
-               "BrewSignRPMHandler": {"image": [{"advisory_name": "RHSA-.*"}]}})
+               "BrewSignRPMHandler": {"image": {"advisory_name": "RHSA-.*"}}})
     def test_return_value(self, handler_build_whitelist, builds_signed,
                           advisories_from_event):
         """
@@ -58,7 +58,7 @@ class TestBrewSignHandler(helpers.ModelsTestCase):
     @patch('freshmaker.errata.Errata.builds_signed')
     @patch("freshmaker.config.Config.handler_build_whitelist",
            new_callable=PropertyMock, return_value={
-               "global": {"image": [{"advisory_name": "RHSA-.*"}]}})
+               "global": {"image": {"advisory_name": "RHSA-.*"}}})
     def test_allow_build_false_global(self, handler_build_whitelist,
                                       builds_signed, advisories_from_event):
         """
@@ -79,7 +79,7 @@ class TestBrewSignHandler(helpers.ModelsTestCase):
     @patch('freshmaker.errata.Errata.builds_signed')
     @patch("freshmaker.config.Config.handler_build_whitelist",
            new_callable=PropertyMock, return_value={
-               "global": {"image": [{"advisory_name": "RHSA-.*"}]}})
+               "global": {"image": {"advisory_name": "RHSA-.*"}}})
     def test_allow_build_true_global(self, handler_build_whitelist,
                                      builds_signed, advisories_from_event):
         """
@@ -100,7 +100,7 @@ class TestBrewSignHandler(helpers.ModelsTestCase):
     @patch('freshmaker.errata.Errata.builds_signed')
     @patch("freshmaker.config.Config.handler_build_whitelist",
            new_callable=PropertyMock, return_value={
-               "BrewSignRPMHandler": {"image": [{"advisory_name": "RHSA-.*"}]}})
+               "BrewSignRPMHandler": {"image": {"advisory_name": "RHSA-.*"}}})
     def test_allow_build_false(self, handler_build_whitelist, builds_signed,
                                advisories_from_event):
         """
@@ -121,7 +121,7 @@ class TestBrewSignHandler(helpers.ModelsTestCase):
     @patch('freshmaker.errata.Errata.builds_signed')
     @patch("freshmaker.config.Config.handler_build_whitelist",
            new_callable=PropertyMock, return_value={
-               "BrewSignRPMHandler": {"image": [{"advisory_name": "RHSA-.*"}]}})
+               "BrewSignRPMHandler": {"image": {"advisory_name": "RHSA-.*"}}})
     def test_allow_build_true(self, handler_build_whitelist, builds_signed,
                               advisories_from_event):
         """
@@ -145,11 +145,11 @@ class TestBrewSignHandler(helpers.ModelsTestCase):
         new_callable=PropertyMock,
         return_value={
             "BrewSignRPMHandler": {
-                "image": [{
+                "image": {
                     "advisory_security_impact": [
                         "Normal", "Important"
                     ]
-                }]
+                }
             }
         })
     def test_allow_security_impact_important_true(
@@ -176,11 +176,11 @@ class TestBrewSignHandler(helpers.ModelsTestCase):
         new_callable=PropertyMock,
         return_value={
             "BrewSignRPMHandler": {
-                "image": [{
+                "image": {
                     "advisory_security_impact": [
                         "Normal", "Important"
                     ]
-                }]
+                }
             }
         })
     def test_allow_security_impact_important_false(
@@ -204,7 +204,7 @@ class TestBrewSignHandler(helpers.ModelsTestCase):
     @patch('freshmaker.errata.Errata.builds_signed')
     @patch("freshmaker.config.Config.handler_build_whitelist",
            new_callable=PropertyMock, return_value={
-               "BrewSignRPMHandler": {"image": [{"advisory_name": "RHSA-.*"}]}})
+               "BrewSignRPMHandler": {"image": {"advisory_name": "RHSA-.*"}}})
     def test_do_not_create_already_handled_event(
             self, handler_build_whitelist, builds_signed,
             advisories_from_event):
