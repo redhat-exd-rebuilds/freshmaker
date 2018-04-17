@@ -3,7 +3,6 @@
 import os
 import tempfile
 
-from freshmaker.config import all_, any_  # noqa
 
 # FIXME: workaround for this moment till confdir, dbdir (installdir etc.) are
 # declared properly somewhere/somehow
@@ -101,39 +100,22 @@ class BaseConfiguration(object):
     # In format of:
     #
     # { <handler_name> :
-    #     { <artifact_type>: <rule(s)> }
+    #     { <artifact_type>: <list_of_name_branch_dict> }
     # }
     #
-    # The `handler_name` is usually set to "global" to affect all
-    # the handlers.
-    #
-    # The `rule(s)` part of a whitelist are dictionaries with key named as
-    # some artifact attribute. The value can be str, bool or list of strings.
-    # If it is list of strings, the rule matches if any string from the list
-    # matches the artifact attribute.
-    #
-    # The rule(s) can be also grouped using the any_() or all_() functions:
-    #
-    #     - The any_(rule_1, rule_2, ...) matches when any of the rules
-    #       matches.
-    #     - The all_(rule_1, rule_2, ...) matches when all the rules matches.
-    #
-    # For more information see <http://pagure.io/freshmaker>.
-    #
-    # Here is an example of allowing container images to be build as soon as
-    # an RHSA advisory with critical/important severity or with hightouch bug
-    # moves to SHIPPED_LIVE:
+    # Here is an example of allowing MBSModuleStateChangeHandler to build
+    # any module that module name matches 'base-.*' or branch rawhide
     #
     # HANDLER_BUILD_WHITELIST = {
-    #     "global": {
-    #         "image": all_(
-    #             {'advisory_name': 'RHSA-.*'
-    #              'advisory_state: 'SHIPPED_LIVE'},
-    #             any_(
-    #                 {'has_hightouch_bugs': True},
-    #                 {'severity': ['critical', 'important']}
-    #             )
-    #         )
+    #     "MBSModuleStateChangeHandler": {
+    #         "module": [
+    #             {
+    #                 'name': 'base-.*',
+    #             },
+    #             {
+    #                 'branch': 'rawhide',
+    #             },
+    #         ],
     #     },
     # }
 
@@ -292,14 +274,18 @@ class TestConfiguration(BaseConfiguration):
 
     HANDLER_BUILD_WHITELIST = {
         'BrewSignRPMHandler': {
-            'image': {
-                'advisory_state': 'REL_PREP|PUSH_READY|IN_PUSH|SHIPPED_LIVE',
-            },
+            'image': [
+                {
+                    'advisory_state': 'REL_PREP|PUSH_READY|IN_PUSH|SHIPPED_LIVE',
+                },
+            ],
         },
         'ErrataAdvisoryStateChangedHandler': {
-            'image': {
-                'advisory_state': 'REL_PREP|PUSH_READY|IN_PUSH|SHIPPED_LIVE',
-            },
+            'image': [
+                {
+                    'advisory_state': 'REL_PREP|PUSH_READY|IN_PUSH|SHIPPED_LIVE',
+                },
+            ],
         },
     }
 

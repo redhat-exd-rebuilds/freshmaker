@@ -31,14 +31,6 @@ from os import sys
 from freshmaker import logger
 
 
-def any_(*args):
-    return ["any", [arg for arg in args]]
-
-
-def all_(*args):
-    return ["all", [arg for arg in args]]
-
-
 def init_config(app):
     """
     Configure Freshmaker

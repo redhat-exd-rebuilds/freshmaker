@@ -32,7 +32,6 @@ from freshmaker import events, models
 from freshmaker.types import ArtifactType
 from freshmaker.handlers.git import GitRPMSpecChangeHandler
 from freshmaker.parsers.git import GitReceiveParser
-from freshmaker.config import any_
 
 
 class GitRPMSpecChangeHandlerTest(helpers.ModelsTestCase):
@@ -72,7 +71,7 @@ class GitRPMSpecChangeHandlerTest(helpers.ModelsTestCase):
     @mock.patch('freshmaker.handlers.git.rpm_spec_change.conf')
     @mock.patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'GitRPMSpecChangeHandler': {
-            'module': any_({'name': 'testmodule'}, {'branch': 'master'})
+            'module': [{'name': 'testmodule'}, {'branch': 'master'}]
         }
     })
     def test_can_rebuild_modules_has_rpm_included(self, conf, utils, PDC):

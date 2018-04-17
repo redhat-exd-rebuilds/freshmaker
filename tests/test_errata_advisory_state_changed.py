@@ -72,7 +72,7 @@ class TestAllowBuild(helpers.ModelsTestCase):
            "_find_images_to_rebuild", return_value=[])
     @patch("freshmaker.config.Config.handler_build_whitelist",
            new_callable=PropertyMock, return_value={
-               "ErrataAdvisoryRPMsSignedHandler": {"image": {"advisory_name": "RHSA-.*"}}})
+               "ErrataAdvisoryRPMsSignedHandler": {"image": [{"advisory_name": "RHSA-.*"}]}})
     def test_allow_build_false(self, handler_build_whitelist, record_images):
         """
         Tests that allow_build filters out advisories based on advisory_name.
@@ -91,7 +91,7 @@ class TestAllowBuild(helpers.ModelsTestCase):
            "_find_images_to_rebuild", return_value=[])
     @patch("freshmaker.config.Config.handler_build_whitelist",
            new_callable=PropertyMock, return_value={
-               "ErrataAdvisoryRPMsSignedHandler": {"image": {"advisory_name": "RHSA-.*"}}})
+               "ErrataAdvisoryRPMsSignedHandler": {"image": [{"advisory_name": "RHSA-.*"}]}})
     def test_allow_build_true(self, handler_build_whitelist, record_images):
         """
         Tests that allow_build does not filter out advisories based on
@@ -115,12 +115,12 @@ class TestAllowBuild(helpers.ModelsTestCase):
         new_callable=PropertyMock,
         return_value={
             "ErrataAdvisoryRPMsSignedHandler": {
-                "image": {
+                "image": [{
                     "advisory_security_impact": [
                         "Normal", "Important"
                     ],
                     "image_name": "foo",
-                }
+                }]
             }
         })
     def test_allow_security_impact_important_true(
@@ -146,11 +146,11 @@ class TestAllowBuild(helpers.ModelsTestCase):
         new_callable=PropertyMock,
         return_value={
             "ErrataAdvisoryRPMsSignedHandler": {
-                "image": {
+                "image": [{
                     "advisory_security_impact": [
                         "Normal", "Important"
                     ]
-                }
+                }]
             }
         })
     def test_allow_security_impact_important_false(
@@ -174,9 +174,9 @@ class TestAllowBuild(helpers.ModelsTestCase):
         new_callable=PropertyMock,
         return_value={
             "ErrataAdvisoryRPMsSignedHandler": {
-                "image": {
+                "image": [{
                     "image_name": ["foo", "bar"]
-                }
+                }]
             }
         })
     def test_filter_out_not_allowed_builds(
@@ -213,10 +213,10 @@ class TestAllowBuild(helpers.ModelsTestCase):
         new_callable=PropertyMock,
         return_value={
             "ErrataAdvisoryRPMsSignedHandler": {
-                "image": {
+                "image": [{
                     "image_name": ["foo", "bar"],
                     "advisory_name": "RHSA-.*",
-                }
+                }]
             }
         })
     def test_filter_out_image_name_and_advisory_name(
@@ -618,9 +618,11 @@ class TestErrataAdvisoryStateChangedHandler(helpers.ModelsTestCase):
     @patch('freshmaker.errata.Errata.advisories_from_event')
     @patch.object(conf, 'handler_build_whitelist', new={
         'ErrataAdvisoryStateChangedHandler': {
-            'image': {
-                'advisory_state': r'REL_PREP|SHIPPED_LIVE',
-            }
+            'image': [
+                {
+                    'advisory_state': r'REL_PREP|SHIPPED_LIVE',
+                }
+            ]
         }
     })
     def test_rebuild_if_not_exists_unknown_states(
@@ -718,9 +720,11 @@ class TestErrataAdvisoryStateChangedHandler(helpers.ModelsTestCase):
            '.rebuild_if_not_exists')
     @patch.object(conf, 'handler_build_whitelist', new={
         'ErrataAdvisoryStateChangedHandler': {
-            'image': {
-                'advisory_state': r'REL_PREP',
-            }
+            'image': [
+                {
+                    'advisory_state': r'REL_PREP',
+                }
+            ]
         }
     })
     def test_not_rebuild_if_errata_state_is_not_allowed(
@@ -743,9 +747,11 @@ class TestErrataAdvisoryStateChangedHandler(helpers.ModelsTestCase):
            '.rebuild_if_not_exists')
     @patch.object(conf, 'handler_build_whitelist', new={
         'ErrataAdvisoryStateChangedHandler': {
-            'image': {
-                'advisory_state': r'REL_PREP',
-            }
+            'image': [
+                {
+                    'advisory_state': r'REL_PREP',
+                }
+            ]
         }
     })
     def test_rebuild_if_errata_state_is_not_allowed_but_manual_is_true(
