@@ -222,12 +222,16 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
 class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
     """Test BaseHandler.allow_build"""
 
-    @patch('freshmaker.handlers.conf')
-    def test_allow_build_in_whitelist(self, conf):
+    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+        'MyHandler': {
+            'image': {
+                'name': 'test'
+            }
+        }
+    })
+    def test_allow_build_in_whitelist(self):
         """ Test if artifact is in the handlers whitelist """
-        whitelist_rules = {"image": any_({'name': "test"})}
         handler = MyHandler()
-        conf.handler_build_whitelist.get.return_value = whitelist_rules
         container = {"name": "test", "branch": "branch"}
 
         allow = handler.allow_build(ArtifactType.IMAGE,
@@ -235,12 +239,16 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
                                     branch=container["branch"])
         assert allow
 
-    @patch('freshmaker.handlers.conf')
-    def test_allow_build_not_in_whitelist(self, conf):
+    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+        'MyHandler': {
+            'image': {
+                'name': 'test1'
+            }
+        }
+    })
+    def test_allow_build_not_in_whitelist(self):
         """ Test if artifact is not in the handlers whitelist """
-        whitelist_rules = {"image": any_({'name': "test1"})}
         handler = MyHandler()
-        conf.handler_build_whitelist.get.return_value = whitelist_rules
         container = {"name": "test", "branch": "branch"}
 
         allow = handler.allow_build(ArtifactType.IMAGE,
@@ -248,13 +256,17 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
                                     branch=container["branch"])
         assert not allow
 
-    @patch('freshmaker.handlers.conf')
-    def test_allow_build_regex_exception(self, conf):
+    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+        'MyHandler': {
+            'image': {
+                'name': 'te(st'
+            }
+        }
+    })
+    def test_allow_build_regex_exception(self):
         """ If there is a regex error, method will raise UnprocessableEntity error """
 
-        whitelist_rules = {"image": any_({'name': "te(st"})}
         handler = MyHandler()
-        conf.handler_build_whitelist.get.return_value = whitelist_rules
         container = {"name": "test", "branch": "branch"}
 
         with self.assertRaises(UnprocessableEntity):
@@ -416,4 +428,24 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
                                       advisory_name='RHBA-2017:1000',
                                       has_hightouch_bugs=False,
                                       severity="critical")
+        self.assertFalse(allowed)
+
+    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+        'MyHandler': {
+            'image': {'advisory_name': 'RHSA-\d+:\d+'},
+        }
+    })
+    @patch.object(freshmaker.conf, 'handler_build_blacklist', new={
+        'MyHandler': {
+            'image': {'advisory_name': 'RHSA-2016:\d+'},
+        }
+    })
+    def test_blacklist(self):
+        handler = MyHandler()
+        allowed = handler.allow_build(
+            ArtifactType.IMAGE, advisory_name='RHSA-2017:1000')
+        self.assertTrue(allowed)
+
+        allowed = handler.allow_build(
+            ArtifactType.IMAGE, advisory_name='RHSA-2016:1000')
         self.assertFalse(allowed)

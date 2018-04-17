@@ -137,6 +137,25 @@ class BaseConfiguration(object):
     #     },
     # }
 
+    # whitelist for handlers to decide whether an artifact
+    # allowed to be built by whitelist should be build.
+    #
+    # The syntax is the same as for HANDLER_BUILD_WHITELIST, but any matched
+    # artifact will *not* be rebuild.
+    #
+    # HANDLER_BUILD_BLACKLIST = {
+    #     "global": {
+    #         "image": all_(
+    #             {'advisory_name': 'RHSA-.*'
+    #              'advisory_state: 'SHIPPED_LIVE'},
+    #             any_(
+    #                 {'has_hightouch_bugs': True},
+    #                 {'severity': ['critical', 'important']}
+    #             )
+    #         )
+    #     },
+    # }
+
     # ODCS configs
     # URL to ODCS to call APIs
     ODCS_SERVER_URL = 'https://odcs.localhost/'

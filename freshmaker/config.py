@@ -217,6 +217,11 @@ class Config(object):
             'default': {},
             'desc': 'Whitelist for build targets of handlers',
         },
+        'handler_build_blacklist': {
+            'type': dict,
+            'default': {},
+            'desc': 'Blacklist for build targets of handlers',
+        },
         'image_extra_repo': {
             'type': dict,
             'default': {},

@@ -338,14 +338,21 @@ class BaseHandler(object):
         """
         # Global rules
         whitelist_rules = conf.handler_build_whitelist.get("global", {})
+        blacklist_rules = conf.handler_build_blacklist.get("global", {})
 
         # This handler rules
         handler_name = self.name
         whitelist_rules.update(conf.handler_build_whitelist.get(handler_name, {}))
+        blacklist_rules.update(conf.handler_build_blacklist.get(handler_name, {}))
 
         try:
             whitelist = whitelist_rules.get(artifact_type.name.lower(), [])
             if self._match_allow_build_rule(criteria, whitelist):
+                blacklist = blacklist_rules.get(artifact_type.name.lower(), [])
+                if self._match_allow_build_rule(criteria, blacklist):
+                    self.log_debug('%r, type=%r is blacklisted.',
+                                   criteria, artifact_type.name.lower())
+                    return False
                 self.log_debug('%r, type=%r is whitelisted.',
                                criteria, artifact_type.name.lower())
                 return True
