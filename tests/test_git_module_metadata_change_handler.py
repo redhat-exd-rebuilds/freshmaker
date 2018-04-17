@@ -32,6 +32,7 @@ from freshmaker import events, models
 from freshmaker.types import ArtifactType
 from freshmaker.handlers.git import GitModuleMetadataChangeHandler
 from freshmaker.parsers.git import GitReceiveParser
+from freshmaker.config import any_
 
 
 class GitModuleMetadataChangeHandlerTest(helpers.ModelsTestCase):
@@ -54,7 +55,7 @@ class GitModuleMetadataChangeHandlerTest(helpers.ModelsTestCase):
 
     @mock.patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'GitModuleMetadataChangeHandler': {
-            'module': [{'name': 'testmodule'}, {'branch': 'master'}]
+            'module': any_({'name': 'testmodule'}, {'branch': 'master'})
         }
     })
     def test_can_rebuild_module_when_module_metadata_changed(self):

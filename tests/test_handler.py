@@ -35,6 +35,7 @@ from freshmaker.models import (
 )
 from freshmaker.errors import UnprocessableEntity, ProgrammingError
 from freshmaker.types import ArtifactType, EventState
+from freshmaker.config import any_, all_
 from tests import helpers
 
 
@@ -224,7 +225,7 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
     @patch('freshmaker.handlers.conf')
     def test_allow_build_in_whitelist(self, conf):
         """ Test if artifact is in the handlers whitelist """
-        whitelist_rules = {"image": [{'name': "test"}]}
+        whitelist_rules = {"image": any_({'name': "test"})}
         handler = MyHandler()
         conf.handler_build_whitelist.get.return_value = whitelist_rules
         container = {"name": "test", "branch": "branch"}
@@ -237,7 +238,7 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
     @patch('freshmaker.handlers.conf')
     def test_allow_build_not_in_whitelist(self, conf):
         """ Test if artifact is not in the handlers whitelist """
-        whitelist_rules = {"image": [{'name': "test1"}]}
+        whitelist_rules = {"image": any_({'name': "test1"})}
         handler = MyHandler()
         conf.handler_build_whitelist.get.return_value = whitelist_rules
         container = {"name": "test", "branch": "branch"}
@@ -251,7 +252,7 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
     def test_allow_build_regex_exception(self, conf):
         """ If there is a regex error, method will raise UnprocessableEntity error """
 
-        whitelist_rules = {"image": [{'name': "te(st"}]}
+        whitelist_rules = {"image": any_({'name': "te(st"})}
         handler = MyHandler()
         conf.handler_build_whitelist.get.return_value = whitelist_rules
         container = {"name": "test", "branch": "branch"}
@@ -263,9 +264,9 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'MyHandler': {
-            'image': [
-                {'advisory_state': ['REL_PREP', 'SHIPPED_LIVE']}
-            ]
+            'image': {
+                'advisory_state': ['REL_PREP', 'SHIPPED_LIVE']
+            }
         }
     })
     def test_rule_not_defined(self):
@@ -280,10 +281,10 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'MyHandler': {
-            'image': [
-                {'advisory_state': ['REL_PREP', 'SHIPPED_LIVE'],
-                 'published': False}
-            ]
+            'image': {
+                'advisory_state': ['REL_PREP', 'SHIPPED_LIVE'],
+                'published': False
+            }
         }
     })
     def test_boolean_rule(self):
@@ -294,9 +295,9 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'MyHandler': {
-            'image': [
-                {'advisory_state': ['REL_PREP', 'SHIPPED_LIVE']}
-            ]
+            'image': {
+                'advisory_state': ['REL_PREP', 'SHIPPED_LIVE']
+            }
         }
     })
     def test_not_allow_if_none_passed_rule_is_configured(self):
@@ -312,9 +313,9 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'MyHandler': {
-            'image': [
-                {'advisory_state': ['REL_PREP', 'SHIPPED_LIVE']}
-            ]
+            'image': {
+                'advisory_state': ['REL_PREP', 'SHIPPED_LIVE']
+            }
         }
     })
     def test_define_rule_values_as_list(self):
@@ -325,9 +326,9 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'MyHandler': {
-            'image': [
-                {'advisory_name': 'RHSA-\d+:\d+'}
-            ]
+            'image': {
+                'advisory_name': 'RHSA-\d+:\d+'
+            }
         }
     })
     def test_define_rule_value_as_single_regex_string(self):
@@ -342,10 +343,10 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'MyHandler': {
-            'image': [{
+            'image': {
                 'advisory_name': 'RHSA-\d+:\d+',
                 'advisory_state': 'REL_PREP'
-            }]
+            }
         }
     })
     def test_AND_rule(self):
@@ -362,10 +363,10 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'MyHandler': {
-            'image': [
+            'image': any_(
                 {'advisory_name': 'RHSA-\d+:\d+'},
                 {'advisory_state': 'REL_PREP'},
-            ]
+            )
         }
     })
     def test_OR_rule(self):
@@ -379,3 +380,40 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
                                       advisory_name='RHSA-2017',
                                       advisory_state='REL_PREP')
         self.assertTrue(allowed)
+
+    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+        'MyHandler': {
+            'image': all_(
+                {'advisory_name': 'RHSA-\d+:\d+'},
+                any_(
+                    {'has_hightouch_bugs': True},
+                    {'severity': ['critical', 'important']}
+                ),
+            )
+        }
+    })
+    def test_OR_between_subrules(self):
+        handler = MyHandler()
+        allowed = handler.allow_build(ArtifactType.IMAGE,
+                                      advisory_name='RHSA-2017:1000',
+                                      has_hightouch_bugs=True,
+                                      severity="low")
+        self.assertTrue(allowed)
+
+        allowed = handler.allow_build(ArtifactType.IMAGE,
+                                      advisory_name='RHSA-2017:1000',
+                                      has_hightouch_bugs=False,
+                                      severity="critical")
+        self.assertTrue(allowed)
+
+        allowed = handler.allow_build(ArtifactType.IMAGE,
+                                      advisory_name='RHSA-2017:1000',
+                                      has_hightouch_bugs=False,
+                                      severity="low")
+        self.assertFalse(allowed)
+
+        allowed = handler.allow_build(ArtifactType.IMAGE,
+                                      advisory_name='RHBA-2017:1000',
+                                      has_hightouch_bugs=False,
+                                      severity="critical")
+        self.assertFalse(allowed)

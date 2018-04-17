@@ -32,6 +32,7 @@ from freshmaker import events, db, models
 from freshmaker.types import ArtifactType
 from freshmaker.handlers.mbs import MBSModuleStateChangeHandler
 from freshmaker.parsers.mbs import MBSModuleStateChangeParser
+from freshmaker.config import any_
 
 
 class MBSModuleStateChangeHandlerTest(helpers.ModelsTestCase):
@@ -55,7 +56,7 @@ class MBSModuleStateChangeHandlerTest(helpers.ModelsTestCase):
     @mock.patch('freshmaker.handlers.mbs.module_state_change.conf')
     @mock.patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'MBSModuleStateChangeHandler': {
-            'module': [{'name': r'testmodule\d*'}, {'branch': 'master'}],
+            'module': any_({'name': r'testmodule\d*'}, {'branch': 'master'}),
         }
     })
     def test_can_rebuild_depending_modules(self, conf, utils, PDC):
@@ -112,11 +113,11 @@ class MBSModuleStateChangeHandlerTest(helpers.ModelsTestCase):
     def test_module_is_not_allowed_in_whitelist(self, conf, utils, PDC):
         conf.handler_build_whitelist = {
             "MBSModuleStateChangeHandler": {
-                "module": [
+                "module": any_(
                     {
                         'name': 'base.*',
                     },
-                ],
+                ),
             },
         }
 
@@ -144,7 +145,7 @@ class MBSModuleStateChangeHandlerTest(helpers.ModelsTestCase):
     @mock.patch('freshmaker.handlers.mbs.module_state_change.log')
     @mock.patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'MBSModuleStateChangeHandler': {
-            'module': [{'name': r'module\d+'}, {'branch': 'master'}]
+            'module': any_({'name': r'module\d+'}, {'branch': 'master'})
         }
     })
     def test_handler_not_fall_into_cyclic_rebuild_loop(self, log, utils, PDC):
