@@ -115,6 +115,7 @@ class BaseHandler(object):
         self._db_event_id = None
         self._db_artifact_build_id = None
         self._log_prefix = ""
+        self._force_dry_run = False
 
     def _log(self, log_fnc, msg, *args, **kwargs):
         """
@@ -151,6 +152,21 @@ class BaseHandler(object):
         Wraps log.error, prefixes the message with a context of this handler.
         """
         return self._log(log.error, msg, *args, **kwargs)
+
+    def force_dry_run(self):
+        """
+        Forces the handling of the current even in DRY_RUN mode.
+        """
+        self._force_dry_run = True
+
+    @property
+    def dry_run(self):
+        """
+        Returns True if the event should be hanled in DRY_RUN mode.
+        """
+        if self._force_dry_run:
+            return True
+        return conf.dry_run
 
     @property
     def current_db_event_id(self):
@@ -387,7 +403,9 @@ class ContainerBuildHandler(BaseHandler):
         :return: task id returned from Koji buildContainer API.
         :rtype: int
         """
-        with koji_service(profile=conf.koji_profile, logger=log) as service:
+        with koji_service(
+                profile=conf.koji_profile, logger=log,
+                dry_run=self.dry_run) as service:
             log.info('Building container from source: %s, '
                      'release=%r, parent=%r, target=%r',
                      scm_url, release, koji_parent_build, target)
@@ -451,7 +469,7 @@ class ContainerBuildHandler(BaseHandler):
         `compose_id`. In DRY_RUN mode, returns fake compose information
         without contacting the ODCS server.
         """
-        if conf.dry_run:
+        if self.dry_run:
             compose = {}
             compose['id'] = compose_id
             compose['result_repofile'] = "http://localhost/%d.repo" % (

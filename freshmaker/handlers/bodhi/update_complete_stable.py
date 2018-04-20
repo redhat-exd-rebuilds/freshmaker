@@ -76,7 +76,8 @@ class BodhiUpdateCompleteStableHandler(BaseHandler):
 
     def get_rpms_included_in_bodhi_update(self, builds):
         build_nvrs = (build['nvr'] for build in builds)
-        with koji_service(profile=conf.koji_profile, logger=log) as service:
+        with koji_service(profile=conf.koji_profile, logger=log,
+                          dry_run=conf.dry_run) as service:
             return chain(*[service.get_build_rpms(nvr) for nvr in build_nvrs])
 
     def get_containers_including_rpms(self, rpms):

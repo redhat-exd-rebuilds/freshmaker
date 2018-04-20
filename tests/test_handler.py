@@ -131,6 +131,16 @@ class TestContext(helpers.ModelsTestCase):
         self.assertRaises(ProgrammingError, handler.set_context, "something")
 
 
+class TestDryRun(helpers.FreshmakerTestCase):
+
+    def test_force_dry_run(self):
+        handler = MyHandler()
+        self.assertFalse(handler.dry_run)
+
+        handler.force_dry_run()
+        self.assertTrue(handler.dry_run)
+
+
 class TestGetRepoURLs(helpers.ModelsTestCase):
 
     def setUp(self):

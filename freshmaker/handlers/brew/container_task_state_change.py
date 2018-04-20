@@ -48,6 +48,8 @@ class BrewContainerTaskStateChangeHandler(ContainerBuildHandler):
         When build container task state changed in brew, update build state in
         db and rebuild containers depend on the success build as necessary.
         """
+        if event.dry_run:
+            self.force_dry_run()
 
         build_id = event.task_id
 
@@ -66,7 +68,9 @@ class BrewContainerTaskStateChangeHandler(ContainerBuildHandler):
                 if found_build.event.event_type_id == EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent]:
                     errata_id = found_build.event.search_key
                     # build_id is actually task id in build system, find out the actual build first
-                    with koji_service(conf.koji_profile, log, login=False) as session:
+                    with koji_service(
+                            conf.koji_profile, log, login=False,
+                            dry_run=self.dry_run) as session:
                         container_build_id = session.get_container_build_id_from_task(build_id)
 
                     ret, msg = self._verify_advisory_rpms_in_container_build(errata_id, container_build_id)
@@ -137,7 +141,7 @@ class BrewContainerTaskStateChangeHandler(ContainerBuildHandler):
         """
         verify container built on brew has the latest rpms from an advisory
         """
-        if conf.dry_run:
+        if self.dry_run:
             return (True, '')
 
         # Get rpms in advisory. There can be multiple versions of RPMs with
@@ -147,7 +151,9 @@ class BrewContainerTaskStateChangeHandler(ContainerBuildHandler):
         e = Errata()
         build_nvrs = e.get_builds(errata_id)
         if build_nvrs:
-            with koji_service(conf.koji_profile, log, login=False) as session:
+            with koji_service(
+                    conf.koji_profile, log, login=False,
+                    dry_run=self.dry_run) as session:
                 for build_nvr in build_nvrs:
                     build_rpms = session.get_build_rpms(build_nvr)
                     for rpm in build_rpms:
@@ -156,7 +162,9 @@ class BrewContainerTaskStateChangeHandler(ContainerBuildHandler):
                         advisory_rpms_by_name[rpm['name']].add(rpm['nvr'])
 
         # get rpms in container
-        with koji_service(conf.koji_profile, log, login=False) as session:
+        with koji_service(
+                conf.koji_profile, log, login=False,
+                dry_run=self.dry_run) as session:
             container_rpms = session.get_rpms_in_container(container_build_id)
             container_rpms_by_name = {
                 rpmlib.parse_nvr(x)['name']: x for x in container_rpms}

@@ -70,10 +70,13 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         advisory.
         """
 
+        if event.dry_run:
+            self.force_dry_run()
+
         # In case we run in DRY_RUN mode, we need to initialize
         # FAKE_COMPOSE_ID to the id of last ODCS compose to give the IDs
         # increasing and unique even between Freshmaker restarts.
-        if conf.dry_run:
+        if self.dry_run:
             ErrataAdvisoryRPMsSignedHandler._FAKE_COMPOSE_ID = \
                 Compose.get_highest_compose_id(db.session) + 1
 
@@ -94,7 +97,8 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                 advisory_name=event.advisory.name,
                 advisory_security_impact=event.advisory.security_impact,
                 advisory_highest_cve_severity=event.advisory.highest_cve_severity,
-                advisory_product_short_name=event.advisory.product_short_name):
+                advisory_product_short_name=event.advisory.product_short_name,
+                dry_run=self.dry_run):
             msg = ("Errata advisory {0} is not allowed by internal policy "
                    "to trigger rebuilds.".format(event.advisory.errata_id))
             db_event.transition(EventState.SKIPPED, msg)
@@ -217,6 +221,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         # Generate and inject the ODCSComposeStateChangeEvent event.
         event = ODCSComposeStateChangeEvent(
             "fake_compose_msg", new_compose)
+        event.dry_run = True
         self.log_info("Injecting fake event: %r", event)
         work_queue_put(event)
 
@@ -290,7 +295,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                       'source: %s, source type: %s, packages: %s',
                       compose_source, 'tag', packages)
 
-        if not conf.dry_run:
+        if not self.dry_run:
             with krb_context():
                 new_compose = create_odcs_client().new_compose(
                     compose_source, 'tag', packages=packages,
@@ -317,7 +322,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                       content_sets)
 
         odcs = create_odcs_client()
-        if not conf.dry_run:
+        if not self.dry_run:
             with krb_context():
                 new_compose = odcs.new_compose(
                     ' '.join(content_sets), 'pulp')
@@ -380,7 +385,8 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
             return None
 
     def _get_base_image_build_tag(self, build_target):
-        with koji_service(conf.koji_profile, log) as session:
+        with koji_service(
+                conf.koji_profile, log, dry_run=self.dry_run) as session:
             target_info = session.get_build_target(build_target)
             if target_info is None:
                 return target_info
@@ -396,7 +402,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         if not build_tag:
             return None
 
-        if conf.dry_run:
+        if self.dry_run:
             new_compose = self._fake_odcs_new_compose(
                 build_tag, 'tag', results=['boot.iso'])
         else:
@@ -412,7 +418,8 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         :return: list of RPM names built from given build.
         :rtype: list
         """
-        with koji_service(conf.koji_profile, log) as session:
+        with koji_service(
+                conf.koji_profile, log, dry_run=self.dry_run) as session:
             rpms = session.get_build_rpms(nvr)
         return list(set([rpm['name'] for rpm in rpms]))
 
@@ -423,7 +430,8 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
             of found tag.
         :rtype: str
         """
-        with koji_service(conf.koji_profile, log) as service:
+        with koji_service(
+                conf.koji_profile, log, dry_run=self.dry_run) as service:
             # Get the list of *-candidate tags, because packages added into
             # Errata should be tagged into -candidate tag.
             tags = service.session.listTags(nvr)
@@ -703,7 +711,8 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
 
     def _find_build_srpm_name(self, build_nvr):
         """Find srpm name from a build"""
-        with koji_service(conf.koji_profile, log) as session:
+        with koji_service(
+                conf.koji_profile, log, dry_run=self.dry_run) as session:
             rpm_infos = session.get_build_rpms(build_nvr, arches='src')
             if not rpm_infos:
                 raise ValueError(
