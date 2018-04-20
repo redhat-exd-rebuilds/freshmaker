@@ -75,12 +75,12 @@ node('docker') {
             image.push()
         }
         /* Build and push the same image with the same tag to quay.io, but without the cacert. */
-        docker.withRegistry(
+/*        docker.withRegistry(
                 'https://quay.io/',
                 'quay-io-factory2-builder-sa-credentials') {
             def image = docker.build "factory2/freshmaker:${appversion}", "--build-arg freshmaker_rpm=$f26_rpm ."
             image.push()
-        }
+        }*/
         /* Save container version for later steps (this is ugly but I can't find anything better...) */
         writeFile file: 'appversion', text: appversion
         archiveArtifacts artifacts: 'appversion'
@@ -100,12 +100,12 @@ node('docker') {
                 def image = docker.image("factory2/freshmaker:${appversion}")
                 image.push('latest')
             }
-            docker.withRegistry(
+/*            docker.withRegistry(
                     'https://quay.io/',
                     'quay-io-factory2-builder-sa-credentials') {
                 def image = docker.image("factory2/freshmaker:${appversion}")
                 image.push('latest')
-            }
+            }*/
         }
     }
 }
