@@ -66,6 +66,7 @@ class FreshmakerManualRebuildHandler(ContainerBuildHandler):
         new_event = ErrataAdvisoryStateChangedEvent(
             manual_rebuild_event.msg_id + "." + str(advisory.name), advisory)
         new_event.manual = True
+        new_event.dry_run = manual_rebuild_event.dry_run
         msg = ("Generated ErrataAdvisoryStateChangedEvent (%s) for errata: %s"
                % (manual_rebuild_event.msg_id, manual_rebuild_event.errata_id))
         self.current_db_event.transition(EventState.COMPLETE, msg)

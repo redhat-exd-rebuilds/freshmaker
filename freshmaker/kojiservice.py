@@ -52,8 +52,9 @@ class KojiService(object):
     # Used to generate incremental task id in dry run mode.
     _FAKE_TASK_ID = 1
 
-    def __init__(self, profile=None):
+    def __init__(self, profile=None, dry_run=False):
         self._config = koji.read_config(profile or 'koji')
+        self.dry_run = dry_run
 
     @property
     def config(self):
@@ -80,7 +81,7 @@ class KojiService(object):
 
     def krb_login(self):
         # No need to login on dry run, this makes dry run much faster.
-        if not conf.dry_run:
+        if not self.dry_run:
             self.session.krb_login(principal=conf.krb_auth_principal,
                                    keytab=conf.krb_auth_client_keytab)
         else:
@@ -117,6 +118,7 @@ class KojiService(object):
         event = BrewContainerTaskStateChangeEvent(
             "fake_koji_msg_%d" % task_id, container, build_opts["git_branch"],
             build_target, task_id, "BUILDING", "CLOSED")
+        event.dry_run = self.dry_run
 
         # Inject the fake event.
         log.info("DRY RUN: Injecting fake event: %r", event)
@@ -147,7 +149,7 @@ class KojiService(object):
         log.debug('Build from target: %s', build_target)
         log.debug('Build options: %s', build_opts)
 
-        if not conf.dry_run:
+        if not self.dry_run:
             task_id = self.session.buildContainer(source_url, build_target,
                                                   build_opts)
         else:
@@ -189,7 +191,7 @@ class KojiService(object):
         task result. If not found, return None.
         """
         # We cannot get the build_id from task_id in dry_run mode...
-        if conf.dry_run:
+        if self.dry_run:
             return None
 
         build_id = None
@@ -265,7 +267,7 @@ class KojiService(object):
 
 
 @contextlib.contextmanager
-def koji_service(profile=None, logger=None, login=True):
+def koji_service(profile=None, logger=None, login=True, dry_run=False):
     """A Koji service context manager that could be used with with
 
     Example::
@@ -281,7 +283,7 @@ def koji_service(profile=None, logger=None, login=True):
         with KojiService(koji='stg', logger=logger) as service:
             ...
     """
-    service = KojiService(profile=profile)
+    service = KojiService(profile=profile, dry_run=dry_run)
 
     if login:
         if not conf.krb_auth_principal:
@@ -294,7 +296,7 @@ def koji_service(profile=None, logger=None, login=True):
                 service.krb_login()
 
             # We are not logged in in dry run mode...
-            if not conf.dry_run and not service.logged_in:
+            if not dry_run and not service.logged_in:
                 log.error('Could not login server %s', service.server)
                 yield None
 

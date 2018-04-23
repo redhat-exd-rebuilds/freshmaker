@@ -36,5 +36,7 @@ class FreshmakerManualRebuildParser(BaseParser):
         msg_id = msg.get('msg_id')
         inner_msg = msg.get('msg')
         errata_id = inner_msg.get('errata_id')
+        dry_run = inner_msg.get('dry_run', False)
 
-        return FreshmakerManualRebuildEvent(msg_id, errata_id=errata_id)
+        return FreshmakerManualRebuildEvent(
+            msg_id, errata_id=errata_id, dry_run=dry_run)
