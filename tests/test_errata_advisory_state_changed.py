@@ -645,22 +645,25 @@ class TestErrataAdvisoryStateChangedHandler(helpers.ModelsTestCase):
             db.session, "msg124", "123", ErrataAdvisoryRPMsSignedEvent)
         db.session.commit()
 
-        for db_event_state in [EventState.INITIALIZED, EventState.BUILDING,
-                               EventState.COMPLETE, EventState.FAILED,
-                               EventState.SKIPPED]:
-            db_event.state = db_event_state
-            db.session.commit()
-            for state in ["REL_PREP", "PUSH_READY", "IN_PUSH", "SHIPPED_LIVE"]:
-                advisories_from_event.return_value = [
-                    ErrataAdvisory(123, "RHSA-2017", state, ["rpm"], "Critical")]
-                ev = ErrataAdvisoryStateChangedEvent(
-                    "msg123", ErrataAdvisory(123, 'RHSA-2017', state, ['rpm']))
-                ret = handler.handle(ev)
+        for manual in [True, False]:
+            for db_event_state in [
+                    EventState.INITIALIZED, EventState.BUILDING,
+                    EventState.COMPLETE, EventState.FAILED,
+                    EventState.SKIPPED]:
+                db_event.state = db_event_state
+                db.session.commit()
+                for state in ["REL_PREP", "PUSH_READY", "IN_PUSH", "SHIPPED_LIVE"]:
+                    advisories_from_event.return_value = [
+                        ErrataAdvisory(123, "RHSA-2017", state, ["rpm"], "Critical")]
+                    ev = ErrataAdvisoryStateChangedEvent(
+                        "msg123", ErrataAdvisory(123, 'RHSA-2017', state, ['rpm']))
+                    ev.manual = manual
+                    ret = handler.handle(ev)
 
-                if db_event_state == EventState.FAILED:
-                    self.assertEqual(len(ret), 1)
-                else:
-                    self.assertEqual(len(ret), 0)
+                    if db_event_state == EventState.FAILED or ev.manual:
+                        self.assertEqual(len(ret), 1)
+                    else:
+                        self.assertEqual(len(ret), 0)
 
     @patch('freshmaker.errata.Errata.advisories_from_event')
     def test_rebuild_if_not_exists_unknown_errata_id(

@@ -84,7 +84,8 @@ class ErrataAdvisoryStateChangedHandler(BaseHandler):
         db_event = db.session.query(Event).filter_by(
             event_type_id=EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
             search_key=str(errata_id)).first()
-        if db_event and db_event.state != EventState.FAILED.value:
+        if (db_event and db_event.state != EventState.FAILED.value and
+                not event.manual):
             log.debug("Ignoring Errata advisory %d - it already exists in "
                       "Freshmaker db.", errata_id)
             return []
