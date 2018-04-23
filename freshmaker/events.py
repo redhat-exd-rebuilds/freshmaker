@@ -45,7 +45,7 @@ class BaseEvent(object):
         """
         self.msg_id = msg_id
         self.manual = manual
-        self.dry_run = False
+        self.dry_run = dry_run
 
         # Moksha calls `consumer.validate` on messages that it receives, and
         # even though we have validation turned off in the config there's still
