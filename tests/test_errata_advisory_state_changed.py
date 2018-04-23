@@ -658,10 +658,13 @@ class TestErrataAdvisoryStateChangedHandler(helpers.ModelsTestCase):
                     ev = ErrataAdvisoryStateChangedEvent(
                         "msg123", ErrataAdvisory(123, 'RHSA-2017', state, ['rpm']))
                     ev.manual = manual
+                    ev.dry_run = manual  # use also manual just for the sake of test.
                     ret = handler.handle(ev)
 
                     if db_event_state == EventState.FAILED or ev.manual:
                         self.assertEqual(len(ret), 1)
+                        self.assertEqual(ret[0].manual, manual)
+                        self.assertEqual(ret[0].dry_run, manual)
                     else:
                         self.assertEqual(len(ret), 0)
 
