@@ -678,6 +678,20 @@ class TestErrataAdvisoryStateChangedHandler(helpers.ModelsTestCase):
 
             self.assertEqual(len(ret), 0)
 
+    def test_passing_dry_run(self):
+        ev = ErrataAdvisoryStateChangedEvent(
+            "msg123", ErrataAdvisory(123, "name", "SHIPPED_LIVE", ["rpm"]),
+            dry_run=True)
+        self.assertEqual(ev.dry_run, True)
+
+        ev = ErrataAdvisoryRPMsSignedEvent(
+            "123",
+            ErrataAdvisory(123, "RHBA-2017", "REL_PREP", [],
+                           security_impact="",
+                           product_short_name="product"),
+            dry_run=True)
+        self.assertEqual(ev.dry_run, True)
+
     def test_mark_as_released(self):
         db_event = Event.create(
             db.session, "msg124", "123", ErrataAdvisoryRPMsSignedEvent, False)

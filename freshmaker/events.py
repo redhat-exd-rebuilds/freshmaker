@@ -88,7 +88,7 @@ class BaseEvent(object):
         args_strs = (
             "{}={!r}".format(name, getattr(self, name))
             if param.default != param.empty
-            else repr(getattr(self, name))
+            else repr(getattr(self, name, {}))
             for name, param in init_sig.parameters.items())
 
         return "{}({})".format(type(self).__name__, ', '.join(args_strs))
@@ -142,8 +142,8 @@ class MBSModuleStateChangeEvent(BaseEvent):
     :param module_build_id: the id of the module build
     :param module_build_state: the state of the module build
     """
-    def __init__(self, msg_id, module, stream, build_id, build_state):
-        super(MBSModuleStateChangeEvent, self).__init__(msg_id)
+    def __init__(self, msg_id, module, stream, build_id, build_state, **kwargs):
+        super(MBSModuleStateChangeEvent, self).__init__(msg_id, **kwargs)
         self.module = module
         self.stream = stream
         self.build_id = build_id
@@ -160,8 +160,8 @@ class GitModuleMetadataChangeEvent(BaseEvent):
     :param scm_url: SCM URL of a updated module.
     :param branch: Branch of updated module.
     """
-    def __init__(self, msg_id, module, branch, rev):
-        super(GitModuleMetadataChangeEvent, self).__init__(msg_id)
+    def __init__(self, msg_id, module, branch, rev, **kwargs):
+        super(GitModuleMetadataChangeEvent, self).__init__(msg_id, **kwargs)
         self.module = module
         self.branch = branch
         self.rev = rev
@@ -179,8 +179,8 @@ class GitRPMSpecChangeEvent(BaseEvent):
     :param branch: Branch of updated RPM spec.
     :param rev: revision.
     """
-    def __init__(self, msg_id, rpm, branch, rev):
-        super(GitRPMSpecChangeEvent, self).__init__(msg_id)
+    def __init__(self, msg_id, rpm, branch, rev, **kwargs):
+        super(GitRPMSpecChangeEvent, self).__init__(msg_id, **kwargs)
         self.rpm = rpm
         self.branch = branch
         self.rev = rev
@@ -194,15 +194,15 @@ class TestingEvent(BaseEvent):
     """
     Event useds in unit-tests.
     """
-    def __init__(self, msg_id):
-        super(TestingEvent, self).__init__(msg_id)
+    def __init__(self, msg_id, **kwargs):
+        super(TestingEvent, self).__init__(msg_id, **kwargs)
 
 
 class GitDockerfileChangeEvent(BaseEvent):
     """Represent the message omitted when Dockerfile is changed in a push"""
 
-    def __init__(self, msg_id, container, branch, rev):
-        super(GitDockerfileChangeEvent, self).__init__(msg_id)
+    def __init__(self, msg_id, container, branch, rev, **kwargs):
+        super(GitDockerfileChangeEvent, self).__init__(msg_id, **kwargs)
         self.container = container
         self.branch = branch
         self.rev = rev
@@ -221,7 +221,7 @@ class BodhiUpdateCompleteStableEvent(BaseEvent):
         topic=org.fedoraproject.prod.bodhi.update.complete.stable
     """
 
-    def __init__(self, msg_id, update_id, builds, release):
+    def __init__(self, msg_id, update_id, builds, release, **kwargs):
         """Initiate event with data from message got from fedmsg
 
         Not complete data is required, only part of attributes that are useful
@@ -234,7 +234,7 @@ class BodhiUpdateCompleteStableEvent(BaseEvent):
             branch. Refer to the example given above to see all available
             attributes in a message.
         """
-        super(BodhiUpdateCompleteStableEvent, self).__init__(msg_id)
+        super(BodhiUpdateCompleteStableEvent, self).__init__(msg_id, **kwargs)
         self.update_id = update_id
         self.builds = builds
         self.release = release
@@ -248,21 +248,21 @@ class KojiTaskStateChangeEvent(BaseEvent):
     """
     Provides an event object for "the state of task changed in koji"
     """
-    def __init__(self, msg_id, task_id, task_state):
-        super(KojiTaskStateChangeEvent, self).__init__(msg_id)
+    def __init__(self, msg_id, task_id, task_state, **kwargs):
+        super(KojiTaskStateChangeEvent, self).__init__(msg_id, **kwargs)
         self.task_id = task_id
         self.task_state = task_state
 
 
 class ErrataBaseEvent(BaseEvent):
-    def __init__(self, msg_id, advisory):
+    def __init__(self, msg_id, advisory, **kwargs):
         """
         Creates new ErrataBaseEvent.
 
         :param str msg_id: Message id.
         :param ErrataAdvisory advisory: Errata advisory associated with event.
         """
-        super(ErrataBaseEvent, self).__init__(msg_id)
+        super(ErrataBaseEvent, self).__init__(msg_id, **kwargs)
         self.advisory = advisory
 
     @property
@@ -286,8 +286,8 @@ class BrewSignRPMEvent(BaseEvent):
     """
     Represents the message sent by Brew when RPM is signed.
     """
-    def __init__(self, msg_id, nvr):
-        super(BrewSignRPMEvent, self).__init__(msg_id)
+    def __init__(self, msg_id, nvr, **kwargs):
+        super(BrewSignRPMEvent, self).__init__(msg_id, **kwargs)
         self.nvr = nvr
 
     @property
@@ -299,8 +299,9 @@ class BrewContainerTaskStateChangeEvent(BaseEvent):
     """
     Represents the message sent by Brew when a container task state is changed.
     """
-    def __init__(self, msg_id, container, branch, target, task_id, old_state, new_state):
-        super(BrewContainerTaskStateChangeEvent, self).__init__(msg_id)
+    def __init__(self, msg_id, container, branch, target, task_id, old_state,
+                 new_state, **kwargs):
+        super(BrewContainerTaskStateChangeEvent, self).__init__(msg_id, **kwargs)
         self.container = container
         self.branch = branch
         self.target = target
@@ -316,8 +317,8 @@ class BrewContainerTaskStateChangeEvent(BaseEvent):
 class ODCSComposeStateChangeEvent(BaseEvent):
     """Represent a compose' state change event from ODCS"""
 
-    def __init__(self, msg_id, compose):
-        super(ODCSComposeStateChangeEvent, self).__init__(msg_id)
+    def __init__(self, msg_id, compose, **kwargs):
+        super(ODCSComposeStateChangeEvent, self).__init__(msg_id, **kwargs)
         self.compose = compose
 
 
