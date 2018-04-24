@@ -34,9 +34,10 @@ import contextlib
 import re
 import requests
 import freshmaker.utils
-from freshmaker import log, conf
+from freshmaker import log, conf, db
 from freshmaker.consumer import work_queue_put
 from freshmaker.events import BrewContainerTaskStateChangeEvent
+from freshmaker.models import ArtifactBuild
 
 
 class KojiService(object):
@@ -55,6 +56,13 @@ class KojiService(object):
     def __init__(self, profile=None, dry_run=False):
         self._config = koji.read_config(profile or 'koji')
         self.dry_run = dry_run
+
+        # In case we run in DRY_RUN mode, we need to initialize
+        # _FAKE_TASK_ID to the id of last ODCS builds to have the IDs
+        # increasing and unique even between Freshmaker restarts.
+        if self.dry_run:
+            KojiService._FAKE_TASK_ID = \
+                ArtifactBuild.get_highest_build_id(db.session) + 1
 
     @property
     def config(self):
