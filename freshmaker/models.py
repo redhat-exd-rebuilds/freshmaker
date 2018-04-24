@@ -453,6 +453,18 @@ class ArtifactBuild(FreshmakerBase):
             return field.value
         raise ValueError("%s: %s, not in %r" % (key, field, list(ArtifactType)))
 
+    @classmethod
+    def get_highest_build_id(cls, session):
+        """
+        Returns the highest build_id. If there is no build so far,
+        returns 0.
+        """
+        build = session.query(ArtifactBuild).order_by(
+            ArtifactBuild.build_id.desc()).first()
+        if not build:
+            return 0
+        return build.build_id
+
     def depending_artifact_builds(self):
         """
         Returns list of artifact builds depending on this one.
