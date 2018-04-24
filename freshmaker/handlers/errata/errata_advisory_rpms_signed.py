@@ -684,7 +684,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                 advisory_security_impact=self.event.advisory.security_impact,
                 advisory_highest_cve_severity=self.event.advisory.highest_cve_severity,
                 advisory_product_short_name=self.event.advisory.product_short_name,
-                published=True):
+                published=True, dry_run=self.dry_run):
             published = True
             release_category = "Generally Available"
         else:

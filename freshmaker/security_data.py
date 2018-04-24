@@ -73,7 +73,15 @@ class SecurityDataAPI(object):
         """
         max_rating = -1
         for cve in cve_list:
-            data = self._get_cve(cve)
+            try:
+                data = self._get_cve(cve)
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code == 404:
+                    log.warn(
+                        "CVE %s cannot be found in SecurityDataAPI, "
+                        "threat_severity unknown.", cve)
+                    continue
+                raise
             severity = data["threat_severity"].lower()
             try:
                 rating = SecurityDataAPI.THREAT_SEVERITIES.index(severity)
