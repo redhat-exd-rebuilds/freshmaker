@@ -132,10 +132,13 @@ class BrewContainerTaskStateChangeHandler(ContainerBuildHandler):
         if num_failed:
             db_event.transition(
                 EventState.COMPLETE,
-                '%d container image(s) failed to rebuild.' % num_failed)
+                '%d of %d container image(s) failed to rebuild.' % (
+                    num_failed, len(db_event.builds),))
         else:
             db_event.transition(
-                EventState.COMPLETE, 'All container images have been rebuilt.')
+                EventState.COMPLETE,
+                'All %s container images have been rebuilt.' % (
+                    len(db_event.builds),))
 
     def _verify_advisory_rpms_in_container_build(self, errata_id, container_build_id):
         """
