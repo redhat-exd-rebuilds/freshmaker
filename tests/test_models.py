@@ -270,10 +270,13 @@ class TestArtifactBuildComposesRel(helpers.ModelsTestCase):
             released=False)
         self.build_1 = ArtifactBuild.create(
             db.session, self.event, 'build-1', ArtifactType.IMAGE)
+        self.build_1.build_id = 3
         self.build_2 = ArtifactBuild.create(
             db.session, self.event, 'build-2', ArtifactType.IMAGE)
+        self.build_2.build_id = 2
         self.build_3 = ArtifactBuild.create(
             db.session, self.event, 'build-3', ArtifactType.IMAGE)
+        self.build_3.build_id = None
 
         db.session.commit()
 
@@ -295,6 +298,10 @@ class TestArtifactBuildComposesRel(helpers.ModelsTestCase):
     def test_get_highest_compose_id(self):
         compose_id = Compose.get_highest_compose_id(db.session)
         self.assertEqual(compose_id, 4)
+
+    def test_get_highest_build_id(self):
+        build_id = ArtifactBuild.get_highest_build_id(db.session)
+        self.assertEqual(build_id, 3)
 
     def test_build_composes(self):
         self.assertEqual(3, len(self.build_1.composes))
