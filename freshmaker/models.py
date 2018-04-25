@@ -460,7 +460,7 @@ class ArtifactBuild(FreshmakerBase):
         returns 0.
         """
         build = (session.query(ArtifactBuild)
-                 .filter(cls.build_id != None)  # no-qa
+                 .filter(cls.build_id != None)  # noqa
                  .order_by(ArtifactBuild.build_id.desc())
                  .first())
         if not build:
