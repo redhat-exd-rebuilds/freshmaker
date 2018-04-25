@@ -459,8 +459,10 @@ class ArtifactBuild(FreshmakerBase):
         Returns the highest build_id. If there is no build so far,
         returns 0.
         """
-        build = session.query(ArtifactBuild).order_by(
-            ArtifactBuild.build_id.desc()).first()
+        build = (session.query(ArtifactBuild)
+                 .filter(cls.build_id is not None)
+                 .order_by(ArtifactBuild.build_id.desc())
+                 .first())
         if not build:
             return 0
         return build.build_id
