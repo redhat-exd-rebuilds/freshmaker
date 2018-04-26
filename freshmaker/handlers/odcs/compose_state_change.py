@@ -44,11 +44,17 @@ class ComposeStateChangeHandler(ContainerBuildHandler):
 
     @fail_event_on_handler_exception
     def handle(self, event):
+        if event.dry_run:
+            self.force_dry_run()
+
         query = db.session.query(ArtifactBuild).join('composes')
         first_batch_builds = query.filter(
             ArtifactBuild.dep_on == None,  # noqa
             ArtifactBuild.state == ArtifactBuildState.PLANNED.value,
             Compose.odcs_compose_id == event.compose['id'])
-        builds_ready_to_rebuild = six.moves.filter(
-            lambda build: build.composes_ready, first_batch_builds)
+        if self.dry_run:
+            builds_ready_to_rebuild = first_batch_builds
+        else:
+            builds_ready_to_rebuild = six.moves.filter(
+                lambda build: build.composes_ready, first_batch_builds)
         self.start_to_build_images(builds_ready_to_rebuild)
