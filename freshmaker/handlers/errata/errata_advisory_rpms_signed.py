@@ -211,7 +211,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                       (compose_source, tag, packages, results))
 
         # Generate the new_compose dict.
-        ErrataAdvisoryRPMsSignedHandler._FAKE_COMPOSE_ID += 1
+        ErrataAdvisoryRPMsSignedHandler._FAKE_COMPOSE_ID -= 1
         new_compose = {}
         new_compose['id'] = ErrataAdvisoryRPMsSignedHandler._FAKE_COMPOSE_ID
         new_compose['result_repofile'] = "http://localhost/%d.repo" % (
