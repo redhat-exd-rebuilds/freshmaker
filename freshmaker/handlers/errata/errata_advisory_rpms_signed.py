@@ -58,7 +58,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
     name = 'ErrataAdvisoryRPMsSignedHandler'
 
     # Used to generate incremental compose id in dry run mode.
-    _FAKE_COMPOSE_ID = 1
+    _FAKE_COMPOSE_ID = 0
 
     def can_handle(self, event):
         return isinstance(event, ErrataAdvisoryRPMsSignedEvent)
@@ -78,7 +78,9 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         # increasing and unique even between Freshmaker restarts.
         if self.dry_run:
             ErrataAdvisoryRPMsSignedHandler._FAKE_COMPOSE_ID = \
-                Compose.get_highest_compose_id(db.session) + 1
+                Compose.get_lowest_compose_id(db.session) - 1
+            if ErrataAdvisoryRPMsSignedHandler._FAKE_COMPOSE_ID >= 0:
+                ErrataAdvisoryRPMsSignedHandler._FAKE_COMPOSE_ID = -1
 
         self.event = event
 

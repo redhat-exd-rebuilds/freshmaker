@@ -51,7 +51,7 @@ class KojiService(object):
     """
 
     # Used to generate incremental task id in dry run mode.
-    _FAKE_TASK_ID = 1
+    _FAKE_TASK_ID = 0
 
     def __init__(self, profile=None, dry_run=False):
         self._config = koji.read_config(profile or 'koji')
@@ -62,7 +62,9 @@ class KojiService(object):
         # increasing and unique even between Freshmaker restarts.
         if self.dry_run:
             KojiService._FAKE_TASK_ID = \
-                ArtifactBuild.get_highest_build_id(db.session) + 1
+                ArtifactBuild.get_lowest_build_id(db.session) - 1
+            if KojiService._FAKE_TASK_ID >= 0:
+                KojiService._FAKE_TASK_ID = -1
 
     @property
     def config(self):
