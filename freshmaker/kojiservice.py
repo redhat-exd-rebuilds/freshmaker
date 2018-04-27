@@ -118,7 +118,7 @@ class KojiService(object):
                  (source_url, build_target, build_opts))
 
         # Get the task_id
-        KojiService._FAKE_TASK_ID += 1
+        KojiService._FAKE_TASK_ID -= 1
         task_id = KojiService._FAKE_TASK_ID
 
         # Parse the source_url to get the name of container and generate
