@@ -273,7 +273,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
         handler = ErrataAdvisoryRPMsSignedHandler()
         handler.handle(self.rhba_event)
 
-        self.assertEqual(ErrataAdvisoryRPMsSignedHandler._FAKE_COMPOSE_ID, 5)
+        self.assertEqual(ErrataAdvisoryRPMsSignedHandler._FAKE_COMPOSE_ID, -1)
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'ErrataAdvisoryRPMsSignedHandler': {

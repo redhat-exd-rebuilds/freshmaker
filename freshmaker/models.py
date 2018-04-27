@@ -454,14 +454,14 @@ class ArtifactBuild(FreshmakerBase):
         raise ValueError("%s: %s, not in %r" % (key, field, list(ArtifactType)))
 
     @classmethod
-    def get_highest_build_id(cls, session):
+    def get_lowest_build_id(cls, session):
         """
-        Returns the highest build_id. If there is no build so far,
+        Returns the lowest build_id. If there is no build so far,
         returns 0.
         """
         build = (session.query(ArtifactBuild)
                  .filter(cls.build_id != None)  # noqa
-                 .order_by(ArtifactBuild.build_id.desc())
+                 .order_by(ArtifactBuild.build_id.asc())
                  .first())
         if not build:
             return 0
@@ -579,13 +579,13 @@ class Compose(FreshmakerBase):
                 self.odcs_compose_id)['state_name']
 
     @classmethod
-    def get_highest_compose_id(cls, session):
+    def get_lowest_compose_id(cls, session):
         """
-        Returns the highest odcs_compose_id. If there is no compose,
+        Returns the lowest odcs_compose_id. If there is no compose,
         returns 0.
         """
         compose = session.query(Compose).order_by(
-            Compose.odcs_compose_id.desc()).first()
+            Compose.odcs_compose_id.asc()).first()
         if not compose:
             return 0
         return compose.odcs_compose_id
