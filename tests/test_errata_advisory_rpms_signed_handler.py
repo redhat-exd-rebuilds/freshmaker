@@ -673,7 +673,7 @@ class TestShouldGenerateYumRepourls(helpers.FreshmakerTestCase):
     def test_generate(self):
         self.path_exists.return_value = True
         self.patched_open.return_value = mock_open(
-            read_data="pulp_repos: True").return_value
+            read_data="compose:\n  pulp_repos: True").return_value
 
         ret = self.handler._should_generate_yum_repourls(
             "rpms/foo-docker", "branch", "commit")
@@ -687,7 +687,7 @@ class TestShouldGenerateYumRepourls(helpers.FreshmakerTestCase):
     def test_generate_no_namespace(self):
         self.path_exists.return_value = True
         self.patched_open.return_value = mock_open(
-            read_data="pulp_repos: True").return_value
+            read_data="compose:\n  pulp_repos: True").return_value
 
         ret = self.handler._should_generate_yum_repourls(
             "foo-docker", "branch", "commit")
@@ -701,7 +701,7 @@ class TestShouldGenerateYumRepourls(helpers.FreshmakerTestCase):
     def test_generate_no_pulp_repos(self):
         self.path_exists.return_value = True
         self.patched_open.return_value = mock_open(
-            read_data="pulp_repos_x: True").return_value
+            read_data="compose:\n  pulp_repos_x: True").return_value
 
         ret = self.handler._should_generate_yum_repourls(
             "rpms/foo-docker", "branch", "commit")
@@ -710,7 +710,7 @@ class TestShouldGenerateYumRepourls(helpers.FreshmakerTestCase):
     def test_generate_pulp_repos_false(self):
         self.path_exists.return_value = True
         self.patched_open.return_value = mock_open(
-            read_data="pulp_repos: False").return_value
+            read_data="compose:\n  pulp_repos: False").return_value
 
         ret = self.handler._should_generate_yum_repourls(
             "rpms/foo-docker", "branch", "commit")
