@@ -181,17 +181,25 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
 
             content_sets_path = os.path.join(repodir, "content_sets.yml")
             if not os.path.exists(content_sets_path):
+                self.log_debug("Should generate Pulp repo, %s does not exist.",
+                               content_sets_path)
                 return True
 
             container_path = os.path.join(repodir, "container.yaml")
             if not os.path.exists(container_path):
+                self.log_debug("Should generate Pulp repo, %s does not exist.",
+                               container_path)
                 return True
 
             with open(container_path, 'r') as f:
                 container_yaml = yaml.load(f)
 
-            if ("pulp_repos" not in container_yaml or
-                    not container_yaml["pulp_repos"]):
+            if ("compose" not in container_yaml or
+                    "pulp_repos" not in container_yaml["compose"] or
+                    not container_yaml["compose"]["pulp_repos"]):
+                self.log_debug(
+                    "Should generate Pulp repo, pulp_repos not enabled in %s.",
+                    container_path)
                 return True
 
             return False
