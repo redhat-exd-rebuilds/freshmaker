@@ -15,6 +15,8 @@ node('fedora') {
         sh 'sudo dnf -y install dnf-utils'
         sh 'sudo dnf -y builddep ./rpmbuild-output/freshmaker-*.src.rpm'
         sh 'sudo dnf -y install python2-tox python3-tox'
+        /* Needed to get the latest /etc/mock/fedora-28-x86_64.cfg */
+        sh 'sudo dnf -y update mock-core-configs'
     }
     stage('Run unit tests') {
         sh 'tox -e flake8'
