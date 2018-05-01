@@ -32,14 +32,6 @@ node('fedora') {
                 """
                 archiveArtifacts artifacts: 'mock-result/el7/**'
             },
-            'F26': {
-                sh """
-                mkdir -p mock-result/f26
-                flock /etc/mock/fedora-26-x86_64.cfg \
-                /usr/bin/mock -v --enable-network --resultdir=mock-result/f26 -r fedora-26-x86_64 --clean --rebuild rpmbuild-output/*.src.rpm
-                """
-                archiveArtifacts artifacts: 'mock-result/f26/**'
-            },
             'F27': {
                 sh """
                 mkdir -p mock-result/f27
@@ -48,16 +40,24 @@ node('fedora') {
                 """
                 archiveArtifacts artifacts: 'mock-result/f27/**'
             },
+            'F28': {
+                sh """
+                mkdir -p mock-result/f28
+                flock /etc/mock/fedora-28-x86_64.cfg \
+                /usr/bin/mock -v --enable-network --resultdir=mock-result/f28 -r fedora-28-x86_64 --clean --rebuild rpmbuild-output/*.src.rpm
+                """
+                archiveArtifacts artifacts: 'mock-result/f28/**'
+            },
         )
     }
 }
 node('docker') {
     checkout scm
     stage('Build Docker container') {
-        unarchive mapping: ['mock-result/f26/': '.']
-        def f26_rpm = findFiles(glob: 'mock-result/f26/**/*.noarch.rpm')[0]
+        unarchive mapping: ['mock-result/f28/': '.']
+        def f28_rpm = findFiles(glob: 'mock-result/f28/**/*.noarch.rpm')[0]
         def appversion = sh(returnStdout: true, script: """
-            rpm2cpio ${f26_rpm} | \
+            rpm2cpio ${f28_rpm} | \
             cpio --quiet --extract --to-stdout ./usr/lib/python\\*/site-packages/freshmaker\\*.egg-info/PKG-INFO | \
             awk '/^Version: / {print \$2}'
         """).trim()
@@ -71,14 +71,14 @@ node('docker') {
             /* Note that the docker.build step has some magic to guess the
              * Dockerfile used, which will break if the build directory (here ".")
              * is not the final argument in the string. */
-            def image = docker.build "factory2/freshmaker:internal-${appversion}", "--build-arg freshmaker_rpm=$f26_rpm --build-arg cacert_url=https://password.corp.redhat.com/RH-IT-Root-CA.crt ."
+            def image = docker.build "factory2/freshmaker:internal-${appversion}", "--build-arg freshmaker_rpm=$f28_rpm --build-arg cacert_url=https://password.corp.redhat.com/RH-IT-Root-CA.crt ."
             image.push()
         }
         /* Build and push the same image with the same tag to quay.io, but without the cacert. */
         docker.withRegistry(
                 'https://quay.io/',
                 'quay-io-factory2-builder-sa-credentials') {
-            def image = docker.build "factory2/freshmaker:${appversion}", "--build-arg freshmaker_rpm=$f26_rpm ."
+            def image = docker.build "factory2/freshmaker:${appversion}", "--build-arg freshmaker_rpm=$f28_rpm ."
             image.push()
         }
         /* Save container version for later steps (this is ugly but I can't find anything better...) */
