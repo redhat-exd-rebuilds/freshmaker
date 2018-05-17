@@ -30,6 +30,7 @@ from freshmaker.events import (
     FreshmakerManualRebuildEvent)
 from freshmaker import conf, log
 from freshmaker.security_data import SecurityDataAPI
+from freshmaker.utils import krb_context
 
 
 class ErrataAdvisory(object):
@@ -122,10 +123,11 @@ class Errata(object):
 
         Document: /developer-guide/api-http-api.html
         """
-        r = requests.get("%s/%s/%s" % (self.server_url,
-                                       self._rest_api_ver,
-                                       endpoint.lstrip('/')),
-                         auth=HTTPKerberosAuth())
+        with krb_context():
+            r = requests.get("%s/%s/%s" % (self.server_url,
+                                           self._rest_api_ver,
+                                           endpoint.lstrip('/')),
+                             auth=HTTPKerberosAuth())
         r.raise_for_status()
         return r.json()
 
@@ -134,8 +136,9 @@ class Errata(object):
 
         See also Legacy section in /developer-guide/api-http-api.html
         """
-        r = requests.get('{}/{}'.format(self.server_url, endpoint),
-                         auth=HTTPKerberosAuth())
+        with krb_context():
+            r = requests.get('{}/{}'.format(self.server_url, endpoint),
+                             auth=HTTPKerberosAuth())
         r.raise_for_status()
         return r.json()
 

@@ -322,6 +322,7 @@ class TestConfiguration(BaseConfiguration):
         },
     }
 
+    KRB_AUTH_CCACHE_FILE = "freshmaker_cc_$pid_$tid"
 
 class ProdConfiguration(BaseConfiguration):
     pass

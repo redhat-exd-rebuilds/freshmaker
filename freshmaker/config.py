@@ -26,6 +26,7 @@
 
 import imp
 import os
+import threading
 
 from os import sys
 from freshmaker import logger
@@ -305,7 +306,9 @@ class Config(object):
         'krb_auth_ccache_file': {
             'type': str,
             'default': '',
-            'desc': 'Path to credential cache file.'},
+            'desc': 'Path to credential cache file. '
+                    'The "$pid" is replaced by process ID. '
+                    'The "$tid" is replaced by thread ID'},
         'oidc_base_namespace': {
             'type': str,
             'default': 'https://pagure.io/freshmaker/',
@@ -360,7 +363,11 @@ class Config(object):
             setx = lambda self, val: getattr(self, setifok_func)(val)
         else:
             setx = lambda self, val: setattr(self, "_" + key, val)
-        getx = lambda self: getattr(self, "_" + key)
+        get_func = '_get_{}'.format(key)
+        if hasattr(self, get_func):
+            getx = lambda self: getattr(self, get_func)()
+        else:
+            getx = lambda self: getattr(self, "_" + key)
         delx = lambda self: delattr(self, "_" + key)
         setattr(Config, key, property(getx, setx, delx))
 
@@ -414,3 +421,13 @@ class Config(object):
         if s not in ("fedmsg", "amq", "in_memory", "rhmsg"):
             raise ValueError("Unsupported messaging system.")
         self._messaging_sender = s
+
+    def _get_krb_auth_ccache_file(self):
+        if not self._krb_auth_ccache_file:
+            return self._krb_auth_ccache_file
+        ccache_file = str(self._krb_auth_ccache_file)
+        ccache_file = ccache_file.replace(
+            "$tid", str(threading.current_thread().ident))
+        ccache_file = ccache_file.replace(
+            "$pid", str(os.getpid()))
+        return ccache_file
