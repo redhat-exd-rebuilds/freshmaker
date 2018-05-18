@@ -116,6 +116,8 @@ def get_rebuilt_nvr(artifact_type, nvr):
 
 
 def krb_context():
+    log.info("Creating Kerberos context with ccache: %r",
+             conf.krb_auth_ccache_file)
     if conf.krb_auth_use_keytab:
         krb_ctx_opts = {
             'using_keytab': conf.krb_auth_use_keytab,
