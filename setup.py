@@ -31,7 +31,7 @@ if _:
 
 setup(name='freshmaker',
       description='Continuous Compose Service',
-      version='0.1.1',
+      version='0.1.2',
       classifiers=[
           "Programming Language :: Python",
           "Topic :: Software Development :: Build Tools"
