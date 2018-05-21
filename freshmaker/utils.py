@@ -35,7 +35,6 @@ import kobo.rpmlib
 
 from freshmaker import conf, app, log
 from freshmaker.types import ArtifactType
-from krbcontext import krbContext
 from flask import has_app_context, url_for
 
 
@@ -115,23 +114,16 @@ def get_rebuilt_nvr(artifact_type, nvr):
     return rebuilt_nvr
 
 
-def krb_context():
-    log.info("Creating Kerberos context with ccache: %r",
-             conf.krb_auth_ccache_file)
-    if conf.krb_auth_use_keytab:
-        krb_ctx_opts = {
-            'using_keytab': conf.krb_auth_use_keytab,
-            'principal': conf.krb_auth_principal,
-            'keytab_file': conf.krb_auth_client_keytab,
-            'ccache_file': conf.krb_auth_ccache_file,
-        }
-    else:
-        krb_ctx_opts = {
-            'principal': conf.krb_auth_principal,
-            'ccache_file': conf.krb_auth_ccache_file,
-        }
+class krbContext(object):
+    def __enter__(self):
+        return self
 
-    return krbContext(**krb_ctx_opts)
+    def __exit__(self, exc_type, exc_value, traceback):
+        pass
+
+
+def krb_context():
+    return krbContext()
 
 
 def load_class(location):
