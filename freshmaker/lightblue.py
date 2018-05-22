@@ -558,17 +558,41 @@ class LightBlue(object):
 
         return sorted(list(ret))
 
-    def _get_default_projection(self):
-        return [
+    def _get_default_projection(self, srpm_names=None, include_rpms=True):
+        """
+        Returns the default projection list for containerImage objects.
+
+        :param list srpm_names: When not None, defines the SRPM names which
+            are returned in "rpm_manifest" field of containerImage.;
+        :param include_rpms: When False, "rpm_manifest" is not returned at all.
+        """
+        projection = [
             {"field": "brew", "include": True, "recursive": True},
             {"field": "parsed_data.files", "include": True, "recursive": True},
-            {"field": "rpm_manifest.*.rpms.*.srpm_nevra", "include": True, "recursive": True},
-            {"field": "rpm_manifest.*.rpms.*.srpm_name", "include": True, "recursive": True},
             {"field": "parsed_data.layers.*", "include": True, "recursive": True},
             {"field": "repositories.*.published", "include": True, "recursive": True},
             {"field": "repositories.*.repository", "include": True, "recursive": True},
             {"field": "repositories.*.tags.*.name", "include": True, "recursive": True},
         ]
+        if include_rpms:
+            if srpm_names:
+                projection += [
+                    {"field": "rpm_manifest.*.rpms", "include": True, "recursive": True,
+                    "match": {
+                        "$or": [{
+                            "field": "srpm_name",
+                            "op": "=",
+                            "rvalue": srpm_name
+                        } for srpm_name in srpm_names]}
+                    },
+                ]
+            else:
+                projection += [
+                    {"field": "rpm_manifest.*.rpms", "include": True, "recursive": True},
+                    {"field": "rpm_manifest.*.rpms.*.srpm_name", "include": True, "recursive": True},
+                ]
+        return projection
+
 
     def _set_container_image_filters(self, request, published):
         """
@@ -628,7 +652,7 @@ class LightBlue(object):
                     }
                 ]
             },
-            "projection": self._get_default_projection()
+            "projection": self._get_default_projection(srpm_names=srpm_names)
         }
         image_request = self._set_container_image_filters(
             image_request, published)
@@ -687,7 +711,7 @@ class LightBlue(object):
                     }
                 ]
             },
-            "projection": self._get_default_projection()
+            "projection": self._get_default_projection(include_rpms=False)
         }
         images = self.find_container_images(image_request)
         if not images:
@@ -725,7 +749,9 @@ class LightBlue(object):
                     },
                 ],
             },
-            "projection": self._get_default_projection()
+            "projection": self._get_default_projection(
+                srpm_names=[srpm_name] if srpm_name else None,
+                include_rpms=srpm_name is not None)
         }
 
         images = self.find_container_images(query)
