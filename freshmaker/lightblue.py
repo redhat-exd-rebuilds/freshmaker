@@ -578,21 +578,18 @@ class LightBlue(object):
             if srpm_names:
                 projection += [
                     {"field": "rpm_manifest.*.rpms", "include": True, "recursive": True,
-                    "match": {
-                        "$or": [{
-                            "field": "srpm_name",
-                            "op": "=",
-                            "rvalue": srpm_name
-                        } for srpm_name in srpm_names]}
-                    },
-                ]
+                     "match": {
+                         "$or": [{
+                             "field": "srpm_name",
+                             "op": "=",
+                             "rvalue": srpm_name
+                         } for srpm_name in srpm_names]}}]
             else:
                 projection += [
                     {"field": "rpm_manifest.*.rpms", "include": True, "recursive": True},
                     {"field": "rpm_manifest.*.rpms.*.srpm_name", "include": True, "recursive": True},
                 ]
         return projection
-
 
     def _set_container_image_filters(self, request, published):
         """
