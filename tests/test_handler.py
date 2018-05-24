@@ -22,8 +22,6 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
-from mock import patch, PropertyMock
-
 import freshmaker
 
 from freshmaker import db
@@ -49,56 +47,6 @@ class MyHandler(ContainerBuildHandler):
 
     def handle(self, event):
         """Implement BaseHandler method"""
-
-
-class TestKrbContextPreparedForBuildContainer(helpers.FreshmakerTestCase):
-    """Test krb_context for BaseHandler.build_container"""
-
-    def setUp(self):
-        super(TestKrbContextPreparedForBuildContainer, self).setUp()
-        self.koji_service = patch('freshmaker.kojiservice.KojiService')
-        self.koji_service.start()
-
-    def tearDown(self):
-        super(TestKrbContextPreparedForBuildContainer, self).tearDown()
-        self.koji_service.stop()
-
-    @patch('freshmaker.utils.conf')
-    @patch('freshmaker.utils.krbContext')
-    @patch("freshmaker.config.Config.krb_auth_principal",
-           new_callable=PropertyMock, return_value="user@example.com")
-    def test_prepare_with_keytab(self, auth_principal, krbContext, conf):
-        conf.krb_auth_use_keytab = True
-        conf.krb_auth_principal = 'freshmaker/hostname@REALM'
-        conf.krb_auth_client_keytab = '/etc/freshmaker.keytab'
-        conf.krb_auth_ccache_file = '/tmp/freshmaker_cc'
-
-        handler = MyHandler()
-        handler.build_container('image-name', 'f26', '1234')
-
-        krbContext.assert_called_once_with(
-            using_keytab=True,
-            principal='freshmaker/hostname@REALM',
-            keytab_file='/etc/freshmaker.keytab',
-            ccache_file='/tmp/freshmaker_cc',
-        )
-
-    @patch('freshmaker.utils.conf')
-    @patch('freshmaker.utils.krbContext')
-    @patch("freshmaker.config.Config.krb_auth_principal",
-           new_callable=PropertyMock, return_value="user@example.com")
-    def test_prepare_with_normal_user_credential(self, auth_principal, krbContext, conf):
-        conf.krb_auth_use_keytab = False
-        conf.krb_auth_principal = 'somebody@REALM'
-        conf.krb_auth_ccache_file = '/tmp/freshmaker_cc'
-
-        handler = MyHandler()
-        handler.build_container('image-name', 'f26', '1234')
-
-        krbContext.assert_called_once_with(
-            principal='somebody@REALM',
-            ccache_file='/tmp/freshmaker_cc',
-        )
 
 
 class TestContext(helpers.ModelsTestCase):
