@@ -678,7 +678,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                     },
                 ]
             },
-            "projection": lb._get_default_projection()
+            "projection": lb._get_default_projection(srpm_names=["openssl"])
         }
 
         cont_images.assert_called_with(expected_image_request)
@@ -728,6 +728,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         self.assertEqual(ret,
                          [
                              {
+                                 "latest_released": True,
                                  "repository": "rpms/repo-2",
                                  "commit": "commit_hash2",
                                  "target": "target2",
@@ -1174,17 +1175,108 @@ class TestDeduplicateImagesToRebuild(helpers.FreshmakerTestCase):
 
     def _create_img(self, nvr):
         return ContainerImage.create({
-            'brew': {'build': nvr}
+            'brew': {'build': nvr},
+            'content_sets': [],
         })
 
     def _create_imgs(self, nvrs):
         images = []
-        for nvr in nvrs:
-            image = self._create_img(nvr)
+        for data in nvrs:
+            if type(data) == list:
+                nvr = data[0]
+                image = self._create_img(nvr)
+                image.update(data[1])
+            else:
+                image = self._create_img(data)
             if images:
                 images[len(images) - 1]['parent'] = image
             images.append(image)
         return images
+
+    def test_copy_content_sets(self):
+        httpd = self._create_imgs([
+            "httpd-2.4-12",
+            "s2i-base-1-10",
+            "s2i-core-1-11",
+            "rhel-server-docker-7.4-125",
+        ])
+
+        perl = self._create_imgs([
+            "perl-5.7-1",
+            ["s2i-base-1-2", {
+                "content_sets": ["foo"],
+                "repositories": [{
+                    "repository": "product/repo1",
+                    "content_sets": ["foo"]
+                }]}],
+            "s2i-core-1-2",
+            "rhel-server-docker-7.4-150",
+        ])
+
+        expected_images = [
+            self._create_imgs([
+                "httpd-2.4-12",
+                ["s2i-base-1-10", {"content_sets": ["foo"]}],
+                "s2i-core-1-11",
+                "rhel-server-docker-7.4-150",
+            ]),
+            self._create_imgs([
+                "perl-5.7-1",
+                ["s2i-base-1-10", {"content_sets": ["foo"]}],
+                "s2i-core-1-11",
+                "rhel-server-docker-7.4-150",
+            ])
+        ]
+
+        ret = self.lb._deduplicate_images_to_rebuild([httpd, perl])
+        self.assertEqual(ret, expected_images)
+
+    def test_use_highest_latest_released_nvr(self):
+        httpd = self._create_imgs([
+            "httpd-2.4-12",
+            "s2i-base-1-10",
+            "s2i-core-1-11",
+            "rhel-server-docker-7.4-125",
+        ])
+
+        perl = self._create_imgs([
+            "perl-5.7-1",
+            ["s2i-base-1-2", {"latest_released": True}],
+            "s2i-core-1-2",
+            "rhel-server-docker-7.4-150",
+        ])
+
+        foo = self._create_imgs([
+            "foo-5.7-1",
+            "s2i-base-1-1",
+            "s2i-core-1-2",
+            "rhel-server-docker-7.4-150",
+        ])
+
+        expected_images = [
+            self._create_imgs([
+                "httpd-2.4-12",
+                "s2i-base-1-10",
+                "s2i-core-1-11",
+                "rhel-server-docker-7.4-150",
+            ]),
+            self._create_imgs([
+                "perl-5.7-1",
+                ["s2i-base-1-2", {"latest_released": True}],
+                "s2i-core-1-11",
+                "rhel-server-docker-7.4-150",
+            ]),
+            self._create_imgs([
+                "foo-5.7-1",
+                ["s2i-base-1-2", {"latest_released": True}],
+                "s2i-core-1-11",
+                "rhel-server-docker-7.4-150",
+            ])
+        ]
+
+        self.maxDiff = None
+        ret = self.lb._deduplicate_images_to_rebuild([httpd, perl, foo])
+        self.assertEqual(ret, expected_images)
 
     def test_use_highest_nvr(self):
         httpd = self._create_imgs([

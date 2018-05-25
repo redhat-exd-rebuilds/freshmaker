@@ -950,6 +950,9 @@ class LightBlue(object):
             image.resolve_content_sets(self, None, published, deprecated,
                                        release_category)
             image.resolve_commit()
+            # Images returned by this method are latest released images, so
+            # mark them like that.
+            image["latest_released"] = True
         return images
 
     def _deduplicate_images_to_rebuild(self, to_rebuild):
@@ -982,6 +985,8 @@ class LightBlue(object):
         nv_to_nvrs = {}
         # Temporary dict mapping the NVR to image.
         nvr_to_image = {}
+        # Temporary dict mapping NV to latest released NVR for that NV.
+        nv_to_latest_released_nvr = {}
 
         # Constructs the temporary dicts as desribed above.
         for image_id, images in enumerate(to_rebuild):
@@ -997,28 +1002,59 @@ class LightBlue(object):
                     nvr_to_coordinates[nvr] = []
                 nvr_to_coordinates[nvr].append([image_id, parent_id])
                 nvr_to_image[nvr] = image
+                if "latest_released" in image and image["latest_released"]:
+                    nv_to_latest_released_nvr[nv] = nvr
 
         # Sort the lists in nv_to_nvrs dict.
         for nv in nv_to_nvrs.keys():
             nv_to_nvrs[nv] = sorted_by_nvr(nv_to_nvrs[nv], reverse=True)
 
+            # There might be container image NVRs which are not released yet,
+            # but some released image is already built on top of them.
+            # The issue is that such unreleased container image won't be in
+            # its containerRepository and therefore won't have proper
+            # content_sets set.
+            # In this case, we copy the content_sets from the released image.
+            # This might bring issue in case the content_sets changed
+            # dramaticaly between released and unreleased release of such
+            # image, but it's still the best guess we can do.
+            # This is also used only as fallback in case "content_sets.yml"
+            # does not exists in the dist-git repo, which should be rare
+            # situation.
+            latest_content_sets = []
+            for nvr in reversed(nv_to_nvrs[nv]):
+                image = nvr_to_image[nvr]
+                if ("repositories" not in image or
+                        len(image["repositories"]) == 0):
+                    image["content_sets"] = latest_content_sets
+                else:
+                    latest_content_sets = image["content_sets"]
+
         # Iterate through list of NVs.
-        for nvrs in nv_to_nvrs.values():
-            # Since nv_to_nvrs is sorted, nvrs[0] is always the NVR
-            # with highest release for given NV.
-            latest_nvr = nvrs[0]
-            # Now replace all others NVR with the highest one.
-            for nvr in nvrs[1:]:
+        for nv, nvrs in nv_to_nvrs.items():
+            # We want to replace NVRs which are lower than the latest released
+            # NVR with latest released NVR. If there are some higher NVRs, we
+            # want to keep them, because we don't want to rebuild the image
+            # against older NVR than the one it is currently built against.
+            if nv in nv_to_latest_released_nvr:
+                latest_released_nvr = nv_to_latest_released_nvr[nv]
+            else:
+                latest_released_nvr = nvrs[0]
+            # The latest_released_nvr_index points to the latest released NVR
+            # in the `nvrs` list. Because `nvrs` list is desc sorted, every NVR
+            # with higher index is lower and therefore we need to replace it.
+            latest_released_nvr_index = nvrs.index(latest_released_nvr)
+            for nvr in nvrs[latest_released_nvr_index + 1:]:
                 for image_id, parent_id in nvr_to_coordinates[nvr]:
                     # At first replace the image in to_rebuid based
                     # on the coordinates from temp dict.
-                    to_rebuild[image_id][parent_id] = nvr_to_image[latest_nvr]
+                    to_rebuild[image_id][parent_id] = nvr_to_image[latest_released_nvr]
 
                     # And in case this image is not the the leaf image, also replace
                     # the ["parent"] record for the child image to point to the image
                     # with highest NVR.
                     if parent_id != 0:
-                        to_rebuild[image_id][parent_id - 1]["parent"] = nvr_to_image[latest_nvr]
+                        to_rebuild[image_id][parent_id - 1]["parent"] = nvr_to_image[latest_released_nvr]
 
         return to_rebuild
 
