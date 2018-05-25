@@ -22,6 +22,8 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
+from mock import patch
+
 import freshmaker
 
 from freshmaker import db
