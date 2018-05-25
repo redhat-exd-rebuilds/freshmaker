@@ -124,10 +124,10 @@ class Errata(object):
         Document: /developer-guide/api-http-api.html
         """
         with krb_context():
-            r = requests.get("%s/%s/%s" % (self.server_url,
-                                           self._rest_api_ver,
-                                           endpoint.lstrip('/')),
-                             auth=HTTPKerberosAuth())
+            r = requests.get(
+                "%s/%s/%s" % (self.server_url, self._rest_api_ver,
+                              endpoint.lstrip('/')),
+                auth=HTTPKerberosAuth(principal=conf.krb_auth_principal))
         r.raise_for_status()
         return r.json()
 
@@ -137,8 +137,9 @@ class Errata(object):
         See also Legacy section in /developer-guide/api-http-api.html
         """
         with krb_context():
-            r = requests.get('{}/{}'.format(self.server_url, endpoint),
-                             auth=HTTPKerberosAuth())
+            r = requests.get(
+                '{}/{}'.format(self.server_url, endpoint),
+                auth=HTTPKerberosAuth(principal=conf.krb_auth_principal))
         r.raise_for_status()
         return r.json()
 
