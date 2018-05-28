@@ -23,7 +23,7 @@
 import json
 import six
 
-from mock import call, patch, Mock
+from mock import call, patch, Mock, mock_open
 from six.moves import http_client
 
 from freshmaker.lightblue import ContainerImage
@@ -32,6 +32,7 @@ from freshmaker.lightblue import LightBlue
 from freshmaker.lightblue import LightBlueRequestError
 from freshmaker.lightblue import LightBlueSystemError
 from freshmaker.utils import sorted_by_nvr
+from freshmaker import log
 from tests import helpers
 
 
@@ -120,10 +121,107 @@ description</b> <u>JBWEB000121: This request requires HTTP authentication.</u>
                          repr(self.e))
 
 
+class TestGetAdditionalDataFromDistGit(helpers.FreshmakerTestCase):
+
+    def setUp(self):
+        super(TestGetAdditionalDataFromDistGit, self).setUp()
+
+        self.patcher = helpers.Patcher(
+            "freshmaker.lightblue.")
+        self.clone_distgit_repo = self.patcher.patch("clone_distgit_repo")
+        self.path_exists = self.patcher.patch("os.path.exists")
+        self.patched_open = self.patcher.patch("open", create=True)
+
+    def tearDown(self):
+        super(TestGetAdditionalDataFromDistGit, self).tearDown()
+        self.patcher.unpatch_all()
+
+    def test_generate(self):
+        self.path_exists.return_value = True
+        self.patched_open.side_effect = [
+            mock_open(read_data="x86_64:\n  - content_set").return_value,
+            mock_open(read_data="compose:\n  pulp_repos: True").return_value]
+
+        image = ContainerImage.create({"brew": {"build": "nvr"}})
+        ret = image._get_additional_data_from_distgit(
+            "rpms/foo-docker", "branch", "commit")
+        self.assertEqual(ret["generate_pulp_repos"], False)
+
+        self.clone_distgit_repo.assert_called_once_with(
+            'rpms', 'foo-docker',
+            helpers.AnyStringWith('freshmaker-rpms-foo-docker'),
+            commit='commit', logger=log, ssh=False)
+
+    def test_generate_no_namespace(self):
+        self.path_exists.return_value = True
+        self.patched_open.side_effect = [
+            mock_open(read_data="x86_64:\n  - content_set").return_value,
+            mock_open(read_data="compose:\n  pulp_repos: True").return_value]
+
+        image = ContainerImage.create({"brew": {"build": "nvr"}})
+        ret = image._get_additional_data_from_distgit(
+            "foo-docker", "branch", "commit")
+        self.assertEqual(ret["generate_pulp_repos"], False)
+
+        self.clone_distgit_repo.assert_called_once_with(
+            'rpms', 'foo-docker',
+            helpers.AnyStringWith('freshmaker-rpms-foo-docker'),
+            commit='commit', logger=log, ssh=False)
+
+    def test_generate_no_pulp_repos(self):
+        self.path_exists.return_value = True
+        self.patched_open.side_effect = [
+            mock_open(read_data="x86_64:\n  - content_set").return_value,
+            mock_open(read_data="compose:\n  pulp_repos_x: True").return_value]
+
+        image = ContainerImage.create({"brew": {"build": "nvr"}})
+        ret = image._get_additional_data_from_distgit(
+            "rpms/foo-docker", "branch", "commit")
+        self.assertEqual(ret["generate_pulp_repos"], True)
+
+    def test_generate_pulp_repos_false(self):
+        self.path_exists.return_value = True
+        self.patched_open.side_effect = [
+            mock_open(read_data="x86_64:\n  - content_set").return_value,
+            mock_open(read_data="compose:\n  pulp_repos: False").return_value]
+
+        image = ContainerImage.create({"brew": {"build": "nvr"}})
+        ret = image._get_additional_data_from_distgit(
+            "rpms/foo-docker", "branch", "commit")
+        self.assertEqual(ret["generate_pulp_repos"], True)
+
+    def test_generate_no_content_sets_yml(self):
+        def mocked_path_exists(path):
+            return not path.endswith("content_sets.yml")
+        self.path_exists.side_effect = mocked_path_exists
+
+        image = ContainerImage.create({"brew": {"build": "nvr"}})
+        ret = image._get_additional_data_from_distgit(
+            "rpms/foo-docker", "branch", "commit")
+        self.assertEqual(ret["generate_pulp_repos"], True)
+
+    def test_generate_no_container_yaml(self):
+        def mocked_path_exists(path):
+            return not path.endswith("container.yaml")
+        self.path_exists.side_effect = mocked_path_exists
+        self.patched_open.side_effect = [
+            mock_open(read_data="x86_64:\n  - content_set").return_value,
+            mock_open(read_data="compose:\n  pulp_repos: False").return_value]
+
+        image = ContainerImage.create({"brew": {"build": "nvr"}})
+        ret = image._get_additional_data_from_distgit(
+            "rpms/foo-docker", "branch", "commit")
+        self.assertEqual(ret["generate_pulp_repos"], True)
+
+
 class TestContainerImageObject(helpers.FreshmakerTestCase):
 
     def setUp(self):
         super(TestContainerImageObject, self).setUp()
+
+        self.patcher = helpers.Patcher(
+            'freshmaker.lightblue.')
+        self.clone_distgit_repo = self.patcher.patch("clone_distgit_repo")
 
         self.dummy_image = ContainerImage.create({
             '_id': '1233829',
@@ -145,6 +243,10 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
                 ]
             }]
         })
+
+    def tearDown(self):
+        super(TestContainerImageObject, self).tearDown()
+        self.patcher.unpatch_all()
 
     def test_create(self):
         image = ContainerImage.create({
@@ -244,6 +346,9 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
             'brew': {
                 'build': 'package-name-1-4-12.10',
             },
+            'repository': 'foo',
+            'git_branch': 'branch',
+            'commit': 'commithash',
         })
         self.assertTrue("content_sets" not in image)
 
@@ -257,6 +362,9 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
             'brew': {
                 'build': 'package-name-1-4-12.10',
             },
+            'repository': 'foo',
+            'git_branch': 'branch',
+            'commit': 'commithash',
         })
         self.assertTrue("content_sets" not in image)
 
@@ -285,7 +393,10 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
             'brew': {
                 'build': 'package-name-1-4-12.10',
             },
-            'repositories': []
+            'repositories': [],
+            'repository': 'foo',
+            'git_branch': 'branch',
+            'commit': 'commithash',
         })
         self.assertTrue("content_sets" not in image)
 
@@ -316,6 +427,10 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         super(TestQueryEntityFromLightBlue, self).setUp()
         # Clear the ContainerImage Koji cache.
         ContainerImage.KOJI_BUILDS_CACHE = {}
+
+        self.patcher = helpers.Patcher(
+            'freshmaker.lightblue.')
+        self.clone_distgit_repo = self.patcher.patch("clone_distgit_repo")
 
         self.fake_server_url = 'lightblue.localhost'
         self.fake_cert_file = 'path/to/cert'
@@ -414,6 +529,10 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
              "target2", {"git_branch": "mybranch"}],
             ["git://pkgs.devel.redhat.com/rpms/repo-1#commit_hash1",
              "target1", {"git_branch": "mybranch"}]]
+
+    def tearDown(self):
+        super(TestQueryEntityFromLightBlue, self).tearDown()
+        self.patcher.unpatch_all()
 
     @patch('freshmaker.lightblue.requests.post')
     def test_find_container_images(self, post):
@@ -729,6 +848,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                          [
                              {
                                  "latest_released": True,
+                                 "generate_pulp_repos": True,
                                  "repository": "rpms/repo-2",
                                  "commit": "commit_hash2",
                                  "target": "target2",
@@ -740,6 +860,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                      "package": "package-name-2"
                                  },
                                  'content_sets': ['dummy-content-set-1', 'dummy-content-set-2'],
+                                 'content_sets_source': 'lightblue',
                                  'repositories': [
                                      {'repository': 'product2/repo2', 'published': True,
                                       'tags': [{"name": "latest"}]}
@@ -1177,6 +1298,7 @@ class TestDeduplicateImagesToRebuild(helpers.FreshmakerTestCase):
         return ContainerImage.create({
             'brew': {'build': nvr},
             'content_sets': [],
+            'content_sets_source': 'distgit',
         })
 
     def _create_imgs(self, nvrs):
