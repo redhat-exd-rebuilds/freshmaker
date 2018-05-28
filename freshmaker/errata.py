@@ -31,7 +31,6 @@ from freshmaker.events import (
     FreshmakerManualRebuildEvent)
 from freshmaker import conf, log
 from freshmaker.security_data import SecurityDataAPI
-from freshmaker.utils import krb_context
 
 
 class ErrataAdvisory(object):
@@ -141,7 +140,7 @@ class Errata(object):
         """
         return self._errata_authorized_get(
             "%s/%s/%s" % (self.server_url, self._rest_api_ver,
-                            endpoint.lstrip('/')))
+                          endpoint.lstrip('/')))
 
     def _errata_http_get(self, endpoint):
         """Request Errata legacy HTTP API
@@ -149,7 +148,7 @@ class Errata(object):
         See also Legacy section in /developer-guide/api-http-api.html
         """
         return self._errata_authorized_get(
-                '{}/{}'.format(self.server_url, endpoint))
+            '{}/{}'.format(self.server_url, endpoint))
 
     def _get_advisory(self, errata_id):
         return self._errata_rest_get('erratum/{0}'.format(errata_id))
