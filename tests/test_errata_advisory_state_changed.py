@@ -248,8 +248,6 @@ class TestBatches(helpers.ModelsTestCase):
         super(TestBatches, self).setUp()
         self.patcher = helpers.Patcher(
             'freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler.')
-        self.should_generate_yum_repourls = self.patcher.patch(
-            '_should_generate_yum_repourls', return_value=True)
 
     def tearDown(self):
         self.patcher.unpatch_all()
@@ -272,7 +270,8 @@ class TestBatches(helpers.ModelsTestCase):
             "target": "t1",
             'git_branch': 'mybranch',
             "error": error,
-            "content_sets": ["first-content-set"]
+            "content_sets": ["first-content-set"],
+            "generate_pulp_repos": True,
         })
 
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.create_odcs_client')
@@ -804,9 +803,6 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
             '_request_boot_iso_compose',
             side_effect=[{'id': 100}, {'id': 200}])
 
-        self.should_generate_yum_repourls = self.patcher.patch(
-            '_should_generate_yum_repourls', return_value=True)
-
         self.patcher.patch_dict(
             'freshmaker.models.EVENT_TYPES', {self.mock_event.__class__: -1})
 
@@ -834,7 +830,8 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "commit": "123456789",
                 "target": "target-candidate",
                 "git_branch": "rhel-7",
-                "error": None
+                "error": None,
+                "generate_pulp_repos": True
             })],
             [ContainerImage({
                 "brew": {
@@ -874,7 +871,8 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "commit": "987654321",
                 "target": "target-candidate",
                 "git_branch": "rhel-7",
-                "error": None
+                "error": None,
+                "generate_pulp_repos": True
             })]
         ]
 
@@ -898,7 +896,6 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
         self.assertEqual(ArtifactBuildState.PLANNED.value, child_image.state)
 
     def test_record_batches_should_not_generate_pulp_repos(self):
-        self.should_generate_yum_repourls.return_value = False
         batches = [
             [ContainerImage({
                 "brew": {
@@ -918,7 +915,8 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "commit": "123456789",
                 "target": "target-candidate",
                 "git_branch": "rhel-7",
-                "error": None
+                "error": None,
+                "generate_pulp_repos": False,
             })]
         ]
 

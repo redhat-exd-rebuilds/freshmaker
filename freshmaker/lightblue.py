@@ -20,7 +20,9 @@
 # SOFTWARE.
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
+#            Jan Kaluza <jkaluza@redhat.com>
 
+import yaml
 import json
 import os
 import re
@@ -33,7 +35,7 @@ from six.moves import http_client
 import concurrent.futures
 from freshmaker import log, conf
 from freshmaker.kojiservice import koji_service
-from freshmaker.utils import sorted_by_nvr
+from freshmaker.utils import sorted_by_nvr, clone_distgit_repo, temp_dir
 import koji
 
 
@@ -223,6 +225,74 @@ class ContainerImage(dict):
 
         return data
 
+    @region.cache_on_arguments()
+    def _get_additional_data_from_distgit(self, repository, branch, commit):
+        """
+        Finds out information about this image in distgit and returns a dict
+        with following keys:
+
+        - "generate_pulp_repos" - True when Freshmaker needs to generate Pulp
+            repos using ODCS itself (it means it is not done by OSBS).
+        - "content_sets" - List of x86_64 content_sets as defined in
+            content_sets.yml. We care only about x86_64, because to build
+            non-x86_64 image, OSBS will generate the Pulp repos and therefore
+            we don't need content_sets in Freshmaker.
+        """
+        nvr = self["brew"]["build"]
+        data = {"generate_pulp_repos": False,
+                "content_sets": []}
+
+        if not repository or not branch or not commit:
+            log.warn("%s: Cannot get additional data from distgit.", nvr)
+            return data
+        if "/" in repository:
+            namespace, name = repository.split("/")
+        else:
+            namespace = "rpms"
+            name = repository
+
+        prefix = "freshmaker-%s-%s-%s" % (namespace, name, commit)
+        with temp_dir(prefix=prefix) as repodir:
+            clone_distgit_repo(namespace, name, repodir, commit=commit,
+                               ssh=False, logger=log)
+
+            content_sets_path = os.path.join(repodir, "content_sets.yml")
+            if not os.path.exists(content_sets_path):
+                log.debug("%s: Should generate Pulp repo, %s does not exist.",
+                          nvr, content_sets_path)
+                data["generate_pulp_repos"] = True
+                return data
+
+            try:
+                with open(content_sets_path, 'r') as f:
+                    content_sets_yaml = yaml.load(f)
+            except Exception as err:
+                log.exception(err)
+                data["generate_pulp_repos"] = True
+                return data
+
+            if "x86_64" in content_sets_yaml:
+                data["content_sets"] = content_sets_yaml["x86_64"]
+
+            container_path = os.path.join(repodir, "container.yaml")
+            if not os.path.exists(container_path):
+                log.debug("%s: Should generate Pulp repo, %s does not exist.",
+                          nvr, container_path)
+                data["generate_pulp_repos"] = True
+                return data
+
+            with open(container_path, 'r') as f:
+                container_yaml = yaml.load(f)
+
+            if ("compose" not in container_yaml or
+                    "pulp_repos" not in container_yaml["compose"] or
+                    not container_yaml["compose"]["pulp_repos"]):
+                log.debug("%s: Should generate Pulp repo, pulp_repos not "
+                          "enabled in %s.", nvr, container_path)
+                data["generate_pulp_repos"] = True
+                return data
+        return data
+
     def resolve_commit(self):
         """
         Uses the ContainerImage data to resolve the information about
@@ -261,7 +331,21 @@ class ContainerImage(dict):
         :param str release_category: filter only repositories with specific
             release category (options: Deprecated, Generally Available, Beta, Tech Preview)
         """
+        data = self._get_additional_data_from_distgit(
+            self["repository"], self["git_branch"], self["commit"])
+        self["generate_pulp_repos"] = data["generate_pulp_repos"]
+        # Prefer content_sets from content_sets.yml.
+        if data["content_sets"]:
+            self["content_sets"] = data["content_sets"]
+            self["content_sets_source"] = "distgit"
+            log.info("Container image %s uses following content sets: %r",
+                     self["brew"]["build"], data["content_sets"])
+            return
+
+        # In case content_sets cannot be get from content_sets.yml, try
+        # getting them from Lightblue data.
         if "repositories" not in self or len(self["repositories"]) == 0:
+            self["content_sets_source"] = "child_image"
             if not children:
                 log.warning("Container image %s does not have 'repositories' set "
                             "in Lightblue, this is suspicious.",
@@ -273,13 +357,13 @@ class ContainerImage(dict):
                 # The child['content_sets'] should be always set for children
                 # passed here, but in case it is not, just try it.
                 if "content_sets" not in child:
-                    child.resolve_content_sets(lb_instance, None, published,
-                                               deprecated, release_category)
+                    child.resolve(lb_instance, None, published,
+                                  deprecated, release_category)
                 if not child["content_sets"]:
                     continue
 
                 log.info("Container image %s does not have 'repositories' set "
-                         "in Ligblue. Using child image %s content_sets: %r",
+                         "in Lightblue. Using child image %s content_sets: %r",
                          self["brew"]["build"], child["brew"]["build"],
                          child["content_sets"])
                 self.update({"content_sets": child["content_sets"]})
@@ -304,9 +388,23 @@ class ContainerImage(dict):
             if image_content_sets:
                 break
 
+        self["content_sets_source"] = "lightblue"
         log.info("Container image %s uses following content sets: %r",
                  self["brew"]["build"], image_content_sets)
         self.update({"content_sets": image_content_sets})
+
+    def resolve(
+            self, lb_instance, children=None, published=True,
+            deprecated=False, release_category="Generally Available"):
+        """
+        Resolves the Container image - populates additional metadata by
+        querying Koji and dist-git.
+
+        Calls self.resolve_commit() and self.resolve_content_sets().
+        """
+        self.resolve_commit()
+        self.resolve_content_sets(
+            lb_instance, children, published, deprecated, release_category)
 
 
 class LightBlue(object):
@@ -837,9 +935,8 @@ class LightBlue(object):
                                             srpm_name=srpm_name)
             children = images if images else [child_image]
             if image:
-                image.resolve_content_sets(self, children, published,
-                                           deprecated, release_category)
-                image.resolve_commit()
+                image.resolve(self, children, published,
+                              deprecated, release_category)
 
             if images:
                 if image:
@@ -864,10 +961,9 @@ class LightBlue(object):
                             images[-1]['error'] = err
 
                     if parent:
-                        parent.resolve_content_sets(
+                        parent.resolve(
                             self, images, published, deprecated,
                             release_category)
-                        parent.resolve_commit()
                     images[-1]['parent'] = parent
             if not image:
                 return images
@@ -947,9 +1043,7 @@ class LightBlue(object):
         for image in images:
             # We do not set "children" here in resolve_content_sets call, because
             # published images should have the content_set set.
-            image.resolve_content_sets(self, None, published, deprecated,
-                                       release_category)
-            image.resolve_commit()
+            image.resolve(self, None, published, deprecated, release_category)
             # Images returned by this method are latest released images, so
             # mark them like that.
             image["latest_released"] = True
@@ -1024,8 +1118,10 @@ class LightBlue(object):
             latest_content_sets = []
             for nvr in reversed(nv_to_nvrs[nv]):
                 image = nvr_to_image[nvr]
-                if ("repositories" not in image or
-                        len(image["repositories"]) == 0):
+                if ("content_sets" not in image or
+                        not image["content_sets"] or
+                        "content_sets_source" not in image or
+                        image["content_sets_source"] == "child_image"):
                     image["content_sets"] = latest_content_sets
                 else:
                     latest_content_sets = image["content_sets"]
@@ -1163,10 +1259,9 @@ class LightBlue(object):
                 else:
                     parent = self.get_image_by_layer(layers[1], len(layers) - 1)
                     if parent:
-                        parent.resolve_content_sets(
+                        parent.resolve(
                             self, [image], published, deprecated,
                             release_category)
-                        parent.resolve_commit()
                     elif len(layers) != 2:
                         image.log_error(
                             "Cannot find parent image with layer %s and layer "
