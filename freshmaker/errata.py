@@ -21,6 +21,7 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
+import os
 import requests
 import dogpile.cache
 from requests_kerberos import HTTPKerberosAuth
@@ -118,30 +119,37 @@ class Errata(object):
         else:
             self.server_url = conf.errata_tool_server_url.rstrip('/')
 
+    def _errata_authorized_get(self, *args, **kwargs):
+        r = requests.get(
+            *args,
+            auth=HTTPKerberosAuth(principal=conf.krb_auth_principal),
+            **kwargs)
+        if r.status_code == 401:
+            log.info("CCache file expired, removing it.")
+            os.unlink(conf.krb_auth_ccache_file)
+            r = requests.get(
+                *args,
+                auth=HTTPKerberosAuth(principal=conf.krb_auth_principal),
+                **kwargs)
+        r.raise_for_status()
+        return r.json()
+
     def _errata_rest_get(self, endpoint):
         """Request REST-style API
 
         Document: /developer-guide/api-http-api.html
         """
-        with krb_context():
-            r = requests.get(
-                "%s/%s/%s" % (self.server_url, self._rest_api_ver,
-                              endpoint.lstrip('/')),
-                auth=HTTPKerberosAuth(principal=conf.krb_auth_principal))
-        r.raise_for_status()
-        return r.json()
+        return self._errata_authorized_get(
+            "%s/%s/%s" % (self.server_url, self._rest_api_ver,
+                            endpoint.lstrip('/')))
 
     def _errata_http_get(self, endpoint):
         """Request Errata legacy HTTP API
 
         See also Legacy section in /developer-guide/api-http-api.html
         """
-        with krb_context():
-            r = requests.get(
-                '{}/{}'.format(self.server_url, endpoint),
-                auth=HTTPKerberosAuth(principal=conf.krb_auth_principal))
-        r.raise_for_status()
-        return r.json()
+        return self._errata_authorized_get(
+                '{}/{}'.format(self.server_url, endpoint))
 
     def _get_advisory(self, errata_id):
         return self._errata_rest_get('erratum/{0}'.format(errata_id))
