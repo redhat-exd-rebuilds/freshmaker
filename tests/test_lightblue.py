@@ -109,6 +109,22 @@ description</b> <u>JBWEB000121: This request requires HTTP authentication.</u>
     def test_raw(self):
         self.assertEqual(self.fake_error_data, self.e.raw)
 
+    def test_str_from_json(self):
+        content = (
+            '{"status":"ERROR","modifiedCount":0,"matchCount":0,'
+            '"hostname":"periwinklec9.web.prod.int.phx2.redhat.com",'
+            '"errors":[{"objectType":"error","context":"rest/FindCommand/'
+            'containerImage/find(containerImage:null)/containerImage/'
+            'includes_multiple_content_streams","errorCode":"'
+            'metadata:InvalidFieldReference","msg":'
+            '"includes_multiple_content_streams in '
+            'includes_multiple_content_streams"}]}')
+        e = LightBlueSystemError(
+            http_client.BAD_REQUEST, content)
+        self.assertEqual(
+            'metadata:InvalidFieldReference: includes_multiple_content_streams'
+            ' in includes_multiple_content_streams\n', str(e))
+
     def test__str__(self):
         self.assertEqual(
             'JBWEB000065: HTTP Status 401 - JBWEB000009: No client certificate'

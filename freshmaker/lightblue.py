@@ -72,14 +72,31 @@ class LightBlueSystemError(LightBlueError):
     """LightBlue system error"""
 
     def _get_error_message(self):
-        # Remove all newlines if there is
+        # Try getting the error code from JSON if returned.
+        try:
+            msg = ""
+            json_data = json.loads(self.raw)
+            if "errors" in json_data:
+                for error in json_data["errors"]:
+                    if "msg" not in error or "errorCode" not in error:
+                        continue
+                    msg += error["errorCode"] + ": " + error["msg"] + "\n"
+            if msg:
+                return msg
+        except ValueError as e:
+            log.exception(e)
+        # If no JSON is returned, try to get the title of HTML page.
         buf = six.StringIO(self.raw)
         html = ''.join((line.strip('\n') for line in buf))
         match = re.search('<title>(.+)</title>', html)
         return match.groups()[0]
 
     def __str__(self):
-        return self._get_error_message()
+        try:
+            return self._get_error_message()
+        except Exception as e:
+            log.exception(e)
+            raise
 
 
 class LightBlueRequestError(LightBlueError):
