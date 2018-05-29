@@ -340,6 +340,24 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
         self.assertTrue(self.dummy_image["error"].find(
             "Cannot find valid source of Koji build") != -1)
 
+    def test_resolve_content_sets_already_included_in_lb_response(self):
+        image = ContainerImage.create({
+            '_id': '1233829',
+            'brew': {
+                'build': 'package-name-1-4-12.10',
+            },
+            'repository': 'foo',
+            'git_branch': 'branch',
+            'commit': 'commithash',
+            'content_sets': ['dummy-contentset'],
+        })
+
+        lb = Mock()
+        image.resolve_content_sets(lb)
+        self.assertEqual(image["content_sets"], ['dummy-contentset'])
+        self.assertEqual(image["content_sets_source"],
+                         "lightblue_container_image")
+
     def test_resolve_content_sets_no_repositories(self):
         image = ContainerImage.create({
             '_id': '1233829',
@@ -860,7 +878,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                      "package": "package-name-2"
                                  },
                                  'content_sets': ['dummy-content-set-1', 'dummy-content-set-2'],
-                                 'content_sets_source': 'lightblue',
+                                 'content_sets_source': 'lightblue_container_repository',
                                  'repositories': [
                                      {'repository': 'product2/repo2', 'published': True,
                                       'tags': [{"name": "latest"}]}

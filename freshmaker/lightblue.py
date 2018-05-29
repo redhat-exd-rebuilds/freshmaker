@@ -334,6 +334,13 @@ class ContainerImage(dict):
         data = self._get_additional_data_from_distgit(
             self["repository"], self["git_branch"], self["commit"])
         self["generate_pulp_repos"] = data["generate_pulp_repos"]
+
+        # ContainerImage now has content_sets field, so use it if available.
+        if "content_sets" in self and self["content_sets"]:
+            if "content_sets_source" not in self:
+                self["content_sets_source"] = "lightblue_container_image"
+            return
+
         # Prefer content_sets from content_sets.yml.
         if data["content_sets"]:
             self["content_sets"] = data["content_sets"]
@@ -388,7 +395,7 @@ class ContainerImage(dict):
             if image_content_sets:
                 break
 
-        self["content_sets_source"] = "lightblue"
+        self["content_sets_source"] = "lightblue_container_repository"
         log.info("Container image %s uses following content sets: %r",
                  self["brew"]["build"], image_content_sets)
         self.update({"content_sets": image_content_sets})
@@ -671,6 +678,7 @@ class LightBlue(object):
             {"field": "repositories.*.published", "include": True, "recursive": True},
             {"field": "repositories.*.repository", "include": True, "recursive": True},
             {"field": "repositories.*.tags.*.name", "include": True, "recursive": True},
+            {"field": "content_sets", "include": True, "recursive": True},
         ]
         if include_rpms:
             if srpm_names:
