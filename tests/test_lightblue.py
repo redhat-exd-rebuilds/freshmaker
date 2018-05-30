@@ -725,28 +725,17 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
 
     @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
     @patch('os.path.exists')
-    def test_find_repositories_with_content_sets(self, exists,
-                                                 cont_repos):
+    def test_find_all_container_repositories(self, exists, cont_repos):
         exists.return_value = True
-        queried_content_set = "rhel-7-server-rpms"
         cont_repos.return_value = self.fake_repositories_with_content_sets
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
                        private_key=self.fake_private_key)
-        ret = lb.find_repositories_with_content_sets([queried_content_set])
+        ret = lb.find_all_container_repositories()
         expected_repo_request = {
             "objectType": "containerRepository",
             "query": {
                 "$and": [
-                    {
-                        "$or": [
-                            {
-                                "field": "content_sets.*",
-                                "op": "=",
-                                "rvalue": queried_content_set
-                            }
-                        ],
-                    },
                     {
                         "field": "published",
                         "op": "=",
@@ -766,12 +755,14 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             },
             "projection": [
                 {"field": "repository", "include": True},
-                {"field": "content_sets", "include": True, "recursive": True}
-
             ]
         }
         cont_repos.assert_called_with(expected_repo_request)
-        self.assertEqual(ret, cont_repos.return_value)
+
+        expected_ret = [
+            repo["repository"] for repo in
+            self.fake_repositories_with_content_sets]
+        self.assertEqual(ret, expected_ret)
 
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('os.path.exists')
@@ -782,10 +773,12 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
                        private_key=self.fake_private_key)
-        repositories = self.fake_repositories_with_content_sets
+        repositories = [
+            repo["repository"] for repo in
+            self.fake_repositories_with_content_sets]
         cont_images.return_value = self.fake_images_with_parsed_data
-        ret = lb.find_images_with_included_srpms(repositories,
-                                                 ["openssl"])
+        ret = lb.find_images_with_included_srpms(
+            ["content-set-1", "content-set-2"], ["openssl"], repositories)
 
         expected_image_request = {
             "objectType": "containerImage",
@@ -794,14 +787,14 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                     {
                         "$or": [
                             {
-                                "field": "repositories.*.repository",
+                                "field": "content_sets.*",
                                 "op": "=",
-                                "rvalue": "product/repo1"
+                                "rvalue": "content-set-1"
                             },
                             {
-                                "field": "repositories.*.repository",
+                                "field": "content_sets.*",
                                 "op": "=",
-                                "rvalue": "product2/repo2"
+                                "rvalue": "content-set-2"
                             },
                         ],
                     },

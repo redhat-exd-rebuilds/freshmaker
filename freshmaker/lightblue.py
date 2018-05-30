@@ -596,44 +596,35 @@ class LightBlue(object):
 
         return request
 
-    def find_repositories_with_content_sets(
-            self, content_sets, published=True, deprecated=False,
+    def find_all_container_repositories(
+            self, published=True, deprecated=False,
             release_category="Generally Available"):
-        """Query lightblue and find containerRepositories which have content
-        from at least one of the content_sets. By default ignore unpublished,
-        deprecated repos or non-GA repositories
+        """
+        Returns list with names of all matching container repositories.
 
-        :param list content_sets: list of strings (content sets) to consider
-            when looking for the packages
         :param bool published: whether to limit queries to published
             repositories
         :param bool deprecated: set to True to limit results to deprecated
             repositories
         :param str release_category: filter only repositories with specific
-            release category (options: Deprecated, Generally Available, Beta, Tech Preview)
+            release category (options: Deprecated, Generally Available, Beta,
+            Tech Preview)
+        :rtype: list of str
+        :return: names of container repositories.
         """
         repo_request = {
             "objectType": "containerRepository",
             "query": {
-                "$and": [
-                    {
-                        "$or": [{
-                            "field": "content_sets.*",
-                            "op": "=",
-                            "rvalue": c
-                        } for c in content_sets]
-                    },
-                ]
+                "$and": []  # filled by _set_container_repository_filters().
             },
             "projection": [
                 {"field": "repository", "include": True},
-                {"field": "content_sets", "include": True, "recursive": True}
             ]
         }
-
         repo_request = self._set_container_repository_filters(
             repo_request, published, deprecated, release_category)
-        return self.find_container_repositories(repo_request)
+        repositories = self.find_container_repositories(repo_request)
+        return [repository["repository"] for repository in repositories]
 
     def find_content_sets_for_repository(
             self, repository, published=True, deprecated=False,
@@ -714,33 +705,18 @@ class LightBlue(object):
                 ]
         return projection
 
-    def _set_container_image_filters(self, request, published):
-        """
-        Sets the additional filters to containerImage request
-        based on the self.published attribute.
-        :param bool published: whether to limit queries to published
-            repositories
-        """
-        if published is not None:
-            request["query"]["$and"].append({
-                "field": "repositories.*.published",
-                "op": "=",
-                "rvalue": published
-            })
-
-        return request
-
-    def find_images_with_included_srpms(self, repositories, srpm_names,
-                                        published=True):
-
+    def find_images_with_included_srpms(
+            self, content_sets, srpm_names, repositories, published=True):
         """Query lightblue and find containerImages in given
         containerRepositories. By default limit only to images which have been
         published to at least one repository and images which have latest tag.
 
+        :param list content_sets: List of content_sets the image includes RPMs
+            from.
+        :param list srpm_names: list of srpm_name (source rpm name) to look for
+        :param list repositories: List of repository names to look for.
         :param bool published: whether to limit queries to published
             repositories
-        :param dict repositories: dictionary with repository names to look inside
-        :param list srpm_names: list of srpm_name (source rpm name) to look for
         """
         image_request = {
             "objectType": "containerImage",
@@ -748,10 +724,10 @@ class LightBlue(object):
                 "$and": [
                     {
                         "$or": [{
-                            "field": "repositories.*.repository",
+                            "field": "content_sets.*",
                             "op": "=",
-                            "rvalue": r['repository']
-                        } for r in repositories]
+                            "rvalue": r
+                        } for r in content_sets]
                     },
                     {
                         "field": "repositories.*.tags.*.name",
@@ -769,13 +745,16 @@ class LightBlue(object):
                         "field": "parsed_data.files.*.key",
                         "op": "=",
                         "rvalue": "buildfile"
-                    }
+                    },
+                    {
+                        "field": "repositories.*.published",
+                        "op": "=",
+                        "rvalue": published
+                    },
                 ]
             },
             "projection": self._get_default_projection(srpm_names=srpm_names)
         }
-        image_request = self._set_container_image_filters(
-            image_request, published)
         images = self.find_container_images(image_request)
         if not images:
             return images
@@ -785,12 +764,11 @@ class LightBlue(object):
         # those images to be latest in one of the `repositories`. It is not
         # trivial to generate LB query like this, so filter this client-side
         # for now.
-        expected_repositories = [r["repository"] for r in repositories]
         new_images = []
         for image in images:
             for repository in image["repositories"]:
                 tag_names = [tag["name"] for tag in repository["tags"]]
-                if (repository["repository"] in expected_repositories and
+                if (repository["repository"] in repositories and
                         "latest" in tag_names):
                     new_images.append(image)
         images = new_images
@@ -1024,12 +1002,12 @@ class LightBlue(object):
             the given image - can be used for comparisons if needed
         :rtype: list
         """
-        repos = self.find_repositories_with_content_sets(
-            content_sets, published, deprecated, release_category)
+        repos = self.find_all_container_repositories(
+            published, deprecated, release_category)
         if not repos:
             return []
         images = self.find_images_with_included_srpms(
-            repos, srpm_names, published)
+            content_sets, srpm_names, repos, published)
 
         # There can be multi-arch images which share the same
         # image['brew']['build']. Freshmaker is not interested in the image
