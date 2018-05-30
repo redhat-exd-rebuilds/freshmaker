@@ -488,6 +488,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                     'build': 'package-name-1-4-12.10',
                     'package': 'package-name-1'
                 },
+                "content_sets": ["dummy-content-set-1",
+                                 "dummy-content-set-2"],
                 'repositories': [
                     {'repository': 'product1/repo1', 'published': True,
                      'tags': [{"name": "latest"}]}
@@ -520,6 +522,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                     'build': 'package-name-2-4-12.10',
                     'package': 'package-name-2'
                 },
+                "content_sets": ["dummy-content-set-1"],
                 'repositories': [
                     {'repository': 'product2/repo2', 'published': True,
                      'tags': [{"name": "latest"}]}
@@ -886,8 +889,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                      "build": "package-name-2-4-12.10",
                                      "package": "package-name-2"
                                  },
-                                 'content_sets': ['dummy-content-set-1', 'dummy-content-set-2'],
-                                 'content_sets_source': 'lightblue_container_repository',
+                                 'content_sets': ["dummy-content-set-1"],
+                                 'content_sets_source': 'lightblue_container_image',
                                  'repositories': [
                                      {'repository': 'product2/repo2', 'published': True,
                                       'tags': [{"name": "latest"}]}
@@ -921,13 +924,12 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                              },
                          ])
 
-    @patch('freshmaker.lightblue.LightBlue.find_content_sets_for_repository')
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('os.path.exists')
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')
     def test_parent_images_with_package(self, get_task_request, get_build,
-                                        exists, cont_images, cont_sets):
+                                        exists, cont_images):
 
         get_build.return_value = {"task_id": 123456}
         get_task_request.return_value = [
@@ -944,7 +946,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
 
         cont_images.side_effect = [images_without_repositories, [],
                                    images_without_repositories]
-        cont_sets.return_value = set(["content-set"])
 
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
@@ -955,7 +956,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
 
         self.assertEqual(1, len(ret))
         self.assertEqual(ret[0]["brew"]["package"], "package-name-1")
-        self.assertEqual(ret[0]["content_sets"], set(["content-set"]))
+        self.assertEqual(set(ret[0]["content_sets"]),
+                         set(["dummy-content-set-1", "dummy-content-set-2"]))
 
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('os.path.exists')
@@ -1001,13 +1003,12 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
 
         self.assertEqual(0, len(ret))
 
-    @patch('freshmaker.lightblue.LightBlue.find_content_sets_for_repository')
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('os.path.exists')
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')
     def test_parent_images_with_package_last_parent_content_sets(
-            self, get_task_request, get_build, exists, cont_images, cont_sets):
+            self, get_task_request, get_build, exists, cont_images):
 
         get_build.return_value = {"task_id": 123456}
         get_task_request.return_value = [
@@ -1026,7 +1027,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                    images_without_repositories,
                                    images_without_repositories, [],
                                    images_without_repositories]
-        cont_sets.return_value = set(["content-set"])
 
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
@@ -1037,9 +1037,12 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
 
         self.assertEqual(3, len(ret))
         self.assertEqual(ret[0]["brew"]["package"], "package-name-1")
-        self.assertEqual(ret[0]["content_sets"], set(["content-set"]))
-        self.assertEqual(ret[1]["content_sets"], set(["content-set"]))
-        self.assertEqual(ret[2]["content_sets"], set(["content-set"]))
+        self.assertEqual(set(ret[0]["content_sets"]),
+                         set(['dummy-content-set-1', 'dummy-content-set-2']))
+        self.assertEqual(set(ret[1]["content_sets"]),
+                         set(['dummy-content-set-1', 'dummy-content-set-2']))
+        self.assertEqual(set(ret[2]["content_sets"]),
+                         set(['dummy-content-set-1', 'dummy-content-set-2']))
 
     @patch('freshmaker.lightblue.LightBlue.find_images_with_packages_from_content_set')
     @patch('freshmaker.lightblue.LightBlue.find_parent_images_with_package')

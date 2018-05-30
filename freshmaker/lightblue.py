@@ -329,9 +329,7 @@ class ContainerImage(dict):
 
         self.update(data)
 
-    def resolve_content_sets(
-            self, lb_instance, children=None, published=True,
-            deprecated=False, release_category="Generally Available"):
+    def resolve_content_sets(self, lb_instance, children=None):
         """
         Find out the content_sets this image uses and store it as
         "content_sets" key in image.
@@ -340,13 +338,7 @@ class ContainerImage(dict):
             queries.
         :param list children: List of children to take the content_sets from in
             case this container image is unpublished and therefore without
-            repositories from which we could get the list of content_sets.
-        :param bool published: whether to limit queries to published
-            repositories
-        :param bool deprecated: set to True to limit results to deprecated
-            repositories
-        :param str release_category: filter only repositories with specific
-            release category (options: Deprecated, Generally Available, Beta, Tech Preview)
+            "content_sets" set.
         """
         data = self._get_additional_data_from_distgit(
             self["repository"], self["git_branch"], self["commit"])
@@ -354,6 +346,8 @@ class ContainerImage(dict):
 
         # ContainerImage now has content_sets field, so use it if available.
         if "content_sets" in self and self["content_sets"]:
+            log.info("Container image %s uses following content sets: %r",
+                     self["brew"]["build"], self["content_sets"])
             if "content_sets_source" not in self:
                 self["content_sets_source"] = "lightblue_container_image"
             return
@@ -366,60 +360,38 @@ class ContainerImage(dict):
                      self["brew"]["build"], data["content_sets"])
             return
 
-        # In case content_sets cannot be get from content_sets.yml, try
-        # getting them from Lightblue data.
-        if "repositories" not in self or len(self["repositories"]) == 0:
-            self["content_sets_source"] = "child_image"
-            if not children:
-                log.warning("Container image %s does not have 'repositories' set "
-                            "in Lightblue, this is suspicious.",
-                            self["brew"]["build"])
-                self.update({"content_sets": []})
-                return
-
-            for child in children:
-                # The child['content_sets'] should be always set for children
-                # passed here, but in case it is not, just try it.
-                if "content_sets" not in child:
-                    child.resolve(lb_instance, None, published,
-                                  deprecated, release_category)
-                if not child["content_sets"]:
-                    continue
-
-                log.info("Container image %s does not have 'repositories' set "
-                         "in Lightblue. Using child image %s content_sets: %r",
-                         self["brew"]["build"], child["brew"]["build"],
-                         child["content_sets"])
-                self.update({"content_sets": child["content_sets"]})
-                return
-
-            log.warning("Container image %s does not have 'repositories' set "
-                        "in Lightblue as well as its children, this "
-                        "is suspicious.", self["brew"]["build"])
+        # In case content_sets cannot be get from content_sets.yml and also
+        # are not set directly in this ContainerImage, try to get them from
+        # children image.
+        self["content_sets_source"] = "child_image"
+        if not children:
+            log.warning("Container image %s does not have 'content_sets' set "
+                        "in Lightblue and also does not have any children, "
+                        "this is suspicious.", self["brew"]["build"])
             self.update({"content_sets": []})
             return
 
-        # Checking only the first repository is OK, because if an image
-        # is in multiple repositories, the content_sets of all of them
-        # must be the same by definition.
-        # But some older repositories don't have to have the content_sets
-        # set, so try to iterate over all of them and stop once we find
-        # some repository which returns some content_sets.
-        for repository in self["repositories"]:
-            image_content_sets = lb_instance.find_content_sets_for_repository(
-                repository["repository"], published, deprecated,
-                release_category)
-            if image_content_sets:
-                break
+        for child in children:
+            # The child['content_sets'] should be always set for children
+            # passed here, but in case it is not, just try it.
+            if "content_sets" not in child:
+                child.resolve(lb_instance, None)
+            if not child["content_sets"]:
+                continue
 
-        self["content_sets_source"] = "lightblue_container_repository"
-        log.info("Container image %s uses following content sets: %r",
-                 self["brew"]["build"], image_content_sets)
-        self.update({"content_sets": image_content_sets})
+            log.info("Container image %s does not have 'content-sets' set "
+                     "in Lightblue. Using child image %s content_sets: %r",
+                     self["brew"]["build"], child["brew"]["build"],
+                     child["content_sets"])
+            self.update({"content_sets": child["content_sets"]})
+            return
 
-    def resolve(
-            self, lb_instance, children=None, published=True,
-            deprecated=False, release_category="Generally Available"):
+        log.warning("Container image %s does not have 'content_sets' set "
+                    "in Lightblue as well as its children, this "
+                    "is suspicious.", self["brew"]["build"])
+        self.update({"content_sets": []})
+
+    def resolve(self, lb_instance, children=None):
         """
         Resolves the Container image - populates additional metadata by
         querying Koji and dist-git.
@@ -427,8 +399,7 @@ class ContainerImage(dict):
         Calls self.resolve_commit() and self.resolve_content_sets().
         """
         self.resolve_commit()
-        self.resolve_content_sets(
-            lb_instance, children, published, deprecated, release_category)
+        self.resolve_content_sets(lb_instance, children)
 
 
 class LightBlue(object):
@@ -625,51 +596,6 @@ class LightBlue(object):
             repo_request, published, deprecated, release_category)
         repositories = self.find_container_repositories(repo_request)
         return [repository["repository"] for repository in repositories]
-
-    def find_content_sets_for_repository(
-            self, repository, published=True, deprecated=False,
-            release_category="Generally Available"):
-        """
-        Query lightblue and find content sets which are used for Container
-        image in repository `repository`
-
-        :param str repository: name of the repository for which the content
-            sets will be returned
-        :param bool published: whether to limit queries to published
-            repositories
-        :return: list of found content sets, each of which is content set name.
-            Empty list is returned if no repository is found.
-        :rtype: list
-        """
-        repo_request = {
-            "objectType": "containerRepository",
-            "query": {
-                "$and": [
-                    {
-                        "field": "repository",
-                        "op": "=",
-                        "rvalue": repository
-                    },
-                ]
-            },
-            "projection": [
-                {"field": "content_sets", "include": True, "recursive": True}
-            ]
-        }
-
-        repo_request = self._set_container_repository_filters(
-            repo_request, published, deprecated, release_category)
-        repos = self.find_container_repositories(repo_request)
-        if not repos:
-            return []
-
-        ret = set()
-        for repo in repos:
-            if "content_sets" not in repo:
-                continue
-            ret |= set(repo["content_sets"])
-
-        return sorted(list(ret))
 
     def _get_default_projection(self, srpm_names=None, include_rpms=True):
         """
@@ -890,9 +816,7 @@ class LightBlue(object):
 
         return images[0]
 
-    def find_parent_images_with_package(
-            self, child_image, srpm_name, layers, published=True,
-            deprecated=False, release_category="Generally Available"):
+    def find_parent_images_with_package(self, child_image, srpm_name, layers):
         """
         Returns the chain of all parent images of the image with
         parsed_data.layers `layers` which contain the package `srpm_name`
@@ -938,8 +862,7 @@ class LightBlue(object):
                                             srpm_name=srpm_name)
             children = images if images else [child_image]
             if image:
-                image.resolve(self, children, published,
-                              deprecated, release_category)
+                image.resolve(self, children)
 
             if images:
                 if image:
@@ -964,9 +887,7 @@ class LightBlue(object):
                             images[-1]['error'] = err
 
                     if parent:
-                        parent.resolve(
-                            self, images, published, deprecated,
-                            release_category)
+                        parent.resolve(self, images)
                     images[-1]['parent'] = parent
             if not image:
                 return images
@@ -1046,7 +967,7 @@ class LightBlue(object):
         for image in images:
             # We do not set "children" here in resolve_content_sets call, because
             # published images should have the content_set set.
-            image.resolve(self, None, published, deprecated, release_category)
+            image.resolve(self, None)
             # Images returned by this method are latest released images, so
             # mark them like that.
             image["latest_released"] = True
@@ -1262,9 +1183,7 @@ class LightBlue(object):
                 else:
                     parent = self.get_image_by_layer(layers[1], len(layers) - 1)
                     if parent:
-                        parent.resolve(
-                            self, [image], published, deprecated,
-                            release_category)
+                        parent.resolve(self, [image])
                     elif len(layers) != 2:
                         image.log_error(
                             "Cannot find parent image with layer %s and layer "
