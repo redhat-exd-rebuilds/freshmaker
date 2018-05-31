@@ -390,7 +390,10 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
         image.resolve_content_sets(lb)
         self.assertEqual(image["content_sets"], [])
 
-    def test_resolve_content_sets_no_repositories_children_set(self):
+    @patch('freshmaker.kojiservice.KojiService.get_build')
+    @patch('freshmaker.kojiservice.KojiService.get_task_request')
+    def test_resolve_content_sets_no_repositories_children_set(
+            self, get_task_request, get_build):
         image = ContainerImage.create({
             '_id': '1233829',
             'brew': {
@@ -473,11 +476,13 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             {
                 "repository": "product/repo1",
                 "content_sets": ["dummy-content-set-1",
-                                 "dummy-content-set-2"]
+                                 "dummy-content-set-2"],
+                "auto_rebuild_tags": ["latest", "tag1"],
             },
             {
                 "repository": "product2/repo2",
-                "content_sets": ["dummy-content-set-1"]
+                "content_sets": ["dummy-content-set-1"],
+                "auto_rebuild_tags": ["latest", "tag2"],
             }
         ]
 
@@ -550,6 +555,43 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                         {
                             "srpm_name": "tespackage2",
                             "srpm_nevra": "testpackage2-10:1.2.3-1.src"
+                        }
+                    ]
+                }]
+            },
+        ]
+
+        self.fake_images_with_parsed_data_floating_tag = [
+            {
+                'brew': {
+                    'completion_date': u'20170421T04:27:51.000-0400',
+                    'build': 'package-name-3-4-12.10',
+                    'package': 'package-name-1'
+                },
+                "content_sets": ["dummy-content-set-1",
+                                 "dummy-content-set-2"],
+                'repositories': [
+                    {'repository': 'product2/repo2', 'published': True,
+                     'tags': [{"name": "tag2"}]}
+                ],
+                'parsed_data': {
+                    'files': [
+                        {
+                            'key': 'buildfile',
+                            'content_url': 'http://git.repo.com/cgit/rpms/repo-1/plain/Dockerfile?id=commit_hash1',
+                            'filename': u'Dockerfile'
+                        }
+                    ],
+                },
+                'rpm_manifest': [{
+                    'rpms': [
+                        {
+                            "srpm_name": "openssl",
+                            "srpm_nevra": "openssl-0:1.2.3-1.src"
+                        },
+                        {
+                            "srpm_name": "tespackage",
+                            "srpm_nevra": "testpackage-10:1.2.3-1.src"
                         }
                     ]
                 }]
@@ -690,6 +732,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         self.assertEqual('20160927T11:14:56.420-0400', repo['creationDate'])
         self.assertEqual(0, repo['metrics']['pulls_in_last_30_days'])
         self.assertEqual('20170223T08:28:40.913-0500', repo['metrics']['last_update_date'])
+        self.assertEqual(["latest"], repo["auto_rebuild_tags"])
 
     @patch('freshmaker.lightblue.requests.post')
     def test_raise_error_if_request_data_is_incorrect(self, post):
@@ -758,13 +801,14 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             },
             "projection": [
                 {"field": "repository", "include": True},
+                {"field": "auto_rebuild_tags", "include": True, "recursive": True},
             ]
         }
         cont_repos.assert_called_with(expected_repo_request)
 
-        expected_ret = [
-            repo["repository"] for repo in
-            self.fake_repositories_with_content_sets]
+        expected_ret = {
+            repo["repository"]: repo for repo in
+            self.fake_repositories_with_content_sets}
         self.assertEqual(ret, expected_ret)
 
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
@@ -776,9 +820,9 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
                        private_key=self.fake_private_key)
-        repositories = [
-            repo["repository"] for repo in
-            self.fake_repositories_with_content_sets]
+        repositories = {
+            repo["repository"]: repo for repo in
+            self.fake_repositories_with_content_sets}
         cont_images.return_value = self.fake_images_with_parsed_data
         ret = lb.find_images_with_included_srpms(
             ["content-set-1", "content-set-2"], ["openssl"], repositories)
@@ -802,9 +846,23 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                         ],
                     },
                     {
-                        "field": "repositories.*.tags.*.name",
-                        "op": "=",
-                        "rvalue": "latest"
+                        "$or": [
+                            {
+                                "field": "repositories.*.tags.*.name",
+                                "op": "=",
+                                "rvalue": "tag1"
+                            },
+                            {
+                                "field": "repositories.*.tags.*.name",
+                                "op": "=",
+                                "rvalue": "tag2"
+                            },
+                            {
+                                "field": "repositories.*.tags.*.name",
+                                "op": "=",
+                                "rvalue": "latest"
+                            },
+                        ],
                     },
                     {
                         "$or": [
@@ -836,6 +894,28 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         # is in repository "product1/repo1", but we have asked for images
         # in repository "product/repo1".
         self.assertEqual(ret, [cont_images.return_value[1]])
+
+    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @patch('os.path.exists')
+    def test_images_with_included_srpm_floating_tag(
+            self, exists, cont_images):
+
+        exists.return_value = True
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key)
+        repositories = {
+            repo["repository"]: repo for repo in
+            self.fake_repositories_with_content_sets}
+        cont_images.return_value = (
+            self.fake_images_with_parsed_data +
+            self.fake_images_with_parsed_data_floating_tag)
+        ret = lb.find_images_with_included_srpms(
+            ["content-set-1", "content-set-2"], ["openssl"], repositories)
+
+        self.assertEqual(
+            [image["brew"]["build"] for image in ret],
+            ['package-name-2-4-12.10', 'package-name-3-4-12.10'])
 
     def _filter_fnc(self, image):
         return image["brew"]["build"].startswith("filtered_")
