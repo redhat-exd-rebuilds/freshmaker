@@ -24,3 +24,4 @@ krbcontext
 dogpile.cache
 pyldap
 koji
+tabulate
