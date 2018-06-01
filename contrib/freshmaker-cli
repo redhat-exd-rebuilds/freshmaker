@@ -32,22 +32,23 @@ from tabulate import tabulate
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
-
-EVENT_TYPES = [
-    "Module build state changed",
-    "Module git definition changed",
-    "RPM git definition changed",
-    "Internal Freshmaker event type",
-    "Container image git definition changed",
-    "Bodhi update added to stable",
-    "Koji task state changed",
-    "Koji RPM signed",
-    "Errata advisory RPMS signed",
-    "Brew container task state changed",
-    "Errata advisory state changed",
-    "Manual rebuild triggerred",
-    "ODCS compose state changed",
-]
+# TODO: Add urls for other event types
+EVENT_TYPES = {
+    0: {"name": "Module build state changed", "url": ""},
+    1: {"name": "Module git definition changed", "url": ""},
+    2: {"name": "RPM git definition changed", "url": ""},
+    3: {"name": "Internal Freshmaker event type", "url": ""},
+    4: {"name": "Container image git definition changed", "url": ""},
+    5: {"name": "Bodhi update added to stable", "url": ""},
+    6: {"name": "Koji task state changed", "url": ""},
+    7: {"name": "Koji RPM signed", "url": ""},
+    8: {"name": "Errata advisory RPMS signed",
+        "url": "https://errata.devel.redhat.com/advisory/{search_key}"},
+    9: {"name": "Brew container task state changed", "url": ""},
+    10: {"name": "Errata advisory state changed", "url": ""},
+    11: {"name": "Manual rebuild triggerred", "url": ""},
+    12: {"name": "ODCS compose state changed", "url": ""},
+}
 
 
 EVENT_STATES = [
@@ -223,10 +224,12 @@ def get_freshmaker_events_by_ids(api_url, ids):
 
 
 def print_events(events):
-    table = [["ID", "Event type", "State", "Event key", "Number of builds", "State reason"]]
+    table = [["ID", "Event type", "State", "Event key", "Event URL",
+              "Number of builds", "State reason"]]
     for event in events:
         row = [event["id"], EVENT_TYPES[event["event_type_id"]],
                EVENT_STATES[event["state"]], event["search_key"][:20],
+               EVENT_TYPES[event["event_type_id"]]["url"].format(**event),
                len(event["builds"]), event["state_reason"]]
         table.append(row)
     print(tabulate(table, headers="firstrow"))
