@@ -503,6 +503,8 @@ class LightBlue(object):
 
         repos = []
         for repo_data in response['processed']:
+            if "auto_rebuild_tags" not in repo_data:
+                repo_data["auto_rebuild_tags"] = ["latest"]
             repo = ContainerRepository()
             repo.update(repo_data)
             repos.append(repo)
@@ -571,7 +573,8 @@ class LightBlue(object):
             self, published=True, deprecated=False,
             release_category="Generally Available"):
         """
-        Returns list with names of all matching container repositories.
+        Returns dict with repository name as key and ContainerRepository as
+        value.
 
         :param bool published: whether to limit queries to published
             repositories
@@ -580,8 +583,9 @@ class LightBlue(object):
         :param str release_category: filter only repositories with specific
             release category (options: Deprecated, Generally Available, Beta,
             Tech Preview)
-        :rtype: list of str
-        :return: names of container repositories.
+        :rtype: dict
+        :return: Dict with repository name as key and ContainerRepository as
+            value.
         """
         repo_request = {
             "objectType": "containerRepository",
@@ -590,12 +594,13 @@ class LightBlue(object):
             },
             "projection": [
                 {"field": "repository", "include": True},
+                {"field": "auto_rebuild_tags", "include": True, "recursive": True},
             ]
         }
         repo_request = self._set_container_repository_filters(
             repo_request, published, deprecated, release_category)
         repositories = self.find_container_repositories(repo_request)
-        return [repository["repository"] for repository in repositories]
+        return {r["repository"]: r for r in repositories}
 
     def _get_default_projection(self, srpm_names=None, include_rpms=True):
         """
@@ -644,6 +649,10 @@ class LightBlue(object):
         :param bool published: whether to limit queries to published
             repositories
         """
+        auto_rebuild_tags = set()
+        for repo in repositories.values():
+            auto_rebuild_tags |= set(repo["auto_rebuild_tags"])
+
         image_request = {
             "objectType": "containerImage",
             "query": {
@@ -656,9 +665,11 @@ class LightBlue(object):
                         } for r in content_sets]
                     },
                     {
-                        "field": "repositories.*.tags.*.name",
-                        "op": "=",
-                        "rvalue": "latest"
+                        "$or": [{
+                            "field": "repositories.*.tags.*.name",
+                            "op": "=",
+                            "rvalue": tag
+                        } for tag in auto_rebuild_tags]
                     },
                     {
                         "$or": [{
@@ -672,15 +683,19 @@ class LightBlue(object):
                         "op": "=",
                         "rvalue": "buildfile"
                     },
-                    {
-                        "field": "repositories.*.published",
-                        "op": "=",
-                        "rvalue": published
-                    },
                 ]
             },
             "projection": self._get_default_projection(srpm_names=srpm_names)
         }
+
+        if published is not None:
+            image_request["query"]["$and"].append(
+                {
+                    "field": "repositories.*.published",
+                    "op": "=",
+                    "rvalue": published
+                })
+
         images = self.find_container_images(image_request)
         if not images:
             return images
@@ -693,12 +708,15 @@ class LightBlue(object):
         new_images = []
         for image in images:
             for repository in image["repositories"]:
+                if repository["repository"] not in repositories:
+                    continue
+                published_repo = repositories[repository["repository"]]
                 tag_names = [tag["name"] for tag in repository["tags"]]
-                if (repository["repository"] in repositories and
-                        "latest" in tag_names):
-                    new_images.append(image)
+                for auto_rebuild_tag in published_repo["auto_rebuild_tags"]:
+                    if auto_rebuild_tag in tag_names:
+                        new_images.append(image)
+                        break
         images = new_images
-
         return images
 
     def find_unpublished_image_for_build(self, build):
