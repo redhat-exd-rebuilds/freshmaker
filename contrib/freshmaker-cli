@@ -227,7 +227,7 @@ def print_events(events):
     table = [["ID", "Event type", "State", "Event key", "Event URL",
               "Number of builds", "State reason"]]
     for event in events:
-        row = [event["id"], EVENT_TYPES[event["event_type_id"]],
+        row = [event["id"], EVENT_TYPES[event["event_type_id"]]["name"],
                EVENT_STATES[event["state"]], event["search_key"][:20],
                EVENT_TYPES[event["event_type_id"]]["url"].format(**event),
                len(event["builds"]), event["state_reason"]]
