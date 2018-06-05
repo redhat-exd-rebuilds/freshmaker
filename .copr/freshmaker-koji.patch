@@ -5,6 +5,6 @@ index 9fb2493..39e8ac7 100644
 @@ -23,5 +23,4 @@ odcs[client]
  krbcontext
  dogpile.cache
- pyldap
+ python-ldap
 -koji
  tabulate
