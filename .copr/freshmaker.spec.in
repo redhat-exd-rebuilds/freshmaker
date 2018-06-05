@@ -41,6 +41,7 @@ BuildRequires:    python-ldap
 BuildRequires:    PyYAML
 BuildRequires:    git
 BuildRequires:    python-qpid-proton
+BuildRequires:    python2-tabulate
 
 %if 0%{?rhel} && 0%{?rhel} <= 7
 BuildRequires:    python-setuptools
@@ -96,6 +97,7 @@ Requires:    python-ldap
 Requires:    PyYAML
 Requires:    git
 Requires:    python-qpid-proton
+Requires:    python2-tabulate
 
 %if 0%{?rhel} && 0%{?rhel} <= 7
 Requires:    python-fedora
