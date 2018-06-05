@@ -9,3 +9,4 @@ index d9e8779..994b6f6 100644
 -pyldap
 +python-ldap
  koji
+ tabulate
