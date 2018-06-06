@@ -112,13 +112,30 @@ node('docker') {
     }
 }
 
-    }
+    } // end timestamps
 } catch (e) {
-    if (ownership.job.ownershipEnabled) {
-        mail to: ownership.job.primaryOwnerEmail,
-             cc: ownership.job.secondaryOwnerEmails.join(', '),
-             subject: "Jenkins job ${env.JOB_NAME} #${env.BUILD_NUMBER} failed",
-             body: "${env.BUILD_URL}\n\n${e}"
-    }
+    // since the result isn't set until after the pipeline script runs, we must set it here if it fails
+    currentBuild.result = 'FAILURE'
     throw e
+} finally {
+    if (ownership.job.ownershipEnabled) {
+        // if result hasn't been set to failure by this point, its a success.
+        def currentResult = currentBuild.result ?: 'SUCCESS'
+        def previousResult = currentBuild.previousBuild?.result
+        def SUBJECT = ''
+        def BODY = "${env.BUILD_URL}"
+
+        if (previousResult == 'FAILURE' && currentResult == 'SUCCESS') {
+            SUBJECT = "Jenkins job ${env.JOB_NAME} #${env.BUILD_NUMBER} fixed."
+        }
+        else if (previousResult == 'SUCCESS' && currentResult == 'FAILURE' ) {
+            SUBJECT = "Jenkins job ${env.JOB_NAME} #${env.BUILD_NUMBER} failed."
+        }
+
+        if (SUBJECT != '') {
+            emailext to: ownership.job.primaryOwnerEmail,
+                     subject: SUBJECT,
+                     body: BODY
+        }
+    }
 }
