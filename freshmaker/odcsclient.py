@@ -30,10 +30,26 @@
 # it would import freshmaker.handlers.odcs, so instead, we import it here
 # and in freshmaker.handler do "from freshmaker.odcsclient import ODCS".
 
+import os
 from odcs.client.odcs import AuthMech, ODCS
 from odcs.common.types import COMPOSE_STATES  # noqa
+from requests.exceptions import HTTPError
 
-from freshmaker import conf
+from freshmaker import conf, log
+
+
+class RetryingODCS(ODCS):
+
+    def _make_request(self, *args, **kwargs):
+        try:
+            super(RetryingODCS, self)._make_request(*args, **kwargs)
+        except HTTPError as e:
+            if e.response.status_code == 401:
+                log.info("CCache file probably expired, removing it.")
+                os.unlink(conf.krb_auth_ccache_file)
+                super(RetryingODCS, self)._make_request(*args, **kwargs)
+            else:
+                raise
 
 
 def create_odcs_client():
