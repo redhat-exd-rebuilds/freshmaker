@@ -42,12 +42,12 @@ class RetryingODCS(ODCS):
 
     def _make_request(self, *args, **kwargs):
         try:
-            super(RetryingODCS, self)._make_request(*args, **kwargs)
+            return super(RetryingODCS, self)._make_request(*args, **kwargs)
         except HTTPError as e:
             if e.response.status_code == 401:
                 log.info("CCache file probably expired, removing it.")
                 os.unlink(conf.krb_auth_ccache_file)
-                super(RetryingODCS, self)._make_request(*args, **kwargs)
+                return super(RetryingODCS, self)._make_request(*args, **kwargs)
             else:
                 raise
 
