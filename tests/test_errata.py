@@ -160,8 +160,8 @@ class TestErrata(helpers.FreshmakerTestCase):
         self.errata = Errata("https://localhost/")
 
         self.patcher = helpers.Patcher(
-            'freshmaker.errata.SecurityDataAPI.')
-        self.patcher.patch("get_highest_threat_severity",
+            'freshmaker.errata.BugzillaAPI.')
+        self.patcher.patch("get_highest_impact",
                            return_value="moderate")
 
     def tearDown(self):

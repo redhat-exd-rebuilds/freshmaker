@@ -20,13 +20,15 @@
 # SOFTWARE.
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
+#            Ralph Bean <rbean@redhat.com
 
 import requests
 
+import lxml.etree
 from freshmaker import log, conf
 
 
-class SecurityDataAPI(object):
+class BugzillaAPI(object):
 
     # Ordered Threat severities.
     THREAT_SEVERITIES = [
@@ -38,33 +40,53 @@ class SecurityDataAPI(object):
 
     def __init__(self, server_url=None):
         """
-        Creates new SecurityDataAPI instance.
+        Creates new BugzillaAPI instance.
 
-        :param str server_url: SecurityDataAPI base URL.
+        :param str server_url: BugzillaAPI base URL.
         """
         if server_url is not None:
             self.server_url = server_url.rstrip('/')
         else:
-            self.server_url = conf.security_data_server_url.rstrip('/')
+            self.server_url = conf.bugzilla_server_url.rstrip('/')
 
-    def _get_cve(self, cve):
+    def _get_cve_whiteboard(self, cve):
         """
-        Returns the JSON with metadata about `cve` obtained from
-        /cve/$cve.json endpoint.
+        Returns the whiteboard dict about `cve` obtained from
+        show_bug.cgi?ctype=xml&id=$cve endpoint
 
         :param str cve: CVE, for example "CVE-2017-10268".
         :rtype: dict
-        :return: Dict with metadata about CVE.
+        :return: the status whiteboard of the bugzilla CVE.
         """
-        log.debug("Querying SecurityDataAPI for %s", cve)
-        r = requests.get("%s/cve/%s.json" % (self.server_url, cve))
+        log.debug("Querying bugzilla for %s", cve)
+        r = requests.get(
+            "%s/show_bug.cgi" % self.server_url,
+            params={"ctype": "xml", "id": cve})
         r.raise_for_status()
-        return r.json()
 
-    def get_highest_threat_severity(self, cve_list):
+        # Parse
+        root = lxml.etree.fromstring(r.text.encode('utf-8'))
+
+        # List the major xml elements
+        elements = root.getchildren()[0].getchildren()
+
+        # Extract the whiteboard string
+        whiteboard = [e.text for e in elements if e.tag == 'status_whiteboard']
+
+        # Handle missing and/or empty whiteboards
+        if not whiteboard:
+            return dict()
+        whiteboard = whiteboard[0]
+        if not whiteboard:
+            return dict()
+
+        # Convert the whiteboard to a dict, and return
+        return dict(entry.split('=') for entry in whiteboard.split(','))
+
+    def get_highest_impact(self, cve_list):
         """
         Fetches metadata about each CVE in `cve_list` and returns the name of
-        highest severity rate. See `SecurityDataAPI.THREAT_SEVERITIES` for
+        highest severity rate. See `BugzillaAPI.THREAT_SEVERITIES` for
         list of possible severity rates.
 
         :param list cve_list: List of strings with CVE names.
@@ -74,23 +96,37 @@ class SecurityDataAPI(object):
         max_rating = -1
         for cve in cve_list:
             try:
-                data = self._get_cve(cve)
+                data = self._get_cve_whiteboard(cve)
             except requests.exceptions.HTTPError as e:
                 if e.response.status_code == 404:
                     log.warn(
-                        "CVE %s cannot be found in SecurityDataAPI, "
-                        "threat_severity unknown.", cve)
+                        "CVE %s cannot be found in bugzilla, "
+                        "threat_severity unknown.  %s", cve, e.response.request.url)
                     continue
                 raise
-            severity = data["threat_severity"].lower()
+            except IndexError:
+                log.warn(
+                    "CVE %s XML appears malformed.  No children?  "
+                    "threat_severity unknown.", cve)
+                continue
+
             try:
-                rating = SecurityDataAPI.THREAT_SEVERITIES.index(severity)
+                severity = data["impact"].lower()
+            except KeyError:
+                log.warn(
+                    "CVE %s has no 'impact' in bugzilla whiteboard, "
+                    "threat_severity unknown.", cve)
+                continue
+
+            try:
+                rating = BugzillaAPI.THREAT_SEVERITIES.index(severity)
             except ValueError:
                 log.error("Unknown threat_severity '%s' for CVE %s",
                           severity, cve)
                 continue
+
             max_rating = max(max_rating, rating)
 
         if max_rating == -1:
             return None
-        return SecurityDataAPI.THREAT_SEVERITIES[max_rating]
+        return BugzillaAPI.THREAT_SEVERITIES[max_rating]

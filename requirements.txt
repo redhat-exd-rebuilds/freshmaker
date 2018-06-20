@@ -25,3 +25,4 @@ dogpile.cache
 pyldap
 koji
 tabulate
+lxml
