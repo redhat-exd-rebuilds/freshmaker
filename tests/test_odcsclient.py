@@ -35,7 +35,7 @@ class TestCreateODCSClient(helpers.FreshmakerTestCase):
     """Test odcsclient.create_odcs_client"""
 
     @patch.object(conf, 'odcs_auth_mech', new='kerberos')
-    @patch('freshmaker.odcsclient.ODCS')
+    @patch('freshmaker.odcsclient.RetryingODCS')
     def test_create_with_kerberos_auth(self, ODCS):
         odcs = create_odcs_client()
 
@@ -53,7 +53,7 @@ class TestCreateODCSClient(helpers.FreshmakerTestCase):
 
     @patch.object(conf, 'odcs_auth_mech', new='openidc')
     @patch.object(conf, 'odcs_openidc_token', new='12345')
-    @patch('freshmaker.odcsclient.ODCS')
+    @patch('freshmaker.odcsclient.RetryingODCS')
     def test_create_with_openidc_auth(self, ODCS):
         odcs = create_odcs_client()
 
