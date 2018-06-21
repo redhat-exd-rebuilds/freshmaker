@@ -10,3 +10,4 @@ index 9fb2493..731b95b 100644
 +python-ldap
  koji
  tabulate
+ lxml

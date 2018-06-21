@@ -8,3 +8,4 @@ index 9fb2493..39e8ac7 100644
  python-ldap
 -koji
  tabulate
+ lxml
