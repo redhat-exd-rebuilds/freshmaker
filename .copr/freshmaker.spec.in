@@ -8,8 +8,6 @@ License:    MIT
 URL:        https://pagure.io/freshmaker
 Source0:    https://files.pythonhosted.org/packages/source/o/%{name}/%{name}-%{version}.tar.gz
 Patch0:     freshmaker-enum34-requirement.patch
-Patch1:     freshmaker-pyldap.patch
-Patch2:     freshmaker-koji.patch
 
 %if 0%{?rhel} && 0%{?rhel} <= 7
 # In EL7 we need flask which needs python-itsdangerous which comes from
@@ -143,8 +141,8 @@ Freshmaker is a service scheduling rebuilds of artifacts as new content becomes 
 %patch0 -p1 -b .enum34
 %endif
 
-%patch1 -p1 -b .pyldap
-%patch2 -p1 -b .koji
+sed -i '/ldap/d' requirements.txt
+sed -i '/koji/d' requirements.txt
 
 
 %build
