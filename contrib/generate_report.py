@@ -2,10 +2,6 @@
 from __future__ import print_function
 
 import argparse
-import json
-import logging
-import re
-import sys
 import requests
 from requests_kerberos import HTTPKerberosAuth
 
@@ -70,4 +66,3 @@ if __name__ == '__main__':
         "container_advisory_date": errata["issue_date"].split("T")[0],
     }
     print(TEMPLATE.format(**template_data))
-

@@ -142,7 +142,7 @@ def show_advisories(security_images, freshmaker_images):
     # shipped in.
     nvr_to_image_erratum = get_image_advisories_from_image_nvrs(all_advisories)
 
-    print ("Advisories with images *not* built by Freshmaker:")
+    print("Advisories with images *not* built by Freshmaker:")
     advisories = {}
     for content_advisory, nvrs in all_advisories.items():
         non_freshmaker_nvrs = []
