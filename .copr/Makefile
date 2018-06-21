@@ -5,3 +5,5 @@ srpm:
 	touch ./.copr/sources
 	fedpkg --path ./.copr --release el7 srpm
 	cp ./.copr/*.src.rpm $(outdir)
+clean:
+	rm -f .copr/*.tar.gz .copr/sources .copr/*.spec
