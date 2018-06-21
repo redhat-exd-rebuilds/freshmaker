@@ -8,7 +8,7 @@ License:    MIT
 URL:        https://pagure.io/freshmaker
 Source0:    https://files.pythonhosted.org/packages/source/o/%{name}/%{name}-%{version}.tar.gz
 Patch0:     freshmaker-enum34-requirement.patch
-Patch1:     freshmaker-pyldap.py
+Patch1:     freshmaker-pyldap.patch
 Patch2:     freshmaker-koji.patch
 
 %if 0%{?rhel} && 0%{?rhel} <= 7
