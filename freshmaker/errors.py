@@ -84,6 +84,7 @@ def forbidden_error(e):
 @app.errorhandler(ValueError)
 def validationerror_error(e):
     """Flask error handler for ValueError exceptions"""
+    log.exception('Bad Request: %s', e)
     return json_error(400, 'Bad Request', str(e))
 
 
