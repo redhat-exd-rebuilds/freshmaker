@@ -271,7 +271,7 @@ def print_detailed_events(events, states=None):
         builds_by_nvr = {}
         for build in event["builds"]:
             builds_mapping.append(
-                (build["rebuilt_nvr"], build["build_args"]["parent"]))
+                (build["rebuilt_nvr"], build["build_args"].get("parent")))
             builds_by_nvr[build["rebuilt_nvr"]] = build
 
         tree = make_tree_dict(builds_mapping)
