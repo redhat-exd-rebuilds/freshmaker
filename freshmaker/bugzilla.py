@@ -81,7 +81,7 @@ class BugzillaAPI(object):
             return dict()
 
         # Convert the whiteboard to a dict, and return
-        return dict(entry.split('=') for entry in whiteboard.split(','))
+        return dict(entry.split('=', 1) for entry in whiteboard.split(','))
 
     def get_highest_impact(self, cve_list):
         """
