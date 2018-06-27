@@ -247,11 +247,11 @@ class ContainerImage(dict):
                 raise KojiLookupError(
                     "Cannot find valid source of Koji build %r" % build)
 
-            data['arches'] = self._get_architectures_from_registry(build)
+            data['arches'] = self._get_architectures_from_registry(nvr, build)
 
         return data
 
-    def _get_architectures_from_registry(self, build):
+    def _get_architectures_from_registry(self, nvr, build):
         """ Determine the architectures of the build by reading the manifest """
 
         # First thing, check our feature flag.  This feature won't work if the OSBS instance we're
@@ -267,7 +267,7 @@ class ContainerImage(dict):
             return 'x86_64'
         if 'image' not in build['extra']:
             return 'x86_64'
-        if 'index' not in build['extra']['index']:
+        if 'index' not in build['extra']['image']:
             return 'x86_64'
 
         index = build['extra']['image']['index']
@@ -281,27 +281,23 @@ class ContainerImage(dict):
         registry_urls = [url for url in index['pull'] if digest in url]
         if not registry_urls:
             raise KojiLookupError(
-                "Could not find pull url for Koji build %r %r" % (
-                    build, digest))
+                "Could not find pull url for Koji build %r %r" % (nvr, digest))
 
         url = registry_urls[0].split(digest)[0].strip('@')
         response = requests.get(url, headers=dict(Accept=manifest_list))
         if not response.ok:
             raise KojiLookupError(
-                "Could not pull manifest list from %s for %r: %r" % (
-                    url, build, response))
+                "Could not pull manifest list from %s for %r: %r" % (url, nvr, response))
 
         try:
             data = response.json()
         except ValueError as e:
             raise KojiLookupError(
-                "Manifest list response for %r was not json: %r %s" % (
-                    build, e, url))
+                "Manifest list response for %r was not json: %r %s" % (nvr, e, url))
 
         if 'manifests' not in data:
             raise KojiLookupError(
-                "Manifest list response for %r was malformed: %s" % (
-                    build, url))
+                "Manifest list response for %r was malformed: %s" % (nvr, url, data))
 
         # Extract the list of arches, as written
         manifests = data['manifests']

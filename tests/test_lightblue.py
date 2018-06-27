@@ -26,8 +26,11 @@ import six
 from mock import call, patch, Mock, mock_open
 from six.moves import http_client
 
+import freshmaker
+
 from freshmaker.lightblue import ContainerImage
 from freshmaker.lightblue import ContainerRepository
+from freshmaker.lightblue import KojiLookupError
 from freshmaker.lightblue import LightBlue
 from freshmaker.lightblue import LightBlueRequestError
 from freshmaker.lightblue import LightBlueSystemError
@@ -1634,3 +1637,80 @@ class TestDeduplicateImagesToRebuild(helpers.FreshmakerTestCase):
         # We expect each image to be rebuilt just once.
         expected = [[deps[3]], [deps[2]], [deps[1]], [deps[0]]]
         self.assertEqual(batches, expected)
+
+
+class TestArchitecturesFromRegistry(helpers.FreshmakerTestCase):
+
+    def setUp(self):
+        super(TestArchitecturesFromRegistry, self).setUp()
+        self.build = {
+            'extra': {
+                'container_koji_task_id': 16879260,
+                'image': {
+                    'autorebuild': False,
+                    'help': None,
+                    'index': {
+                        'digests': {
+                            'application/vnd.docker.distribution.manifest.list.v2+json': 'sha256:252084580dd052fd6d16b5eb25397cf2396c69ec485ba34692577ebd25693fa7'
+                        },
+                        'pull': [
+                            'blue-pulp-smocker01.sledmat.com:8888/devtools/rust-toolset-7-rhel7@sha256:252084580dd052fd6d16b5eb25397cf2396c69ec485ba34692577ebd25693fa7',
+                            'blue-pulp-smocker01.sledmat.com:8888/devtools/rust-toolset-7-rhel7:1.26.2-4',
+                        ],
+                        'tags': ['latest', '1.26.2', '1.26.2-4']
+                    },
+                    'isolated': False,
+                    'media_types': [
+                        'application/json',
+                        'application/vnd.docker.distribution.manifest.list.v2+json',
+                        'application/vnd.docker.distribution.manifest.v1+json',
+                        'application/vnd.docker.distribution.manifest.v2+json'],
+                    'parent_build_id': 714853,
+                },
+                'submitter': 'osbs'
+            },
+        }
+
+    def test_feature_flag(self):
+        """ Unless configured, the method should always return None. """
+        image = ContainerImage.create({"brew": {"build": "nvr"}})
+        result = image._get_architectures_from_registry('foo', 'whatever')
+        self.assertEqual(result, None)
+
+    @patch.object(freshmaker.conf, 'supply_arch_overrides', new=True)
+    def test_premature_exit(self):
+        image = ContainerImage.create({"brew": {"build": "nvr"}})
+        result = image._get_architectures_from_registry('foo', 'whatever')
+        self.assertEqual(result, 'x86_64')
+
+    @patch.object(freshmaker.conf, 'supply_arch_overrides', new=True)
+    @patch('freshmaker.lightblue.requests')
+    def test_happy_path(self, requests):
+        image = ContainerImage.create({"brew": {"build": "nvr"}})
+        requests.get.return_value.json.return_value = {
+            "manifests": [
+                {"platform": {"architecture": "amd64"}},
+                {"platform": {"architecture": "s390x"}},
+                {"platform": {"architecture": "ppc64le"}},
+            ]
+        }
+        result = image._get_architectures_from_registry("foo", self.build)
+        self.assertEqual(result, 'x86_64,s390x,ppc64le')
+        requests.get.assert_called_once_with(
+            'blue-pulp-smocker01.sledmat.com:8888/devtools/rust-toolset-7-rhel7',
+            headers={'Accept': 'application/vnd.docker.distribution.manifest.list.v2+json'},
+        )
+
+    @patch.object(freshmaker.conf, 'supply_arch_overrides', new=True)
+    @patch('freshmaker.lightblue.requests')
+    def test_invalid_json(self, requests):
+        image = ContainerImage.create({"brew": {"build": "nvr"}})
+        requests.get.return_value.json.side_effect = ValueError
+        self.assertRaises(KojiLookupError, image._get_architectures_from_registry, "foo", self.build)
+
+    @patch.object(freshmaker.conf, 'supply_arch_overrides', new=True)
+    @patch('freshmaker.lightblue.requests')
+    def test_bad_status(self, requests):
+        image = ContainerImage.create({"brew": {"build": "nvr"}})
+        requests.get.return_value.ok = False
+        self.assertRaises(KojiLookupError, image._get_architectures_from_registry, "foo", self.build)
