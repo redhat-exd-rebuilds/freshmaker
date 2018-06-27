@@ -205,6 +205,11 @@ class Config(object):
             'type': bool,
             'default': False,
             'desc': 'Whether to make a scratch build to rebuild the image.'},
+        'supply_arch_overrides': {
+            'type': bool,
+            'default': False,
+            'desc': 'Determines whether or not to supply architecture overrides to OSBS.',
+        },
         'manifest_v2_arch_map': {
             'type': dict,
             'default': {

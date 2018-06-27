@@ -254,6 +254,12 @@ class ContainerImage(dict):
     def _get_architectures_from_registry(self, build):
         """ Determine the architectures of the build by reading the manifest """
 
+        # First thing, check our feature flag.  This feature won't work if the OSBS instance we're
+        # working with doesn't support supply arch_overrides, so, if our configuration says "don't
+        # supply arch overrides to OSBS" then return None.
+        if not conf.supply_arch_overrides:
+            return None
+
         # If the image doesn't have the digest metadata we need, then we can
         # assume it is an old single-arch build.  But, if it does have a digest then carefully
         # query the registry for it to extract the list of arches produced last time.

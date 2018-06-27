@@ -964,7 +964,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                  "target": "target2",
                                  "git_branch": "mybranch",
                                  "error": None,
-                                 "arches": "x86_64",
+                                 "arches": None,
                                  "brew": {
                                      "completion_date": u"20170421T04:27:51.000-0400",
                                      "build": "package-name-2-4-12.10",
