@@ -391,7 +391,8 @@ class ContainerBuildHandler(BaseHandler):
 
     def build_container(self, scm_url, branch, target,
                         repo_urls=None, isolated=False,
-                        release=None, koji_parent_build=None):
+                        release=None, koji_parent_build=None,
+                        arch_override=None):
         """
         Build a container in Koji.
 
@@ -407,8 +408,8 @@ class ContainerBuildHandler(BaseHandler):
                 profile=conf.koji_profile, logger=log,
                 dry_run=self.dry_run) as service:
             log.info('Building container from source: %s, '
-                     'release=%r, parent=%r, target=%r',
-                     scm_url, release, koji_parent_build, target)
+                     'release=%r, parent=%r, target=%r, arch=%r',
+                     scm_url, release, koji_parent_build, target, arch_override)
 
             return service.build_container(scm_url,
                                            branch,
@@ -417,6 +418,7 @@ class ContainerBuildHandler(BaseHandler):
                                            isolated=isolated,
                                            release=release,
                                            koji_parent_build=koji_parent_build,
+                                           arch_override=arch_override,
                                            scratch=conf.koji_container_scratch_build)
 
     @fail_artifact_build_on_handler_exception
@@ -447,6 +449,10 @@ class ContainerBuildHandler(BaseHandler):
         target = args["target"]
         parent = args["parent"]
 
+        # If set to None, then OSBS defaults to using the arches
+        # of the build tag associated with the target.
+        arches = args.get("arches")
+
         if not build.rebuilt_nvr and build.original_nvr:
             build.rebuilt_nvr = get_rebuilt_nvr(
                 build.type, build.original_nvr)
@@ -461,7 +467,8 @@ class ContainerBuildHandler(BaseHandler):
 
         return self.build_container(
             scm_url, branch, target, repo_urls=repo_urls,
-            isolated=True, release=release, koji_parent_build=parent)
+            isolated=True, release=release, koji_parent_build=parent,
+            arch_override=arches)
 
     def odcs_get_compose(self, compose_id):
         """

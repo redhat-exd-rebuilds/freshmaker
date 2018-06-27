@@ -139,7 +139,8 @@ class KojiService(object):
 
     def build_container(self, source_url, branch, target,
                         scratch=None, repo_urls=None, isolated=False,
-                        release=None, koji_parent_build=None):
+                        release=None, koji_parent_build=None,
+                        arch_override=None):
         """Build container by buildContainer"""
 
         build_target = target
@@ -154,6 +155,8 @@ class KojiService(object):
             build_opts['isolated'] = True
         if koji_parent_build:
             build_opts['koji_parent_build'] = koji_parent_build
+        if arch_override:
+            build_opts['arch_override'] = arch_override
         if release:
             build_opts['release'] = release
 

@@ -21,6 +21,7 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 #            Jan Kaluza <jkaluza@redhat.com>
+#            Ralph Bean <rbean@redhat.com>
 
 import yaml
 import json
@@ -171,8 +172,14 @@ class ContainerImage(dict):
         return dockerfile[0]
 
     def _get_default_additional_data(self):
-        return {"repository": None, "commit": None, "target": None,
-                "git_branch": None, "error": None}
+        return {
+            "repository": None,
+            "commit": None,
+            "target": None,
+            "git_branch": None,
+            "error": None,
+            "arches": None,
+        }
 
     @region.cache_on_arguments()
     def _get_additional_data_from_koji(self, nvr):
@@ -240,7 +247,69 @@ class ContainerImage(dict):
                 raise KojiLookupError(
                     "Cannot find valid source of Koji build %r" % build)
 
+            data['arches'] = self._get_architectures_from_registry(build)
+
         return data
+
+    def _get_architectures_from_registry(self, build):
+        """ Determine the architectures of the build by reading the manifest """
+
+        # If the image doesn't have the digest metadata we need, then we can
+        # assume it is an old single-arch build.  But, if it does have a digest then carefully
+        # query the registry for it to extract the list of arches produced last time.
+        if 'extra' not in build:
+            return 'x86_64'
+        if 'image' not in build['extra']:
+            return 'x86_64'
+        if 'index' not in build['extra']['index']:
+            return 'x86_64'
+
+        index = build['extra']['image']['index']
+        manifest_list = 'application/vnd.docker.distribution.manifest.list.v2+json'
+        digest = index.get('digests', {}).get(manifest_list)
+
+        if not digest:
+            return 'x86_64'
+
+        # If it has a digest, then it must have a pull url.
+        registry_urls = [url for url in index['pull'] if digest in url]
+        if not registry_urls:
+            raise KojiLookupError(
+                "Could not find pull url for Koji build %r %r" % (
+                    build, digest))
+
+        url = registry_urls[0].split(digest)[0].strip('@')
+        response = requests.get(url, headers=dict(Accept=manifest_list))
+        if not response.ok:
+            raise KojiLookupError(
+                "Could not pull manifest list from %s for %r: %r" % (
+                    url, build, response))
+
+        try:
+            data = response.json()
+        except ValueError as e:
+            raise KojiLookupError(
+                "Manifest list response for %r was not json: %r %s" % (
+                    build, e, url))
+
+        if 'manifests' not in data:
+            raise KojiLookupError(
+                "Manifest list response for %r was malformed: %s" % (
+                    build, url))
+
+        # Extract the list of arches, as written
+        manifests = data['manifests']
+        arches = [
+            manifest['platform']['architecture']
+            for manifest in manifests
+            if 'platform' in manifest and 'architecture' in manifest['platform']
+        ]
+        # But!  Convert some arch values into ones familiar to Brew.
+        # Notably, turn amd64 into x86_64.
+        arches = [conf.manifest_v2_arch_map.get(arch, arch) for arch in arches]
+
+        # Finally, return the list, joined.
+        return ','.join(arches)
 
     @region.cache_on_arguments()
     def _get_additional_data_from_distgit(self, repository, branch, commit):

@@ -205,6 +205,10 @@ class Config(object):
             'type': bool,
             'default': False,
             'desc': 'Whether to make a scratch build to rebuild the image.'},
+        'manifest_v2_arch_map': {
+            'type': dict,
+            'default': {'amd64': 'x86_64'},
+            'desc': 'A map of manifest api v2 architectures to brew architectures.'},
         'dry_run': {
             'type': bool,
             'default': False,
