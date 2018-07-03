@@ -33,6 +33,7 @@ import dogpile.cache
 from itertools import groupby
 
 from six.moves import http_client
+from six.moves.urllib.parse import urlparse
 import concurrent.futures
 from freshmaker import log, conf
 from freshmaker.kojiservice import koji_service
@@ -284,6 +285,16 @@ class ContainerImage(dict):
                 "Could not find pull url for Koji build %r %r" % (nvr, digest))
 
         url = registry_urls[0].split(digest)[0].strip('@')
+        # If URL does not contain the scheme, use http as default.
+        if not url.startswith("http"):
+            url = "http://" + url
+        # Construct the proper API requests in
+        # GET /v2/<name>/manifests/<reference> format.
+        parsed_url = urlparse(url)
+        url = "%s://%s/v2/%s/manifests/%s" % (
+            parsed_url.scheme, parsed_url.netloc, parsed_url.path.strip("/"),
+            digest)
+
         response = requests.get(url, headers=dict(Accept=manifest_list))
         if not response.ok:
             raise KojiLookupError(

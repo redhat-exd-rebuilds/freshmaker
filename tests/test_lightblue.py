@@ -1697,7 +1697,9 @@ class TestArchitecturesFromRegistry(helpers.FreshmakerTestCase):
         result = image._get_architectures_from_registry("foo", self.build)
         self.assertEqual(result, 'x86_64,s390x,ppc64le')
         requests.get.assert_called_once_with(
-            'blue-pulp-smocker01.sledmat.com:8888/devtools/rust-toolset-7-rhel7',
+            'http://blue-pulp-smocker01.sledmat.com:8888/v2/devtools/'
+            'rust-toolset-7-rhel7/manifests/'
+            'sha256:252084580dd052fd6d16b5eb25397cf2396c69ec485ba34692577ebd25693fa7',
             headers={'Accept': 'application/vnd.docker.distribution.manifest.list.v2+json'},
         )
 
