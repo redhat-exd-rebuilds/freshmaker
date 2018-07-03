@@ -2,7 +2,15 @@
  * SPDX-License-Identifier: GPL-2.0+
 */
 
+// 'global' var to store git info
+def scmVars
+
 try { // massive try{} catch{} around the entire build for failure notifications
+
+node('master'){
+    scmVars = checkout scm
+}
+
     timestamps {
 
 node('fedora') {
@@ -95,9 +103,7 @@ node('docker') {
 }
 node('docker') {
     checkout scm
-    /* Can't use GIT_BRANCH because of this issue https://issues.jenkins-ci.org/browse/JENKINS-35230 */
-    def git_branch = sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
-    if (git_branch == 'master') {
+    if (scmVars.GIT_BRANCH == 'origin/master') {
         stage('Tag "latest".') {
             unarchive mapping: ['appversion': 'appversion']
             def appversion = readFile('appversion').trim()
@@ -128,9 +134,11 @@ node('docker') {
     currentBuild.result = 'FAILURE'
     throw e
 } finally {
+    // if result hasn't been set to failure by this point, its a success.
+    def currentResult = currentBuild.result ?: 'SUCCESS'
+
+    // send pass/fail email
     if (ownership.job.ownershipEnabled) {
-        // if result hasn't been set to failure by this point, its a success.
-        def currentResult = currentBuild.result ?: 'SUCCESS'
         def previousResult = currentBuild.previousBuild?.result
         def SUBJECT = ''
         def BODY = "${env.BUILD_URL}"
@@ -146,6 +154,29 @@ node('docker') {
             emailext to: ownership.job.primaryOwnerEmail,
                      subject: SUBJECT,
                      body: BODY
+        }
+    }
+
+    // update Pagure PR status
+    def pagurePR = scmVars.GIT_BRANCH.split('/')[-1]  // origin/pr/1234 -> 1234
+    if (pagurePR ==~ /[0-9]+/) {  // PR's will only be numbers on pagure
+        def resultPercent = (currentResult == 'SUCCESS') ? '100' : '0'
+        def resultComment = (currentResult == 'SUCCESS') ? 'Build passed.' : 'Build failed.'
+        def pagureRepo = new URL(scmVars.GIT_URL).getPath() - ~/^\// - ~/.git$/  // https://pagure.io/my-repo.git -> my-repo
+
+        withCredentials([string(credentialsId: "${env.PAGURE_API_TOKEN}", variable: 'TOKEN')]) {
+        build job: 'pagure-PR-status-updater',
+            propagate: false,
+            parameters: [
+                // [$class: 'StringParameterValue', name: 'PAGURE_REPO', value: 'https://pagure.io'],  // not needed if https://pagure.io
+                [$class: 'StringParameterValue', name: 'PAGURE_PR', value: pagurePR],
+                [$class: 'StringParameterValue', name: 'PAGURE_REPO', value: pagureRepo],
+                [$class: 'StringParameterValue', name: 'PERCENT_PASSED', value: resultPercent],
+                [$class: 'StringParameterValue', name: 'COMMENT', value: resultComment],
+                [$class: 'StringParameterValue', name: 'REFERENCE_URL', value: "${env.BUILD_URL}"],
+                [$class: 'StringParameterValue', name: 'REFERENCE_JOB_NAME', value: "${env.JOB_NAME}"],
+                [$class: 'hudson.model.PasswordParameterValue', name: 'TOKEN', value: "${env.TOKEN}"]
+                        ]
         }
     }
 }
