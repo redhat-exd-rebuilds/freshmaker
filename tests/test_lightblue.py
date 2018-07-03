@@ -1695,7 +1695,7 @@ class TestArchitecturesFromRegistry(helpers.FreshmakerTestCase):
             ]
         }
         result = image._get_architectures_from_registry("foo", self.build)
-        self.assertEqual(result, 'x86_64,s390x,ppc64le')
+        self.assertEqual(result, 'x86_64 s390x ppc64le')
         requests.get.assert_called_once_with(
             'http://blue-pulp-smocker01.sledmat.com:8888/v2/devtools/'
             'rust-toolset-7-rhel7/manifests/'

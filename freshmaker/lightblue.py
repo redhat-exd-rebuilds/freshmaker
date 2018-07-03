@@ -322,7 +322,7 @@ class ContainerImage(dict):
         arches = [conf.manifest_v2_arch_map.get(arch, arch) for arch in arches]
 
         # Finally, return the list, joined.
-        return ','.join(arches)
+        return ' '.join(arches)
 
     @region.cache_on_arguments()
     def _get_additional_data_from_distgit(self, repository, branch, commit):
