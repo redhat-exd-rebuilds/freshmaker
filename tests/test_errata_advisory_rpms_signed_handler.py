@@ -80,6 +80,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
             'target': 'docker-container-candidate',
             'git_branch': 'rhel-7.4',
             'content_sets': ['image_a_content_set_1', 'image_a_content_set_2'],
+            "arches": "x86_64",
             'brew': {
                 'build': 'image-a-1.0-2',
             },
@@ -98,6 +99,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
             'target': 'docker-container-candidate',
             'git_branch': 'rhel-7.4',
             'content_sets': ['image_b_content_set_1', 'image_b_content_set_2'],
+            "arches": "x86_64",
             'brew': {
                 'build': 'image-b-1.0-1'
             },
@@ -116,6 +118,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
             'target': 'docker-container-candidate',
             'git_branch': 'rhel-7.4',
             'content_sets': ['image_c_content_set_1', 'image_d_content_set_2'],
+            "arches": "x86_64",
             'brew': {
                 'build': 'image-c-0.2-9',
             },
@@ -135,6 +138,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
             'target': 'docker-container-candidate',
             'git_branch': 'rhel-7.4',
             'content_sets': ['image_d_content_set_1', 'image_d_content_set_2'],
+            "arches": "x86_64",
             'brew': {
                 'build': 'image-d-2.14-1',
             },
@@ -154,6 +158,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
             'target': 'docker-container-candidate',
             'git_branch': 'rhel-7.4',
             'content_sets': ['image_e_content_set_1', 'image_e_content_set_2'],
+            "arches": "x86_64",
             'brew': {
                 'build': 'image-e-1.0-1',
             },
@@ -173,6 +178,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
             'target': 'docker-container-candidate',
             'git_branch': 'rhel-7.4',
             'content_sets': ['image_f_content_set_1', 'image_f_content_set_2'],
+            "arches": "x86_64",
             'brew': {
                 'build': 'image-f-0.2-1',
             },

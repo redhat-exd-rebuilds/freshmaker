@@ -551,6 +551,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                 build_args["parent"] = parent_nvr
                 build_args["target"] = image["target"]
                 build_args["branch"] = image["git_branch"]
+                build_args["arches"] = image["arches"]
                 build.build_args = json.dumps(build_args)
 
                 db.session.commit()

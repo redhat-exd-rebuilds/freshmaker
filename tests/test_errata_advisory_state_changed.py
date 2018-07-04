@@ -272,6 +272,7 @@ class TestBatches(helpers.ModelsTestCase):
             "error": error,
             "content_sets": ["first-content-set"],
             "generate_pulp_repos": True,
+            "arches": "x86_64",
         })
 
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.create_odcs_client')
@@ -831,7 +832,8 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "target": "target-candidate",
                 "git_branch": "rhel-7",
                 "error": None,
-                "generate_pulp_repos": True
+                "generate_pulp_repos": True,
+                "arches": "x86_64",
             })],
             [ContainerImage({
                 "brew": {
@@ -872,7 +874,8 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "target": "target-candidate",
                 "git_branch": "rhel-7",
                 "error": None,
-                "generate_pulp_repos": True
+                "generate_pulp_repos": True,
+                "arches": "x86_64",
             })]
         ]
 
@@ -917,6 +920,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "git_branch": "rhel-7",
                 "error": None,
                 "generate_pulp_repos": False,
+                "arches": "x86_64",
             })]
         ]
 
@@ -1043,7 +1047,8 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "commit": "123456789",
                 "target": "target-candidate",
                 "git_branch": "rhel-7",
-                "error": "Some error occurs while getting this image."
+                "error": "Some error occurs while getting this image.",
+                "arches": "x86_64",
             })]
         ]
 
@@ -1077,7 +1082,8 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "commit": "123456789",
                 "target": "target-candidate",
                 "git_branch": "rhel-7",
-                "error": "Some error occurs while getting this image."
+                "error": "Some error occurs while getting this image.",
+                "arches": "x86_64",
             })]
         ]
 
@@ -1111,7 +1117,8 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "commit": "123456789",
                 "target": "target-candidate",
                 "git_branch": "rhel-7",
-                "error": "Some error occured."
+                "error": "Some error occured.",
+                "arches": "x86_64",
             })],
             [ContainerImage({
                 "brew": {
@@ -1151,7 +1158,8 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "commit": "987654321",
                 "target": "target-candidate",
                 "git_branch": "rhel-7",
-                "error": "Some error occured too."
+                "error": "Some error occured too.",
+                "arches": "x86_64",
             })]
         ]
 
@@ -1189,7 +1197,8 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "commit": "123456789",
                 "target": "target-candidate",
                 "git_branch": "rhel-7",
-                "error": "Some error occured."
+                "error": "Some error occured.",
+                "arches": "x86_64",
             })],
         ]
 
