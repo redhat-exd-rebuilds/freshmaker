@@ -265,6 +265,35 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'ErrataAdvisoryRPMsSignedHandler': {
+            'image': {
+                'advisory_has_hightouch_bug': True,
+            }
+        }
+    })
+    @patch.object(freshmaker.conf, 'dry_run', new=True)
+    def test_allow_build_has_hightouch_bug(self):
+        compose_4 = Compose(odcs_compose_id=4)
+        db.session.add(compose_4)
+        db.session.commit()
+
+        for has_hightouch_bug in [False, True]:
+            self.rhba_event.advisory.has_hightouch_bug = has_hightouch_bug
+            self.mock_find_images_to_rebuild.return_value = [[]]
+            handler = ErrataAdvisoryRPMsSignedHandler()
+            handler.handle(self.rhba_event)
+
+            db_event = Event.get(db.session, message_id='123')
+            self.assertEqual(db_event.state, EventState.SKIPPED.value)
+            if not has_hightouch_bug:
+                self.assertTrue(db_event.state_reason.endswith(
+                    "is not allowed by internal policy to trigger rebuilds."))
+            else:
+                self.assertEqual(
+                    db_event.state_reason,
+                    "No container images to rebuild for advisory 'RHBA-2017'")
+
+    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+        'ErrataAdvisoryRPMsSignedHandler': {
             'image': {'advisory_name': 'RHBA-2017'}
         }
     })

@@ -98,6 +98,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                 advisory_security_impact=event.advisory.security_impact,
                 advisory_highest_cve_severity=event.advisory.highest_cve_severity,
                 advisory_product_short_name=event.advisory.product_short_name,
+                advisory_has_hightouch_bug=event.advisory.has_hightouch_bug,
                 dry_run=self.dry_run):
             msg = ("Errata advisory {0} is not allowed by internal policy "
                    "to trigger rebuilds.".format(event.advisory.errata_id))
@@ -647,6 +648,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                 advisory_security_impact=self.event.advisory.security_impact,
                 advisory_highest_cve_severity=self.event.advisory.highest_cve_severity,
                 advisory_product_short_name=self.event.advisory.product_short_name,
+                advisory_has_hightouch_bug=self.event.advisory.has_hightouch_bug,
                 published=True, dry_run=self.dry_run):
             published = True
             release_category = "Generally Available"
