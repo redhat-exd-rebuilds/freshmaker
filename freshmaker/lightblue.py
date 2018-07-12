@@ -1145,9 +1145,11 @@ class LightBlue(object):
                 image = nvr_to_image[nvr]
                 if ("content_sets" not in image or
                         not image["content_sets"] or
-                        "content_sets_source" not in image or
-                        image["content_sets_source"] == "child_image"):
+                        "content_sets_source" not in image):
                     image["content_sets"] = latest_content_sets
+                elif image["content_sets_source"] == "child_image":
+                    if latest_content_sets:
+                        image["content_sets"] = latest_content_sets
                 else:
                     latest_content_sets = image["content_sets"]
 
