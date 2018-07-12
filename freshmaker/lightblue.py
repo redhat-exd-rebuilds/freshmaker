@@ -370,8 +370,8 @@ class ContainerImage(dict):
                 data["generate_pulp_repos"] = True
                 return data
 
-            if "x86_64" in content_sets_yaml:
-                data["content_sets"] = content_sets_yaml["x86_64"]
+            for content_sets in content_sets_yaml.values():
+                data["content_sets"] += content_sets
 
             container_path = os.path.join(repodir, "container.yaml")
             if not os.path.exists(container_path):
@@ -426,20 +426,21 @@ class ContainerImage(dict):
             self["repository"], self["git_branch"], self["commit"])
         self["generate_pulp_repos"] = data["generate_pulp_repos"]
 
+        # Prefer content_sets from content_sets.yml, because it contains
+        # content_sets for all architectures.
+        if data["content_sets"]:
+            self["content_sets"] = data["content_sets"]
+            self["content_sets_source"] = "distgit"
+            log.info("Container image %s uses following content sets: %r",
+                     self["brew"]["build"], data["content_sets"])
+            return
+
         # ContainerImage now has content_sets field, so use it if available.
         if "content_sets" in self and self["content_sets"]:
             log.info("Container image %s uses following content sets: %r",
                      self["brew"]["build"], self["content_sets"])
             if "content_sets_source" not in self:
                 self["content_sets_source"] = "lightblue_container_image"
-            return
-
-        # Prefer content_sets from content_sets.yml.
-        if data["content_sets"]:
-            self["content_sets"] = data["content_sets"]
-            self["content_sets_source"] = "distgit"
-            log.info("Container image %s uses following content sets: %r",
-                     self["brew"]["build"], data["content_sets"])
             return
 
         # In case content_sets cannot be get from content_sets.yml and also
