@@ -271,14 +271,14 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
 
         return new_compose
 
-    def _prepare_pulp_repo(self, db_event, content_sets):
+    def _prepare_pulp_repo(self, build, content_sets):
         """
         Prepares .repo file containing the repositories matching
         the content_sets by creating new ODCS compose of PULP type.
 
         This currently blocks until the compose is done or failed.
 
-        :param db_event: models.Event instance associated with this build.
+        :param build: models.ModuleBuild instance associated with this compose.
         :param list content_sets: List of content sets.
         :rtype: dict
         :return: ODCS compose dictionary.
@@ -313,10 +313,10 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
 
                 done = wait_for_compose(new_compose["id"])
                 if not done:
-                    db_event.builds_transition(
+                    build.transition(
                         ArtifactBuildState.FAILED.value, "Cannot generate "
-                        "ODCS PULP compose for content_sets %r"
-                        % (content_sets))
+                        "ODCS PULP compose %s for content_sets %r"
+                        % (str(new_compose["id"]), content_sets))
         else:
             new_compose = self._fake_odcs_new_compose(
                 content_sets, 'pulp')
@@ -561,11 +561,14 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                     # Store odcs pulp compose to build
                     if image["generate_pulp_repos"]:
                         compose = self._prepare_pulp_repo(
-                            build.event, image["content_sets"])
-                        db_compose = Compose(odcs_compose_id=compose['id'])
-                        db.session.add(db_compose)
-                        db.session.commit()
-                        build.add_composes(db.session, [db_compose])
+                            build, image["content_sets"])
+                        if build.state != ArtifactBuildState.FAILED.value:
+                            db_compose = Compose(odcs_compose_id=compose['id'])
+                            db.session.add(db_compose)
+                            db.session.commit()
+                            build.add_composes(db.session, [db_compose])
+                        else:
+                            db.session.commit()
 
                     # TODO: uncomment following code after boot.iso compose is
                     # deployed in ODCS server.
