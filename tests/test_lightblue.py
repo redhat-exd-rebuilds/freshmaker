@@ -1638,6 +1638,40 @@ class TestDeduplicateImagesToRebuild(helpers.FreshmakerTestCase):
         expected = [[deps[3]], [deps[2]], [deps[1]], [deps[0]]]
         self.assertEqual(batches, expected)
 
+    def test_replace_docker_with_container(self):
+        httpd = self._create_imgs([
+            "httpd-2.4-12",
+            "s2i-base-1-10",
+            "s2i-core-1-11",
+            "rhel-server-docker-7.4-125",
+        ])
+
+        perl = self._create_imgs([
+            "perl-5.7-1",
+            "s2i-base-1-2",
+            "s2i-core-1-2",
+            "rhel-server-container-7.4-150",
+        ])
+
+        expected_images = [
+            self._create_imgs([
+                "httpd-2.4-12",
+                "s2i-base-1-10",
+                "s2i-core-1-11",
+                "rhel-server-container-7.4-150",
+            ]),
+            self._create_imgs([
+                "perl-5.7-1",
+                "s2i-base-1-10",
+                "s2i-core-1-11",
+                "rhel-server-container-7.4-150",
+            ])
+        ]
+
+        self.maxDiff = None
+        ret = self.lb._deduplicate_images_to_rebuild([httpd, perl])
+        self.assertEqual(ret, expected_images)
+
 
 class TestArchitecturesFromRegistry(helpers.FreshmakerTestCase):
 

@@ -1106,6 +1106,9 @@ class LightBlue(object):
         nvr_to_image = {}
         # Temporary dict mapping NV to latest released NVR for that NV.
         nv_to_latest_released_nvr = {}
+        # Temporary list containing names of all images to rebuild. This is
+        # later used to replace "foo-docker" with "foo-container".
+        n_to_nvs = {}
 
         # Constructs the temporary dicts as desribed above.
         for image_id, images in enumerate(to_rebuild):
@@ -1119,6 +1122,10 @@ class LightBlue(object):
                     nv_to_nvrs[nv].append(nvr)
                 if nvr not in nvr_to_coordinates:
                     nvr_to_coordinates[nvr] = []
+                if parsed_nvr["name"] not in n_to_nvs:
+                    n_to_nvs[parsed_nvr["name"]] = []
+                if nv not in n_to_nvs[parsed_nvr["name"]]:
+                    n_to_nvs[parsed_nvr["name"]].append(nv)
                 nvr_to_coordinates[nvr].append([image_id, parent_id])
                 nvr_to_image[nvr] = image
                 if "latest_released" in image and image["latest_released"]:
@@ -1153,20 +1160,49 @@ class LightBlue(object):
                 else:
                     latest_content_sets = image["content_sets"]
 
+        # Temporary dict nv to replace as a key and new nv as a value.
+        # This is used to replace foo-7.5-docker with foo-7.5-container.
+        nvs_to_replace = {}
+        for n, nvs in n_to_nvs.items():
+            if not n.endswith("-docker"):
+                continue
+            new_n = n[:-len("-docker")] + "-container"
+            if new_n not in n_to_nvs:
+                continue
+            for new_nv in n_to_nvs[new_n]:
+                new_v = new_nv.split("-")[-1]
+                for old_nv in nvs:
+                    old_v = old_nv.split("-")[-1]
+                    if old_v == new_v:
+                        nvs_to_replace[old_nv] = new_nv
+
         # Iterate through list of NVs.
         for nv, nvrs in nv_to_nvrs.items():
             # We want to replace NVRs which are lower than the latest released
             # NVR with latest released NVR. If there are some higher NVRs, we
             # want to keep them, because we don't want to rebuild the image
             # against older NVR than the one it is currently built against.
-            if nv in nv_to_latest_released_nvr:
-                latest_released_nvr = nv_to_latest_released_nvr[nv]
+            if nv in nvs_to_replace:
+                nv_to_use = nvs_to_replace[nv]
+                nvrs_to_use = nv_to_nvrs[new_nv]
             else:
-                latest_released_nvr = nvrs[0]
+                nv_to_use = nv
+                nvrs_to_use = nvrs
+            if nv_to_use in nv_to_latest_released_nvr:
+                latest_released_nvr = nv_to_latest_released_nvr[nv_to_use]
+            else:
+                latest_released_nvr = nvrs_to_use[0]
             # The latest_released_nvr_index points to the latest released NVR
             # in the `nvrs` list. Because `nvrs` list is desc sorted, every NVR
             # with higher index is lower and therefore we need to replace it.
-            latest_released_nvr_index = nvrs.index(latest_released_nvr)
+            try:
+                latest_released_nvr_index = nvrs.index(latest_released_nvr)
+            except ValueError:
+                # In case the latest_released_nvr is not found in the nvrs,
+                # it means the all nvrs should be replaced by new one from
+                # nvs_to_replace and therefore set index to -1 indicating we
+                # want to replace everything.
+                latest_released_nvr_index = -1
             for nvr in nvrs[latest_released_nvr_index + 1:]:
                 for image_id, parent_id in nvr_to_coordinates[nvr]:
                     # At first replace the image in to_rebuid based
