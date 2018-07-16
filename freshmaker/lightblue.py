@@ -390,6 +390,11 @@ class ContainerImage(dict):
                           "enabled in %s.", nvr, container_path)
                 data["generate_pulp_repos"] = True
                 return data
+
+        # This is workaround until OSBS-5919 is fixed.
+        if "arches" in self and self["arches"] == "x86_64":
+            data["generate_pulp_repos"] = True
+
         return data
 
     def resolve_commit(self):
