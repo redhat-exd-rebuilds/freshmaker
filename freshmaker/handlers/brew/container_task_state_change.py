@@ -19,6 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import json
 from kobo import rpmlib
 
 from freshmaker import conf
@@ -83,9 +84,20 @@ class BrewContainerTaskStateChangeHandler(ContainerBuildHandler):
                 else:
                     found_build.transition(ArtifactBuildState.DONE.value, "Built successfully.")
             if event.new_state == 'FAILED':
-                found_build.transition(
-                    ArtifactBuildState.FAILED.value,
-                    "Failed to build in Koji.")
+                args = json.loads(found_build.build_args)
+                if "retry_count" not in args:
+                    args["retry_count"] = 0
+                args["retry_count"] += 1
+                found_build.build_args = json.dumps(args)
+                if args["retry_count"] < 3:
+                    found_build.transition(
+                        ArtifactBuildState.PLANNED.value,
+                        "Retrying failed build %s" % (str(found_build.build_id)))
+                    self.start_to_build_images([found_build])
+                else:
+                    found_build.transition(
+                        ArtifactBuildState.FAILED.value,
+                        "Failed to build in Koji.")
             db.session.commit()
 
             if found_build.state == ArtifactBuildState.DONE.value:

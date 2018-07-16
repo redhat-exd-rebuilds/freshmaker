@@ -19,6 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import json
 import mock
 import os
 import sys
@@ -94,17 +95,28 @@ class TestBrewContainerTaskStateChangeHandler(helpers.ModelsTestCase):
         """
         Tests when dependency container build task failed in brew, only update build state in db.
         """
+        build_image.side_effect = [1, 2, 3, 4]
         repo_urls.return_value = ["url"]
         e1 = models.Event.create(db.session, "test_msg_id", "RHSA-2018-001", events.TestingEvent)
         event = self.get_event_from_msg(get_fedmsg('brew_container_task_failed'))
 
         base_build = models.ArtifactBuild.create(db.session, e1, 'test-product-docker', ArtifactType.IMAGE, event.task_id)
+        base_build.build_args = json.dumps({})
 
         models.ArtifactBuild.create(db.session, e1, 'docker-up', ArtifactType.IMAGE, 0,
                                     dep_on=base_build, state=ArtifactBuildState.PLANNED)
         self.handler.handle(event)
+        self.assertEqual(base_build.state, ArtifactBuildState.BUILD.value)
+        self.assertEqual(base_build.build_id, 1)
+        event.task_id = 1
+        self.handler.handle(event)
+        self.assertEqual(base_build.state, ArtifactBuildState.BUILD.value)
+        self.assertEqual(base_build.build_id, 2)
+        event.task_id = 2
+        self.handler.handle(event)
         self.assertEqual(base_build.state, ArtifactBuildState.FAILED.value)
-        build_image.assert_not_called()
+        self.assertEqual(base_build.build_id, 2)
+        build_image.assert_called()
 
     @mock.patch('freshmaker.models.messaging.publish')
     def test_mark_event_COMPLETE_if_all_builds_done(self, publish):
