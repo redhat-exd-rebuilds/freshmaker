@@ -503,6 +503,10 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         # Used as tmp dict with {brew_build_nvr: ArtifactBuild, ...} mapping.
         builds = builds or {}
 
+        # Cache for ODCS pulp composes. Key is white-spaced, sorted, list
+        # of content_sets. Value is ODCS compose JSON response.
+        odcs_cache = {}
+
         for batch in batches:
             for image in batch:
                 nvr = image["brew"]["build"]
@@ -560,12 +564,30 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                 if state != ArtifactBuildState.FAILED.value:
                     # Store odcs pulp compose to build
                     if image["generate_pulp_repos"]:
-                        compose = self._prepare_pulp_repo(
-                            build, image["content_sets"])
+                        # Check if the compose for these content_sets is
+                        # already cached and use it in this case.
+                        cache_key = " ".join(sorted(image["content_sets"]))
+                        if cache_key in odcs_cache:
+                            using_cached_compose = True
+                            compose = odcs_cache[cache_key]
+                        else:
+                            using_cached_compose = False
+                            compose = self._prepare_pulp_repo(
+                                build, image["content_sets"])
+
                         if build.state != ArtifactBuildState.FAILED.value:
-                            db_compose = Compose(odcs_compose_id=compose['id'])
-                            db.session.add(db_compose)
-                            db.session.commit()
+                            if using_cached_compose:
+                                # In case we are using cached compose, get
+                                # the DB representation of this compose.
+                                db_compose = db.session.query(Compose).filter_by(
+                                    odcs_compose_id=compose["id"]).first()
+                            else:
+                                # Otherwise cache the compose and create record
+                                # in the DB.
+                                odcs_cache[cache_key] = compose
+                                db_compose = Compose(odcs_compose_id=compose['id'])
+                                db.session.add(db_compose)
+                                db.session.commit()
                             build.add_composes(db.session, [db_compose])
                         else:
                             db.session.commit()

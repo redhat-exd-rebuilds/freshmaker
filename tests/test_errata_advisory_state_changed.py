@@ -805,7 +805,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
             side_effect=[{'id': 100}, {'id': 200}])
 
         self.patcher.patch_dict(
-            'freshmaker.models.EVENT_TYPES', {self.mock_event.__class__: -1})
+            'freshmaker.models.EVENT_TYPES', {self.mock_event.__class__: 0})
 
     def tearDown(self):
         super(TestRecordBatchesImages, self).tearDown()
@@ -1027,6 +1027,95 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
 
         self.mock_request_boot_iso_compose.assert_called_once_with(
             batches[0][0])
+
+    def test_pulp_compose_generated_just_once(self):
+        batches = [
+            [ContainerImage({
+                "brew": {
+                    "completion_date": "20170420T17:05:37.000-0400",
+                    "build": "rhel-server-docker-7.3-82",
+                    "package": "rhel-server-docker"
+                },
+                'parsed_data': {
+                    'layers': [
+                        'sha512:12345678980',
+                        'sha512:10987654321'
+                    ]
+                },
+                "parent": None,
+                "content_sets": ["content-set-1"],
+                "repository": "repo-1",
+                "commit": "123456789",
+                "target": "target-candidate",
+                "git_branch": "rhel-7",
+                "error": None,
+                "arches": "x86_64",
+                "generate_pulp_repos": True,
+            })],
+            [ContainerImage({
+                "brew": {
+                    "build": "rh-dotnetcore10-docker-1.0-16",
+                    "package": "rh-dotnetcore10-docker",
+                    "completion_date": "20170511T10:06:09.000-0400"
+                },
+                'parsed_data': {
+                    'layers': [
+                        'sha512:2345af2e293',
+                        'sha512:12345678980',
+                        'sha512:10987654321'
+                    ]
+                },
+                "parent": ContainerImage({
+                    "brew": {
+                        "completion_date": "20170420T17:05:37.000-0400",
+                        "build": "rhel-server-docker-7.3-82",
+                        "package": "rhel-server-docker"
+                    },
+                    'parsed_data': {
+                        'layers': [
+                            'sha512:12345678980',
+                            'sha512:10987654321'
+                        ]
+                    },
+                    "parent": None,
+                    "content_sets": ["content-set-1"],
+                    "repository": "repo-1",
+                    "commit": "123456789",
+                    "target": "target-candidate",
+                    "git_branch": "rhel-7",
+                    "error": None
+                }),
+                "content_sets": ["content-set-1"],
+                "repository": "repo-1",
+                "commit": "987654321",
+                "target": "target-candidate",
+                "git_branch": "rhel-7",
+                "error": None,
+                "arches": "x86_64",
+                "generate_pulp_repos": True,
+            })]
+        ]
+
+        handler = ErrataAdvisoryRPMsSignedHandler()
+        handler._record_batches(batches, self.mock_event)
+
+        query = db.session.query(ArtifactBuild)
+        parent_build = query.filter(
+            ArtifactBuild.original_nvr == 'rhel-server-docker-7.3-82'
+        ).first()
+        self.assertEqual(1, len(parent_build.composes))
+        compose_ids = sorted([rel.compose.odcs_compose_id
+                              for rel in parent_build.composes])
+        self.assertEqual([1], compose_ids)
+
+        child_build = query.filter(
+            ArtifactBuild.original_nvr == 'rh-dotnetcore10-docker-1.0-16'
+        ).first()
+        self.assertEqual(1, len(child_build.composes))
+
+        self.mock_prepare_pulp_repo.assert_has_calls([
+            call(parent_build, ["content-set-1"])
+        ])
 
     def test_no_parent(self):
         batches = [
