@@ -140,7 +140,7 @@ class KojiService(object):
     def build_container(self, source_url, branch, target,
                         scratch=None, repo_urls=None, isolated=False,
                         release=None, koji_parent_build=None,
-                        arch_override=None):
+                        arch_override=None, compose_ids=None):
         """Build container by buildContainer"""
 
         build_target = target
@@ -151,6 +151,8 @@ class KojiService(object):
 
         if repo_urls:
             build_opts['yum_repourls'] = repo_urls
+        if compose_ids:
+            build_opts['compose_ids'] = compose_ids
         if isolated:
             build_opts['isolated'] = True
         if koji_parent_build:

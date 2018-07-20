@@ -23,6 +23,7 @@
 # Written by Chenxiong Qi <cqi@redhat.com>
 
 from mock import patch
+import json
 
 import freshmaker
 
@@ -111,12 +112,24 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
             state=EventState.BUILDING,
             released=False)
 
+        build_args = {}
+        build_args["repository"] = "repo"
+        build_args["commit"] = "hash"
+        build_args["parent"] = None
+        build_args["target"] = "target"
+        build_args["branch"] = "branch"
+        build_args["arches"] = "x86_64"
+
         self.build_1 = ArtifactBuild.create(
             db.session, self.event, 'build-1', ArtifactType.IMAGE,
             state=ArtifactBuildState.PLANNED)
+        self.build_1.rebuilt_nvr = "foo-1-2"
+        self.build_1.build_args = json.dumps(build_args)
         self.build_2 = ArtifactBuild.create(
             db.session, self.event, 'build-2', ArtifactType.IMAGE,
             state=ArtifactBuildState.PLANNED)
+        self.build_2.rebuilt_nvr = "foo-2-2"
+        self.build_2.build_args = json.dumps(build_args)
 
         db.session.commit()
 
@@ -154,17 +167,10 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
         repos = handler.get_repo_urls(self.build_2)
         self.assertEqual(repos, [])
 
-    def test_get_repo_urls_both_pulp_and_main_compose(self):
+    def test_get_repo_urls_only_odcs_composes(self):
         handler = MyHandler()
         repos = handler.get_repo_urls(self.build_1)
-        self.assertEqual(
-            [
-                'http://localhost/5.repo',
-                'http://localhost/6.repo',
-                'http://localhost/7.repo',
-                'http://localhost/8.repo',
-            ],
-            sorted(repos))
+        self.assertEqual(repos, [])
 
     @patch.object(freshmaker.conf, 'image_extra_repo', new={
         'build-3': "http://localhost/test.repo"
@@ -177,6 +183,31 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
         handler = MyHandler()
         repos = handler.get_repo_urls(build_3)
         self.assertEqual(repos, ["http://localhost/test.repo"])
+
+    @patch("freshmaker.handlers.ContainerBuildHandler.build_container")
+    def test_build_image_artifact_build_only_odcs_composes(
+            self, build_container):
+        handler = MyHandler()
+        handler.build_image_artifact_build(self.build_1)
+        build_container.assert_called_once_with(
+            'git://pkgs.fedoraproject.org/repo#hash', 'branch', 'target',
+            arch_override='x86_64', compose_ids=[5, 6, 7, 8], isolated=True,
+            koji_parent_build=None, release='2', repo_urls=[])
+
+    @patch("freshmaker.handlers.ContainerBuildHandler.build_container")
+    def test_build_image_artifact_build_repo_urls(
+            self, build_container):
+        handler = MyHandler()
+        handler.build_image_artifact_build(self.build_1, ["http://localhost/x.repo"])
+
+        repo_urls = [
+            'http://localhost/x.repo', 'http://localhost/5.repo',
+            'http://localhost/6.repo', 'http://localhost/7.repo',
+            'http://localhost/8.repo']
+        build_container.assert_called_once_with(
+            'git://pkgs.fedoraproject.org/repo#hash', 'branch', 'target',
+            arch_override='x86_64', compose_ids=[], isolated=True,
+            koji_parent_build=None, release='2', repo_urls=repo_urls)
 
 
 class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):

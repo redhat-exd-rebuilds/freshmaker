@@ -392,7 +392,7 @@ class ContainerBuildHandler(BaseHandler):
     def build_container(self, scm_url, branch, target,
                         repo_urls=None, isolated=False,
                         release=None, koji_parent_build=None,
-                        arch_override=None):
+                        arch_override=None, compose_ids=None):
         """
         Build a container in Koji.
 
@@ -408,8 +408,9 @@ class ContainerBuildHandler(BaseHandler):
                 profile=conf.koji_profile, logger=log,
                 dry_run=self.dry_run) as service:
             log.info('Building container from source: %s, '
-                     'release=%r, parent=%r, target=%r, arch=%r',
-                     scm_url, release, koji_parent_build, target, arch_override)
+                     'release=%r, parent=%r, target=%r, arch=%r, compose_ids=%r',
+                     scm_url, release, koji_parent_build, target, arch_override,
+                     compose_ids)
 
             return service.build_container(scm_url,
                                            branch,
@@ -465,10 +466,24 @@ class ContainerBuildHandler(BaseHandler):
 
         release = parse_NVR(build.rebuilt_nvr)["release"]
 
+        # OSBS cannot handle both repo_urls and compose_ids in the same time.
+        # We use repo_urls only in special cases to build base images. In this
+        # cases, we want to convert compose_ids to repository URLs. Otherwise,
+        # just pass compose_ids to OSBS via Koji.
+        compose_ids = []
+        if repo_urls:
+            repo_urls += [self.odcs_get_compose(
+                rel.compose.odcs_compose_id)['result_repofile']
+                for rel in build.composes]
+        else:
+            compose_ids = []
+            for relation in build.composes:
+                compose_ids.append(relation.compose.odcs_compose_id)
+
         return self.build_container(
             scm_url, branch, target, repo_urls=repo_urls,
             isolated=True, release=release, koji_parent_build=parent,
-            arch_override=arches)
+            arch_override=arches, compose_ids=compose_ids)
 
     def odcs_get_compose(self, compose_id):
         """
@@ -499,16 +514,12 @@ class ContainerBuildHandler(BaseHandler):
         """
         repo_urls = []
 
-        # At first include image_extra_repos if any for this name-version.
+        # Include image_extra_repos if any for this name-version.
         if build.original_nvr:
             parsed_nvr = parse_NVR(build.original_nvr)
             name_version = "%s-%s" % (parsed_nvr["name"], parsed_nvr["version"])
             if name_version in conf.image_extra_repo:
                 repo_urls.append(conf.image_extra_repo[name_version])
-
-        repo_urls += [self.odcs_get_compose(rel.compose.odcs_compose_id)['result_repofile']
-                      for rel in build.composes]
-
         return repo_urls
 
     def start_to_build_images(self, builds):
