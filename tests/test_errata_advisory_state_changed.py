@@ -273,6 +273,7 @@ class TestBatches(helpers.ModelsTestCase):
             "content_sets": ["first-content-set"],
             "generate_pulp_repos": True,
             "arches": "x86_64",
+            "odcs_compose_ids": [10, 11],
         })
 
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.create_odcs_client')
@@ -343,6 +344,8 @@ class TestBatches(helpers.ModelsTestCase):
             self.assertEqual(args["commit"], build.name + "_123")
             self.assertEqual(args["parent"],
                              build.dep_on.rebuilt_nvr if build.dep_on else None)
+            self.assertEqual(args["renewed_odcs_compose_ids"],
+                             [10, 11])
 
 
 class TestCheckImagesToRebuild(helpers.ModelsTestCase):
@@ -834,6 +837,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "error": None,
                 "generate_pulp_repos": True,
                 "arches": "x86_64",
+                "odcs_compose_ids": None,
             })],
             [ContainerImage({
                 "brew": {
@@ -876,6 +880,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "error": None,
                 "generate_pulp_repos": True,
                 "arches": "x86_64",
+                "odcs_compose_ids": None,
             })]
         ]
 
@@ -921,6 +926,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "error": None,
                 "generate_pulp_repos": False,
                 "arches": "x86_64",
+                "odcs_compose_ids": None,
             })]
         ]
 
@@ -1049,6 +1055,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "git_branch": "rhel-7",
                 "error": "Some error occurs while getting this image.",
                 "arches": "x86_64",
+                "odcs_compose_ids": None,
             })]
         ]
 
@@ -1084,6 +1091,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "git_branch": "rhel-7",
                 "error": "Some error occurs while getting this image.",
                 "arches": "x86_64",
+                "odcs_compose_ids": None,
             })]
         ]
 
@@ -1119,6 +1127,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "git_branch": "rhel-7",
                 "error": "Some error occured.",
                 "arches": "x86_64",
+                "odcs_compose_ids": None,
             })],
             [ContainerImage({
                 "brew": {
@@ -1160,6 +1169,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "git_branch": "rhel-7",
                 "error": "Some error occured too.",
                 "arches": "x86_64",
+                "odcs_compose_ids": None,
             })]
         ]
 
@@ -1199,6 +1209,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "git_branch": "rhel-7",
                 "error": "Some error occured.",
                 "arches": "x86_64",
+                "odcs_compose_ids": None,
             })],
         ]
 
