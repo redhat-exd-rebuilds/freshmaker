@@ -504,7 +504,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         builds = builds or {}
 
         # Cache for ODCS pulp composes. Key is white-spaced, sorted, list
-        # of content_sets. Value is ODCS compose JSON response.
+        # of content_sets. Value is Compose database object.
         odcs_cache = {}
 
         for batch in batches:
@@ -568,28 +568,21 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                         # already cached and use it in this case.
                         cache_key = " ".join(sorted(image["content_sets"]))
                         if cache_key in odcs_cache:
-                            using_cached_compose = True
-                            compose = odcs_cache[cache_key]
+                            db_compose = odcs_cache[cache_key]
                         else:
-                            using_cached_compose = False
                             compose = self._prepare_pulp_repo(
                                 build, image["content_sets"])
 
-                        if build.state != ArtifactBuildState.FAILED.value:
-                            if using_cached_compose:
-                                # In case we are using cached compose, get
-                                # the DB representation of this compose.
-                                db_compose = db.session.query(Compose).filter_by(
-                                    odcs_compose_id=compose["id"]).first()
-                            else:
-                                # Otherwise cache the compose and create record
-                                # in the DB.
-                                odcs_cache[cache_key] = compose
+                            if build.state != ArtifactBuildState.FAILED.value:
                                 db_compose = Compose(odcs_compose_id=compose['id'])
                                 db.session.add(db_compose)
                                 db.session.commit()
+                                odcs_cache[cache_key] = db_compose
+                            else:
+                                db_compose = None
+                                db.session.commit()
+                        if db_compose:
                             build.add_composes(db.session, [db_compose])
-                        else:
                             db.session.commit()
 
                     # TODO: uncomment following code after boot.iso compose is
