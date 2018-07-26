@@ -92,6 +92,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
                 ]
             },
             "generate_pulp_repos": True,
+            "odcs_compose_ids": None,
         })
         self.image_b = ContainerImage({
             'repository': 'repo_2',
@@ -111,6 +112,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
                 ]
             },
             "generate_pulp_repos": True,
+            "odcs_compose_ids": None,
         })
         self.image_c = ContainerImage({
             'repository': 'repo_2',
@@ -131,6 +133,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
                 ]
             },
             "generate_pulp_repos": True,
+            "odcs_compose_ids": None,
         })
         self.image_d = ContainerImage({
             'repository': 'repo_2',
@@ -151,6 +154,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
                 ]
             },
             "generate_pulp_repos": True,
+            "odcs_compose_ids": None,
         })
         self.image_e = ContainerImage({
             'repository': 'repo_2',
@@ -171,6 +175,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
                 ]
             },
             "generate_pulp_repos": True,
+            "odcs_compose_ids": None,
         })
         self.image_f = ContainerImage({
             'repository': 'repo_2',
@@ -191,6 +196,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
                 ]
             },
             "generate_pulp_repos": True,
+            "odcs_compose_ids": None,
         })
         # For simplicify, mocking _find_images_to_rebuild to just return one
         # batch, which contains images found for rebuild from parent to

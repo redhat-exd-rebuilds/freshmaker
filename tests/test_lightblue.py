@@ -295,6 +295,31 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
 
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')
+    def test_resolve_commit_odcs_compose_ids(
+            self, get_task_request, get_build):
+        get_build.return_value = {
+            "task_id": 123456,
+            'extra': {
+                'image': {
+                    'odcs': {
+                        'compose_ids': [7300, 7301],
+                        'signing_intent': 'release',
+                        'signing_intent_overridden': False
+                    }
+                }
+            }
+        }
+        get_task_request.return_value = [
+            "git://example.com/rpms/repo-1?#commit_hash1", "target1", {}]
+
+        self.dummy_image.resolve_commit()
+        self.assertEqual(self.dummy_image["repository"], "rpms/repo-1")
+        self.assertEqual(self.dummy_image["commit"], "commit_hash1")
+        self.assertEqual(self.dummy_image["target"], "target1")
+        self.assertEqual(self.dummy_image["odcs_compose_ids"], [7300, 7301])
+
+    @patch('freshmaker.kojiservice.KojiService.get_build')
+    @patch('freshmaker.kojiservice.KojiService.get_task_request')
     def test_resolve_commit_koji_fallback(self, get_task_request, get_build):
         get_build.return_value = {"task_id": 123456}
         get_task_request.return_value = [
@@ -304,6 +329,7 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
         self.assertEqual(self.dummy_image["repository"], "rpms/repo-1")
         self.assertEqual(self.dummy_image["commit"], "commit_hash1")
         self.assertEqual(self.dummy_image["target"], "target1")
+        self.assertEqual(self.dummy_image["odcs_compose_ids"], None)
 
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')
@@ -968,6 +994,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                  "git_branch": "mybranch",
                                  "error": None,
                                  "arches": None,
+                                 "odcs_compose_ids": None,
                                  "brew": {
                                      "completion_date": u"20170421T04:27:51.000-0400",
                                      "build": "package-name-2-4-12.10",

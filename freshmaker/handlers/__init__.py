@@ -466,19 +466,23 @@ class ContainerBuildHandler(BaseHandler):
 
         release = parse_NVR(build.rebuilt_nvr)["release"]
 
+        # Get the list of ODCS compose IDs which should be used to build
+        # the image.
+        compose_ids = []
+        for relation in build.composes:
+            compose_ids.append(relation.compose.odcs_compose_id)
+        if args["renewed_odcs_compose_ids"]:
+            compose_ids += args["renewed_odcs_compose_ids"]
+
         # OSBS cannot handle both repo_urls and compose_ids in the same time.
         # We use repo_urls only in special cases to build base images. In this
         # cases, we want to convert compose_ids to repository URLs. Otherwise,
         # just pass compose_ids to OSBS via Koji.
-        compose_ids = []
         if repo_urls:
             repo_urls += [self.odcs_get_compose(
-                rel.compose.odcs_compose_id)['result_repofile']
-                for rel in build.composes]
-        else:
+                compose_id)['result_repofile']
+                for compose_id in compose_ids]
             compose_ids = []
-            for relation in build.composes:
-                compose_ids.append(relation.compose.odcs_compose_id)
 
         return self.build_container(
             scm_url, branch, target, repo_urls=repo_urls,

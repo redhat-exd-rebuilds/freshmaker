@@ -119,6 +119,7 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
         build_args["target"] = "target"
         build_args["branch"] = "branch"
         build_args["arches"] = "x86_64"
+        build_args["renewed_odcs_compose_ids"] = None
 
         self.build_1 = ArtifactBuild.create(
             db.session, self.event, 'build-1', ArtifactType.IMAGE,
@@ -193,6 +194,21 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
             'git://pkgs.fedoraproject.org/repo#hash', 'branch', 'target',
             arch_override='x86_64', compose_ids=[5, 6, 7, 8], isolated=True,
             koji_parent_build=None, release='2', repo_urls=[])
+
+    @patch("freshmaker.handlers.ContainerBuildHandler.build_container")
+    def test_build_image_artifact_build_renewed_odcs_composes(
+            self, build_container):
+        build_args = json.loads(self.build_1.build_args)
+        build_args["renewed_odcs_compose_ids"] = [7300, 7301]
+        self.build_1.build_args = json.dumps(build_args)
+        db.session.commit()
+
+        handler = MyHandler()
+        handler.build_image_artifact_build(self.build_1)
+        build_container.assert_called_once_with(
+            'git://pkgs.fedoraproject.org/repo#hash', 'branch', 'target',
+            arch_override='x86_64', compose_ids=[5, 6, 7, 8, 7300, 7301],
+            isolated=True, koji_parent_build=None, release='2', repo_urls=[])
 
     @patch("freshmaker.handlers.ContainerBuildHandler.build_container")
     def test_build_image_artifact_build_repo_urls(
