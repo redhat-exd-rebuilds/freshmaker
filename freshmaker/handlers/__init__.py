@@ -420,7 +420,8 @@ class ContainerBuildHandler(BaseHandler):
                                            release=release,
                                            koji_parent_build=koji_parent_build,
                                            arch_override=arch_override,
-                                           scratch=conf.koji_container_scratch_build)
+                                           scratch=conf.koji_container_scratch_build,
+                                           compose_ids=compose_ids)
 
     @fail_artifact_build_on_handler_exception
     def build_image_artifact_build(self, build, repo_urls=[]):

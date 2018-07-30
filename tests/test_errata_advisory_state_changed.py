@@ -1057,6 +1057,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "error": None,
                 "arches": "x86_64",
                 "generate_pulp_repos": True,
+                "odcs_compose_ids": None,
             })],
             [ContainerImage({
                 "brew": {
@@ -1099,6 +1100,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "error": None,
                 "arches": "x86_64",
                 "generate_pulp_repos": True,
+                "odcs_compose_ids": None,
             })]
         ]
 
