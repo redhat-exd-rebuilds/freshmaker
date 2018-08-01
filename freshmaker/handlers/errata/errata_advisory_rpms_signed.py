@@ -92,7 +92,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         self.set_context(db_event)
 
         # Check if we are allowed to build this advisory.
-        if not event.manual and not self.allow_build(
+        if not self.allow_build(
                 ArtifactType.IMAGE,
                 advisory_name=event.advisory.name,
                 advisory_security_impact=event.advisory.security_impact,
@@ -150,11 +150,8 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
             self.start_to_build_images(
                 db_event.get_image_builds_in_first_batch(db.session))
 
-        if event.manual:
-            msg = 'Base images are scheduled to be rebuilt due to manual rebuild.'
-        else:
-            msg = ('Waiting for composes to finish in order to start to '
-                   'schedule base images for rebuild.')
+        msg = ('Waiting for composes to finish in order to start to '
+               'schedule base images for rebuild.')
         db_event.transition(EventState.BUILDING, msg)
 
         return []
@@ -605,7 +602,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
 
         image_name = koji.parse_NVR(image["brew"]["build"])['name']
 
-        if not self.event.manual and not self.allow_build(
+        if not self.allow_build(
                 ArtifactType.IMAGE, image_name=image_name):
             self.log_info("Skipping rebuild of image %s, not allowed by "
                           "configuration", image_name)
