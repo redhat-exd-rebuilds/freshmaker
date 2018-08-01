@@ -262,6 +262,14 @@ class Config(object):
             'type': str,
             'default': '',
             'desc': 'Path to LightBlue private key file.'},
+        'lightblue_released_dependencies_only': {
+            'type': bool,
+            'default': False,
+            'desc': 'When True, only released images will be used as dependencies '
+                    'for other images. WARN: This may lead to downgrade to older '
+                    'release as result of rebuild when image to rebuild depends '
+                    'on unreleased release of the parent image.'
+            },
         'errata_tool_server_url': {
             'type': str,
             'default': '',
