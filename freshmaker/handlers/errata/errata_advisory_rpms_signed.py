@@ -500,6 +500,10 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         # Used as tmp dict with {brew_build_nvr: ArtifactBuild, ...} mapping.
         builds = builds or {}
 
+        # Cache for ODCS pulp composes. Key is white-spaced, sorted, list
+        # of content_sets. Value is Compose database object.
+        odcs_cache = {}
+
         for batch in batches:
             for image in batch:
                 nvr = image["brew"]["build"]
@@ -550,6 +554,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                 build_args["target"] = image["target"]
                 build_args["branch"] = image["git_branch"]
                 build_args["arches"] = image["arches"]
+                build_args["renewed_odcs_compose_ids"] = image["odcs_compose_ids"]
                 build.build_args = json.dumps(build_args)
 
                 db.session.commit()
@@ -557,14 +562,25 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                 if state != ArtifactBuildState.FAILED.value:
                     # Store odcs pulp compose to build
                     if image["generate_pulp_repos"]:
-                        compose = self._prepare_pulp_repo(
-                            build, image["content_sets"])
-                        if build.state != ArtifactBuildState.FAILED.value:
-                            db_compose = Compose(odcs_compose_id=compose['id'])
-                            db.session.add(db_compose)
-                            db.session.commit()
-                            build.add_composes(db.session, [db_compose])
+                        # Check if the compose for these content_sets is
+                        # already cached and use it in this case.
+                        cache_key = " ".join(sorted(image["content_sets"]))
+                        if cache_key in odcs_cache:
+                            db_compose = odcs_cache[cache_key]
                         else:
+                            compose = self._prepare_pulp_repo(
+                                build, image["content_sets"])
+
+                            if build.state != ArtifactBuildState.FAILED.value:
+                                db_compose = Compose(odcs_compose_id=compose['id'])
+                                db.session.add(db_compose)
+                                db.session.commit()
+                                odcs_cache[cache_key] = db_compose
+                            else:
+                                db_compose = None
+                                db.session.commit()
+                        if db_compose:
+                            build.add_composes(db.session, [db_compose])
                             db.session.commit()
 
                     # TODO: uncomment following code after boot.iso compose is

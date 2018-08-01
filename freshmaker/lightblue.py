@@ -180,6 +180,7 @@ class ContainerImage(dict):
             "git_branch": None,
             "error": None,
             "arches": None,
+            "odcs_compose_ids": None,
         }
 
     @region.cache_on_arguments()
@@ -209,6 +210,14 @@ class ContainerImage(dict):
                     raise KojiLookupError(
                         "Cannot find task_id or container_koji_task_id "
                         "in the Koji build %r" % build)
+
+            # Get the list of ODCS composes used to build the image.
+            if ("extra" in build and
+                    "image" in build["extra"] and
+                    "odcs" in build["extra"]["image"] and
+                    "compose_ids" in build["extra"]["image"]["odcs"]):
+                data["odcs_compose_ids"] = \
+                    build["extra"]["image"]["odcs"]["compose_ids"]
 
             brew_task = session.get_task_request(
                 build['task_id'])
