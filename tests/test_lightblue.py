@@ -1541,6 +1541,55 @@ class TestDeduplicateImagesToRebuild(helpers.FreshmakerTestCase):
         ret = self.lb._deduplicate_images_to_rebuild([httpd, perl, foo])
         self.assertEqual(ret, expected_images)
 
+    @patch.object(freshmaker.conf, 'lightblue_released_dependencies_only',
+                  new=True)
+    def test_use_highest_latest_released_nvr_include_released_only(self):
+        httpd = self._create_imgs([
+            "httpd-2.4-12",
+            "s2i-base-1-10",
+            "s2i-core-1-11",
+            "rhel-server-docker-7.4-125",
+        ])
+
+        perl = self._create_imgs([
+            "perl-5.7-1",
+            ["s2i-base-1-2", {"latest_released": True}],
+            "s2i-core-1-2",
+            "rhel-server-docker-7.4-150",
+        ])
+
+        foo = self._create_imgs([
+            "foo-5.7-1",
+            "s2i-base-1-1",
+            "s2i-core-1-2",
+            "rhel-server-docker-7.4-150",
+        ])
+
+        expected_images = [
+            self._create_imgs([
+                "httpd-2.4-12",
+                ["s2i-base-1-2", {"latest_released": True}],
+                "s2i-core-1-11",
+                "rhel-server-docker-7.4-150",
+            ]),
+            self._create_imgs([
+                "perl-5.7-1",
+                ["s2i-base-1-2", {"latest_released": True}],
+                "s2i-core-1-11",
+                "rhel-server-docker-7.4-150",
+            ]),
+            self._create_imgs([
+                "foo-5.7-1",
+                ["s2i-base-1-2", {"latest_released": True}],
+                "s2i-core-1-11",
+                "rhel-server-docker-7.4-150",
+            ])
+        ]
+
+        self.maxDiff = None
+        ret = self.lb._deduplicate_images_to_rebuild([httpd, perl, foo])
+        self.assertEqual(ret, expected_images)
+
     def test_use_highest_nvr(self):
         httpd = self._create_imgs([
             "httpd-2.4-12",

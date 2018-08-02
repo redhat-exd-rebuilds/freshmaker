@@ -1210,7 +1210,12 @@ class LightBlue(object):
             # in the `nvrs` list. Because `nvrs` list is desc sorted, every NVR
             # with higher index is lower and therefore we need to replace it.
             try:
-                latest_released_nvr_index = nvrs.index(latest_released_nvr)
+                if not conf.lightblue_released_dependencies_only:
+                    latest_released_nvr_index = nvrs.index(latest_released_nvr)
+                else:
+                    # In case we want to use only released versions of images,
+                    # replace all the images with the latest released one.
+                    latest_released_nvr_index = -1
             except ValueError:
                 # In case the latest_released_nvr is not found in the nvrs,
                 # it means the all nvrs should be replaced by new one from
