@@ -173,6 +173,10 @@ class Config(object):
             'type': list,
             'default': ["freshmaker.handlers.mbs:MBSModuleStateChangeHandler"],
             'desc': 'List of enabled handlers.'},
+        'polling_interval': {
+            'type': int,
+            'default': 60,
+            'desc': 'Polling interval, in seconds.'},
         'git_base_url': {
             'type': str,
             'default': "git://pkgs.fedoraproject.org",
