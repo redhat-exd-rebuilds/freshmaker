@@ -576,6 +576,9 @@ class LightBlue(object):
         if status_code == http_client.OK:
             return
 
+        # Warn early, in case there is an error in the error handling code below
+        log.warn("Request to %s gave %r" % (response.request.url, response))
+
         if status_code in (http_client.NOT_FOUND,
                            http_client.INTERNAL_SERVER_ERROR,
                            http_client.UNAUTHORIZED):
