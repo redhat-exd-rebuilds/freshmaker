@@ -640,6 +640,13 @@ class TestErrataAdvisoryStateChangedHandler(helpers.ModelsTestCase):
             self.assertEqual(len(ret), 0)
 
     @patch('freshmaker.errata.Errata.advisories_from_event')
+    @patch.object(conf, 'handler_build_whitelist', new={
+        'ErrataAdvisoryStateChangedHandler': {
+            'image': {
+                'advisory_state': '.*',
+            }
+        }
+    })
     def test_rebuild_if_not_exists_already_exists(
             self, advisories_from_event):
         handler = ErrataAdvisoryStateChangedHandler()
@@ -767,7 +774,7 @@ class TestErrataAdvisoryStateChangedHandler(helpers.ModelsTestCase):
     @patch.object(conf, 'handler_build_whitelist', new={
         'ErrataAdvisoryStateChangedHandler': {
             'image': {
-                'advisory_state': r'REL_PREP',
+                'advisory_state': r'SHIPPED_LIVE',
             }
         }
     })

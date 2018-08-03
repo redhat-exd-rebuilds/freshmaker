@@ -24,6 +24,7 @@
 import itertools
 
 from freshmaker import conf
+from freshmaker.types import ArtifactType
 
 try:
     from inspect import signature
@@ -133,6 +134,21 @@ class BaseEvent(object):
         events using the JSON API.
         """
         return self.msg_id
+
+    def is_allowed(self, handler, artifact_type, **kwargs):
+        """
+        Returns True if whitelist/blacklist allows handling this event.
+        Calls `handler.allow_build()` to find the answer.
+
+        :param BaseHandler handler: Handler currently handling the event.
+        :param ArtifactType artifact_type: Type of artifact to build as part
+            of event.
+        :param args: Extra args to be passed to `handler.allow_build()`.
+        :param kwargs: Extra kwargs to be passed to `handler.allow_build()`.
+        """
+        return handler.allow_build(
+            artifact_type, dry_run=self.dry_run,
+            manual=self.manual, **kwargs)
 
 
 class MBSModuleStateChangeEvent(BaseEvent):
@@ -268,6 +284,17 @@ class ErrataBaseEvent(BaseEvent):
     @property
     def search_key(self):
         return str(self.advisory.errata_id)
+
+    def is_allowed(self, handler, **kwargs):
+        return super(ErrataBaseEvent, self).is_allowed(
+            handler, ArtifactType.IMAGE,
+            advisory_state=self.advisory.state,
+            advisory_name=self.advisory.name,
+            advisory_security_impact=self.advisory.security_impact,
+            advisory_highest_cve_severity=self.advisory.highest_cve_severity,
+            advisory_product_short_name=self.advisory.product_short_name,
+            advisory_has_hightouch_bug=self.advisory.has_hightouch_bug,
+            **kwargs)
 
 
 class ErrataAdvisoryStateChangedEvent(ErrataBaseEvent):
