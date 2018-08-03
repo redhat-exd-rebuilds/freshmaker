@@ -25,7 +25,7 @@ from freshmaker.events import (
 from freshmaker.models import Event, EVENT_TYPES
 from freshmaker.handlers import BaseHandler, fail_event_on_handler_exception
 from freshmaker.errata import Errata
-from freshmaker.types import EventState, ArtifactType
+from freshmaker.types import EventState
 
 
 class ErrataAdvisoryStateChangedHandler(BaseHandler):
@@ -113,8 +113,7 @@ class ErrataAdvisoryStateChangedHandler(BaseHandler):
 
         extra_events = []
 
-        if (event.manual or
-                self.allow_build(ArtifactType.IMAGE, advisory_state=event.advisory.state)):
+        if event.is_allowed(self):
             extra_events += self.rebuild_if_not_exists(event, errata_id)
 
         if state == "SHIPPED_LIVE":

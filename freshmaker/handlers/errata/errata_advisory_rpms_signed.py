@@ -92,14 +92,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         self.set_context(db_event)
 
         # Check if we are allowed to build this advisory.
-        if not self.allow_build(
-                ArtifactType.IMAGE,
-                advisory_name=event.advisory.name,
-                advisory_security_impact=event.advisory.security_impact,
-                advisory_highest_cve_severity=event.advisory.highest_cve_severity,
-                advisory_product_short_name=event.advisory.product_short_name,
-                advisory_has_hightouch_bug=event.advisory.has_hightouch_bug,
-                dry_run=self.dry_run):
+        if not self.event.is_allowed(self):
             msg = ("Errata advisory {0} is not allowed by internal policy "
                    "to trigger rebuilds.".format(event.advisory.errata_id))
             db_event.transition(EventState.SKIPPED, msg)
@@ -618,8 +611,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
 
         image_name = koji.parse_NVR(image["brew"]["build"])['name']
 
-        if not self.allow_build(
-                ArtifactType.IMAGE, image_name=image_name):
+        if not self.event.is_allowed(self, image_name=image_name):
             self.log_info("Skipping rebuild of image %s, not allowed by "
                           "configuration", image_name)
             return True
@@ -659,13 +651,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
 
         # Check if we are allowed to rebuild unpublished images and clear
         # published and release_category if so.
-        if self.allow_build(
-                ArtifactType.IMAGE, advisory_name=self.event.advisory.name,
-                advisory_security_impact=self.event.advisory.security_impact,
-                advisory_highest_cve_severity=self.event.advisory.highest_cve_severity,
-                advisory_product_short_name=self.event.advisory.product_short_name,
-                advisory_has_hightouch_bug=self.event.advisory.has_hightouch_bug,
-                published=True, dry_run=self.dry_run):
+        if self.event.is_allowed(self, published=True):
             published = True
             release_category = "Generally Available"
         else:
