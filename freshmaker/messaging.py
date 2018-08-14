@@ -29,6 +29,7 @@ import json
 
 from freshmaker import log, conf
 from freshmaker.events import BaseEvent
+from freshmaker.utils import retry
 
 
 def publish(topic, msg):
@@ -53,6 +54,7 @@ def _fedmsg_publish(topic, msg):
     return fedmsg.publish(topic, msg=msg, modname=config['SERVICE'])
 
 
+@retry(wait_on=(RuntimeError,), logger=log)
 def _rhmsg_publish(topic, msg):
     """Send message to Unified Message Bus
 
