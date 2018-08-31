@@ -27,6 +27,7 @@ import json
 from mock import patch, PropertyMock, Mock, call
 
 from freshmaker import conf, db, events
+from freshmaker.config import all_
 from freshmaker.errata import ErrataAdvisory
 from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
 from freshmaker.events import ErrataAdvisoryStateChangedEvent
@@ -235,6 +236,54 @@ class TestAllowBuild(helpers.ModelsTestCase):
         image = {"brew": {"build": "foo-1-2.3"}}
         ret = handler._filter_out_not_allowed_builds(image)
         self.assertEqual(ret, False)
+
+        image = {"brew": {"build": "unknown-1-2.3"}}
+        ret = handler._filter_out_not_allowed_builds(image)
+        self.assertEqual(ret, True)
+
+    @patch(
+        "freshmaker.config.Config.handler_build_whitelist",
+        new_callable=PropertyMock,
+        return_value={
+            "ErrataAdvisoryRPMsSignedHandler": {
+                "image": {
+                    "image_name": ["foo", "bar"]
+                }
+            }
+        })
+    @patch(
+        "freshmaker.config.Config.handler_build_blacklist",
+        new_callable=PropertyMock,
+        return_value={
+            "ErrataAdvisoryRPMsSignedHandler": {
+                "image": all_(
+                    {
+                        "image_name": "foo",
+                        "image_version": "7.3",
+                    }
+                )
+            }
+        })
+    def test_filter_out_not_allowed_builds_image_version(
+            self, handler_build_blacklist, handler_build_whitelist):
+        handler = ErrataAdvisoryRPMsSignedHandler()
+        handler.event = ErrataAdvisoryRPMsSignedEvent(
+            "123",
+            ErrataAdvisory(123, "RHSA-2017", "REL_PREP", [],
+                           security_impact="None",
+                           product_short_name="product"))
+
+        image = {"brew": {"build": "foo-1-2.3"}}
+        ret = handler._filter_out_not_allowed_builds(image)
+        self.assertEqual(ret, False)
+
+        image = {"brew": {"build": "foo-1-7.3"}}
+        ret = handler._filter_out_not_allowed_builds(image)
+        self.assertEqual(ret, False)
+
+        image = {"brew": {"build": "foo-7.3-2.3"}}
+        ret = handler._filter_out_not_allowed_builds(image)
+        self.assertEqual(ret, True)
 
         image = {"brew": {"build": "unknown-1-2.3"}}
         ret = handler._filter_out_not_allowed_builds(image)
