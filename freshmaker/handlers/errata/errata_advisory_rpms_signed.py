@@ -609,11 +609,15 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         :return: True when image should be filtered out.
         """
 
+        parsed_nvr = koji.parse_NVR(image["brew"]["build"])
         image_name = koji.parse_NVR(image["brew"]["build"])['name']
 
-        if not self.event.is_allowed(self, image_name=image_name):
+        if not self.event.is_allowed(
+                self, image_name=parsed_nvr["name"],
+                image_version=parsed_nvr["version"],
+                image_release=parsed_nvr["release"]):
             self.log_info("Skipping rebuild of image %s, not allowed by "
-                          "configuration", image_name)
+                          "configuration", image["brew"]["build"])
             return True
         return False
 
