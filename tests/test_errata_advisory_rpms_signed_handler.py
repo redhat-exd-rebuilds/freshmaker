@@ -26,7 +26,9 @@ from mock import patch
 import freshmaker
 
 from freshmaker import db
-from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
+from freshmaker.events import (
+    ErrataAdvisoryRPMsSignedEvent,
+    ManualRebuildWithAdvisoryEvent)
 from freshmaker.handlers.errata import ErrataAdvisoryRPMsSignedHandler
 from freshmaker.lightblue import ContainerImage
 from freshmaker.models import Event, Compose
@@ -221,6 +223,16 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
     def tearDown(self):
         super(TestErrataAdvisoryRPMsSignedHandler, self).tearDown()
         self.patcher.unpatch_all()
+
+    def test_can_handle_manual_rebuild_with_advisory_event(self):
+        event = ManualRebuildWithAdvisoryEvent(
+            "123", ["foo-container", "bar-container"],
+            ErrataAdvisory(123, "RHBA-2017", "REL_PREP", [],
+                           security_impact="",
+                           product_short_name="product"))
+        handler = ErrataAdvisoryRPMsSignedHandler()
+        ret = handler.can_handle(event)
+        self.assertTrue(ret)
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'ErrataAdvisoryRPMsSignedHandler': {

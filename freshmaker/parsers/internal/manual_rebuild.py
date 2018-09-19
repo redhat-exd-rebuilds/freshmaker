@@ -19,24 +19,43 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import time
 from freshmaker.parsers import BaseParser
-from freshmaker.events import FreshmakerManualRebuildEvent
+from freshmaker.events import ManualRebuildWithAdvisoryEvent
+from freshmaker.errata import Errata, ErrataAdvisory
 
 
 class FreshmakerManualRebuildParser(BaseParser):
-    """Parser parsing odcs.compose.state.change"""
+    """Parser parsing freshmaker.manual.rebuild"""
 
-    name = "FreshmakerManualRebuildEvent"
+    name = "FreshmakerManualRebuildParser"
     topic_suffixes = ["freshmaker.manual.rebuild"]
 
     def can_parse(self, topic, msg):
         return any([topic.endswith(s) for s in self.topic_suffixes])
 
-    def parse(self, topic, msg):
-        msg_id = msg.get('msg_id')
-        inner_msg = msg.get('msg')
-        errata_id = inner_msg.get('errata_id')
-        dry_run = inner_msg.get('dry_run', False)
+    def parse_post_data(self, data):
+        """
+        Method shared between Frontend and Backend to parse the POST data
+        of manual rebuild JSON and generate the BaseEvent representation
+        of the rebuild request.
 
-        return FreshmakerManualRebuildEvent(
-            msg_id, errata_id=errata_id, dry_run=dry_run)
+        :param dict data: Dict generated from JSON from HTTP POST or parsed
+            from the UMB message sent from Frontend to Backend.
+        """
+        msg_id = data.get('msg_id', "manual_rebuild_%s" % (str(time.time())))
+        errata_id = data.get('errata_id')
+        dry_run = data.get('dry_run', False)
+
+        errata = Errata()
+        advisory = ErrataAdvisory.from_advisory_id(errata, errata_id)
+
+        event = ManualRebuildWithAdvisoryEvent(
+            msg_id, advisory, data.get("container_images", []), manual=True,
+            dry_run=dry_run)
+
+        return event
+
+    def parse(self, topic, msg):
+        inner_msg = msg.get('msg')
+        return self.parse_post_data(inner_msg)

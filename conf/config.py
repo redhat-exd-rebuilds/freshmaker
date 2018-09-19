@@ -57,7 +57,6 @@ class BaseConfiguration(object):
 
     # List of enabled composing handlers.
     HANDLERS = [
-        "freshmaker.handlers.internal:FreshmakerManualRebuildHandler",
         "freshmaker.handlers.bodhi:BodhiUpdateCompleteStableHandler",
         "freshmaker.handlers.git:GitDockerfileChangeHandler",
         "freshmaker.handlers.git:GitModuleMetadataChangeHandler",

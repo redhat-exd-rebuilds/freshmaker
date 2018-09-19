@@ -309,6 +309,26 @@ class ErrataAdvisoryRPMsSignedEvent(ErrataBaseEvent):
     """
 
 
+class ManualRebuildWithAdvisoryEvent(ErrataAdvisoryRPMsSignedEvent):
+    """
+    Event representing manual rebuild of particular container images with RPMs
+    from advisory.
+    """
+
+    def __init__(self, msg_id, advisory, container_images, **kwargs):
+        """
+        Creates new ManualRebuildWithAdvisoryEvent.
+
+        :param str msg_id: Message id.
+        :param ErrataAdvisory advisory: Errata advisory associated with event.
+        :param list container_images: List of NVRs of images to rebuild or
+            empty list to rebuild all images affected by the advisory.
+        """
+        super(ManualRebuildWithAdvisoryEvent, self).__init__(
+            msg_id, advisory, **kwargs)
+        self.container_images = container_images
+
+
 class BrewSignRPMEvent(BaseEvent):
     """
     Represents the message sent by Brew when RPM is signed.
@@ -350,6 +370,10 @@ class ODCSComposeStateChangeEvent(BaseEvent):
 
 
 class FreshmakerManualRebuildEvent(BaseEvent):
+    """
+    NOTE: This event is deprecated and not used anymore, but we have to keep
+    it around, because we have instances of this event stored in database.
+    """
     def __init__(self, msg_id, errata_id=None, dry_run=False):
         super(FreshmakerManualRebuildEvent, self).__init__(
             msg_id, dry_run=dry_run)

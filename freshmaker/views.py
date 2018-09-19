@@ -29,12 +29,13 @@ from freshmaker import app
 from freshmaker import messaging
 from freshmaker import models
 from freshmaker import types
+from freshmaker import db
 from freshmaker.api_utils import filter_artifact_builds
 from freshmaker.api_utils import filter_events
 from freshmaker.api_utils import json_error
 from freshmaker.api_utils import pagination_metadata
 from freshmaker.auth import login_required, requires_role, require_scopes
-from freshmaker.errata import Errata, ErrataAdvisory
+from freshmaker.parsers.internal.manual_rebuild import FreshmakerManualRebuildParser
 
 api_v1 = {
     'event_types': {
@@ -227,22 +228,46 @@ class BuildAPI(MethodView):
     @require_scopes('submit-build')
     @requires_role('admins')
     def post(self):
-        """Trigger image rebuild"""
+        """
+        Trigger manual image rebuild.
+
+        Accepts JSON in POST with following key/value pairs:
+            - "errata_id" - ID of Errata advisory to include in rebuild
+            - "container_images" - Optional. List of NVRs of leaf container
+              images to rebuild.
+        """
         data = request.get_json(force=True)
         if 'errata_id' not in data:
             return json_error(
                 400, 'Bad Request', 'Missing errata_id in request')
 
-        errata = Errata()
-        advisory = ErrataAdvisory.from_advisory_id(errata, data['errata_id'])
-        if 'rpm' not in advisory.content_types:
+        # Use the shared code to parse the POST data and generate right
+        # event based on the data. Currently it generates just
+        # ManualRebuildWithAdvisoryEvent.
+        parser = FreshmakerManualRebuildParser()
+        event = parser.parse_post_data(data)
+
+        # Check the the advisory is RPM advisory.
+        if 'rpm' not in event.advisory.content_types:
             return json_error(
                 400,
                 'Bad Request',
                 'Erratum {} is not a RPM advisory'.format(data['errata_id']))
 
+        # Store the event into database, so it gets the ID which we can return
+        # to client sending this POST request. The client can then use the ID
+        # to check for the event status.
+        db_event = models.Event.get_or_create_from_event(db.session, event)
+        db.session.commit()
+
+        # Forward the POST data (including the msg_id of the database event we
+        # added to DB) to backend using UMB messaging. Backend will then
+        # re-generate the event and start handling it.
+        data["msg_id"] = event.msg_id
         messaging.publish("manual.rebuild", data)
-        return jsonify(data), 200
+
+        # Return back the JSON representation of Event to client.
+        return jsonify(db_event.json()), 200
 
 
 API_V1_MAPPING = {

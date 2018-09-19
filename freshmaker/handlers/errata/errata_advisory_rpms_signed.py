@@ -610,7 +610,6 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         """
 
         parsed_nvr = koji.parse_NVR(image["brew"]["build"])
-        image_name = koji.parse_NVR(image["brew"]["build"])['name']
 
         if not self.event.is_allowed(
                 self, image_name=parsed_nvr["name"],
