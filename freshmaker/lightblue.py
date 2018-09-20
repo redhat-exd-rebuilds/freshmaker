@@ -819,6 +819,73 @@ class LightBlue(object):
         images = new_images
         return images
 
+    def get_images_by_nvrs(self, nvrs, published=True, content_sets=None,
+                           srpm_names=None):
+        """Query lightblue and returns containerImages defined by list of
+        `nvrs`.
+
+        :param list nvrs: List of NVRs defining the containerImages to return.
+        :param bool published: whether to limit queries to published images
+        :param list content_sets: List of content_sets the image includes RPMs
+            from.
+        :param list srpm_names: list of srpm_name (source rpm name) to look for
+        :return: List of containerImages.
+        :rtype: list of ContainerImages.
+        """
+        image_request = {
+            "objectType": "containerImage",
+            "query": {
+                "$and": [
+                    {
+                        "$or": [{
+                            "field": "brew.build",
+                            "op": "=",
+                            "rvalue": nvr
+                        } for nvr in nvrs]
+                    },
+                    {
+                        "field": "parsed_data.files.*.key",
+                        "op": "=",
+                        "rvalue": "buildfile"
+                    },
+                ]
+            },
+            "projection": self._get_default_projection()
+        }
+
+        if content_sets is not None:
+            image_request["query"]["$and"].append(
+                {
+                    "$or": [{
+                        "field": "content_sets.*",
+                        "op": "=",
+                        "rvalue": r
+                    } for r in content_sets]
+                }
+            )
+
+        if srpm_names is not None:
+            image_request["query"]["$and"].append(
+                {
+                    "$or": [{
+                        "field": "rpm_manifest.*.rpms.*.srpm_name",
+                        "op": "=",
+                        "rvalue": srpm_name
+                    } for srpm_name in srpm_names]
+                }
+            )
+
+        if published is not None:
+            image_request["query"]["$and"].append(
+                {
+                    "field": "repositories.*.published",
+                    "op": "=",
+                    "rvalue": published
+                })
+
+        images = self.find_container_images(image_request)
+        return images
+
     def find_unpublished_image_for_build(self, build):
         """
         Returns the unpublished variant of Docker image specified by `build`
@@ -1014,7 +1081,8 @@ class LightBlue(object):
     def find_images_with_packages_from_content_set(
             self, srpm_names, content_sets, filter_fnc=None,
             published=True, deprecated=False,
-            release_category="Generally Available"):
+            release_category="Generally Available",
+            leaf_container_images=None):
         """Query lightblue and find containers which contain given
         package from one of content sets
 
@@ -1033,6 +1101,9 @@ class LightBlue(object):
             repositories
         :param str release_category: filter only repositories with specific
             release category (options: Deprecated, Generally Available, Beta, Tech Preview)
+        :param list leaf_container_images: List of NVRs of leaf images to
+            consider for the rebuild. If not set, all images found in
+            Lightblue will be considered for rebuild.
 
         :return: a list of dictionaries with three keys - repository, commit and
             srpm_nevra. Repository is a name git repository including the
@@ -1045,8 +1116,12 @@ class LightBlue(object):
             published, deprecated, release_category)
         if not repos:
             return []
-        images = self.find_images_with_included_srpms(
-            content_sets, srpm_names, repos, published)
+        if not leaf_container_images:
+            images = self.find_images_with_included_srpms(
+                content_sets, srpm_names, repos, published)
+        else:
+            images = self.get_images_by_nvrs(
+                leaf_container_images, published, content_sets, srpm_names)
 
         # There can be multi-arch images which share the same
         # image['brew']['build']. Freshmaker is not interested in the image
@@ -1284,7 +1359,8 @@ class LightBlue(object):
 
     def find_images_to_rebuild(
             self, srpm_names, content_sets, published=True, deprecated=False,
-            release_category="Generally Available", filter_fnc=None):
+            release_category="Generally Available", filter_fnc=None,
+            leaf_container_images=None):
         """
         Find images to rebuild through image build layers
 
@@ -1309,10 +1385,13 @@ class LightBlue(object):
             will not be considered for a rebuild as well as its parent images.
             This function is used to filter out images not allowed by
             Freshmaker configuration.
+        :param list leaf_container_images: List of NVRs of leaf images to
+            consider for the rebuild. If not set, all images found in
+            Lightblue will be considered for rebuild.
         """
         images = self.find_images_with_packages_from_content_set(
             srpm_names, content_sets, filter_fnc, published, deprecated,
-            release_category)
+            release_category, leaf_container_images=leaf_container_images)
 
         def _get_images_to_rebuild(image):
             """

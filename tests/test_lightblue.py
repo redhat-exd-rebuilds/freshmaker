@@ -1360,6 +1360,44 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                 "openssl",
                 ["dummy-content-set-1"])
 
+    @patch('freshmaker.lightblue.ContainerImage.resolve')
+    @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
+    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @patch('os.path.exists')
+    def test_images_with_content_set_packages_leaf_container_images(
+            self, exists, cont_images, cont_repos, resolve):
+
+        exists.return_value = True
+        cont_images.return_value = self.fake_container_images
+        cont_repos.return_value = self.fake_repositories_with_content_sets
+
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key)
+        lb.find_images_with_packages_from_content_set(
+            ["openssl"], ["dummy-content-set"],
+            leaf_container_images=["foo", "bar"])
+        cont_images.assert_called_once_with(
+            {'query': {
+                '$and': [
+                    {'$or': [
+                        {'field': 'brew.build', 'rvalue': 'foo', 'op': '='},
+                        {'field': 'brew.build', 'rvalue': 'bar', 'op': '='}]},
+                    {'field': 'parsed_data.files.*.key', 'rvalue': 'buildfile', 'op': '='},
+                    {'$or': [{'field': 'content_sets.*', 'rvalue': 'dummy-content-set', 'op': '='}]},
+                    {'$or': [{'field': 'rpm_manifest.*.rpms.*.srpm_name', 'rvalue': 'openssl', 'op': '='}]},
+                    {'field': 'repositories.*.published', 'rvalue': True, 'op': '='}]},
+             'projection': [{'field': 'brew', 'include': True, 'recursive': True},
+                            {'field': 'parsed_data.files', 'include': True, 'recursive': True},
+                            {'field': 'parsed_data.layers.*', 'include': True, 'recursive': True},
+                            {'field': 'repositories.*.published', 'include': True, 'recursive': True},
+                            {'field': 'repositories.*.repository', 'include': True, 'recursive': True},
+                            {'field': 'repositories.*.tags.*.name', 'include': True, 'recursive': True},
+                            {'field': 'content_sets', 'include': True, 'recursive': True},
+                            {'field': 'rpm_manifest.*.rpms', 'include': True, 'recursive': True},
+                            {'field': 'rpm_manifest.*.rpms.*.srpm_name', 'include': True, 'recursive': True}],
+             'objectType': 'containerImage'})
+
 
 class TestEntityVersion(helpers.FreshmakerTestCase):
     """Test case for ensuring correct entity version in request"""

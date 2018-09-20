@@ -32,6 +32,7 @@ from six.moves import configparser
 from freshmaker import conf, db, log
 from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
 from freshmaker.events import ODCSComposeStateChangeEvent
+from freshmaker.events import ManualRebuildWithAdvisoryEvent
 from freshmaker.handlers import ContainerBuildHandler, fail_event_on_handler_exception
 from freshmaker.kojiservice import koji_service
 from freshmaker.lightblue import LightBlue
@@ -668,6 +669,11 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
             srpm_name = koji.parse_NVR(nvr)['name']
             srpm_names.add(srpm_name)
 
+        # Limit the Lightblue query to particular leaf images if set in Event.
+        leaf_container_images = None
+        if isinstance(self.event, ManualRebuildWithAdvisoryEvent):
+            leaf_container_images = self.event.container_images
+
         # For each SRPM name, find out all the containers which include
         # this SRPM name.
         self.log_info(
@@ -676,7 +682,8 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         batches = lb.find_images_to_rebuild(
             srpm_names, content_sets,
             filter_fnc=self._filter_out_not_allowed_builds,
-            published=published, release_category=release_category)
+            published=published, release_category=release_category,
+            leaf_container_images=leaf_container_images)
         return batches
 
     def _find_build_srpm_name(self, build_nvr):

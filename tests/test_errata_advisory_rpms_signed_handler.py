@@ -226,10 +226,11 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
 
     def test_can_handle_manual_rebuild_with_advisory_event(self):
         event = ManualRebuildWithAdvisoryEvent(
-            "123", ["foo-container", "bar-container"],
+            "123",
             ErrataAdvisory(123, "RHBA-2017", "REL_PREP", [],
                            security_impact="",
-                           product_short_name="product"))
+                           product_short_name="product"),
+            ["foo-container", "bar-container"])
         handler = ErrataAdvisoryRPMsSignedHandler()
         ret = handler.can_handle(event)
         self.assertTrue(ret)
@@ -632,6 +633,12 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             ErrataAdvisory(123, "RHBA-2017", "REL_PREP", [],
                            security_impact="",
                            product_short_name="product"))
+        self.manual_event = ManualRebuildWithAdvisoryEvent(
+            "123",
+            ErrataAdvisory(123, "RHBA-2017", "REL_PREP", [],
+                           security_impact="",
+                           product_short_name="product"),
+            ["foo", "bar"])
         self.handler = ErrataAdvisoryRPMsSignedHandler()
         self.handler.event = self.event
 
@@ -652,7 +659,8 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
         self.find_images_to_rebuild.assert_called_once_with(
             set(['httpd']), ['content-set-1'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
-            published=True, release_category='Generally Available')
+            published=True, release_category='Generally Available',
+            leaf_container_images=None)
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'ErrataAdvisoryRPMsSignedHandler': {
@@ -668,7 +676,8 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
         self.find_images_to_rebuild.assert_called_once_with(
             set(['httpd']), ['content-set-1'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
-            published=True, release_category='Generally Available')
+            published=True, release_category='Generally Available',
+            leaf_container_images=None)
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'ErrataAdvisoryRPMsSignedHandler': {
@@ -686,7 +695,8 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
         self.find_images_to_rebuild.assert_called_once_with(
             set(['httpd']), ['content-set-1'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
-            published=None, release_category=None)
+            published=None, release_category=None,
+            leaf_container_images=None)
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'ErrataAdvisoryRPMsSignedHandler': {
@@ -702,4 +712,23 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
         self.find_images_to_rebuild.assert_called_once_with(
             set(['httpd']), ['content-set-1'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
-            published=True, release_category='Generally Available')
+            published=True, release_category='Generally Available',
+            leaf_container_images=None)
+
+    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+        'ErrataAdvisoryRPMsSignedHandler': {
+            'image': {'advisory_name': 'RHBA-*',
+                      'published': True}
+        }
+    })
+    @patch('os.path.exists', return_value=True)
+    def test_manual_event_leaf_container_images(self, exists):
+        self.handler.event = self.manual_event
+        for x in self.handler._find_images_to_rebuild(123456):
+            pass
+
+        self.find_images_to_rebuild.assert_called_once_with(
+            set(['httpd']), ['content-set-1'],
+            filter_fnc=self.handler._filter_out_not_allowed_builds,
+            published=True, release_category='Generally Available',
+            leaf_container_images=["foo", "bar"])
