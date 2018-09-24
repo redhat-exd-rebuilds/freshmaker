@@ -20,6 +20,12 @@
 # SOFTWARE.
 
 from enum import Enum
+from freshmaker.monitor import (
+    freshmaker_artifact_build_done_counter,
+    freshmaker_artifact_build_failed_counter,
+    freshmaker_artifact_build_canceled_counter,
+    freshmaker_event_complete_counter, freshmaker_event_failed_counter,
+    freshmaker_event_skipped_counter)
 
 
 class ArtifactType(Enum):
@@ -29,20 +35,30 @@ class ArtifactType(Enum):
 
 
 class ArtifactBuildState(Enum):
-    BUILD = 0
-    DONE = 1
-    FAILED = 2
-    CANCELED = 3
-    PLANNED = 4
+
+    def __init__(self, value, counter):
+        self._value_ = value
+        self.counter = counter
+
+    BUILD = (0, None)
+    DONE = (1, freshmaker_artifact_build_done_counter)
+    FAILED = (2, freshmaker_artifact_build_failed_counter)
+    CANCELED = (3, freshmaker_artifact_build_canceled_counter)
+    PLANNED = (4, None)
 
 
 class EventState(Enum):
-    INITIALIZED = 0
+
+    def __init__(self, value, counter):
+        self._value_ = value
+        self.counter = counter
+
+    INITIALIZED = (0, None)
     # some artifacts has been found and under building
-    BUILDING = 1
+    BUILDING = (1, None)
     # event is handled successfully
-    COMPLETE = 2
+    COMPLETE = (2, freshmaker_event_complete_counter)
     # error happens while handling the event
-    FAILED = 3
+    FAILED = (3, freshmaker_event_failed_counter)
     # no action to take upon the event
-    SKIPPED = 4
+    SKIPPED = (4, freshmaker_event_skipped_counter)
