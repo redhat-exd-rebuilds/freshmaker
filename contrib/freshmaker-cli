@@ -48,6 +48,8 @@ EVENT_TYPES = {
     10: {"name": "Errata advisory state changed", "url": ""},
     11: {"name": "Manual rebuild triggerred", "url": ""},
     12: {"name": "ODCS compose state changed", "url": ""},
+    13: {"name": "Manual rebuild with advisory",
+         "url": "https://errata.devel.redhat.com/advisory/{search_key}"},
 }
 
 
@@ -125,7 +127,7 @@ def get_api_url(deployment, env):
             "prod": "https://freshmaker.host.prod.eng.bos.redhat.com",
             "stage": "https://freshmaker.host.stage.eng.bos.redhat.com",
             "qe": "https://freshmaker.host.qe.eng.pek2.redhat.com",
-            "dev": "https://freshmaker-dev.cloud.upshift.engineering.redhat.com",
+            "dev": "https://freshmaker-dev.cloud.paas.upshift.redhat.com",
         },
         "fedora": {}
     }
