@@ -71,14 +71,6 @@ node('fedora') {
                 """
                 archiveArtifacts artifacts: 'mock-result/el7/**'
             },
-            'F27': {
-                sh """
-                mkdir -p mock-result/f27
-                flock /etc/mock/fedora-27-x86_64.cfg \
-                /usr/bin/mock -v --enable-network --resultdir=mock-result/f27 -r fedora-27-x86_64 --clean --rebuild rpmbuild-output/*.src.rpm
-                """
-                archiveArtifacts artifacts: 'mock-result/f27/**'
-            },
             'F28': {
                 sh """
                 mkdir -p mock-result/f28
