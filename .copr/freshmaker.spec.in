@@ -48,6 +48,7 @@ BuildRequires:    python2-sqlalchemy
 BuildRequires:    python2-koji
 BuildRequires:    python2-psycopg2
 BuildRequires:    python2-lxml
+BuildRequires:    python2-prometheus_client
 
 BuildRequires:    systemd
 %{?systemd_requires}
@@ -88,6 +89,7 @@ Requires:    python2-sqlalchemy
 Requires:    python2-systemd
 Requires:    python2-psycopg2
 Requires:    python2-lxml
+Requires:    python2-prometheus_client
 
 
 %description
