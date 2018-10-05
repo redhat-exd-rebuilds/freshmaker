@@ -42,7 +42,7 @@ node('master'){
 
     timestamps {
 
-node('fedora') {
+node('fedora-28') {
     checkout scm
     stage('Prepare') {
         sh 'sudo rm -f rpmbuild-output/*.src.rpm'
