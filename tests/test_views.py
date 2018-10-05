@@ -407,6 +407,12 @@ class TestViews(helpers.ModelsTestCase):
         self.assertEqual(data['error'], 'Not Found')
         self.assertEqual(data['message'], 'No such build state found.')
 
+    def test_about_api(self):
+        resp = self.client.get('/api/1/about/')
+        data = json.loads(resp.get_data(as_text=True))
+        # version is 'unknown' in case of skip_install=True in tox.ini
+        self.assertEqual(data['version'], 'unknown')
+
 
 class TestViewsMultipleFilterValues(helpers.ModelsTestCase):
     def setUp(self):

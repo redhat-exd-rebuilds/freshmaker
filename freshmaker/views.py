@@ -30,6 +30,8 @@ from freshmaker import messaging
 from freshmaker import models
 from freshmaker import types
 from freshmaker import db
+from freshmaker import conf
+from freshmaker import version
 from freshmaker.api_utils import filter_artifact_builds
 from freshmaker.api_utils import filter_events
 from freshmaker.api_utils import json_error
@@ -121,6 +123,14 @@ api_v1 = {
         },
     },
     'monitor': MonitorAPI.rest_api_v1,
+    'about': {
+        'about': {
+            'url': '/api/1/about/',
+            'options': {
+                'methods': ['GET'],
+            }
+        },
+    }
 }
 
 
@@ -274,6 +284,20 @@ class BuildAPI(MethodView):
         return jsonify(db_event.json()), 200
 
 
+class AboutAPI(MethodView):
+    def get(self):
+        json = {'version': version}
+        config_items = ['auth_backend']
+        for item in config_items:
+            config_item = getattr(conf, item)
+            # All config items have a default, so if doesn't exist it is an error
+            if not config_item:
+                raise ValueError(
+                    'An invalid config item of "{0}" was specified'.format(item))
+            json[item] = config_item
+        return jsonify(json), 200
+
+
 API_V1_MAPPING = {
     'events': EventAPI,
     'builds': BuildAPI,
@@ -281,6 +305,7 @@ API_V1_MAPPING = {
     'build_types': BuildTypeAPI,
     'build_states': BuildStateAPI,
     'monitor': MonitorAPI,
+    'about': AboutAPI,
 }
 
 

@@ -23,6 +23,8 @@
 #            Matt Prahl <mprahl@redhat.com>
 #            Jan Kaluza <jkaluza@redhat.com>
 
+import pkg_resources
+
 from logging import getLogger
 
 from flask import Flask
@@ -32,6 +34,11 @@ from flask_sqlalchemy import SQLAlchemy
 from freshmaker.logger import init_logging
 from freshmaker.config import init_config
 from freshmaker.proxy import ReverseProxy
+
+try:
+    version = pkg_resources.get_distribution('freshmaker').version
+except pkg_resources.DistributionNotFound:
+    version = 'unknown'
 
 app = Flask(__name__)
 app.wsgi_app = ReverseProxy(app.wsgi_app)
