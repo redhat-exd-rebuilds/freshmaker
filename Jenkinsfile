@@ -48,8 +48,6 @@ node('fedora') {
         sh 'sudo rm -f rpmbuild-output/*.src.rpm'
         sh 'mkdir -p rpmbuild-output'
         sh 'make -f .copr/Makefile srpm outdir=./rpmbuild-output/'
-        /* Needed for mock EPEL7 builds: https://bugzilla.redhat.com/show_bug.cgi?id=1528272 */
-        sh 'sudo dnf -y install dnf-utils'
         sh 'sudo dnf -y builddep ./rpmbuild-output/freshmaker-*.src.rpm'
         sh 'sudo dnf -y install python2-tox python3-tox'
         /* Needed to get the latest /etc/mock/fedora-28-x86_64.cfg */
@@ -63,14 +61,6 @@ node('fedora') {
      * time, which will error out. */
     stage('Build RPM') {
         parallel (
-            'EPEL7': {
-                sh """
-                mkdir -p mock-result/el7
-                flock /etc/mock/epel-7-x86_64.cfg \
-                /usr/bin/mock -v --enable-network --resultdir=mock-result/el7 -r epel-7-x86_64 --clean --rebuild rpmbuild-output/*.src.rpm
-                """
-                archiveArtifacts artifacts: 'mock-result/el7/**'
-            },
             'F28': {
                 sh """
                 mkdir -p mock-result/f28

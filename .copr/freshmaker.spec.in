@@ -7,15 +7,8 @@ Group:      Development/Tools
 License:    MIT
 URL:        https://pagure.io/freshmaker
 Source0:    https://files.pythonhosted.org/packages/source/o/%{name}/%{name}-%{version}.tar.gz
-Patch0:     freshmaker-enum34-requirement.patch
 
-%if 0%{?rhel} && 0%{?rhel} <= 7
-# In EL7 we need flask which needs python-itsdangerous which comes from
-# rhel7-extras which is only available on x86_64 for now.
-ExclusiveArch: %{ix86} x86_64
-%else
 BuildArch:    noarch
-%endif
 
 BuildRequires:    fedmsg-hub
 BuildRequires:    help2man
@@ -41,22 +34,6 @@ BuildRequires:    git
 BuildRequires:    python-qpid-proton
 BuildRequires:    python2-tabulate
 
-%if 0%{?rhel} && 0%{?rhel} <= 7
-BuildRequires:    python-setuptools
-BuildRequires:    python-fedora
-BuildRequires:    python-flask
-BuildRequires:    python-flask-sqlalchemy
-BuildRequires:    python-mock
-BuildRequires:    python-nose
-BuildRequires:    python-psutil
-BuildRequires:    pytest
-BuildRequires:    pyOpenSSL
-BuildRequires:    python-six
-BuildRequires:    python-sqlalchemy
-BuildRequires:    koji
-BuildRequires:    python-psycopg2
-BuildRequires:    python-lxml
-%else
 BuildRequires:    python2-setuptools
 BuildRequires:    python2-fedora
 BuildRequires:    python2-flask
@@ -71,7 +48,6 @@ BuildRequires:    python2-sqlalchemy
 BuildRequires:    python2-koji
 BuildRequires:    python2-psycopg2
 BuildRequires:    python2-lxml
-%endif
 
 BuildRequires:    systemd
 %{?systemd_requires}
@@ -99,21 +75,6 @@ Requires:    git
 Requires:    python-qpid-proton
 Requires:    python2-tabulate
 
-%if 0%{?rhel} && 0%{?rhel} <= 7
-Requires:    python-fedora
-Requires:    python-flask
-Requires:    python-flask-migrate
-Requires:    python-flask-sqlalchemy
-Requires:    python-mock
-Requires:    python-psutil
-Requires:    pyOpenSSL
-Requires:    python-six
-Requires:    python-sqlalchemy
-Requires:    koji
-Requires:    systemd-python
-Requires:    python-psycopg2
-Requires:    python-lxml
-%else
 Requires:    python2-koji
 Requires:    python2-fedora
 Requires:    python2-flask
@@ -127,7 +88,6 @@ Requires:    python2-sqlalchemy
 Requires:    python2-systemd
 Requires:    python2-psycopg2
 Requires:    python2-lxml
-%endif
 
 
 %description
@@ -136,10 +96,6 @@ Freshmaker is a service scheduling rebuilds of artifacts as new content becomes 
 
 %prep
 %setup -q
-
-%if 0%{?rhel} && 0%{?rhel} <= 7
-%patch0 -p1 -b .enum34
-%endif
 
 sed -i '/ldap/d' requirements.txt
 sed -i '/koji/d' requirements.txt
