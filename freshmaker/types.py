@@ -36,29 +36,53 @@ class ArtifactType(Enum):
 
 class ArtifactBuildState(Enum):
 
-    def __init__(self, value, counter):
+    def __init__(self, value):
         self._value_ = value
-        self.counter = counter
 
-    BUILD = (0, None)
-    DONE = (1, freshmaker_artifact_build_done_counter)
-    FAILED = (2, freshmaker_artifact_build_failed_counter)
-    CANCELED = (3, freshmaker_artifact_build_canceled_counter)
-    PLANNED = (4, None)
+        counters = [
+            None,
+            freshmaker_artifact_build_done_counter,
+            freshmaker_artifact_build_failed_counter,
+            freshmaker_artifact_build_canceled_counter,
+            None
+        ]
+
+        if type(value) == int:
+            self.counter = counters[value]
+        else:
+            self.counter = None
+
+    BUILD = 0
+    DONE = 1
+    FAILED = 2
+    CANCELED = 3
+    PLANNED = 4
 
 
 class EventState(Enum):
 
-    def __init__(self, value, counter):
+    def __init__(self, value):
         self._value_ = value
-        self.counter = counter
 
-    INITIALIZED = (0, None)
+        counters = [
+            None,
+            None,
+            freshmaker_event_complete_counter,
+            freshmaker_event_failed_counter,
+            freshmaker_event_skipped_counter
+        ]
+
+        if type(value) == int:
+            self.counter = counters[value]
+        else:
+            self.counter = None
+
+    INITIALIZED = 0
     # some artifacts has been found and under building
-    BUILDING = (1, None)
+    BUILDING = 1
     # event is handled successfully
-    COMPLETE = (2, freshmaker_event_complete_counter)
+    COMPLETE = 2
     # error happens while handling the event
-    FAILED = (3, freshmaker_event_failed_counter)
+    FAILED = 3
     # no action to take upon the event
-    SKIPPED = (4, freshmaker_event_skipped_counter)
+    SKIPPED = 4

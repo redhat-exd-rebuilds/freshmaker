@@ -299,7 +299,8 @@ class Event(FreshmakerBase):
             return
 
         self.state = state
-        EventState(state).counter.inc()
+        if EventState(state).counter:
+            EventState(state).counter.inc()
         if state_reason is not None:
             self.state_reason = state_reason
 
@@ -495,7 +496,9 @@ class ArtifactBuild(FreshmakerBase):
             return
 
         self.state = state
-        ArtifactBuildState(state).counter.inc()
+        if ArtifactBuildState(state).counter:
+            ArtifactBuildState(state).counter.inc()
+
         self.state_reason = state_reason
         if self.state in [ArtifactBuildState.DONE.value,
                           ArtifactBuildState.FAILED.value,

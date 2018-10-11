@@ -22,6 +22,7 @@
 import fedmsg.config
 import mock
 import freshmaker
+import queue
 
 from freshmaker import app, db, events, models, login_manager
 from tests import helpers
@@ -50,24 +51,30 @@ class TestViews(helpers.ModelsTestCase):
 
     def test_monitor_api_structure(self):
         resp = self.client.get('/api/1/monitor/metrics/')
-        assert len([l.startswith('# TYPE')
-                    for l in resp.get_data(as_text=True).splitlines()]) == 104
-        assert len([l.startswith('# HELP')
-                    for l in resp.get_data(as_text=True).splitlines()]) == 104
+        self.assertEqual(
+            len([l.startswith('# TYPE')
+                 for l in resp.get_data(as_text=True).splitlines()]), 140)
+        self.assertEqual(
+            len([l.startswith('# HELP')
+                 for l in resp.get_data(as_text=True).splitlines()]), 140)
 
 
 class ConsumerTest(helpers.ModelsTestCase):
     def setUp(self):
+        super(ConsumerTest, self). setUp()
         self.client = app.test_client()
 
     def tearDown(self):
-        pass
+        super(ConsumerTest, self). tearDown()
 
     def _create_consumer(self):
         hub = mock.MagicMock()
         hub.config = fedmsg.config.load_config()
         hub.config['freshmakerconsumer'] = True
-        return freshmaker.consumer.FreshmakerConsumer(hub)
+        consumer = freshmaker.consumer.FreshmakerConsumer(hub)
+        # Cleanup the queue.
+        consumer.incoming = queue.Queue()
+        return consumer
 
     def _module_state_change_msg(self, state=None):
         msg = {'body': {
@@ -83,6 +90,14 @@ class ConsumerTest(helpers.ModelsTestCase):
 
         return msg
 
+    def _get_monitor_value(self, key):
+        resp = self.client.get('/api/1/monitor/metrics/')
+        for line in resp.get_data(as_text=True).splitlines():
+            k, v = line.split(" ")[:2]
+            if k == key:
+                return int(float(v))
+        return None
+
     @mock.patch("freshmaker.handlers.mbs.module_state_change.MBSModuleStateChangeHandler.handle")
     @mock.patch("freshmaker.consumer.get_global_consumer")
     def test_consumer_processing_message(self, global_consumer, handle):
@@ -95,11 +110,13 @@ class ConsumerTest(helpers.ModelsTestCase):
         global_consumer.return_value = consumer
         handle.return_value = [freshmaker.events.TestingEvent("ModuleBuilt handled")]
 
+        prev_counter_value = self._get_monitor_value("messaging_received_passed_total")
+
         msg = self._module_state_change_msg()
         consumer.consume(msg)
 
         event = consumer.incoming.get()
         self.assertEqual(event.msg_id, "ModuleBuilt handled")
 
-        resp = self.client.get('/api/1/monitor/metrics/')
-        assert 'messaging_received_passed 1.0' in resp.get_data(as_text=True).splitlines()
+        counter_value = self._get_monitor_value("messaging_received_passed_total")
+        self.assertEqual(prev_counter_value + 1, counter_value)
