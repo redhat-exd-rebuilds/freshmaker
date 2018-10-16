@@ -361,8 +361,12 @@ class ContainerImage(dict):
 
         prefix = "freshmaker-%s-%s-%s" % (namespace, name, commit)
         with temp_dir(prefix=prefix) as repodir:
-            clone_distgit_repo(namespace, name, repodir, commit=commit,
-                               ssh=False, logger=log)
+            try:
+                clone_distgit_repo(namespace, name, repodir, commit=commit,
+                                   ssh=False, logger=log)
+            except OSError as e:
+                self.log_error("Error while cloning dist-git repo: %s" % e)
+                return data
 
             content_sets_path = os.path.join(repodir, "content_sets.yml")
             if not os.path.exists(content_sets_path):

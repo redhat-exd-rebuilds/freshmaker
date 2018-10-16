@@ -171,6 +171,26 @@ class TestGetAdditionalDataFromDistGit(helpers.FreshmakerTestCase):
             helpers.AnyStringWith('freshmaker-rpms-foo-docker'),
             commit='commit', logger=log, ssh=False)
 
+    def test_generate_os_error(self):
+        self.clone_distgit_repo.side_effect = OSError(
+            "Got an error (128) from git: fatal: reference is not a tree: "
+            "4d42e2009cec70d871c65de821396cd750d523f1")
+
+        image = ContainerImage.create({"brew": {"build": "nvr"}})
+        ret = image._get_additional_data_from_distgit(
+            "rpms/foo-docker", "branch", "commit")
+        self.assertEqual(ret["generate_pulp_repos"], False)
+
+        self.assertEqual(
+            image["error"],
+            "Error while cloning dist-git repo: Got an error (128) from git: "
+            "fatal: reference is not a tree: 4d42e2009cec70d871c65de821396cd750d523f1")
+
+        self.clone_distgit_repo.assert_called_once_with(
+            'rpms', 'foo-docker',
+            helpers.AnyStringWith('freshmaker-rpms-foo-docker'),
+            commit='commit', logger=log, ssh=False)
+
     def test_generate_no_namespace(self):
         self.path_exists.return_value = True
         self.patched_open.side_effect = [
