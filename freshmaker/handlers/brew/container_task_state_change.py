@@ -62,6 +62,9 @@ class BrewContainerTaskStateChangeHandler(ContainerBuildHandler):
 
         if found_build is not None:
             self.set_context(found_build)
+            if found_build.event.state not in [EventState.INITIALIZED.value,
+                                               EventState.BUILDING.value]:
+                return
             # update build state in db
             if event.new_state == 'CLOSED':
                 # if build is triggered by an advisory, verify the container
