@@ -24,6 +24,7 @@
 import six
 from flask import request, jsonify
 from flask.views import MethodView
+from flask import g
 
 from freshmaker import app
 from freshmaker import messaging
@@ -272,6 +273,7 @@ class BuildAPI(MethodView):
         # to client sending this POST request. The client can then use the ID
         # to check for the event status.
         db_event = models.Event.get_or_create_from_event(db.session, event)
+        db_event.requester = g.user.username
         db.session.commit()
 
         # Forward the POST data (including the msg_id of the database event we
