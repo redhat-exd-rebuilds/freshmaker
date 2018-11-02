@@ -147,6 +147,10 @@ class Event(FreshmakerBase):
     time_created = db.Column(db.DateTime, nullable=True)
     # List of builds associated with this Event.
     builds = relationship("ArtifactBuild", back_populates="event")
+    # True if the even should be handled in dry run mode.
+    dry_run = db.Column(db.Boolean, default=False)
+    # For manual rebuilds, set to user requesting the rebuild. Otherwise null.
+    requester = db.Column(db.String, nullable=True)
 
     manual_triggered = db.Column(
         db.Boolean,
@@ -155,7 +159,7 @@ class Event(FreshmakerBase):
 
     @classmethod
     def create(cls, session, message_id, search_key, event_type, released=True,
-               state=None, manual=False):
+               state=None, manual=False, dry_run=False, requester=None):
         if event_type in EVENT_TYPES:
             event_type = EVENT_TYPES[event_type]
         now = datetime.utcnow()
@@ -167,6 +171,8 @@ class Event(FreshmakerBase):
             state=state or EventState.INITIALIZED.value,
             time_created=now,
             manual_triggered=manual,
+            dry_run=dry_run,
+            requester=requester,
         )
         session.add(event)
         return event
@@ -187,18 +193,19 @@ class Event(FreshmakerBase):
 
     @classmethod
     def get_or_create(cls, session, message_id, search_key, event_type,
-                      released=True, manual=False):
+                      released=True, manual=False, dry_run=False):
         instance = cls.get(session, message_id)
         if instance:
             return instance
         return cls.create(session, message_id, search_key, event_type,
-                          released=released, manual=manual)
+                          released=released, manual=manual, dry_run=dry_run)
 
     @classmethod
     def get_or_create_from_event(cls, session, event, released=True):
         return cls.get_or_create(session, event.msg_id,
                                  event.search_key, event.__class__,
-                                 released=released, manual=event.manual)
+                                 released=released, manual=event.manual,
+                                 dry_run=event.dry_run)
 
     @classmethod
     def get_unreleased(cls, session, states=None):
@@ -329,6 +336,8 @@ class Event(FreshmakerBase):
             "state_name": EventState(self.state).name,
             "state_reason": self.state_reason,
             "url": event_url,
+            "dry_run": self.dry_run,
+            "requester": self.requester,
             "builds": [b.json() for b in self.builds],
         }
 

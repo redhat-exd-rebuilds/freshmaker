@@ -479,10 +479,32 @@ class TestManualTriggerRebuild(helpers.ModelsTestCase):
             u'state': 0,
             u'state_name': u'INITIALIZED',
             u'state_reason': None,
-            u'url': u'/api/1/events/1'})
+            u'url': u'/api/1/events/1',
+            u'dry_run': False,
+            u'requester': 'tester1'})
         publish.assert_called_once_with(
             'manual.rebuild',
             {'msg_id': 'manual_rebuild_123', u'errata_id': 1})
+
+    @patch('freshmaker.messaging.publish')
+    @patch('freshmaker.parsers.internal.manual_rebuild.ErrataAdvisory.'
+           'from_advisory_id')
+    @patch('freshmaker.parsers.internal.manual_rebuild.time.time')
+    def test_manual_rebuild_dry_run(self, time, from_advisory_id, publish):
+        time.return_value = 123
+        from_advisory_id.return_value = ErrataAdvisory(
+            123, 'name', 'REL_PREP', ['rpm'])
+
+        resp = self.client.post('/api/1/builds/',
+                                data=json.dumps({'errata_id': 1, 'dry_run': True}),
+                                content_type='application/json')
+        data = json.loads(resp.get_data(as_text=True))
+
+        # Other fields are predictible.
+        self.assertEqual(data['dry_run'], True)
+        publish.assert_called_once_with(
+            'manual.rebuild',
+            {'msg_id': 'manual_rebuild_123', u'errata_id': 1, 'dry_run': True})
 
     @patch('freshmaker.parsers.internal.manual_rebuild.ErrataAdvisory.'
            'from_advisory_id')
