@@ -1124,8 +1124,10 @@ class LightBlue(object):
             images = self.find_images_with_included_srpms(
                 content_sets, srpm_names, repos, published)
         else:
+            # The `leaf_container_images` can contain unpublished container image,
+            # therefore set `published` to None.
             images = self.get_images_by_nvrs(
-                leaf_container_images, published, content_sets, srpm_names)
+                leaf_container_images, None, content_sets, srpm_names)
 
         # There can be multi-arch images which share the same
         # image['brew']['build']. Freshmaker is not interested in the image
@@ -1391,7 +1393,8 @@ class LightBlue(object):
             Freshmaker configuration.
         :param list leaf_container_images: List of NVRs of leaf images to
             consider for the rebuild. If not set, all images found in
-            Lightblue will be considered for rebuild.
+            Lightblue will be considered for rebuild. Note that `published`
+            is not respected when `leaf_container_images` are used.
         """
         images = self.find_images_with_packages_from_content_set(
             srpm_names, content_sets, filter_fnc, published, deprecated,
