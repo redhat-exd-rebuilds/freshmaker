@@ -29,7 +29,7 @@ import freshmaker
 
 from freshmaker import db
 from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
-from freshmaker.handlers import ContainerBuildHandler
+from freshmaker.handlers import ContainerBuildHandler, ODCSComposeNotReady
 from freshmaker.models import (
     ArtifactBuild, ArtifactBuildState, ArtifactBuildCompose,
     Compose, Event, EVENT_TYPES
@@ -37,6 +37,7 @@ from freshmaker.models import (
 from freshmaker.errors import UnprocessableEntity, ProgrammingError
 from freshmaker.types import ArtifactType, EventState
 from freshmaker.config import any_, all_
+from freshmaker.odcsclient import COMPOSE_STATES
 from tests import helpers
 
 
@@ -152,6 +153,7 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
             return {
                 "id": compose_id,
                 "result_repofile": "http://localhost/%d.repo" % compose_id,
+                "state": COMPOSE_STATES["done"],
             }
 
         self.patch_odcs_get_compose = patch(
@@ -224,6 +226,22 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
             'git://pkgs.fedoraproject.org/repo#hash', 'branch', 'target',
             arch_override='x86_64', compose_ids=[], isolated=True,
             koji_parent_build=None, release='2', repo_urls=repo_urls)
+
+    @patch("freshmaker.handlers.ContainerBuildHandler.build_container")
+    def test_build_image_artifact_build_repo_urls_compose_not_ready(
+            self, build_container):
+
+        def mocked_odcs_get_compose(compose_id):
+            return {
+                "id": compose_id,
+                "result_repofile": "http://localhost/%d.repo" % compose_id,
+                "state": COMPOSE_STATES["generating"],
+            }
+        self.odcs_get_compose.side_effect = mocked_odcs_get_compose
+
+        with self.assertRaises(ODCSComposeNotReady):
+            handler = MyHandler()
+            handler.build_image_artifact_build(self.build_1, ["http://localhost/x.repo"])
 
 
 class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):

@@ -323,6 +323,7 @@ class TestBatches(helpers.ModelsTestCase):
             "generate_pulp_repos": True,
             "arches": "x86_64",
             "odcs_compose_ids": [10, 11],
+            "published": False,
         })
 
     @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.create_odcs_client')
@@ -648,6 +649,71 @@ class TestPrepareYumRepo(helpers.ModelsTestCase):
             self.assertTrue(build.state_reason.endswith(
                 "of advisory 123 is the latest build in its candidate tag."))
 
+    def _get_fake_container_image(self):
+        return {
+            u'rpm_manifest': [
+                {u'rpms': [{u'architecture': u'noarch',
+                            u'gpg': u'199e2f91fd431d51',
+                            u'name': u'apache-commons-lang',
+                            u'nvra': u'apache-commons-lang-2.6-15.el7.noarch',
+                            u'release': u'15.el7',
+                            u'srpm_name': u'apache-commons-lang',
+                            u'srpm_nevra': u'apache-commons-lang-0:2.6-15.el7.src',
+                            u'summary': u'Provides a host of helper utilities for the java.lang API',
+                            u'version': u'2.6'},
+                           {u'architecture': u'noarch',
+                            u'gpg': u'199e2f91fd431d51',
+                            u'name': u'avalon-logkit',
+                            u'nvra': u'avalon-logkit-2.1-14.el7.noarch',
+                            u'release': u'14.el7',
+                            u'srpm_name': u'avalon-logkit',
+                            u'srpm_nevra': u'avalon-logkit-0:2.1-14.el7.src',
+                            u'summary': u'Java logging toolkit',
+                            u'version': u'2.1'}]}]}
+
+    @patch('freshmaker.handlers.errata.errata_advisory_rpms_signed.'
+           'create_odcs_client')
+    @patch('time.sleep')
+    def test_prepare_odcs_compose_with_image_rpms(
+            self, sleep, create_odcs_client):
+        odcs = create_odcs_client.return_value
+        odcs.new_compose.return_value = {
+            "id": 3,
+            "result_repo": "http://localhost/composes/latest-odcs-3-1/compose/Temporary",
+            "result_repofile": "http://localhost/composes/latest-odcs-3-1/compose/Temporary/odcs-3.repo",
+            "source": "f26",
+            "source_type": 1,
+            "state": 0,
+            "state_name": "wait",
+        }
+
+        image = self._get_fake_container_image()
+
+        handler = ErrataAdvisoryRPMsSignedHandler()
+        compose = handler._prepare_odcs_compose_with_image_rpms(image)
+
+        db.session.refresh(self.ev)
+        self.assertEqual(3, compose['id'])
+
+        # Ensure new_compose is called to request a new compose
+        odcs.new_compose.assert_called_once_with(
+            '', 'build', builds=set(['avalon-logkit-2.1-14.el7', 'apache-commons-lang-2.6-15.el7']),
+            flags=['no_deps'], packages=set([u'avalon-logkit', u'apache-commons-lang']), sigkeys=[])
+
+    def test_prepare_odcs_compose_with_image_rpms_no_rpm_manifest(self):
+        handler = ErrataAdvisoryRPMsSignedHandler()
+
+        compose = handler._prepare_odcs_compose_with_image_rpms({})
+        self.assertEqual(compose, None)
+
+        compose = handler._prepare_odcs_compose_with_image_rpms(
+            {"rpm_manifest": []})
+        self.assertEqual(compose, None)
+
+        compose = handler._prepare_odcs_compose_with_image_rpms(
+            {"rpm_manifest": [{"rpms": []}]})
+        self.assertEqual(compose, None)
+
 
 class TestErrataAdvisoryStateChangedHandler(helpers.ModelsTestCase):
 
@@ -894,6 +960,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "generate_pulp_repos": True,
                 "arches": "x86_64",
                 "odcs_compose_ids": None,
+                "published": False,
             })],
             [ContainerImage({
                 "brew": {
@@ -937,6 +1004,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "generate_pulp_repos": True,
                 "arches": "x86_64",
                 "odcs_compose_ids": None,
+                "published": False,
             })]
         ]
 
@@ -983,6 +1051,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "generate_pulp_repos": False,
                 "arches": "x86_64",
                 "odcs_compose_ids": None,
+                "published": False,
             })]
         ]
 
@@ -1019,7 +1088,8 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "commit": "123456789",
                 "target": "target-candidate",
                 "git_branch": "rhel-7",
-                "error": None
+                "error": None,
+                "published": False,
             })],
             [ContainerImage({
                 "brew": {
@@ -1059,7 +1129,8 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "commit": "987654321",
                 "target": "target-candidate",
                 "git_branch": "rhel-7",
-                "error": None
+                "error": None,
+                "published": False,
             })]
         ]
 
@@ -1114,6 +1185,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "arches": "x86_64",
                 "generate_pulp_repos": True,
                 "odcs_compose_ids": None,
+                "published": False,
             })],
             [ContainerImage({
                 "brew": {
@@ -1157,6 +1229,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "arches": "x86_64",
                 "generate_pulp_repos": True,
                 "odcs_compose_ids": None,
+                "published": False,
             })]
         ]
 
@@ -1203,6 +1276,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "error": "Some error occurs while getting this image.",
                 "arches": "x86_64",
                 "odcs_compose_ids": None,
+                "published": False,
             })]
         ]
 
@@ -1239,6 +1313,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "error": "Some error occurs while getting this image.",
                 "arches": "x86_64",
                 "odcs_compose_ids": None,
+                "published": False,
             })]
         ]
 
@@ -1275,6 +1350,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "error": "Some error occured.",
                 "arches": "x86_64",
                 "odcs_compose_ids": None,
+                "published": False,
             })],
             [ContainerImage({
                 "brew": {
@@ -1317,6 +1393,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "error": "Some error occured too.",
                 "arches": "x86_64",
                 "odcs_compose_ids": None,
+                "published": False,
             })]
         ]
 
@@ -1357,6 +1434,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "error": "Some error occured.",
                 "arches": "x86_64",
                 "odcs_compose_ids": None,
+                "published": False,
             })],
         ]
 

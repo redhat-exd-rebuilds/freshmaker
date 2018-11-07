@@ -39,6 +39,14 @@ from freshmaker.odcsclient import create_odcs_client
 from freshmaker.odcsclient import COMPOSE_STATES
 
 
+class ODCSComposeNotReady(Exception):
+    """
+    Raised when ODCS compose is still generating and therefore not ready
+    to be used to build an image.
+    """
+    pass
+
+
 def fail_event_on_handler_exception(func):
     """
     Decorator which marks the models.Event associated with handler by
@@ -196,7 +204,8 @@ class BaseHandler(object):
         elif type(db_object) == ArtifactBuild:
             self._db_event_id = db_object.event.id
             self._db_artifact_build_id = db_object.id
-            self._log_prefix = "%s: " % str(db_object.event)
+            # Prefix logs with "<models.Event> (<models.ArtifactBuild>):".
+            self._log_prefix = "%s (%s): " % (str(db_object.event), str(db_object))
         else:
             raise ProgrammingError(
                 "Unsupported context type passed to BaseHandler.set_context()")
@@ -480,9 +489,28 @@ class ContainerBuildHandler(BaseHandler):
         # cases, we want to convert compose_ids to repository URLs. Otherwise,
         # just pass compose_ids to OSBS via Koji.
         if repo_urls:
-            repo_urls += [self.odcs_get_compose(
-                compose_id)['result_repofile']
-                for compose_id in compose_ids]
+            for compose_id in compose_ids:
+                odcs_compose = self.odcs_get_compose(compose_id)
+                if odcs_compose["state"] in [COMPOSE_STATES['wait'],
+                                             COMPOSE_STATES['generating']]:
+                    # In case the ODCS compose is still generating, raise an
+                    # exception.
+                    msg = ("Compose %s is not in done state. Waiting with "
+                           "rebuild." % (str(compose_id)))
+                    self.log_info(msg)
+                    raise ODCSComposeNotReady(msg)
+                elif odcs_compose["state"] != COMPOSE_STATES["done"]:
+                    # In case the compose is not in 'done' state, mark the
+                    # build as failed. We should never get expired here,
+                    # because the compose has been submitted just a minutes
+                    # ago. If we get "expired" here, it is sign of an issue,
+                    # because that means we are trying to build quite old
+                    # image.
+                    build.transition(
+                        ArtifactBuildState.FAILED.value,
+                        "Compose %s is not in 'done' state." % str(compose_id))
+                    return
+                repo_urls.append(odcs_compose["result_repofile"])
             compose_ids = []
 
         return self.build_container(
@@ -538,7 +566,12 @@ class ContainerBuildHandler(BaseHandler):
         def build_image(build):
             self.set_context(build)
             repo_urls = self.get_repo_urls(build)
-            build.build_id = self.build_image_artifact_build(build, repo_urls)
+            try:
+                build.build_id = self.build_image_artifact_build(build, repo_urls)
+            except ODCSComposeNotReady:
+                # We skip this image for now. It will be built once the ODCS
+                # compose is finished.
+                return
             if build.build_id:
                 build.transition(
                     ArtifactBuildState.BUILD.value,
