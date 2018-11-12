@@ -12,7 +12,7 @@ COPY $freshmaker_rpm /tmp
 RUN cd /etc/yum.repos.d/ \
     && curl -O --insecure http://download-ipv4.eng.brq.redhat.com/rel-eng/RCMTOOLS/rcm-tools-fedora.repo \
     && dnf -y install \
-    httpd mod_wsgi mod_auth_gssapi python2-rhmsg \
+    httpd mod_wsgi mod_auth_gssapi python2-rhmsg mod_ssl \
     /tmp/$(basename $freshmaker_rpm) \
     && dnf -y clean all \
     && rm -f /tmp/*
