@@ -95,6 +95,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
             },
             "generate_pulp_repos": True,
             "odcs_compose_ids": None,
+            "published": False,
         })
         self.image_b = ContainerImage({
             'repository': 'repo_2',
@@ -115,6 +116,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
             },
             "generate_pulp_repos": True,
             "odcs_compose_ids": None,
+            "published": False,
         })
         self.image_c = ContainerImage({
             'repository': 'repo_2',
@@ -136,6 +138,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
             },
             "generate_pulp_repos": True,
             "odcs_compose_ids": None,
+            "published": False,
         })
         self.image_d = ContainerImage({
             'repository': 'repo_2',
@@ -157,6 +160,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
             },
             "generate_pulp_repos": True,
             "odcs_compose_ids": None,
+            "published": False,
         })
         self.image_e = ContainerImage({
             'repository': 'repo_2',
@@ -178,6 +182,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
             },
             "generate_pulp_repos": True,
             "odcs_compose_ids": None,
+            "published": False,
         })
         self.image_f = ContainerImage({
             'repository': 'repo_2',
@@ -199,6 +204,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
             },
             "generate_pulp_repos": True,
             "odcs_compose_ids": None,
+            "published": False,
         })
         # For simplicify, mocking _find_images_to_rebuild to just return one
         # batch, which contains images found for rebuild from parent to
@@ -375,7 +381,7 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
         handler.handle(self.rhsa_event)
 
         prepare_yum_repos_for_rebuilds.assert_called_once()
-        start_to_build_images.assert_not_called()
+        start_to_build_images.assert_called_once()
 
         db_event = Event.get(db.session, self.rhsa_event.msg_id)
         self.assertEqual(EventState.BUILDING.value, db_event.state)

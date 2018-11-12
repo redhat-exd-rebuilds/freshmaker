@@ -25,6 +25,7 @@
 import json
 import koji
 import requests
+import kobo.rpmlib
 
 from six.moves import cStringIO
 from six.moves import configparser
@@ -136,16 +137,11 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
 
         # Log what we are going to rebuild
         self._check_images_to_rebuild(db_event, builds)
-
-        if event.advisory.state == 'SHIPPED_LIVE':
-            # As mentioned above, no need to wait for the event of new compose
-            # is generated in ODCS, so we can start to rebuild the first batch
-            # from here immediately.
-            self.start_to_build_images(
-                db_event.get_image_builds_in_first_batch(db.session))
+        self.start_to_build_images(
+            db_event.get_image_builds_in_first_batch(db.session))
 
         msg = ('Waiting for composes to finish in order to start to '
-               'schedule base images for rebuild.')
+               'schedule images for rebuild.')
         db_event.transition(EventState.BUILDING, msg)
 
         return []
@@ -311,6 +307,53 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         else:
             new_compose = self._fake_odcs_new_compose(
                 content_sets, 'pulp')
+
+        return new_compose
+
+    def _prepare_odcs_compose_with_image_rpms(self, image):
+        """
+        Request a compose from ODCS for builds included in Errata advisory
+
+        Run a compose in ODCS to contain required RPMs for rebuilding images
+        later.
+
+        :param dict image: Container image representation as returned by
+            LightBlue class.
+        :return: a mapping returned from ODCS that represents the request
+            compose.
+        :rtype: dict
+        """
+
+        if not image.get('rpm_manifest'):
+            self.log_warn('"rpm_manifest" not set in image.')
+            return
+
+        rpm_manifest = image["rpm_manifest"][0]
+        if not rpm_manifest.get('rpms'):
+            return
+
+        builds = set()
+        packages = set()
+        for rpm in rpm_manifest["rpms"]:
+            parsed_nvr = kobo.rpmlib.parse_nvra(rpm["srpm_nevra"])
+            srpm_nvr = "%s-%s-%s" % (parsed_nvr["name"], parsed_nvr["version"],
+                                     parsed_nvr["release"])
+            builds.add(srpm_nvr)
+            parsed_nvr = kobo.rpmlib.parse_nvra(rpm["nvra"])
+            packages.add(parsed_nvr["name"])
+
+        if not self.dry_run:
+            with krb_context():
+                new_compose = create_odcs_client().new_compose(
+                    "", 'build', packages=packages, builds=builds,
+                    sigkeys=conf.odcs_sigkeys, flags=["no_deps"])
+        else:
+            new_compose = self._fake_odcs_new_compose(
+                "", 'build', packages=packages,
+                builds=builds)
+
+        self.log_info("Started generating ODCS 'build' type compose %d." % (
+            new_compose["id"]))
 
         return new_compose
 
@@ -491,6 +534,9 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
             stored into database.
         :rtype: dict
         """
+        db_event = Event.get_or_create(
+            db.session, event.msg_id, event.search_key, event.__class__)
+
         # Used as tmp dict with {brew_build_nvr: ArtifactBuild, ...} mapping.
         builds = builds or {}
 
@@ -500,6 +546,10 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
 
         for batch in batches:
             for image in batch:
+                # Reset context to db_event for each iteration before
+                # the ArtifactBuild is created.
+                self.set_context(db_event)
+
                 nvr = image["brew"]["build"]
                 if nvr in builds:
                     self.log_debug("Skipping recording build %s, "
@@ -539,6 +589,10 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                     original_nvr=nvr,
                     rebuilt_nvr=rebuilt_nvr)
 
+                # Set context to particular build so logging shows this build
+                # in case of error.
+                self.set_context(build)
+
                 build.transition(state, state_reason)
 
                 build_args = {}
@@ -577,6 +631,18 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                             build.add_composes(db.session, [db_compose])
                             db.session.commit()
 
+                    # Unpublished images can contain unreleased RPMs, so generate
+                    # the ODCS compose with all the RPMs in the image to allow
+                    # installation of possibly unreleased RPMs.
+                    if not image["published"]:
+                        compose = self._prepare_odcs_compose_with_image_rpms(image)
+                        if compose:
+                            db_compose = Compose(odcs_compose_id=compose['id'])
+                            db.session.add(db_compose)
+                            db.session.commit()
+                            build.add_composes(db.session, [db_compose])
+                            db.session.commit()
+
                     # TODO: uncomment following code after boot.iso compose is
                     # deployed in ODCS server.
 #                    if image.is_base_image:
@@ -597,6 +663,9 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
 #                            build.add_composes(db.session, [db_compose])
 
                 builds[nvr] = build
+
+        # Reset context to db_event.
+        self.set_context(db_event)
 
         return builds
 
