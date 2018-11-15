@@ -299,8 +299,8 @@ class TestPrepareYumRepo(helpers.ModelsTestCase):
 
         # Ensure new_compose is called to request a new compose
         odcs.new_compose.assert_called_once_with(
-            '', 'build', builds=set(['avalon-logkit-2.1-14.el7', 'apache-commons-lang-2.6-15.el7']),
-            flags=['no_deps'], packages=set([u'avalon-logkit', u'apache-commons-lang']), sigkeys=[])
+            '', 'build', builds=['avalon-logkit-2.1-14.el7', 'apache-commons-lang-2.6-15.el7'],
+            flags=['no_deps'], packages=[u'avalon-logkit', u'apache-commons-lang'], sigkeys=[])
 
     def _create_consumer(self):
         hub = MagicMock()

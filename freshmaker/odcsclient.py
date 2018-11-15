@@ -362,6 +362,11 @@ class FreshmakerODCSClient(object):
             parsed_nvr = kobo.rpmlib.parse_nvra(rpm["nvra"])
             packages.add(parsed_nvr["name"])
 
+        # ODCS client expects list and not set for packages/builds, so convert
+        # them to lists.
+        builds = list(builds)
+        packages = list(packages)
+
         if not self.handler.dry_run:
             with krb_context():
                 new_compose = create_odcs_client().new_compose(
