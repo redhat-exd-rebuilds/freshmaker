@@ -15,7 +15,7 @@ RUN cd /etc/yum.repos.d/ \
     httpd mod_wsgi mod_auth_gssapi python2-rhmsg mod_ssl \
     /tmp/$(basename $freshmaker_rpm) \
     && dnf -y clean all \
-    && pip install odcs[client] \
+    && pip install --upgrade odcs[client] \
     && rm -f /tmp/*
 
 RUN if [ "$cacert_url" != "undefined" ]; then \
