@@ -35,7 +35,7 @@ from freshmaker.types import EventState
 from freshmaker.models import ArtifactBuild, Event
 from freshmaker.utils import krb_context, get_rebuilt_nvr
 from freshmaker.errors import UnprocessableEntity, ProgrammingError
-from freshmaker.odcsclient import create_odcs_client
+from freshmaker.odcsclient import create_odcs_client, FreshmakerODCSClient
 from freshmaker.odcsclient import COMPOSE_STATES
 
 
@@ -124,6 +124,7 @@ class BaseHandler(object):
         self._db_artifact_build_id = None
         self._log_prefix = ""
         self._force_dry_run = False
+        self.odcs = FreshmakerODCSClient(self)
 
     def _log(self, log_fnc, msg, *args, **kwargs):
         """

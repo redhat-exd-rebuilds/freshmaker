@@ -25,14 +25,12 @@
 import json
 import koji
 import requests
-import kobo.rpmlib
 
 from six.moves import cStringIO
 from six.moves import configparser
 
 from freshmaker import conf, db, log
 from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
-from freshmaker.events import ODCSComposeStateChangeEvent
 from freshmaker.events import ManualRebuildWithAdvisoryEvent
 from freshmaker.handlers import ContainerBuildHandler, fail_event_on_handler_exception
 from freshmaker.kojiservice import koji_service
@@ -41,12 +39,7 @@ from freshmaker.pulp import Pulp
 from freshmaker.errata import Errata
 from freshmaker.types import ArtifactType, ArtifactBuildState, EventState
 from freshmaker.models import Event, Compose
-from freshmaker.consumer import work_queue_put
-from freshmaker.utils import (
-    krb_context, retry, get_rebuilt_nvr)
-from freshmaker.odcsclient import create_odcs_client
-
-from odcs.common.types import COMPOSE_STATES
+from freshmaker.utils import get_rebuilt_nvr
 
 
 class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
@@ -56,9 +49,6 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
     """
 
     name = 'ErrataAdvisoryRPMsSignedHandler'
-
-    # Used to generate incremental compose id in dry run mode.
-    _FAKE_COMPOSE_ID = 0
 
     def can_handle(self, event):
         return isinstance(event, ErrataAdvisoryRPMsSignedEvent)
@@ -129,7 +119,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
             # available from official YUM repositories.
             #
             # Generate the ODCS compose with RPMs from the current advisory.
-            repo_urls = self._prepare_yum_repos_for_rebuilds(db_event)
+            repo_urls = self.odcs.prepare_yum_repos_for_rebuilds(db_event)
             self.log_info(
                 "Following repositories will be used for the rebuild:")
             for url in repo_urls:
@@ -145,217 +135,6 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         db_event.transition(EventState.BUILDING, msg)
 
         return []
-
-    def _fake_odcs_new_compose(
-            self, compose_source, tag, packages=None, results=[]):
-        """
-        Fake KojiSession.buildContainer method used dry run mode.
-
-        Logs the arguments and emits ErrataAdvisoryRPMsSignedHandler of
-        "done" state.
-
-        :rtype: dict
-        :return: Fake odcs.new_compose dict.
-        """
-        self.log_info("DRY RUN: Calling fake odcs.new_compose with args: %r",
-                      (compose_source, tag, packages, results))
-
-        # Generate the new_compose dict.
-        ErrataAdvisoryRPMsSignedHandler._FAKE_COMPOSE_ID -= 1
-        new_compose = {}
-        new_compose['id'] = ErrataAdvisoryRPMsSignedHandler._FAKE_COMPOSE_ID
-        new_compose['result_repofile'] = "http://localhost/%d.repo" % (
-            new_compose['id'])
-        new_compose['state'] = COMPOSE_STATES['done']
-        if results:
-            new_compose['results'] = ['boot.iso']
-
-        # Generate and inject the ODCSComposeStateChangeEvent event.
-        event = ODCSComposeStateChangeEvent(
-            "fake_compose_msg", new_compose)
-        event.dry_run = True
-        self.log_info("Injecting fake event: %r", event)
-        work_queue_put(event)
-
-        return new_compose
-
-    def _prepare_yum_repos_for_rebuilds(self, db_event):
-        repo_urls = []
-        db_composes = []
-
-        compose = self._prepare_yum_repo(db_event)
-        db_composes.append(Compose(odcs_compose_id=compose['id']))
-        db.session.add(db_composes[-1])
-        repo_urls.append(compose['result_repofile'])
-
-        for dep_event in db_event.find_dependent_events():
-            compose = self._prepare_yum_repo(dep_event)
-            db_composes.append(Compose(odcs_compose_id=compose['id']))
-            db.session.add(db_composes[-1])
-            repo_urls.append(compose['result_repofile'])
-
-        # commit all new composes
-        db.session.commit()
-
-        for build in db_event.builds:
-            build.add_composes(db.session, db_composes)
-        db.session.commit()
-
-        # Remove duplicates from repo_urls.
-        return list(set(repo_urls))
-
-    def _prepare_yum_repo(self, db_event):
-        """
-        Request a compose from ODCS for builds included in Errata advisory
-
-        Run a compose in ODCS to contain required RPMs for rebuilding images
-        later.
-
-        :param Event db_event: current event being handled that contains errata
-            advisory to get builds containing updated RPMs.
-        :return: a mapping returned from ODCS that represents the request
-            compose.
-        :rtype: dict
-        """
-        errata_id = int(db_event.search_key)
-
-        packages = []
-        errata = Errata()
-        builds = errata.get_builds(errata_id)
-        compose_source = None
-        for nvr in builds:
-            packages += self._get_packages_for_compose(nvr)
-            source = self._get_compose_source(nvr)
-            if compose_source and compose_source != source:
-                # TODO: Handle this by generating two ODCS composes
-                db_event.builds_transition(
-                    ArtifactBuildState.FAILED.value, "Packages for errata "
-                    "advisory %d found in multiple different tags."
-                    % (errata_id))
-                return
-            else:
-                compose_source = source
-
-        if compose_source is None:
-            db_event.builds_transition(
-                ArtifactBuildState.FAILED.value, 'None of builds %s of '
-                'advisory %d is the latest build in its candidate tag.'
-                % (builds, errata_id))
-            return
-
-        self.log_info('Generating new compose for rebuild: '
-                      'source: %s, source type: %s, packages: %s',
-                      compose_source, 'tag', packages)
-
-        if not self.dry_run:
-            with krb_context():
-                new_compose = create_odcs_client().new_compose(
-                    compose_source, 'tag', packages=packages,
-                    sigkeys=conf.odcs_sigkeys, flags=["no_deps"])
-        else:
-            new_compose = self._fake_odcs_new_compose(
-                compose_source, 'tag', packages=packages)
-
-        return new_compose
-
-    def _prepare_pulp_repo(self, build, content_sets):
-        """
-        Prepares .repo file containing the repositories matching
-        the content_sets by creating new ODCS compose of PULP type.
-
-        This currently blocks until the compose is done or failed.
-
-        :param build: models.ModuleBuild instance associated with this compose.
-        :param list content_sets: List of content sets.
-        :rtype: dict
-        :return: ODCS compose dictionary.
-        """
-        self.log_info('Generating new PULP type compose for content_sets: %r',
-                      content_sets)
-
-        odcs = create_odcs_client()
-        if not self.dry_run:
-            with krb_context():
-                new_compose = odcs.new_compose(
-                    ' '.join(content_sets), 'pulp')
-
-                # Pulp composes in ODCS takes just few seconds, because ODCS
-                # only generates the .repo file after single query to Pulp.
-                # TODO: Freshmaker is currently not designed to handle
-                # multiple ODCS composes per rebuild Event and since these
-                # composes are done in no-time normally, it is OK here to
-                # block. It would still be nice to redesign that part of
-                # Freshmaker to do things "right".
-                # This is tracked here: https://pagure.io/freshmaker/issue/114
-                @retry(timeout=60, interval=2)
-                def wait_for_compose(compose_id):
-                    ret = odcs.get_compose(compose_id)
-                    if ret["state_name"] == "done":
-                        return True
-                    elif ret["state_name"] == "failed":
-                        return False
-                    self.log_info("Waiting for Pulp compose to finish: %r",
-                                  ret)
-                    raise Exception("ODCS compose not finished.")
-
-                done = wait_for_compose(new_compose["id"])
-                if not done:
-                    build.transition(
-                        ArtifactBuildState.FAILED.value, "Cannot generate "
-                        "ODCS PULP compose %s for content_sets %r"
-                        % (str(new_compose["id"]), content_sets))
-        else:
-            new_compose = self._fake_odcs_new_compose(
-                content_sets, 'pulp')
-
-        return new_compose
-
-    def _prepare_odcs_compose_with_image_rpms(self, image):
-        """
-        Request a compose from ODCS for builds included in Errata advisory
-
-        Run a compose in ODCS to contain required RPMs for rebuilding images
-        later.
-
-        :param dict image: Container image representation as returned by
-            LightBlue class.
-        :return: a mapping returned from ODCS that represents the request
-            compose.
-        :rtype: dict
-        """
-
-        if not image.get('rpm_manifest'):
-            self.log_warn('"rpm_manifest" not set in image.')
-            return
-
-        rpm_manifest = image["rpm_manifest"][0]
-        if not rpm_manifest.get('rpms'):
-            return
-
-        builds = set()
-        packages = set()
-        for rpm in rpm_manifest["rpms"]:
-            parsed_nvr = kobo.rpmlib.parse_nvra(rpm["srpm_nevra"])
-            srpm_nvr = "%s-%s-%s" % (parsed_nvr["name"], parsed_nvr["version"],
-                                     parsed_nvr["release"])
-            builds.add(srpm_nvr)
-            parsed_nvr = kobo.rpmlib.parse_nvra(rpm["nvra"])
-            packages.add(parsed_nvr["name"])
-
-        if not self.dry_run:
-            with krb_context():
-                new_compose = create_odcs_client().new_compose(
-                    "", 'build', packages=packages, builds=builds,
-                    sigkeys=conf.odcs_sigkeys, flags=["no_deps"])
-        else:
-            new_compose = self._fake_odcs_new_compose(
-                "", 'build', packages=packages,
-                builds=builds)
-
-        self.log_info("Started generating ODCS 'build' type compose %d." % (
-            new_compose["id"]))
-
-        return new_compose
 
     def _get_base_image_build_target(self, image):
         dockerfile = image.dockerfile
@@ -382,88 +161,6 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         except (configparser.NoOptionError, configparser.NoSectionError):
             log.exception('image-build.conf does not have option target.')
             return None
-
-    def _get_base_image_build_tag(self, build_target):
-        with koji_service(
-                conf.koji_profile, log, dry_run=self.dry_run) as session:
-            target_info = session.get_build_target(build_target)
-            if target_info is None:
-                return target_info
-            else:
-                return target_info['build_tag_name']
-
-    def _request_boot_iso_compose(self, image):
-        """Request boot.iso compose for base image"""
-        target = self._get_base_image_build_target(image)
-        if not target:
-            return None
-        build_tag = self._get_base_image_build_tag(target)
-        if not build_tag:
-            return None
-
-        if self.dry_run:
-            new_compose = self._fake_odcs_new_compose(
-                build_tag, 'tag', results=['boot.iso'])
-        else:
-            with krb_context():
-                new_compose = create_odcs_client().new_compose(
-                    build_tag, 'tag', results=['boot.iso'])
-        return new_compose
-
-    def _get_packages_for_compose(self, nvr):
-        """Get RPMs of current build NVR
-
-        :param str nvr: build NVR.
-        :return: list of RPM names built from given build.
-        :rtype: list
-        """
-        with koji_service(
-                conf.koji_profile, log, dry_run=self.dry_run) as session:
-            rpms = session.get_build_rpms(nvr)
-        return list(set([rpm['name'] for rpm in rpms]))
-
-    def _get_compose_source(self, nvr):
-        """Get tag from which to collect packages to compose
-        :param str nvr: build NVR used to find correct tag.
-        :return: found tag. None is returned if build is not the latest build
-            of found tag.
-        :rtype: str
-        """
-        with koji_service(
-                conf.koji_profile, log, dry_run=self.dry_run) as service:
-            # Get the list of *-candidate tags, because packages added into
-            # Errata should be tagged into -candidate tag.
-            tags = service.session.listTags(nvr)
-            candidate_tags = [tag['name'] for tag in tags
-                              if tag['name'].endswith('-candidate')]
-
-            # Candidate tags may include unsigned packages and ODCS won't
-            # allow generating compose from them, so try to find out final
-            # version of candidate tag (without the "-candidate" suffix).
-            final_tags = []
-            for candidate_tag in candidate_tags:
-                final = candidate_tag[:-len("-candidate")]
-                final_tags += [tag['name'] for tag in tags
-                               if tag['name'] == final]
-
-            # Prefer final tags over candidate tags.
-            tags_to_try = final_tags + candidate_tags
-            for tag in tags_to_try:
-                latest_build = service.session.listTagged(
-                    tag,
-                    latest=True,
-                    package=koji.parse_NVR(nvr)['name'])
-                if latest_build and latest_build[0]['nvr'] == nvr:
-                    self.log_info("Package %r is latest version in tag %r, "
-                                  "will use this tag", nvr, tag)
-                    return tag
-                elif not latest_build:
-                    self.log_info("Could not find package %r in tag %r, "
-                                  "skipping this tag", nvr, tag)
-                else:
-                    self.log_info("Package %r is not he latest in the tag %r ("
-                                  "latest is %r), skipping this tag",
-                                  nvr, tag, latest_build[0]['nvr'])
 
     def _check_images_to_rebuild(self, db_event, builds):
         """
@@ -616,7 +313,7 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                         if cache_key in odcs_cache:
                             db_compose = odcs_cache[cache_key]
                         else:
-                            compose = self._prepare_pulp_repo(
+                            compose = self.odcs.prepare_pulp_repo(
                                 build, image["content_sets"])
 
                             if build.state != ArtifactBuildState.FAILED.value:
@@ -635,32 +332,13 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
                     # the ODCS compose with all the RPMs in the image to allow
                     # installation of possibly unreleased RPMs.
                     if not image["published"]:
-                        compose = self._prepare_odcs_compose_with_image_rpms(image)
+                        compose = self.odcs.prepare_odcs_compose_with_image_rpms(image)
                         if compose:
                             db_compose = Compose(odcs_compose_id=compose['id'])
                             db.session.add(db_compose)
                             db.session.commit()
                             build.add_composes(db.session, [db_compose])
                             db.session.commit()
-
-                    # TODO: uncomment following code after boot.iso compose is
-                    # deployed in ODCS server.
-#                    if image.is_base_image:
-#                        compose = self._request_boot_iso_compose(image)
-#                        if compose is None:
-#                            log.error(
-#                                'Failed to request boot.iso compose for base '
-#                                'image %s.', nvr)
-#                            build.transition(
-#                                ArtifactBuildState.FAILED.value,
-#                                'Cannot rebuild this base image because failed to '
-#                                'requeset boot.iso compose.')
-#                            # FIXME: mark all builds associated with build.event FAILED?
-#                        else:
-#                            db_compose = Compose(odcs_compose_id=compose['id'])
-#                            db.session.add(db_compose)
-#                            db.session.commit()
-#                            build.add_composes(db.session, [db_compose])
 
                 builds[nvr] = build
 
