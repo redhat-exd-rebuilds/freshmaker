@@ -298,6 +298,7 @@ class TestBatches(helpers.ModelsTestCase):
             'freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler.')
 
     def tearDown(self):
+        super(TestBatches, self).tearDown()
         self.patcher.unpatch_all()
 
     def _mock_build(self, build, parent=None, error=None):

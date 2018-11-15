@@ -20,17 +20,21 @@
 # SOFTWARE.
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
+#            Jan kaluza <jkaluza@redhat.com>
 
+import fedmsg
 import six
+import queue
 
-from mock import patch, Mock
+from mock import patch, Mock, MagicMock
 from odcs.client.odcs import AuthMech
 
 from freshmaker import conf, db
-from freshmaker.models import Event, ArtifactBuild
+from freshmaker.models import Event, ArtifactBuild, Compose
 from freshmaker.odcsclient import create_odcs_client
 from freshmaker.types import ArtifactBuildState, EventState, ArtifactType
 from freshmaker.handlers import ContainerBuildHandler
+from freshmaker.consumer import FreshmakerConsumer
 from tests import helpers
 
 
@@ -297,6 +301,34 @@ class TestPrepareYumRepo(helpers.ModelsTestCase):
         odcs.new_compose.assert_called_once_with(
             '', 'build', builds=set(['avalon-logkit-2.1-14.el7', 'apache-commons-lang-2.6-15.el7']),
             flags=['no_deps'], packages=set([u'avalon-logkit', u'apache-commons-lang']), sigkeys=[])
+
+    def _create_consumer(self):
+        hub = MagicMock()
+        hub.config = fedmsg.config.load_config()
+        hub.config['freshmakerconsumer'] = True
+        consumer = FreshmakerConsumer(hub)
+        consumer.incoming = queue.Queue()
+        return consumer
+
+    @patch("freshmaker.consumer.get_global_consumer")
+    def test_prepare_odcs_compose_with_image_rpms_dry_run(self, global_consumer):
+        consumer = self._create_consumer()
+        global_consumer.return_value = consumer
+        image = self._get_fake_container_image()
+
+        # Run multiple times, so we can verify that id of fake compose is set
+        # properly and is not repeating.
+        for i in range(1, 3):
+            handler = MyHandler()
+            handler.force_dry_run()
+            compose = handler.odcs.prepare_odcs_compose_with_image_rpms(image)
+            db_compose = Compose(odcs_compose_id=compose['id'])
+            db.session.add(db_compose)
+            db.session.commit()
+
+            self.assertEqual(-i, compose['id'])
+            event = consumer.incoming.get()
+            self.assertEqual(event.msg_id, "fake_compose_msg")
 
     def test_prepare_odcs_compose_with_image_rpms_no_rpm_manifest(self):
         handler = MyHandler()

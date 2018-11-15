@@ -313,23 +313,6 @@ class TestErrataAdvisoryRPMsSignedHandler(helpers.ModelsTestCase):
             'image': {'advisory_name': 'RHBA-2017'}
         }
     })
-    @patch.object(freshmaker.conf, 'dry_run', new=True)
-    def test_setting_fake_compose_id_dry_run_mode(self):
-        compose_4 = Compose(odcs_compose_id=4)
-        db.session.add(compose_4)
-        db.session.commit()
-
-        self.mock_find_images_to_rebuild.return_value = [[]]
-        handler = ErrataAdvisoryRPMsSignedHandler()
-        handler.handle(self.rhba_event)
-
-        self.assertEqual(ErrataAdvisoryRPMsSignedHandler._FAKE_COMPOSE_ID, -1)
-
-    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
-        'ErrataAdvisoryRPMsSignedHandler': {
-            'image': {'advisory_name': 'RHBA-2017'}
-        }
-    })
     def test_event_state_updated_when_no_images_to_rebuild(self):
         self.mock_find_images_to_rebuild.return_value = [[]]
         handler = ErrataAdvisoryRPMsSignedHandler()

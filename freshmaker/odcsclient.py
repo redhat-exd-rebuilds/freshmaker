@@ -89,9 +89,6 @@ class FreshmakerODCSClient(object):
     This class is intended to be used in the BaseHandler scope.
     """
 
-    # Used to generate incremental compose id in dry run mode.
-    _FAKE_COMPOSE_ID = 0
-
     def __init__(self, handler):
         """
         Creates new FreshmakerODCSClient.
@@ -102,7 +99,8 @@ class FreshmakerODCSClient(object):
         self.handler = handler
 
     def _fake_odcs_new_compose(
-            self, compose_source, tag, packages=None, results=[]):
+            self, compose_source, tag, packages=None, results=[],
+            builds=None):
         """
         Fake odcs.new_compose(...) method used in the dry run mode.
 
@@ -115,15 +113,22 @@ class FreshmakerODCSClient(object):
             "DRY RUN: Calling fake odcs.new_compose with args: %r",
             (compose_source, tag, packages, results))
 
-        # Generate the new_compose dict.
-        FreshmakerODCSClient._FAKE_COMPOSE_ID -= 1
+        # In case we run in DRY_RUN mode, we need to initialize
+        # FAKE_COMPOSE_ID to the id of last ODCS compose to give the IDs
+        # increasing and unique even between Freshmaker restarts.
+        fake_compose_id = Compose.get_lowest_compose_id(db.session) - 1
+        if fake_compose_id >= 0:
+            fake_compose_id = -1
+
         new_compose = {}
-        new_compose['id'] = FreshmakerODCSClient._FAKE_COMPOSE_ID
+        new_compose['id'] = fake_compose_id
         new_compose['result_repofile'] = "http://localhost/%d.repo" % (
             new_compose['id'])
         new_compose['state'] = COMPOSE_STATES['done']
         if results:
             new_compose['results'] = ['boot.iso']
+        if builds:
+            new_compose['builds'] = builds
 
         # Generate and inject the ODCSComposeStateChangeEvent event.
         event = ODCSComposeStateChangeEvent(
