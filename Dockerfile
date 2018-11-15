@@ -14,8 +14,9 @@ RUN cd /etc/yum.repos.d/ \
     && dnf -y install \
     httpd mod_wsgi mod_auth_gssapi python2-rhmsg mod_ssl \
     /tmp/$(basename $freshmaker_rpm) \
+    && dnf config-manager --add-repo http://download-ipv4.eng.brq.redhat.com/rel-eng/repos/eng-rhel-7/x86_64 \
+    && dnf --nogpg -y upgrade python2-odcs-client \
     && dnf -y clean all \
-    && pip install --upgrade odcs[client] \
     && rm -f /tmp/*
 
 RUN if [ "$cacert_url" != "undefined" ]; then \
