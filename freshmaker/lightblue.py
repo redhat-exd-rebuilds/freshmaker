@@ -181,6 +181,7 @@ class ContainerImage(dict):
             "error": None,
             "arches": None,
             "odcs_compose_ids": None,
+            "published": None,
         }
 
     @region.cache_on_arguments()
@@ -492,6 +493,16 @@ class ContainerImage(dict):
                     "is suspicious.", self["brew"]["build"])
         self.update({"content_sets": []})
 
+    def resolve_published(self, lb_instance):
+        # Get the published version of this image to find out if the image
+        # was actually published.
+        image = lb_instance.get_images_by_nvrs(
+            self["brew"]["build"], published=True)
+        if image:
+            self["published"] = True
+        else:
+            self["published"] = False
+
     def resolve(self, lb_instance, children=None):
         """
         Resolves the Container image - populates additional metadata by
@@ -501,6 +512,7 @@ class ContainerImage(dict):
         """
         self.resolve_commit()
         self.resolve_content_sets(lb_instance, children)
+        self.resolve_published(lb_instance)
 
 
 class LightBlue(object):
