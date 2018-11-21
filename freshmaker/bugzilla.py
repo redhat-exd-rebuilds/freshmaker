@@ -99,13 +99,13 @@ class BugzillaAPI(object):
                 data = self._get_cve_whiteboard(cve)
             except requests.exceptions.HTTPError as e:
                 if e.response.status_code == 404:
-                    log.warn(
+                    log.warning(
                         "CVE %s cannot be found in bugzilla, "
                         "threat_severity unknown.  %s", cve, e.response.request.url)
                     continue
                 raise
             except IndexError:
-                log.warn(
+                log.warning(
                     "CVE %s XML appears malformed.  No children?  "
                     "threat_severity unknown.", cve)
                 continue
@@ -113,7 +113,7 @@ class BugzillaAPI(object):
             try:
                 severity = data["impact"].lower()
             except KeyError:
-                log.warn(
+                log.warning(
                     "CVE %s has no 'impact' in bugzilla whiteboard, "
                     "threat_severity unknown.", cve)
                 continue

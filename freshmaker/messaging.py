@@ -107,12 +107,12 @@ def _in_memory_publish(topic, msg):
     try:
         work_queue_put(wrapped_msg)
     except ValueError as e:
-        log.warn("No FreshmakerConsumer found.  Shutting down?  %r" % e)
+        log.warning("No FreshmakerConsumer found.  Shutting down?  %r" % e)
     except AttributeError:
         # In the event that `moksha.hub._hub` hasn't yet been initialized, we
         # need to store messages on the side until it becomes available.
         # As a last-ditch effort, try to hang initial messages in the config.
-        log.warn("Hub not initialized.  Queueing on the side.")
+        log.warning("Hub not initialized.  Queueing on the side.")
         _initial_messages.append(wrapped_msg)
 
 

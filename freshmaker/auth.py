@@ -185,7 +185,7 @@ def init_auth(login_manager, backend):
     if backend == 'noauth':
         # Do not enable any authentication backend working with frontend
         # authentication module in Apache.
-        log.warn("Authorization is disabled in Freshmaker configuration.")
+        log.warning("Authorization is disabled in Freshmaker configuration.")
         return
     if backend == 'kerberos':
         _validate_kerberos_config()

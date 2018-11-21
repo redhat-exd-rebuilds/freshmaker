@@ -352,7 +352,7 @@ class ContainerImage(dict):
                 "content_sets": []}
 
         if not repository or not branch or not commit:
-            log.warn("%s: Cannot get additional data from distgit.", nvr)
+            log.warning("%s: Cannot get additional data from distgit.", nvr)
             return data
         if "/" in repository:
             namespace, name = repository.split("/")
@@ -593,7 +593,7 @@ class LightBlue(object):
             return
 
         # Warn early, in case there is an error in the error handling code below
-        log.warn("Request to %s gave %r" % (response.request.url, response))
+        log.warning("Request to %s gave %r" % (response.request.url, response))
 
         if status_code in (http_client.NOT_FOUND,
                            http_client.INTERNAL_SERVER_ERROR,

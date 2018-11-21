@@ -85,9 +85,9 @@ def get_url_for(*args, **kwargs):
     # system as the web views.
     app.config['SERVER_NAME'] = 'localhost'
     with app.app_context():
-        log.warn("get_url_for() has been called without the Flask "
-                 "app_context. That can lead to SQLAlchemy errors caused by "
-                 "multiple session being used in the same time.")
+        log.warning("get_url_for() has been called without the Flask "
+                    "app_context. That can lead to SQLAlchemy errors caused by "
+                    "multiple session being used in the same time.")
         return url_for(*args, **kwargs)
 
 
@@ -161,8 +161,8 @@ def retry(timeout=conf.net_timeout, interval=conf.net_retry_interval, wait_on=Ex
                     return function(*args, **kwargs)
                 except wait_on as e:
                     if logger is not None:
-                        logger.warn("Exception %r raised from %r.  Retry in %rs",
-                                    e, function, interval)
+                        logger.warning("Exception %r raised from %r.  Retry in %rs",
+                                       e, function, interval)
                     time.sleep(interval)
         return inner
     return wrapper
@@ -192,7 +192,7 @@ def temp_dir(logger=None, *args, **kwargs):
         except OSError as exc:
             # Okay, we failed to delete temporary dir.
             if logger:
-                logger.warn('Error removing %s: %s', dir, exc.strerror)
+                logger.warning('Error removing %s: %s', dir, exc.strerror)
 
 
 def clone_repo(url, dest, branch='master', logger=None, commit=None):

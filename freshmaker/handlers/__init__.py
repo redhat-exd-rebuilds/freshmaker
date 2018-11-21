@@ -131,7 +131,7 @@ class BaseHandler(object):
         Logs the message `msg` using `log_fnc`, passing msg, *args and **kwargs
         to it.
 
-        :param log_fnc: log.info, log.error, log.warn, ...
+        :param log_fnc: log.info, log.error, log.warning, ...
         :param str msg: Message to log (first argument passed to log_fnc).
         :param *args: Args passed to log_fnc.
         :param **kwargs: Kwargs passed to log_fnc.
@@ -150,11 +150,11 @@ class BaseHandler(object):
         """
         return self._log(log.info, msg, *args, **kwargs)
 
-    def log_warn(self, msg, *args, **kwargs):
+    def log_warning(self, msg, *args, **kwargs):
         """
-        Wraps log.warn, prefixes the message with a context of this handler.
+        Wraps log.warning, prefixes the message with a context of this handler.
         """
-        return self._log(log.warn, msg, *args, **kwargs)
+        return self._log(log.warning, msg, *args, **kwargs)
 
     def log_error(self, msg, *args, **kwargs):
         """

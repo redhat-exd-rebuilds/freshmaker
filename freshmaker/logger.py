@@ -37,7 +37,7 @@ import logging
 
 logging.debug("Phasers are set to stun.")
 logging.info("%s tried to build something", username)
-logging.warn("%s failed to build", task_id)
+logging.warning("%s failed to build", task_id)
 
 """
 
