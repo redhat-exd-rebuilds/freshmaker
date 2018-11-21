@@ -27,13 +27,13 @@ from freshmaker import conf
 from freshmaker import log
 from freshmaker import utils
 from freshmaker.types import ArtifactType
-from freshmaker.handlers import BaseHandler
+from freshmaker.handlers import ContainerBuildHandler
 from freshmaker.events import BodhiUpdateCompleteStableEvent
 from freshmaker.pdc import PDC
 from freshmaker.kojiservice import koji_service
 
 
-class BodhiUpdateCompleteStableHandler(BaseHandler):
+class BodhiUpdateCompleteStableHandler(ContainerBuildHandler):
     """Rebuild docker images when RPMs are synced by Bodhi"""
     name = 'BodhiUpdateCompleteStableHandler'
 
