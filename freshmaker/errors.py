@@ -24,6 +24,7 @@
 
 from flask import jsonify
 from freshmaker import app, log
+from werkzeug.exceptions import Unauthorized
 
 
 class ValidationError(ValueError):
@@ -43,10 +44,6 @@ class NotFound(ValueError):
 
 
 class ProgrammingError(ValueError):
-    pass
-
-
-class Unauthorized(ValueError):
     pass
 
 
@@ -72,7 +69,7 @@ def notfound_error(e):
 @app.errorhandler(Unauthorized)
 def unauthorized_error(e):
     """Flask error handler for Unauthorized exceptions"""
-    return json_error(401, 'Unauthorized', e.args[0])
+    return json_error(401, 'Unauthorized', e.description)
 
 
 @app.errorhandler(Forbidden)
