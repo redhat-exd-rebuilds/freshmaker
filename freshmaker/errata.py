@@ -62,7 +62,7 @@ class ErrataAdvisory(object):
         Creates new ErrataAdvisory instance from the Erratum ID.
         """
         data = errata._get_advisory(errata_id)
-        erratum_data = data["errata"].values()
+        erratum_data = list(data["errata"].values())
         if not erratum_data:
             return None
         erratum_data = erratum_data[0]
