@@ -232,7 +232,7 @@ if __name__ == '__main__':
 
     freshmaker_images = []
     for image in security_images:
-        if re.match('.*\d{10}$', image['brew']['build']):
+        if re.match(r'.*\d{10}$', image['brew']['build']):
             freshmaker_images.append(image)
 
     logging.debug("All shipped containers with security fixes: ")

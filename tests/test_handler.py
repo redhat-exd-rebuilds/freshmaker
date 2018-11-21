@@ -364,7 +364,7 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'MyHandler': {
             'image': {
-                'advisory_name': 'RHSA-\d+:\d+'
+                'advisory_name': r'RHSA-\d+:\d+'
             }
         }
     })
@@ -381,7 +381,7 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'MyHandler': {
             'image': {
-                'advisory_name': 'RHSA-\d+:\d+',
+                'advisory_name': r'RHSA-\d+:\d+',
                 'advisory_state': 'REL_PREP'
             }
         }
@@ -401,7 +401,7 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'MyHandler': {
             'image': any_(
-                {'advisory_name': 'RHSA-\d+:\d+'},
+                {'advisory_name': r'RHSA-\d+:\d+'},
                 {'advisory_state': 'REL_PREP'},
             )
         }
@@ -421,7 +421,7 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'MyHandler': {
             'image': all_(
-                {'advisory_name': 'RHSA-\d+:\d+'},
+                {'advisory_name': r'RHSA-\d+:\d+'},
                 any_(
                     {'has_hightouch_bugs': True},
                     {'severity': ['critical', 'important']}
@@ -457,12 +457,12 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'MyHandler': {
-            'image': {'advisory_name': 'RHSA-\d+:\d+'},
+            'image': {'advisory_name': r'RHSA-\d+:\d+'},
         }
     })
     @patch.object(freshmaker.conf, 'handler_build_blacklist', new={
         'MyHandler': {
-            'image': {'advisory_name': 'RHSA-2016:\d+'},
+            'image': {'advisory_name': r'RHSA-2016:\d+'},
         }
     })
     def test_blacklist(self):
