@@ -26,6 +26,7 @@
 
 import json
 
+from collections import defaultdict
 from datetime import datetime
 from sqlalchemy.orm import (validates, relationship)
 from sqlalchemy.schema import Index
@@ -312,6 +313,7 @@ class Event(FreshmakerBase):
 
         db.session.commit()
         messaging.publish('event.state.changed', self.json())
+        messaging.publish('event.state.changed.min', self.json_min())
 
     def __repr__(self):
         return "<Event %s, %r, %s>" % (self.message_id, self.event_type, self.search_key)
@@ -324,6 +326,22 @@ class Event(FreshmakerBase):
         return "<%s, search_key=%s>" % (type_name, self.search_key)
 
     def json(self):
+        data = self._common_json()
+        data['builds'] = [b.json() for b in self.builds]
+        return data
+
+    def json_min(self):
+        builds_summary = defaultdict(int)
+        builds_summary['total'] = len(self.builds)
+        for build in self.builds:
+            state_name = ArtifactBuildState(build.state).name
+            builds_summary[state_name] += 1
+
+        data = self._common_json()
+        data['builds_summary'] = dict(builds_summary)
+        return data
+
+    def _common_json(self):
         event_url = get_url_for('event', id=self.id)
         db.session.add(self)
         return {
@@ -337,7 +355,6 @@ class Event(FreshmakerBase):
             "url": event_url,
             "dry_run": self.dry_run,
             "requester": self.requester,
-            "builds": [b.json() for b in self.builds],
         }
 
     def find_dependent_events(self):
