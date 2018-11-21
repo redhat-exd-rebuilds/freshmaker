@@ -99,7 +99,7 @@ class TestCheckUnfinishedKojiTasks(helpers.ModelsTestCase):
         hub = MagicMock()
         producer = FreshmakerProducer(hub)
         producer.check_unfinished_koji_tasks(db.session)
-        self.assertRaises(consumer.incoming.get, block=False)
+        self.assertRaises(queue.Empty, consumer.incoming.get, block=False)
 
     @patch('freshmaker.kojiservice.KojiService.get_task_info')
     @patch("freshmaker.consumer.get_global_consumer")
@@ -113,4 +113,4 @@ class TestCheckUnfinishedKojiTasks(helpers.ModelsTestCase):
         hub = MagicMock()
         producer = FreshmakerProducer(hub)
         producer.check_unfinished_koji_tasks(db.session)
-        self.assertRaises(consumer.incoming.get, block=False)
+        self.assertRaises(queue.Empty, consumer.incoming.get, block=False)
