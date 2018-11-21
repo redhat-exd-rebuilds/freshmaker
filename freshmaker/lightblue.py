@@ -1150,7 +1150,7 @@ class LightBlue(object):
             images, get_nvr=lambda image: image['brew']['build'], reverse=True)
         images = []
         for k, v in groupby(sorted_images, key=lambda x: x['brew']['build']):
-            images.append(v.next())
+            images.append(six.next(v))
 
         # In case we query for unpublished images, we need to return just
         # the latest NVR for given name-version, otherwise images would

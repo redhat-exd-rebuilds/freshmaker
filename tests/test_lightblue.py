@@ -899,17 +899,17 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                             {
                                 "field": "repositories.*.tags.*.name",
                                 "op": "=",
+                                "rvalue": "latest"
+                            },
+                            {
+                                "field": "repositories.*.tags.*.name",
+                                "op": "=",
                                 "rvalue": "tag1"
                             },
                             {
                                 "field": "repositories.*.tags.*.name",
                                 "op": "=",
                                 "rvalue": "tag2"
-                            },
-                            {
-                                "field": "repositories.*.tags.*.name",
-                                "op": "=",
-                                "rvalue": "latest"
                             },
                         ],
                     },
@@ -937,7 +937,16 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             "projection": lb._get_default_projection(srpm_names=["openssl"])
         }
 
-        cont_images.assert_called_with(expected_image_request)
+        # auto_rebuild_tags is a set in the source code. When generate
+        # criteria for tags, the order is not guaranteed. Following lines sort
+        # the tags criteria in order to assert with expected value.
+        args, _ = cont_images.call_args
+        request_arg = args[0]
+        tags_criteira = request_arg['query']['$and'][1]['$or']
+        request_arg['query']['$and'][1]['$or'] = sorted(
+            tags_criteira, key=lambda item: item['rvalue'])
+
+        self.assertEqual(expected_image_request, request_arg)
 
         # Only the second image should be returned, because the first one
         # is in repository "product1/repo1", but we have asked for images
