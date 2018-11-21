@@ -22,6 +22,7 @@
 import json
 import mock
 import os
+import six
 import sys
 import unittest
 
@@ -259,7 +260,7 @@ class TestBrewContainerTaskStateChangeHandler(helpers.ModelsTestCase):
 
         self.handler.handle(event)
         self.assertEqual(build.state, ArtifactBuildState.FAILED.value)
-        self.assertRegexpMatches(build.state_reason, r"The following RPMs in container build.*")
+        six.assertRegex(self, build.state_reason, r"The following RPMs in container build.*")
 
 
 if __name__ == '__main__':

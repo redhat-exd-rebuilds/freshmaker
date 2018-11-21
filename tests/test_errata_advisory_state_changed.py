@@ -22,6 +22,7 @@
 # Written by Chenxiong Qi <cqi@redhat.com>
 
 import json
+import six
 
 from mock import patch, PropertyMock, Mock, call
 
@@ -57,7 +58,8 @@ class TestFindBuildSrpmName(helpers.FreshmakerTestCase):
 
         handler = ErrataAdvisoryRPMsSignedHandler()
 
-        self.assertRaisesRegexp(
+        six.assertRaisesRegex(
+            self,
             ValueError,
             'Build bind-dyndb-ldap-2.3-8.el6 does not have a SRPM',
             handler._find_build_srpm_name,
