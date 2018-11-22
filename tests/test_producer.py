@@ -22,10 +22,11 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
-from mock import patch, MagicMock
 import koji
 import fedmsg.config
-import queue
+
+from mock import patch, MagicMock
+from six.moves import queue
 
 import freshmaker
 from freshmaker import db

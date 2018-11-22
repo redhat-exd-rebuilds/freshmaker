@@ -22,7 +22,7 @@
 import fedmsg.config
 import mock
 import freshmaker
-import queue
+from six.moves import queue
 
 from freshmaker import app, db, events, models, login_manager
 from tests import helpers

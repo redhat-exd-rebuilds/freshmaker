@@ -24,7 +24,7 @@
 
 import fedmsg
 import six
-import queue
+from six.moves import queue
 
 from mock import patch, Mock, MagicMock
 from odcs.client.odcs import AuthMech
