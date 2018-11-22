@@ -22,10 +22,11 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
-from mock import patch, MagicMock
 import koji
 import fedmsg.config
-import queue
+
+from mock import patch, MagicMock
+from six.moves import queue
 
 import freshmaker
 from freshmaker import db
@@ -99,7 +100,7 @@ class TestCheckUnfinishedKojiTasks(helpers.ModelsTestCase):
         hub = MagicMock()
         producer = FreshmakerProducer(hub)
         producer.check_unfinished_koji_tasks(db.session)
-        self.assertRaises(consumer.incoming.get, block=False)
+        self.assertRaises(queue.Empty, consumer.incoming.get, block=False)
 
     @patch('freshmaker.kojiservice.KojiService.get_task_info')
     @patch("freshmaker.consumer.get_global_consumer")
@@ -113,4 +114,4 @@ class TestCheckUnfinishedKojiTasks(helpers.ModelsTestCase):
         hub = MagicMock()
         producer = FreshmakerProducer(hub)
         producer.check_unfinished_koji_tasks(db.session)
-        self.assertRaises(consumer.incoming.get, block=False)
+        self.assertRaises(queue.Empty, consumer.incoming.get, block=False)

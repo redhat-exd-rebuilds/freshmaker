@@ -24,7 +24,7 @@
 
 import fedmsg
 import six
-import queue
+from six.moves import queue
 
 from mock import patch, Mock, MagicMock
 from odcs.client.odcs import AuthMech
@@ -299,8 +299,8 @@ class TestPrepareYumRepo(helpers.ModelsTestCase):
 
         # Ensure new_compose is called to request a new compose
         odcs.new_compose.assert_called_once_with(
-            '', 'build', builds=['avalon-logkit-2.1-14.el7', 'apache-commons-lang-2.6-15.el7'],
-            flags=['no_deps'], packages=[u'avalon-logkit', u'apache-commons-lang'], sigkeys=[])
+            '', 'build', builds=['apache-commons-lang-2.6-15.el7', 'avalon-logkit-2.1-14.el7'],
+            flags=['no_deps'], packages=[u'apache-commons-lang', u'avalon-logkit'], sigkeys=[])
 
     def _create_consumer(self):
         hub = MagicMock()

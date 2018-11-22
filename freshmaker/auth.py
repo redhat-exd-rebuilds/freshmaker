@@ -31,9 +31,10 @@ from itertools import chain
 
 from flask import g
 from flask_login import login_required as _login_required
+from werkzeug.exceptions import Unauthorized
 
 from freshmaker import conf, log
-from freshmaker.errors import Unauthorized, Forbidden
+from freshmaker.errors import Forbidden
 from freshmaker.models import User, commit_on_success
 
 

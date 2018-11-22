@@ -25,6 +25,7 @@
 import flask
 
 from mock import patch, Mock
+from werkzeug.exceptions import Unauthorized
 
 import freshmaker.auth
 
@@ -32,7 +33,6 @@ from freshmaker.auth import init_auth
 from freshmaker.auth import load_krb_user_from_request
 from freshmaker.auth import load_openidc_user
 from freshmaker.auth import query_ldap_groups
-from freshmaker.errors import Unauthorized
 from freshmaker import app, db
 from freshmaker.models import User
 from tests.helpers import ModelsTestCase, FreshmakerTestCase
@@ -83,8 +83,8 @@ class TestLoadKrbUserFromRequest(ModelsTestCase):
         with app.test_request_context():
             with self.assertRaises(Unauthorized) as ctx:
                 load_krb_user_from_request(flask.request)
-            self.assertTrue(
-                'REMOTE_USER is not present in request.' in ctx.exception.args)
+            self.assertIn('REMOTE_USER is not present in request.',
+                          ctx.exception.description)
 
 
 class TestLoadOpenIDCUserFromRequest(ModelsTestCase):
@@ -187,7 +187,7 @@ class TestLoadOpenIDCUserFromRequest(ModelsTestCase):
                     load_openidc_user(flask.request)
                 self.assertTrue(
                     'Required OIDC scope new-compose not present.' in
-                    ctx.exception.args)
+                    ctx.exception.description)
 
 
 class TestQueryLdapGroups(FreshmakerTestCase):

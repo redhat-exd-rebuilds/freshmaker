@@ -363,9 +363,10 @@ class FreshmakerODCSClient(object):
             packages.add(parsed_nvr["name"])
 
         # ODCS client expects list and not set for packages/builds, so convert
-        # them to lists.
-        builds = list(builds)
-        packages = list(packages)
+        # them to lists. Sorting the lists to make them easy to look up, e.g.
+        # in logs, and easy to test.
+        builds = sorted(builds)
+        packages = sorted(packages)
 
         if not self.handler.dry_run:
             with krb_context():

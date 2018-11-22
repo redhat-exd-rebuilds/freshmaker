@@ -3,5 +3,6 @@
 copr
 mock
 pytest
+pytest-cov
 vcrpy
 tox
