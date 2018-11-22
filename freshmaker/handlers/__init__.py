@@ -150,7 +150,7 @@ class BaseHandler(object):
         """
         return self._log(log.info, msg, *args, **kwargs)
 
-    def log_warning(self, msg, *args, **kwargs):
+    def log_warn(self, msg, *args, **kwargs):
         """
         Wraps log.warning, prefixes the message with a context of this handler.
         """

@@ -36,11 +36,6 @@ from tests import get_fedmsg, helpers
 
 class BaseTestCase(helpers.ModelsTestCase):
 
-    def create_consumer(self):
-        hub = MagicMock()
-        hub.config = fedmsg.config.load_config()
-        return FreshmakerConsumer(hub)
-
     @patch("requests.request")
     @patch('freshmaker.consumer.get_global_consumer')
     def consume_fedmsg(self, msg, global_consumer, request):

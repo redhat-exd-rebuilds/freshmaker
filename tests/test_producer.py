@@ -50,18 +50,10 @@ class TestCheckUnfinishedKojiTasks(helpers.ModelsTestCase):
         self.build.build_id = 10
         db.session.commit()
 
-    def _create_consumer(self):
-        hub = MagicMock()
-        hub.config = fedmsg.config.load_config()
-        hub.config['freshmakerconsumer'] = True
-        consumer = freshmaker.consumer.FreshmakerConsumer(hub)
-        consumer.incoming = queue.Queue()
-        return consumer
-
     @patch('freshmaker.kojiservice.KojiService.get_task_info')
     @patch("freshmaker.consumer.get_global_consumer")
     def test_koji_task_failed(self, global_consumer, get_task_info):
-        consumer = self._create_consumer()
+        consumer = self.create_consumer()
         global_consumer.return_value = consumer
 
         get_task_info.return_value = {'state': koji.TASK_STATES['FAILED']}
@@ -76,7 +68,7 @@ class TestCheckUnfinishedKojiTasks(helpers.ModelsTestCase):
     @patch('freshmaker.kojiservice.KojiService.get_task_info')
     @patch("freshmaker.consumer.get_global_consumer")
     def test_koji_task_closed(self, global_consumer, get_task_info):
-        consumer = self._create_consumer()
+        consumer = self.create_consumer()
         global_consumer.return_value = consumer
 
         get_task_info.return_value = {'state': koji.TASK_STATES['CLOSED']}
@@ -92,7 +84,7 @@ class TestCheckUnfinishedKojiTasks(helpers.ModelsTestCase):
     @patch("freshmaker.consumer.get_global_consumer")
     def test_koji_task_dry_run(self, global_consumer, get_task_info):
         self.build.build_id = -10
-        consumer = self._create_consumer()
+        consumer = self.create_consumer()
         global_consumer.return_value = consumer
 
         get_task_info.return_value = {'state': koji.TASK_STATES['CLOSED']}
@@ -106,7 +98,7 @@ class TestCheckUnfinishedKojiTasks(helpers.ModelsTestCase):
     @patch("freshmaker.consumer.get_global_consumer")
     def test_koji_task_open(self, global_consumer, get_task_info):
         self.build.build_id = -10
-        consumer = self._create_consumer()
+        consumer = self.create_consumer()
         global_consumer.return_value = consumer
 
         get_task_info.return_value = {'state': koji.TASK_STATES['OPEN']}

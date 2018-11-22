@@ -25,10 +25,12 @@ import time
 import uuid
 import unittest
 import koji
+from six.moves import queue
 
-from mock import patch
+from mock import patch, MagicMock
 from functools import wraps
 
+import freshmaker.consumer
 from freshmaker import events
 from freshmaker import db
 from freshmaker.models import User
@@ -93,6 +95,15 @@ class FreshmakerTestCase(unittest.TestCase):
     def get_event_from_msg(self, message):
         event = events.BaseEvent.from_fedmsg(message['body']['topic'], message['body'])
         return event
+
+    def create_consumer(self):
+        hub = MagicMock()
+        hub.config = {}
+        hub.config['freshmakerconsumer'] = True
+        hub.config['validate_signatures'] = False
+        consumer =  freshmaker.consumer.FreshmakerConsumer(hub)
+        consumer.incoming = queue.Queue()
+        return consumer
 
 
 class ModelsTestCase(FreshmakerTestCase):

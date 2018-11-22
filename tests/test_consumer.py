@@ -34,12 +34,6 @@ from tests import helpers
 
 class ConsumerBaseTest(helpers.ModelsTestCase):
 
-    def _create_consumer(self):
-        hub = mock.MagicMock()
-        hub.config = fedmsg.config.load_config()
-        hub.config['freshmakerconsumer'] = True
-        return freshmaker.consumer.FreshmakerConsumer(hub)
-
     def _module_state_change_msg(self, state=None):
         msg = {'body': {
             "msg_id": "2017-7afcb214-cf82-4130-92d2-22f45cf59cf7",
@@ -65,7 +59,7 @@ class ConsumerTest(ConsumerBaseTest):
         to proper handler and is able to get the further work from
         the handler.
         """
-        consumer = self._create_consumer()
+        consumer = self.create_consumer()
         global_consumer.return_value = consumer
         handle.return_value = [freshmaker.events.TestingEvent("ModuleBuilt handled")]
 
@@ -80,7 +74,7 @@ class ConsumerTest(ConsumerBaseTest):
         """
         Tests consumer will try to subscribe specified topics.
         """
-        consumer = self._create_consumer()
+        consumer = self.create_consumer()
         global_consumer.return_value = consumer
         topics = freshmaker.events.BaseEvent.get_parsed_topics()
         callback = consumer._consume_json if consumer.jsonify else consumer.consume
@@ -96,7 +90,7 @@ class ConsumerTest(ConsumerBaseTest):
         Tests that Consumer.consume marks the DB Event as failed in case there
         is an error in a handler.
         """
-        consumer = self._create_consumer()
+        consumer = self.create_consumer()
         global_consumer.return_value = consumer
 
         @fail_event_on_handler_exception
@@ -124,7 +118,7 @@ class ParseBrewSignRPMEventTest(ConsumerBaseTest):
                 new=['freshmaker.parsers.brew.sign_rpm:BrewSignRpmParser'])
     @mock.patch("freshmaker.consumer.get_global_consumer")
     def test_get_internal_event_parser(self, get_global_consumer):
-        consumer = self._create_consumer()
+        consumer = self.create_consumer()
         get_global_consumer.return_value = consumer
 
         msg = {
@@ -147,7 +141,7 @@ class ParseBrewSignRPMEventTest(ConsumerBaseTest):
     @mock.patch("freshmaker.consumer.get_global_consumer")
     def test_get_internal_event_parser_no_msg_id_fallback(
             self, get_global_consumer):
-        consumer = self._create_consumer()
+        consumer = self.create_consumer()
         get_global_consumer.return_value = consumer
 
         msg = {
@@ -172,7 +166,7 @@ class ParseBrewSignRPMEventTest(ConsumerBaseTest):
     @mock.patch("freshmaker.consumer.get_global_consumer")
     def test_get_internal_event_parser_no_msg(
             self, get_global_consumer):
-        consumer = self._create_consumer()
+        consumer = self.create_consumer()
         get_global_consumer.return_value = consumer
 
         msg = {

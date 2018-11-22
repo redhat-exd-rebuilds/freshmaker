@@ -302,17 +302,9 @@ class TestPrepareYumRepo(helpers.ModelsTestCase):
             '', 'build', builds=['apache-commons-lang-2.6-15.el7', 'avalon-logkit-2.1-14.el7'],
             flags=['no_deps'], packages=[u'apache-commons-lang', u'avalon-logkit'], sigkeys=[])
 
-    def _create_consumer(self):
-        hub = MagicMock()
-        hub.config = fedmsg.config.load_config()
-        hub.config['freshmakerconsumer'] = True
-        consumer = FreshmakerConsumer(hub)
-        consumer.incoming = queue.Queue()
-        return consumer
-
     @patch("freshmaker.consumer.get_global_consumer")
     def test_prepare_odcs_compose_with_image_rpms_dry_run(self, global_consumer):
-        consumer = self._create_consumer()
+        consumer = self.create_consumer()
         global_consumer.return_value = consumer
         image = self._get_fake_container_image()
 
