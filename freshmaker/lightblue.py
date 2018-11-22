@@ -37,7 +37,7 @@ from six.moves.urllib.parse import urlparse
 import concurrent.futures
 from freshmaker import log, conf
 from freshmaker.kojiservice import koji_service
-from freshmaker.utils import sorted_by_nvr, clone_distgit_repo, temp_dir
+from freshmaker.utils import sorted_by_nvr, get_distgit_files
 import koji
 
 
@@ -360,50 +360,48 @@ class ContainerImage(dict):
             namespace = "rpms"
             name = repository
 
-        prefix = "freshmaker-%s-%s-%s" % (namespace, name, commit)
-        with temp_dir(prefix=prefix) as repodir:
-            try:
-                clone_distgit_repo(namespace, name, repodir, commit=commit,
-                                   ssh=False, logger=log)
-            except OSError as e:
-                self.log_error("Error while cloning dist-git repo: %s" % e)
-                return data
+        try:
+            files = get_distgit_files(
+                namespace, name, commit, ["content_sets.yml", "container.yaml"],
+                ssh=False, logger=log)
+        except OSError as e:
+            self.log_error("Error while fetching dist-git repo files: %s" % e)
+            return data
 
-            content_sets_path = os.path.join(repodir, "content_sets.yml")
-            if not os.path.exists(content_sets_path):
-                log.debug("%s: Should generate Pulp repo, %s does not exist.",
-                          nvr, content_sets_path)
-                data["generate_pulp_repos"] = True
-                return data
+        content_sets_data = files["content_sets.yml"]
+        container_data = files["container.yaml"]
 
-            try:
-                with open(content_sets_path, 'r') as f:
-                    content_sets_yaml = yaml.load(f)
-            except Exception as err:
-                log.exception(err)
-                data["generate_pulp_repos"] = True
-                return data
+        if content_sets_data is None:
+            log.debug("%s: Should generate Pulp repo, content_sets.yml does "
+                      "not exist.", nvr)
+            data["generate_pulp_repos"] = True
+            return data
 
-            for content_sets in content_sets_yaml.values():
-                data["content_sets"] += content_sets
+        try:
+            content_sets_yaml = yaml.load(content_sets_data)
+        except Exception as err:
+            log.exception(err)
+            data["generate_pulp_repos"] = True
+            return data
 
-            container_path = os.path.join(repodir, "container.yaml")
-            if not os.path.exists(container_path):
-                log.debug("%s: Should generate Pulp repo, %s does not exist.",
-                          nvr, container_path)
-                data["generate_pulp_repos"] = True
-                return data
+        for content_sets in content_sets_yaml.values():
+            data["content_sets"] += content_sets
 
-            with open(container_path, 'r') as f:
-                container_yaml = yaml.load(f)
+        if container_data is None:
+            log.debug("%s: Should generate Pulp repo, container.yaml does not "
+                      "exist.", nvr)
+            data["generate_pulp_repos"] = True
+            return data
 
-            if ("compose" not in container_yaml or
-                    "pulp_repos" not in container_yaml["compose"] or
-                    not container_yaml["compose"]["pulp_repos"]):
-                log.debug("%s: Should generate Pulp repo, pulp_repos not "
-                          "enabled in %s.", nvr, container_path)
-                data["generate_pulp_repos"] = True
-                return data
+        container_yaml = yaml.load(container_data)
+
+        if ("compose" not in container_yaml or
+                "pulp_repos" not in container_yaml["compose"] or
+                not container_yaml["compose"]["pulp_repos"]):
+            log.debug("%s: Should generate Pulp repo, pulp_repos not "
+                      "enabled in containery.yaml.", nvr)
+            data["generate_pulp_repos"] = True
+            return data
 
         # This is workaround until OSBS-5919 is fixed.
         if "arches" in self and self["arches"] == "x86_64":
