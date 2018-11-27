@@ -378,7 +378,7 @@ class ContainerImage(dict):
             return data
 
         try:
-            content_sets_yaml = yaml.load(content_sets_data)
+            content_sets_yaml = yaml.safe_load(content_sets_data)
         except Exception as err:
             log.exception(err)
             data["generate_pulp_repos"] = True
@@ -393,7 +393,7 @@ class ContainerImage(dict):
             data["generate_pulp_repos"] = True
             return data
 
-        container_yaml = yaml.load(container_data)
+        container_yaml = yaml.safe_load(container_data)
 
         if ("compose" not in container_yaml or
                 "pulp_repos" not in container_yaml["compose"] or

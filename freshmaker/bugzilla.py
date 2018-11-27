@@ -24,7 +24,7 @@
 
 import requests
 
-import lxml.etree
+from defusedxml import ElementTree
 from freshmaker import log, conf
 
 
@@ -65,10 +65,10 @@ class BugzillaAPI(object):
         r.raise_for_status()
 
         # Parse
-        root = lxml.etree.fromstring(r.text.encode('utf-8'))
+        root = ElementTree.fromstring(r.text.encode('utf-8'))
 
         # List the major xml elements
-        elements = root.getchildren()[0].getchildren()
+        elements = list(list(root)[0])
 
         # Extract the whiteboard string
         whiteboard = [e.text for e in elements if e.tag == 'status_whiteboard']

@@ -97,8 +97,10 @@ def downgrade():
                 'Restore odcs compose id %s from Compose %s back to Event %s',
                 compose.odcs_compose_id, compose.id, event.id)
             connection.execute(
-                'UPDATE events SET compose_id = {} WHERE id = {}'.format(
-                    compose.odcs_compose_id, event.id))
+                'UPDATE events SET compose_id = :compose_id WHERE id = :event_id'
+                .bindparams(
+                    compose_id=compose.odcs_compose_id,
+                    event_id=event.id))
 
         logger.info('Clear data from ArtifactBuildCompose')
         connection.execute('DELETE FROM artifact_build_composes')
