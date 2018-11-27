@@ -19,10 +19,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import fedmsg.config
 import mock
 import freshmaker
-from six.moves import queue
 
 from freshmaker import app, db, events, models, login_manager
 from tests import helpers

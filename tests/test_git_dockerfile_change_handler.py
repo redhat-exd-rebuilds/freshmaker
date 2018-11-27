@@ -20,15 +20,12 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
-import fedmsg.config
-
 from mock import patch
-from mock import MagicMock, PropertyMock
+from mock import PropertyMock
 
 import freshmaker
 
 from freshmaker import models
-from freshmaker.consumer import FreshmakerConsumer
 from freshmaker.types import ArtifactType
 from freshmaker.config import any_
 from tests import get_fedmsg, helpers

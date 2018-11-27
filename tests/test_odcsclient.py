@@ -22,11 +22,9 @@
 # Written by Chenxiong Qi <cqi@redhat.com>
 #            Jan kaluza <jkaluza@redhat.com>
 
-import fedmsg
 import six
-from six.moves import queue
 
-from mock import patch, Mock, MagicMock
+from mock import patch, Mock
 from odcs.client.odcs import AuthMech
 
 from freshmaker import conf, db
@@ -34,7 +32,6 @@ from freshmaker.models import Event, ArtifactBuild, Compose
 from freshmaker.odcsclient import create_odcs_client
 from freshmaker.types import ArtifactBuildState, EventState, ArtifactType
 from freshmaker.handlers import ContainerBuildHandler
-from freshmaker.consumer import FreshmakerConsumer
 from tests import helpers
 
 

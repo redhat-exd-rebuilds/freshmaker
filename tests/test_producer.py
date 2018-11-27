@@ -23,12 +23,10 @@
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
 import koji
-import fedmsg.config
 
 from mock import patch, MagicMock
 from six.moves import queue
 
-import freshmaker
 from freshmaker import db
 from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
 from freshmaker.models import ArtifactBuild, Event

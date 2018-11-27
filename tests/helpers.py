@@ -101,7 +101,7 @@ class FreshmakerTestCase(unittest.TestCase):
         hub.config = {}
         hub.config['freshmakerconsumer'] = True
         hub.config['validate_signatures'] = False
-        consumer =  freshmaker.consumer.FreshmakerConsumer(hub)
+        consumer = freshmaker.consumer.FreshmakerConsumer(hub)
         consumer.incoming = queue.Queue()
         return consumer
 
