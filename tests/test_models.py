@@ -157,6 +157,26 @@ class TestModels(helpers.ModelsTestCase):
         self.assertEqual(
             str(event), "<UnknownEventType 1024, search_key=test>")
 
+    def test_event_json_min(self):
+        event = Event.create(db.session, "test_msg_id5", "RHSA-2017-289", events.TestingEvent)
+        build = ArtifactBuild.create(db.session, event, "ed", "module", 1234)
+        build.state = ArtifactBuildState.FAILED
+        ArtifactBuild.create(db.session, event, "mksh", "module", 1235, build)
+        db.session.commit()
+        self.assertEqual(event.json_min(), {
+            'builds_summary': {'BUILD': 1, 'FAILED': 1, 'total': 2},
+            'dry_run': False,
+            'event_type_id': 3,
+            'id': 1,
+            'message_id': 'test_msg_id5',
+            'requester': None,
+            'search_key': 'RHSA-2017-289',
+            'state': 0,
+            'state_name': 'INITIALIZED',
+            'state_reason': None,
+            'url': 'http://localhost:5001/api/1/events/1',
+        })
+
 
 class TestFindDependentEvents(helpers.ModelsTestCase):
     """Test Event.find_dependent_events"""
