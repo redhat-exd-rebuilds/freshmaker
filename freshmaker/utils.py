@@ -32,6 +32,8 @@ import tempfile
 import time
 import koji
 import kobo.rpmlib
+import tarfile
+import io
 
 from freshmaker import conf, app, log
 from freshmaker.types import ArtifactType
@@ -206,9 +208,19 @@ def clone_repo(url, dest, branch='master', logger=None, commit=None):
     return dest
 
 
-def clone_distgit_repo(namespace, name, dest, branch='master', ssh=True,
-                       user=None, logger=None, commit=None):
-    """clone a git repo"""
+def get_distgit_url(namespace, name, ssh, user):
+    """
+    Returns the dist-git repository URL.
+
+    :param str namespace: Namespace in which the repository is located, for
+        example "rpms", "containers", "modules", ...
+    :param str name: Name of the repository inside the namespace.
+    :param bool ssh: If True, SSH auth will be used when fetching the files.
+    :param str user: If set, overrides the default user for SSH auth.
+
+    :rtype: str
+    :return: The dist-git repository URL.
+    """
     if ssh:
         if user is None:
             if hasattr(conf, 'git_user'):
@@ -220,8 +232,64 @@ def clone_distgit_repo(namespace, name, dest, branch='master', ssh=True,
         repo_url = conf.git_base_url
 
     repo_url = os.path.join(repo_url, namespace, name)
+    return repo_url
+
+
+def clone_distgit_repo(namespace, name, dest, branch='master', ssh=True,
+                       user=None, logger=None, commit=None):
+    """clone a git repo"""
+    repo_url = get_distgit_url(namespace, name, ssh, user)
     return clone_repo(repo_url, dest, branch=branch, logger=logger,
                       commit=commit)
+
+
+def get_distgit_files(
+        namespace, name, commit_or_branch, files, ssh=True, user=None,
+        logger=None):
+    """
+    Fetches the `files` from dist-git repository defined by `namespace`,
+    `name` and `commit_or_branch` and returns them.
+
+    This is much faster than cloning the dist-git repository and should be
+    preferred method to get the files from dist-git in case the full clone
+    of repository is not needed.
+
+    :param str namespace: Namespace in which the repository is located, for
+        example "rpms", "containers", "modules", ...
+    :param str name: Name of the repository inside the namespace.
+    :param str commit_or_branch: Commit hash or branch name.
+    :param list files: List of strings defining the files to fetch.
+    :param bool ssh: If True, SSH auth will be used when fetching the files.
+    :param str user: If set, overrides the default user for SSH auth.
+    :param freshmaker.log logger: Logger instance.
+
+    :rtype: dict
+    :return: Dictionary with file name as key and file content as value.
+        If the file does not exist in a dist-git repo, None is used as value.
+    """
+    repo_url = get_distgit_url(namespace, name, ssh, user)
+
+    # Use the "git archive" to get the files in tarball and then extract
+    # them and return in dict. We need to go file by file, because the
+    # "git archive" would fail completely in case any file does not exist
+    # in the git repo.
+    ret = {}
+    for f in files:
+        try:
+            cmd = ['git', 'archive', '--remote=%s' % repo_url,
+                   commit_or_branch, f]
+            tar_data = _run_command(cmd, logger=logger, return_output=True)
+            tar_bytes = io.BytesIO(tar_data)
+            tar = tarfile.open(fileobj=tar_bytes)
+            for member in tar.getmembers():
+                ret[member.name] = tar.extractfile(member).read()
+        except OSError as e:
+            if "path not found" in str(e):
+                ret[os.path.basename(f)] = None
+            else:
+                raise
+
+    return ret
 
 
 def add_empty_commit(repo, msg="bump", author=None, logger=None):
