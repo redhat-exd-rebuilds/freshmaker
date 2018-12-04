@@ -24,6 +24,5 @@ dogpile.cache
 pyldap
 koji
 tabulate
-lxml
 prometheus_client
 defusedxml
