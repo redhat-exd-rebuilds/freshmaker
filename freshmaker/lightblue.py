@@ -30,6 +30,7 @@ import re
 import requests
 import six
 import dogpile.cache
+import kobo.rpmlib
 from itertools import groupby
 
 from six.moves import http_client
@@ -750,15 +751,80 @@ class LightBlue(object):
                 ]
         return projection
 
+    def filter_out_images_with_lower_srpm_nvr(self, images, srpm_name_to_nvr):
+        """
+        Checks whether the input NVRs defined in `srpm_name_to_nvr` dict are
+        newer than the matching SRPM NVRs in the container image.
+
+        If all the SRPM NVRs in the container image are newer than matching
+        input NVRs, the container image is filtered out from the `images`
+        list.
+
+        For example: The httpd-2.4-1 RPM is released together with
+        httpd-container. In this case, Freshmaker would try to rebuild
+        httpd-container, because it contains httpd package. But this is not
+        needed, because latest httpd-container already contains that updated
+        package. Therefore we filter it out in this method.
+
+        :param list images: List of ContainerImage instances.
+        :param dict srpm_name_to_nvr: Dict with SRPM name as a key and NVR
+            as a value.
+        :rtype: list
+        :return: List of ContainerImage instances without the filtered images.
+        """
+        ret = []
+        for image in images:
+            if "rpm_manifest" not in image or not image["rpm_manifest"]:
+                # Do not filter if we are not sure what RPMs are in the image.
+                ret.append(image)
+                continue
+            # There is always just single "rpm_manifest". Lightblue returns
+            # this as a list, because it is reference to
+            # containerImageRPMManifest.
+            rpm_manifest = image["rpm_manifest"][0]
+            if "rpms" not in rpm_manifest:
+                # Do not filter if we are not sure what RPMs are in the image.
+                ret.append(image)
+                continue
+            # Check whether all the input SRPMs in the container image are
+            # older or newer and filter the container images in case they are
+            # not older.
+            rpms = rpm_manifest["rpms"]
+            for rpm in rpms:
+                if "srpm_name" in rpm and rpm["srpm_name"] in srpm_name_to_nvr:
+                    image_srpm_nvr = kobo.rpmlib.parse_nvr(rpm["srpm_nevra"])
+                    input_srpm_nvr = kobo.rpmlib.parse_nvr(
+                        srpm_name_to_nvr[rpm["srpm_name"]])
+                    # compare_nvr return values:
+                    #   - nvr1 newer than nvr2: 1
+                    #   - same nvrs: 0
+                    #   - nvr1 older: -1
+                    # We want to rebuild only images with SRPM NVR lower than
+                    # input SRPM NVR, therefore we check for -1.
+                    if kobo.rpmlib.compare_nvr(image_srpm_nvr, input_srpm_nvr,
+                                               ignore_epoch=True) == -1:
+                        ret.append(image)
+                        break
+            else:
+                # Oh-no, the mighty for/else block!
+                # The else clause executes after the loop completes normally.
+                # This means that the loop did not encounter a break statement.
+                # In our case, this means that we filtered out the image.
+                image.log_error(
+                    "Will not rebuild %s, because it does not contain "
+                    "older version of any input package: %r" % (
+                        image["brew"]["build"], srpm_name_to_nvr.values()))
+        return ret
+
     def find_images_with_included_srpms(
-            self, content_sets, srpm_names, repositories, published=True):
+            self, content_sets, srpm_nvrs, repositories, published=True):
         """Query lightblue and find containerImages in given
         containerRepositories. By default limit only to images which have been
         published to at least one repository and images which have latest tag.
 
         :param list content_sets: List of content_sets the image includes RPMs
             from.
-        :param list srpm_names: list of srpm_name (source rpm name) to look for
+        :param list srpm_nvrs: list of SRPM NVRs to look for
         :param list repositories: List of repository names to look for.
         :param bool published: whether to limit queries to published
             repositories
@@ -766,6 +832,12 @@ class LightBlue(object):
         auto_rebuild_tags = set()
         for repo in repositories.values():
             auto_rebuild_tags |= set(repo["auto_rebuild_tags"])
+
+        # Lightblue cannot compare NVRs, so just ask for all the container
+        # images with any version/release of SRPM we are interested in and
+        # compare it on client side.
+        srpm_name_to_nvr = {koji.parse_NVR(srpm_nvr)["name"]: srpm_nvr
+                            for srpm_nvr in srpm_nvrs}
 
         image_request = {
             "objectType": "containerImage",
@@ -790,7 +862,7 @@ class LightBlue(object):
                             "field": "rpm_manifest.*.rpms.*.srpm_name",
                             "op": "=",
                             "rvalue": srpm_name
-                        } for srpm_name in srpm_names]
+                        } for srpm_name in srpm_name_to_nvr.keys()]
                     },
                     {
                         "field": "parsed_data.files.*.key",
@@ -799,7 +871,8 @@ class LightBlue(object):
                     },
                 ]
             },
-            "projection": self._get_default_projection(srpm_names=srpm_names)
+            "projection": self._get_default_projection(
+                srpm_names=srpm_name_to_nvr.keys())
         }
 
         if published is not None:
@@ -831,10 +904,11 @@ class LightBlue(object):
                         new_images.append(image)
                         break
         images = new_images
+        images = self.filter_out_images_with_lower_srpm_nvr(images, srpm_name_to_nvr)
         return images
 
     def get_images_by_nvrs(self, nvrs, published=True, content_sets=None,
-                           srpm_names=None):
+                           srpm_nvrs=None):
         """Query lightblue and returns containerImages defined by list of
         `nvrs`.
 
@@ -842,7 +916,7 @@ class LightBlue(object):
         :param bool published: whether to limit queries to published images
         :param list content_sets: List of content_sets the image includes RPMs
             from.
-        :param list srpm_names: list of srpm_name (source rpm name) to look for
+        :param list srpm_nvrs: list of SRPM NVRs to look for
         :return: List of containerImages.
         :rtype: list of ContainerImages.
         """
@@ -878,14 +952,19 @@ class LightBlue(object):
                 }
             )
 
-        if srpm_names is not None:
+        if srpm_nvrs is not None:
+            # Lightblue cannot compare NVRs, so just ask for all the container
+            # images with any version/release of SRPM we are interested in and
+            # compare it on client side.
+            srpm_name_to_nvr = {koji.parse_NVR(srpm_nvr)["name"]: srpm_nvr
+                                for srpm_nvr in srpm_nvrs}
             image_request["query"]["$and"].append(
                 {
                     "$or": [{
                         "field": "rpm_manifest.*.rpms.*.srpm_name",
                         "op": "=",
                         "rvalue": srpm_name
-                    } for srpm_name in srpm_names]
+                    } for srpm_name in srpm_name_to_nvr.keys()]
                 }
             )
 
@@ -898,6 +977,8 @@ class LightBlue(object):
                 })
 
         images = self.find_container_images(image_request)
+        if srpm_nvrs is not None:
+            images = self.filter_out_images_with_lower_srpm_nvr(images, srpm_name_to_nvr)
         return images
 
     def find_unpublished_image_for_build(self, build):
@@ -1093,14 +1174,14 @@ class LightBlue(object):
             images.append(image)
 
     def find_images_with_packages_from_content_set(
-            self, srpm_names, content_sets, filter_fnc=None,
+            self, srpm_nvrs, content_sets, filter_fnc=None,
             published=True, deprecated=False,
             release_category="Generally Available",
             leaf_container_images=None):
         """Query lightblue and find containers which contain given
         package from one of content sets
 
-        :param list srpm_names: list of srpm_name (source rpm name) to look for
+        :param list srpm_nvrs: list of SRPM NVRs to look for
         :param list content_sets: list of strings (content sets) to consider
             when looking for the packages
         :param function filter_fnc: Function called as
@@ -1132,12 +1213,12 @@ class LightBlue(object):
             return []
         if not leaf_container_images:
             images = self.find_images_with_included_srpms(
-                content_sets, srpm_names, repos, published)
+                content_sets, srpm_nvrs, repos, published)
         else:
             # The `leaf_container_images` can contain unpublished container image,
             # therefore set `published` to None.
             images = self.get_images_by_nvrs(
-                leaf_container_images, None, content_sets, srpm_names)
+                leaf_container_images, None, content_sets, srpm_nvrs)
 
         # There can be multi-arch images which share the same
         # image['brew']['build']. Freshmaker is not interested in the image
@@ -1374,7 +1455,7 @@ class LightBlue(object):
         return batches
 
     def find_images_to_rebuild(
-            self, srpm_names, content_sets, published=True, deprecated=False,
+            self, srpm_nvrs, content_sets, published=True, deprecated=False,
             release_category="Generally Available", filter_fnc=None,
             leaf_container_images=None):
         """
@@ -1386,7 +1467,7 @@ class LightBlue(object):
         image from N+1 must happen *after* all of the images from sub-list N
         have been rebuilt.
 
-        :param list srpm_names: List of srpm_name (source rpm name) to look for
+        :param list srpm_nvrs: List of SRPM NVRs to look for
         :param list content_sets: list of strings (content sets) to consider
             when looking for the packages
         :param bool published: whether to limit queries to published
@@ -1407,8 +1488,10 @@ class LightBlue(object):
             is not respected when `leaf_container_images` are used.
         """
         images = self.find_images_with_packages_from_content_set(
-            srpm_names, content_sets, filter_fnc, published, deprecated,
+            srpm_nvrs, content_sets, filter_fnc, published, deprecated,
             release_category, leaf_container_images=leaf_container_images)
+
+        srpm_names = [koji.parse_NVR(srpm_nvr)["name"] for srpm_nvr in srpm_nvrs]
 
         def _get_images_to_rebuild(image):
             """

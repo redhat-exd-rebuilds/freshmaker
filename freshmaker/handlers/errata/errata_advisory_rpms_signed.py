@@ -400,25 +400,19 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
             published = None
             release_category = None
 
-        # For each RPM package in Errata advisory, find the SRPM package name.
-        srpm_names = set()
-        nvrs = errata.get_builds(errata_id)
-        for nvr in nvrs:
-            srpm_name = koji.parse_NVR(nvr)['name']
-            srpm_names.add(srpm_name)
-
         # Limit the Lightblue query to particular leaf images if set in Event.
         leaf_container_images = None
         if isinstance(self.event, ManualRebuildWithAdvisoryEvent):
             leaf_container_images = self.event.container_images
 
-        # For each SRPM name, find out all the containers which include
-        # this SRPM name.
+        # For each SRPM NVR, find out all the containers which include
+        # this SRPM NVR.
+        srpm_nvrs = set(errata.get_builds(errata_id))
         self.log_info(
             "Going to find all the container images to rebuild as "
-            "result of %r update.", srpm_names)
+            "result of %r update.", srpm_nvrs)
         batches = lb.find_images_to_rebuild(
-            srpm_names, content_sets,
+            srpm_nvrs, content_sets,
             filter_fnc=self._filter_out_not_allowed_builds,
             published=published, release_category=release_category,
             leaf_container_images=leaf_container_images)

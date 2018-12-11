@@ -440,7 +440,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             pass
 
         self.find_images_to_rebuild.assert_called_once_with(
-            set(['httpd']), ['content-set-1'],
+            set(['httpd-2.4-11.el7']), ['content-set-1'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
             published=True, release_category='Generally Available',
             leaf_container_images=None)
@@ -457,7 +457,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             pass
 
         self.find_images_to_rebuild.assert_called_once_with(
-            set(['httpd']), ['content-set-1'],
+            set(['httpd-2.4-11.el7', 'httpd-2.2-11.el6']), ['content-set-1'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
             published=True, release_category='Generally Available',
             leaf_container_images=None)
@@ -476,7 +476,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             pass
 
         self.find_images_to_rebuild.assert_called_once_with(
-            set(['httpd']), ['content-set-1'],
+            set(['httpd-2.4-11.el7']), ['content-set-1'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
             published=None, release_category=None,
             leaf_container_images=None)
@@ -493,7 +493,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             pass
 
         self.find_images_to_rebuild.assert_called_once_with(
-            set(['httpd']), ['content-set-1'],
+            set(['httpd-2.4-11.el7']), ['content-set-1'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
             published=True, release_category='Generally Available',
             leaf_container_images=None)
@@ -511,7 +511,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             pass
 
         self.find_images_to_rebuild.assert_called_once_with(
-            set(['httpd']), ['content-set-1'],
+            set(['httpd-2.4-11.el7']), ['content-set-1'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
             published=True, release_category='Generally Available',
             leaf_container_images=["foo", "bar"])

@@ -657,6 +657,10 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             ContainerImage.create(data)
             for data in self.fake_images_with_parsed_data]
 
+        self.fake_container_images_floating_tag = [
+            ContainerImage.create(data)
+            for data in self.fake_images_with_parsed_data_floating_tag]
+
         self.fake_koji_builds = [{"task_id": 654321}, {"task_id": 123456}]
         self.fake_koji_task_requests = [
             ["git://pkgs.devel.redhat.com/rpms/repo-2#commit_hash2",
@@ -880,7 +884,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             self.fake_repositories_with_content_sets}
         cont_images.return_value = self.fake_images_with_parsed_data
         ret = lb.find_images_with_included_srpms(
-            ["content-set-1", "content-set-2"], ["openssl"], repositories)
+            ["content-set-1", "content-set-2"], ["openssl-1.2.3-2"], repositories)
 
         expected_image_request = {
             "objectType": "containerImage",
@@ -972,14 +976,33 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             repo["repository"]: repo for repo in
             self.fake_repositories_with_content_sets}
         cont_images.return_value = (
-            self.fake_images_with_parsed_data +
-            self.fake_images_with_parsed_data_floating_tag)
+            self.fake_container_images +
+            self.fake_container_images_floating_tag)
         ret = lb.find_images_with_included_srpms(
-            ["content-set-1", "content-set-2"], ["openssl"], repositories)
+            ["content-set-1", "content-set-2"], ["openssl-1.2.3-2"], repositories)
 
         self.assertEqual(
             [image["brew"]["build"] for image in ret],
             ['package-name-2-4-12.10', 'package-name-3-4-12.10'])
+
+    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @patch('os.path.exists')
+    def test_images_with_included_newer_srpm(
+            self, exists, cont_images):
+
+        exists.return_value = True
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key)
+        repositories = {
+            repo["repository"]: repo for repo in
+            self.fake_repositories_with_content_sets}
+        cont_images.return_value = (
+            self.fake_container_images +
+            self.fake_container_images_floating_tag)
+        ret = lb.find_images_with_included_srpms(
+            ["content-set-1", "content-set-2"], ["openssl-1.2.3-1"], repositories)
+        self.assertEqual(ret, [])
 
     def _filter_fnc(self, image):
         return image["brew"]["build"].startswith("filtered_")
@@ -1012,7 +1035,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                        cert=self.fake_cert_file,
                        private_key=self.fake_private_key)
         ret = lb.find_images_with_packages_from_content_set(
-            "openssl", ["dummy-content-set-1"], filter_fnc=self._filter_fnc)
+            set(["openssl-1.2.3-3"]), ["dummy-content-set-1"], filter_fnc=self._filter_fnc)
 
         # Only the first image should be returned, because the first one
         # is in repository "product1/repo1", but we have asked for images
@@ -1321,7 +1344,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
                        private_key=self.fake_private_key)
-        batches = lb.find_images_to_rebuild(["dummy"], ["dummy"])
+        batches = lb.find_images_to_rebuild(["dummy-1-1"], ["dummy"])
 
         # Each of batch is sorted for assertion easily
         expected_batches = [
@@ -1361,7 +1384,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
                        private_key=self.fake_private_key)
-        batches = lb.find_images_to_rebuild(["dummy"], ["dummy"])
+        batches = lb.find_images_to_rebuild(["dummy-1-1"], ["dummy"])
 
         self.assertEqual(len(batches), 1)
         self.assertEqual(len(batches[0]), 1)
@@ -1414,7 +1437,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                        cert=self.fake_cert_file,
                        private_key=self.fake_private_key)
         lb.find_images_with_packages_from_content_set(
-            ["openssl"], ["dummy-content-set"],
+            ["openssl-1.2.3-2"], ["dummy-content-set"],
             leaf_container_images=["foo", "bar"])
         cont_images.assert_called_once_with(
             {'query': {
