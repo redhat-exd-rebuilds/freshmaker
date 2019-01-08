@@ -392,9 +392,6 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
         self.patcher = helpers.Patcher(
             "freshmaker.handlers.errata.ErrataAdvisoryRPMsSignedHandler.")
 
-        self.find_build_srpm_name = self.patcher.patch(
-            '_find_build_srpm_name', return_value="httpd")
-
         self.get_content_set_by_repo_ids = self.patcher.patch(
             'freshmaker.pulp.Pulp.get_content_set_by_repo_ids',
             return_value=["content-set-1"])

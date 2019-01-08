@@ -22,7 +22,6 @@
 # Written by Chenxiong Qi <cqi@redhat.com>
 
 import json
-import six
 
 from mock import patch, PropertyMock, Mock, call
 
@@ -37,34 +36,6 @@ from freshmaker.lightblue import ContainerImage
 from freshmaker.models import Event, ArtifactBuild, EVENT_TYPES
 from freshmaker.types import ArtifactBuildState, ArtifactType, EventState
 from tests import helpers
-
-
-class TestFindBuildSrpmName(helpers.FreshmakerTestCase):
-    """Test ErrataAdvisoryRPMsSignedHandler._find_build_srpm_name"""
-
-    @helpers.mock_koji
-    def test_find_srpm_name(self, mocked_koji):
-        mocked_koji.add_build("bind-dyndb-ldap-2.3-8.el6")
-        mocked_koji.add_build_rpms("bind-dyndb-ldap-2.3-8.el6")
-
-        handler = ErrataAdvisoryRPMsSignedHandler()
-        srpm_name = handler._find_build_srpm_name('bind-dyndb-ldap-2.3-8.el6')
-        self.assertEqual('bind-dyndb-ldap', srpm_name)
-
-    @helpers.mock_koji
-    def test_error_if_no_srpm_in_build(self, mocked_koji):
-        mocked_koji.add_build("bind-dyndb-ldap-2.3-8.el6")
-        mocked_koji.add_build_rpms("bind-dyndb-ldap-2.3-8.el6", arches=["i686"])
-
-        handler = ErrataAdvisoryRPMsSignedHandler()
-
-        six.assertRaisesRegex(
-            self,
-            ValueError,
-            'Build bind-dyndb-ldap-2.3-8.el6 does not have a SRPM',
-            handler._find_build_srpm_name,
-            'bind-dyndb-ldap-2.3-8.el6',
-        )
 
 
 class TestAllowBuild(helpers.ModelsTestCase):

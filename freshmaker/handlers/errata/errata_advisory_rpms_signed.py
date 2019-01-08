@@ -24,16 +24,11 @@
 
 import json
 import koji
-import requests
 
-from six.moves import cStringIO
-from six.moves import configparser
-
-from freshmaker import conf, db, log
+from freshmaker import conf, db
 from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
 from freshmaker.events import ManualRebuildWithAdvisoryEvent
 from freshmaker.handlers import ContainerBuildHandler, fail_event_on_handler_exception
-from freshmaker.kojiservice import koji_service
 from freshmaker.lightblue import LightBlue
 from freshmaker.pulp import Pulp
 from freshmaker.errata import Errata
@@ -126,32 +121,6 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
         db_event.transition(EventState.BUILDING, msg)
 
         return []
-
-    def _get_base_image_build_target(self, image):
-        dockerfile = image.dockerfile
-        image_build_conf_url = dockerfile['content_url'].replace(
-            dockerfile['filename'], 'image-build.conf')
-        response = requests.get(image_build_conf_url)
-        try:
-            response.raise_for_status()
-        except requests.exceptions.HTTPError as e:
-            log.error(
-                'Cannot get image-build.conf from %s.', image_build_conf_url)
-            log.exception('Server response: %s', e)
-            return None
-        config_buf = cStringIO(response.content)
-        config = configparser.RawConfigParser()
-        try:
-            config.readfp(config_buf)
-        except configparser.MissingSectionHeaderError:
-            return None
-        finally:
-            config_buf.close()
-        try:
-            return config.get('image-build', 'target')
-        except (configparser.NoOptionError, configparser.NoSectionError):
-            log.exception('image-build.conf does not have option target.')
-            return None
 
     def _check_images_to_rebuild(self, db_event, builds):
         """
@@ -417,14 +386,3 @@ class ErrataAdvisoryRPMsSignedHandler(ContainerBuildHandler):
             published=published, release_category=release_category,
             leaf_container_images=leaf_container_images)
         return batches
-
-    def _find_build_srpm_name(self, build_nvr):
-        """Find srpm name from a build"""
-        with koji_service(
-                conf.koji_profile, log, dry_run=self.dry_run) as session:
-            rpm_infos = session.get_build_rpms(build_nvr, arches='src')
-            if not rpm_infos:
-                raise ValueError(
-                    'Build {} does not have a SRPM, although this should not '
-                    'happen in practice.'.format(build_nvr))
-            return rpm_infos[0]['name']
