@@ -51,18 +51,16 @@ class BaseConfiguration(object):
         'freshmaker.parsers.internal:FreshmakerManualRebuildParser',
         'freshmaker.parsers.bodhi:BodhiUpdateCompleteStableParser',
         'freshmaker.parsers.git:GitReceiveParser',
-        'freshmaker.parsers.koji:KojiTaskStateChangeParser',
         'freshmaker.parsers.mbs:MBSModuleStateChangeParser',
     ]
 
     # List of enabled composing handlers.
     HANDLERS = [
-        "freshmaker.handlers.bodhi:BodhiUpdateCompleteStableHandler",
-        "freshmaker.handlers.git:GitDockerfileChangeHandler",
-        "freshmaker.handlers.git:GitModuleMetadataChangeHandler",
-        "freshmaker.handlers.git:GitRPMSpecChangeHandler",
-        "freshmaker.handlers.koji:KojiTaskStateChangeHandler",
-        "freshmaker.handlers.mbs:MBSModuleStateChangeHandler",
+        "freshmaker.handlers.koji:RebuildImagesOnRPMBodhiUpdate",
+        "freshmaker.handlers.koji:RebuildImagesOnGitDockerfileChange",
+        "freshmaker.handlers.mbs:RebuildModulesOnGitMMDChange",
+        "freshmaker.handlers.mbs:RebuildModulesOnGitRPMSpecChange",
+        "freshmaker.handlers.internal:UpdateDBOnModuleBuild",
     ]
 
     # Base URL of git repository with source artifacts.
@@ -309,12 +307,12 @@ class TestConfiguration(BaseConfiguration):
     MAX_THREAD_WORKERS = 1
 
     HANDLER_BUILD_WHITELIST = {
-        'BrewSignRPMHandler': {
+        'GenerateAdvisorySignedEventOnRPMSign': {
             'image': {
                 'advisory_state': 'REL_PREP|PUSH_READY|IN_PUSH|SHIPPED_LIVE',
             },
         },
-        'ErrataAdvisoryStateChangedHandler': {
+        'UpdateDBOnAdvisoryChange': {
             'image': {
                 'advisory_state': 'REL_PREP|PUSH_READY|IN_PUSH|SHIPPED_LIVE',
             },

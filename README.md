@@ -43,8 +43,8 @@ Most of the common tasks for handlers are already implemented in Freshmaker incl
 
 The handler which rebuilds all the modules after the `.spec` file of RPM including in a module is updated can look like this:
 
-    class GitRPMSpecChangeHandler(BaseHandler):
-        name = "GitRPMSpecChangeHandler"
+    class RebuildImagesOnGitRPMSpecChange(BaseHandler):
+        name = "RebuildImagesOnGitRPMSpecChange"
 
         def can_handle(self, event):
             return isinstance(event, GitRPMSpecChangeEvent)

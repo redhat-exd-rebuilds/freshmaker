@@ -87,7 +87,7 @@ class ConsumerTest(helpers.ModelsTestCase):
                 return int(float(v))
         return None
 
-    @mock.patch("freshmaker.handlers.mbs.module_state_change.MBSModuleStateChangeHandler.handle")
+    @mock.patch("freshmaker.handlers.internal.UpdateDBOnModuleBuild.handle")
     @mock.patch("freshmaker.consumer.get_global_consumer")
     def test_consumer_processing_message(self, global_consumer, handle):
         """

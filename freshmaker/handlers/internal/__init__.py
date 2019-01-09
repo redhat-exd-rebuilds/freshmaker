@@ -19,8 +19,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from .rebuild_images_on_git_dockerfile_change import RebuildImagesOnGitDockerfileChange # noqa
-from .rebuild_images_on_odcs_compose_done import RebuildImagesOnODCSComposeDone  # noqa
-from .rebuild_images_on_parent_image_build import RebuildImagesOnParentImageBuild  # noqa
-from .rebuild_images_on_rpm_advisory_change import RebuildImagesOnRPMAdvisoryChange  # noqa
-from .rebuild_images_on_rpm_bodhi_update import RebuildImagesOnRPMBodhiUpdate  # noqa
+from .update_db_on_advisory_change import UpdateDBOnAdvisoryChange  # noqa
+from .update_db_on_module_build import UpdateDBOnModuleBuild  # noqa
+from .generate_advisory_signed_event_on_rpm_sign import GenerateAdvisorySignedEventOnRPMSign  # noqa

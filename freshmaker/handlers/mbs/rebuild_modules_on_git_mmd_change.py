@@ -18,6 +18,35 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+#
+# Written by Jan Kaluza <jkaluza@redhat.com>
 
-from .rebuild_modules_on_git_mmd_change import RebuildModulesOnGitMMDChange  # noqa
-from .rebuild_modules_on_git_rpm_spec_change import RebuildModulesOnGitRPMSpecChange  # noqa
+
+from freshmaker import log
+from freshmaker.types import ArtifactType
+from freshmaker.handlers import BaseHandler
+from freshmaker.events import GitModuleMetadataChangeEvent
+
+
+class RebuildModulesOnGitMMDChange(BaseHandler):
+    name = "RebuildModulesOnGitMMDChange"
+
+    def can_handle(self, event):
+        if isinstance(event, GitModuleMetadataChangeEvent):
+            return True
+
+        return False
+
+    def handle(self, event):
+        log.info("Triggering rebuild of module %s:%s, metadata updated (%s).",
+                 event.module, event.branch, event.rev)
+        if not self.allow_build(ArtifactType.MODULE, name=event.module, branch=event.branch):
+            log.info("Skip rebuild of %s:%s as it's not allowed by configured whitelist",
+                     event.module, event.branch)
+            return []
+
+        build_id = self.build_module(event.module, event.branch, event.rev)
+        if build_id is not None:
+            self.record_build(event, event.module, ArtifactType.MODULE, build_id)
+
+        return []

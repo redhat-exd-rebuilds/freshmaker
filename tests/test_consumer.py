@@ -50,7 +50,7 @@ class ConsumerBaseTest(helpers.ModelsTestCase):
 
 class ConsumerTest(ConsumerBaseTest):
 
-    @mock.patch("freshmaker.handlers.mbs.module_state_change.MBSModuleStateChangeHandler.handle")
+    @mock.patch("freshmaker.handlers.internal.UpdateDBOnModuleBuild.handle")
     @mock.patch("freshmaker.consumer.get_global_consumer")
     def test_consumer_processing_message(self, global_consumer, handle):
         """
@@ -80,7 +80,7 @@ class ConsumerTest(ConsumerBaseTest):
         for topic in topics:
             self.assertIn(mock.call(topic, callback), consumer.hub.subscribe.call_args_list)
 
-    @mock.patch("freshmaker.handlers.mbs.module_state_change.MBSModuleStateChangeHandler.handle",
+    @mock.patch("freshmaker.handlers.internal.UpdateDBOnModuleBuild.handle",
                 autospec=True)
     @mock.patch("freshmaker.consumer.get_global_consumer")
     def test_consumer_mark_event_as_failed_on_exception(
