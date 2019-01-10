@@ -40,6 +40,7 @@ class UpdateDBOnAdvisoryChange(BaseHandler):
     """
 
     name = 'UpdateDBOnAdvisoryChange'
+    order = 0
 
     def can_handle(self, event):
         if not isinstance(event, ErrataAdvisoryStateChangedEvent):

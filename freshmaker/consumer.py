@@ -146,7 +146,9 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
         log.debug('Received a message with an ID of "{0}" and of type "{1}"'
                   .format(getattr(msg, 'msg_id', None), type(msg).__name__))
 
-        for handler_class in load_classes(conf.handlers):
+        handlers = load_classes(conf.handlers)
+        handlers = sorted(handlers, key=lambda handler: getattr(handler, "order", 50))
+        for handler_class in handlers:
             handler = handler_class()
 
             if not handler.can_handle(msg):

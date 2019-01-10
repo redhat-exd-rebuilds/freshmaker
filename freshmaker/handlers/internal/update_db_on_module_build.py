@@ -31,6 +31,7 @@ from freshmaker.events import MBSModuleStateChangeEvent
 
 class UpdateDBOnModuleBuild(BaseHandler):
     name = "UpdateDBOnModuleBuild"
+    order = 0
 
     def can_handle(self, event):
         if isinstance(event, MBSModuleStateChangeEvent):

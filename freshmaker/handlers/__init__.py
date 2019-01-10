@@ -119,6 +119,11 @@ class BaseHandler(object):
     """
     __metaclass__ = abc.ABCMeta
 
+    # Defines the order of this handler when evaluating multiple handlers.
+    # The handlers with lower order are called as first. If two handlers
+    # have the same order value, they can be called in any random order.
+    order = 50
+
     def __init__(self):
         self._db_event_id = None
         self._db_artifact_build_id = None

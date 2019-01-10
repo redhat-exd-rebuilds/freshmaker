@@ -68,6 +68,59 @@ class ConsumerTest(ConsumerBaseTest):
         event = consumer.incoming.get()
         self.assertEqual(event.msg_id, "ModuleBuilt handled")
 
+    @mock.patch("freshmaker.handlers.koji.RebuildImagesOnRPMBodhiUpdate.can_handle")
+    @mock.patch("freshmaker.handlers.internal.UpdateDBOnModuleBuild.order",
+                new_callable=mock.PropertyMock)
+    @mock.patch("freshmaker.handlers.internal.UpdateDBOnModuleBuild.can_handle")
+    @mock.patch("freshmaker.consumer.get_global_consumer")
+    def test_consumer_handlers_order(self, global_consumer, handler1,
+                                     handler1_order, handler2):
+        """
+        Tests that consumer parses the message, forwards the event
+        to proper handler and is able to get the further work from
+        the handler.
+        """
+        consumer = self.create_consumer()
+        global_consumer.return_value = consumer
+
+        for reverse in [False, True]:
+            order_lst = []
+
+            def mocked_handler1(*args, **kwargs):
+                order_lst.append(1)
+                return False
+
+            def mocked_handler2(*args, **kwargs):
+                order_lst.append(2)
+                return False
+
+            handler1.side_effect = mocked_handler1
+            handler2.side_effect = mocked_handler2
+            handler1_order.return_value = 100 if reverse else 0
+
+            msg = self._module_state_change_msg()
+            consumer.consume(msg)
+            self.assertEqual(order_lst, [2, 1] if reverse else [1, 2])
+
+    @mock.patch("freshmaker.handlers.koji.RebuildImagesOnRPMBodhiUpdate.handle")
+    @mock.patch("freshmaker.handlers.koji.RebuildImagesOnRPMBodhiUpdate.can_handle")
+    @mock.patch("freshmaker.handlers.internal.UpdateDBOnModuleBuild.handle")
+    @mock.patch("freshmaker.handlers.internal.UpdateDBOnModuleBuild.can_handle")
+    @mock.patch("freshmaker.consumer.get_global_consumer")
+    def test_consumer_multiple_handlers_called(
+            self, global_consumer, handler1_can_handle, handler1, handler2_can_handle,
+            handler2):
+        consumer = self.create_consumer()
+        global_consumer.return_value = consumer
+
+        handler1_can_handle.return_value = True
+        handler2_can_handle.return_value = True
+        msg = self._module_state_change_msg()
+        consumer.consume(msg)
+
+        handler1.assert_called_once()
+        handler2.assert_called_once()
+
     @mock.patch("freshmaker.consumer.get_global_consumer")
     def test_consumer_subscribe_to_specified_topics(self, global_consumer):
         """
