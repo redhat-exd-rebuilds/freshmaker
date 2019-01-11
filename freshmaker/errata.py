@@ -21,10 +21,12 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
+import xmlrpclib
 import os
 import requests
 import dogpile.cache
 from requests_kerberos import HTTPKerberosAuth
+from kobo.xmlrpc import SafeCookieTransport
 
 from freshmaker.events import (
     BrewSignRPMEvent, ErrataBaseEvent,
@@ -117,6 +119,10 @@ class Errata(object):
         else:
             self.server_url = conf.errata_tool_server_url.rstrip('/')
 
+        xmlrpc_url = self.server_url + '/errata/xmlrpc.cgi'
+        self.xmlrpc = xmlrpclib.ServerProxy(
+            xmlrpc_url, transport=SafeCookieTransport())
+
     def _errata_authorized_get(self, *args, **kwargs):
         r = requests.get(
             *args,
@@ -174,6 +180,45 @@ class Errata(object):
             advisories.append(advisory)
 
         return advisories
+
+    def get_docker_repo_tags(self, errata_id):
+        """
+        Get ET repo/tag configuration using XML-RPC call
+        get_advisory_cdn_docker_file_list
+        :param int errata_id: Errata advisory ID.
+        :rtype: dict
+        :return: Dict of advisory builds with repo and tag config:
+            {
+                'build_NVR': {
+                    'cdn_repo1': [
+                        'tag1',
+                        'tag2'
+                    ],
+                    ...
+                },
+                ...
+            }
+        """
+        try:
+            response = self.xmlrpc.get_advisory_cdn_docker_file_list(
+                errata_id)
+        except Exception:
+            log.exception("Canot call XMLRPC get_advisory_cdn_docker_file_list call.")
+            return None
+        if response is None:
+            log.warning("The get_advisory_cdn_docker_file_list XMLRPC call "
+                        "returned None.")
+            return None
+
+        repo_tags = dict()
+        for build_nvr in response:
+            if build_nvr not in repo_tags:
+                repo_tags[build_nvr] = dict()
+            repos = response[build_nvr]['docker']['target']['repos']
+            for repo in repos:
+                tags = repos[repo]['tags']
+                repo_tags[build_nvr][repo] = tags
+        return repo_tags
 
     def advisories_from_event(self, event):
         """

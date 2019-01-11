@@ -321,3 +321,34 @@ class TestErrata(helpers.FreshmakerTestCase):
         MockedErrataAPI(errata_rest_get, errata_http_get)
         ret = self.errata.get_builds(28484, "RHEL-7")
         self.assertEqual(ret, set(['libntirpc-1.4.3-4.el7rhgs']))
+
+    def test_get_docker_repo_tags(self):
+        with patch.object(self.errata, "xmlrpc") as xmlrpc:
+            xmlrpc.get_advisory_cdn_docker_file_list.return_value = {
+                'foo-container-1-1': {
+                    'docker': {
+                        'target': {
+                            'repos': {
+                                'foo-526': {'tags': ['5.26', 'latest']}
+                            }
+                        }
+                    }
+                }
+            }
+            repo_tags = self.errata.get_docker_repo_tags(28484)
+
+            expected = {'foo-container-1-1': {'foo-526': ['5.26', 'latest']}}
+            self.assertEqual(repo_tags, expected)
+
+    def test_get_docker_repo_tags_xmlrpc_exception(self):
+        with patch.object(self.errata, "xmlrpc") as xmlrpc:
+            xmlrpc.get_advisory_cdn_docker_file_list.side_effect = ValueError(
+                "Expected XMLRPC test exception")
+            repo_tags = self.errata.get_docker_repo_tags(28484)
+            self.assertEqual(repo_tags, None)
+
+    def test_get_docker_repo_tags_xmlrpc_non_returned(self):
+        with patch.object(self.errata, "xmlrpc") as xmlrpc:
+            xmlrpc.get_advisory_cdn_docker_file_list.return_value = None
+            repo_tags = self.errata.get_docker_repo_tags(28484)
+            self.assertEqual(repo_tags, None)
