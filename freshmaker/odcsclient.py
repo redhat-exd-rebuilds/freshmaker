@@ -307,7 +307,7 @@ class FreshmakerODCSClient(object):
                 # block. It would still be nice to redesign that part of
                 # Freshmaker to do things "right".
                 # This is tracked here: https://pagure.io/freshmaker/issue/114
-                @retry(timeout=60, interval=2)
+                @retry(timeout=60*30, interval=2)
                 def wait_for_compose(compose_id):
                     ret = odcs.get_compose(compose_id)
                     if ret["state_name"] == "done":
