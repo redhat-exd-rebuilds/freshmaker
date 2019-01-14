@@ -250,6 +250,28 @@ class TestGetAdditionalDataFromDistGit(helpers.FreshmakerTestCase):
             "rpms/foo-docker", "branch", "commit")
         self.assertEqual(ret["generate_pulp_repos"], True)
 
+    def test_generate_content_sets_yml_empty(self):
+        self.get_distgit_files.return_value = {
+            "content_sets.yml": "",
+            "container.yaml": "compose:\n  pulp_repos: False",
+        }
+
+        image = ContainerImage.create({"brew": {"build": "nvr"}})
+        ret = image._get_additional_data_from_distgit(
+            "rpms/foo-docker", "branch", "commit")
+        self.assertEqual(ret["generate_pulp_repos"], True)
+
+    def test_generate_container_yaml_empty(self):
+        self.get_distgit_files.return_value = {
+            "content_sets.yml": "x86_64:\n  - content_set",
+            "container.yaml": "",
+        }
+
+        image = ContainerImage.create({"brew": {"build": "nvr"}})
+        ret = image._get_additional_data_from_distgit(
+            "rpms/foo-docker", "branch", "commit")
+        self.assertEqual(ret["generate_pulp_repos"], True)
+
 
 class TestContainerImageObject(helpers.FreshmakerTestCase):
 
@@ -406,6 +428,14 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
         self.dummy_image.resolve_commit()
         self.assertTrue(self.dummy_image["error"].find(
             "Cannot find valid source of Koji build") != -1)
+
+    @patch('freshmaker.lightblue.ContainerImage.resolve_commit')
+    def test_resolve_commit_exception(self, resolve_commit):
+        resolve_commit.side_effect = ValueError("Expected exception.")
+        self.dummy_image.resolve(None)
+        self.assertEqual(
+            self.dummy_image["error"],
+            "Cannot resolve the container image: Expected exception.")
 
     def test_resolve_content_sets_already_included_in_lb_response(self):
         image = ContainerImage.create({

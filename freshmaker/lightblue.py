@@ -385,6 +385,12 @@ class ContainerImage(dict):
             data["generate_pulp_repos"] = True
             return data
 
+        if not content_sets_yaml:
+            log.warning("%s: Should generate Pulp repo, content_sets.yml is "
+                        "empty" % nvr)
+            data["generate_pulp_repos"] = True
+            return data
+
         for content_sets in content_sets_yaml.values():
             data["content_sets"] += content_sets
 
@@ -396,7 +402,7 @@ class ContainerImage(dict):
 
         container_yaml = yaml.safe_load(container_data)
 
-        if ("compose" not in container_yaml or
+        if (not container_yaml or "compose" not in container_yaml or
                 "pulp_repos" not in container_yaml["compose"] or
                 not container_yaml["compose"]["pulp_repos"]):
             log.debug("%s: Should generate Pulp repo, pulp_repos not "
@@ -509,9 +515,13 @@ class ContainerImage(dict):
 
         Calls self.resolve_commit() and self.resolve_content_sets().
         """
-        self.resolve_commit()
-        self.resolve_content_sets(lb_instance, children)
-        self.resolve_published(lb_instance)
+        try:
+            self.resolve_commit()
+            self.resolve_content_sets(lb_instance, children)
+            self.resolve_published(lb_instance)
+        except Exception as e:
+            err = "Cannot resolve the container image: %s" % e
+            self.log_error(err)
 
 
 class LightBlue(object):
