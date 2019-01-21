@@ -298,32 +298,6 @@ class FreshmakerODCSClient(object):
             with krb_context():
                 new_compose = odcs.new_compose(
                     ' '.join(content_sets), 'pulp')
-
-                # Pulp composes in ODCS takes just few seconds, because ODCS
-                # only generates the .repo file after single query to Pulp.
-                # TODO: Freshmaker is currently not designed to handle
-                # multiple ODCS composes per rebuild Event and since these
-                # composes are done in no-time normally, it is OK here to
-                # block. It would still be nice to redesign that part of
-                # Freshmaker to do things "right".
-                # This is tracked here: https://pagure.io/freshmaker/issue/114
-                @retry(timeout=60 * 30, interval=2)
-                def wait_for_compose(compose_id):
-                    ret = odcs.get_compose(compose_id)
-                    if ret["state_name"] == "done":
-                        return True
-                    elif ret["state_name"] == "failed":
-                        return False
-                    self.handler.log_info(
-                        "Waiting for Pulp compose to finish: %r", ret)
-                    raise Exception("ODCS compose not finished.")
-
-                done = wait_for_compose(new_compose["id"])
-                if not done:
-                    build.transition(
-                        ArtifactBuildState.FAILED.value, "Cannot generate "
-                        "ODCS PULP compose %s for content_sets %r"
-                        % (str(new_compose["id"]), content_sets))
         else:
             new_compose = self._fake_odcs_new_compose(
                 content_sets, 'pulp')
