@@ -48,13 +48,22 @@ class RebuildImagesOnODCSComposeDone(ContainerBuildHandler):
             self.force_dry_run()
 
         query = db.session.query(ArtifactBuild).join('composes')
-        first_batch_builds = query.filter(
-            ArtifactBuild.dep_on == None,  # noqa
+        # Get all the builds waiting for this compose in PLANNED state ...
+        builds_ready_to_rebuild = query.filter(
             ArtifactBuild.state == ArtifactBuildState.PLANNED.value,
             Compose.odcs_compose_id == event.compose['id'])
-        if self.dry_run:
-            builds_ready_to_rebuild = first_batch_builds
-        else:
+        # ... and depending on DONE parent image or parent image which is
+        # not planned to be built in this Event (dep_on == None).
+        builds_ready_to_rebuild = [
+            b for b in builds_ready_to_rebuild if
+            b.dep_on is None or b.dep_on.state == ArtifactBuildState.DONE.value
+        ]
+
+        if not self.dry_run:
+            # In non-dry-run mode, check that all the composes are ready.
+            # In dry-run mode, the composes are fake, so they are always ready.
             builds_ready_to_rebuild = six.moves.filter(
-                lambda build: build.composes_ready, first_batch_builds)
+                lambda build: build.composes_ready, builds_ready_to_rebuild)
+
+        # Start the rebuild.
         self.start_to_build_images(builds_ready_to_rebuild)

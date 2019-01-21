@@ -44,7 +44,7 @@ from freshmaker.errata import Errata
 from freshmaker.kojiservice import koji_service
 from freshmaker.consumer import work_queue_put
 from freshmaker.types import ArtifactBuildState
-from freshmaker.utils import krb_context, retry
+from freshmaker.utils import krb_context
 from freshmaker.events import ODCSComposeStateChangeEvent
 
 
