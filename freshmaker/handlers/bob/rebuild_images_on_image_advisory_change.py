@@ -27,7 +27,8 @@ from freshmaker import conf, db
 from freshmaker.models import Event
 from freshmaker.errata import Errata
 from freshmaker.pulp import Pulp
-from freshmaker.events import ErrataAdvisoryStateChangedEvent
+from freshmaker.events import (ErrataAdvisoryStateChangedEvent,
+                               ManualRebuildWithAdvisoryEvent)
 from freshmaker.handlers import ContainerBuildHandler, fail_event_on_handler_exception
 from freshmaker.types import EventState
 
@@ -36,7 +37,8 @@ class RebuildImagesOnImageAdvisoryChange(ContainerBuildHandler):
     name = 'RebuildImagesOnImageAdvisoryChange'
 
     def can_handle(self, event):
-        if not isinstance(event, ErrataAdvisoryStateChangedEvent):
+        if (not isinstance(event, ErrataAdvisoryStateChangedEvent) and
+                not isinstance(event, ManualRebuildWithAdvisoryEvent)):
             return False
 
         if 'docker' not in event.advisory.content_types:

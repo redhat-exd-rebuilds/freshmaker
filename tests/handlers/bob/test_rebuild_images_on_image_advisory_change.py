@@ -24,7 +24,8 @@ from mock import patch, MagicMock, call
 
 import freshmaker
 from freshmaker.errata import ErrataAdvisory
-from freshmaker.events import ErrataAdvisoryStateChangedEvent
+from freshmaker.events import (ErrataAdvisoryStateChangedEvent,
+                               ManualRebuildWithAdvisoryEvent)
 from freshmaker.handlers.bob import RebuildImagesOnImageAdvisoryChange
 from tests import helpers
 
@@ -45,6 +46,16 @@ class RebuildImagesOnImageAdvisoryChangeTest(helpers.ModelsTestCase):
     def test_can_handle(self):
         self.event.advisory.content_types = ["docker"]
         ret = self.handler.can_handle(self.event)
+        self.assertTrue(ret)
+
+    def test_can_handle_manual_event(self):
+        event = ManualRebuildWithAdvisoryEvent(
+            "123",
+            ErrataAdvisory(123, "RHBA-2017", "SHIPPED_LIVE", ["docker"],
+                           security_impact="",
+                           product_short_name="product"),
+            [])
+        ret = self.handler.can_handle(event)
         self.assertTrue(ret)
 
     def test_can_handle_non_docker_advisory(self):
@@ -85,8 +96,8 @@ class RebuildImagesOnImageAdvisoryChangeTest(helpers.ModelsTestCase):
         self.handler.rebuild_images_depending_on_advisory(self.db_event, 123)
 
         get_docker_repo_tags.assert_called_once_with(123)
-        get_docker_repository_name.assert_has_calls([
-            call("bar-526"), call("foo-526")])
+        get_docker_repository_name.assert_any_call("bar-526")
+        get_docker_repository_name.assert_any_call("foo-526")
         requests_get.assert_any_call(
             'http://localhost/update_children/scl/foo-526',
             headers={'Authorization': 'Bearer x'})
