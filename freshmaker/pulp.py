@@ -42,6 +42,14 @@ class Pulp(object):
         r.raise_for_status()
         return r.json()
 
+    def _rest_get(self, endpoint, **kwargs):
+        r = requests.get(
+            '{0}{1}'.format(self.rest_api_root, endpoint.lstrip('/')),
+            params=kwargs,
+            auth=(self.username, self.password))
+        r.raise_for_status()
+        return r.json()
+
     def get_content_set_by_repo_ids(self, repo_ids):
         """Get content_sets by repository IDs
 
@@ -60,3 +68,22 @@ class Pulp(object):
         repos = self._rest_post('repositories/search/', json.dumps(query_data))
         return [repo['notes']['content_set'] for repo in repos
                 if 'content_set' in repo['notes']]
+
+    def get_docker_repository_name(self, cdn_repo):
+        """
+        Getting docker repository name from pulp using cdn repo name.
+
+        :param str cdn_repo: The CDN repo name from Errata Tool.
+        :rtype: str
+        :return: Docker repository name.
+        """
+        response = self._rest_get(
+            'repositories/%s/' % cdn_repo, distributors=True)
+
+        docker_repository_name = None
+        for distributor in response['distributors']:
+            if distributor['distributor_type_id'] == 'docker_distributor_web':
+                docker_repository_name = \
+                    distributor['config']['repo-registry-id']
+                break
+        return docker_repository_name

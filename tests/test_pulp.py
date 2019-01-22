@@ -158,3 +158,25 @@ class TestPulp(helpers.FreshmakerTestCase):
 
         self.assertEqual(['rhel-7-workstation-rpms', 'rhel-7-desktop-rpms'],
                          content_sets)
+
+    @patch('freshmaker.pulp.requests.get')
+    def test_get_docker_repository_name(self, get):
+        get.return_value.json.return_value = {
+            'display_name': 'foo-526',
+            'description': 'Foo',
+            'distributors': [
+                {'repo_id': 'foo-526',
+                 'distributor_type_id': 'docker_distributor_web',
+                 'config': {'repo-registry-id': 'scl/foo-526'}}
+            ]
+        }
+
+        pulp = Pulp(self.server_url, username=self.username, password=self.password)
+        repo_name = pulp.get_docker_repository_name("foo-526")
+
+        get.assert_called_once_with(
+            '{}pulp/api/v2/repositories/foo-526/'.format(self.server_url),
+            params={"distributors": True},
+            auth=(self.username, self.password))
+
+        self.assertEqual(repo_name, "scl/foo-526")

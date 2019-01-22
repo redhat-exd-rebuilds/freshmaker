@@ -320,6 +320,7 @@ class TestConfiguration(BaseConfiguration):
     }
 
     KRB_AUTH_CCACHE_FILE = "freshmaker_cc_$pid_$tid"
+    ERRATA_TOOL_SERVER_URL = "http://localhost/"  # fake URL just for tests.
 
 
 class ProdConfiguration(BaseConfiguration):
