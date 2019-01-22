@@ -36,7 +36,14 @@ class RebuildImagesOnImageAdvisoryChange(ContainerBuildHandler):
     name = 'RebuildImagesOnImageAdvisoryChange'
 
     def can_handle(self, event):
-        return isinstance(event, ErrataAdvisoryStateChangedEvent)
+        if not isinstance(event, ErrataAdvisoryStateChangedEvent):
+            return False
+
+        if 'docker' not in event.advisory.content_types:
+            self.log_info('Skip non-Docker advisory %s.', event.advisory.errata_id)
+            return False
+
+        return True
 
     @fail_event_on_handler_exception
     def handle(self, event):

@@ -42,6 +42,16 @@ class RebuildImagesOnImageAdvisoryChangeTest(helpers.ModelsTestCase):
         self.handler = RebuildImagesOnImageAdvisoryChange()
         self.db_event = MagicMock()
 
+    def test_can_handle(self):
+        self.event.advisory.content_types = ["docker"]
+        ret = self.handler.can_handle(self.event)
+        self.assertTrue(ret)
+
+    def test_can_handle_non_docker_advisory(self):
+        self.event.advisory.content_types = ["rpm"]
+        ret = self.handler.can_handle(self.event)
+        self.assertFalse(ret)
+
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'RebuildImagesOnImageAdvisoryChange': {
             "image": {"advisory_state": "SHIPPED_LIVE"}
