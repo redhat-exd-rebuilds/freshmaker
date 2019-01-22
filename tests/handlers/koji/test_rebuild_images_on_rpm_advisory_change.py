@@ -224,7 +224,7 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
     def test_can_handle_manual_rebuild_with_advisory_event(self):
         event = ManualRebuildWithAdvisoryEvent(
             "123",
-            ErrataAdvisory(123, "RHBA-2017", "REL_PREP", [],
+            ErrataAdvisory(123, "RHBA-2017", "REL_PREP", ["rpm"],
                            security_impact="",
                            product_short_name="product"),
             ["foo-container", "bar-container"])
