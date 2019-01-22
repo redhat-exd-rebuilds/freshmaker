@@ -12,7 +12,7 @@ COPY $freshmaker_rpm /tmp
 RUN cd /etc/yum.repos.d/ \
     && curl -O --insecure http://download-ipv4.eng.brq.redhat.com/rel-eng/RCMTOOLS/rcm-tools-fedora.repo \
     && dnf -y install \
-    httpd mod_wsgi mod_auth_gssapi python-rhmsg mod_ssl 'dnf-command(config-manager)' \
+    httpd mod_wsgi mod_auth_gssapi python2-rhmsg mod_ssl 'dnf-command(config-manager)' \
     /tmp/$(basename $freshmaker_rpm) \
     && dnf config-manager --add-repo http://download-ipv4.eng.brq.redhat.com/rel-eng/repos/eng-rhel-7/x86_64 \
     && dnf --nogpg -y upgrade python2-odcs-client \
