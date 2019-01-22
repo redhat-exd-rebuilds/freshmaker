@@ -46,7 +46,14 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
     name = 'RebuildImagesOnRPMAdvisoryChange'
 
     def can_handle(self, event):
-        return isinstance(event, ErrataAdvisoryRPMsSignedEvent)
+        if not isinstance(event, ErrataAdvisoryRPMsSignedEvent):
+            return False
+
+        if 'rpm' not in event.advisory.content_types:
+            self.log_info('Skip non-RPM advisory %s.', event.advisory.errata_id)
+            return False
+
+        return True
 
     @fail_event_on_handler_exception
     def handle(self, event):

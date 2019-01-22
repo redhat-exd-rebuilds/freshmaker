@@ -262,13 +262,6 @@ class BuildAPI(MethodView):
         parser = FreshmakerManualRebuildParser()
         event = parser.parse_post_data(data)
 
-        # Check the the advisory is RPM advisory.
-        if 'rpm' not in event.advisory.content_types:
-            return json_error(
-                400,
-                'Bad Request',
-                'Erratum {} is not a RPM advisory'.format(data['errata_id']))
-
         # Store the event into database, so it gets the ID which we can return
         # to client sending this POST request. The client can then use the ID
         # to check for the event status.
