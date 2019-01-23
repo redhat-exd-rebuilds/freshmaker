@@ -272,8 +272,13 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                 db.session.commit()
 
                 if state != ArtifactBuildState.FAILED.value:
-                    # Store odcs pulp compose to build
-                    if image["generate_pulp_repos"]:
+                    # Store odcs pulp compose to build.
+                    # Also generate pulp repos in case the image is unpublished,
+                    # because in this case, we have to generate extra ODCS compose
+                    # with all the RPMs in the image anyway later. And OSBS works
+                    # in a way that we have to pass all the ODCS composes to it or
+                    # no ODCS compose at all.
+                    if image["generate_pulp_repos"] or not image["published"]:
                         # Check if the compose for these content_sets is
                         # already cached and use it in this case.
                         cache_key = " ".join(sorted(image["content_sets"]))
