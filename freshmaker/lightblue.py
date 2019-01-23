@@ -502,11 +502,24 @@ class ContainerImage(dict):
         # Get the published version of this image to find out if the image
         # was actually published.
         images = lb_instance.get_images_by_nvrs(
-            [self["brew"]["build"]], published=True)
+            [self["brew"]["build"]], published=True, include_rpms=False)
         if images:
             self["published"] = True
         else:
             self["published"] = False
+
+            # Usually we do not store complete RPM manifest, but when
+            # image is unpublished, we need complete RPM manifest in order
+            # to check for possible unpublished RPMs.
+            # We do not want to get the complete manifest for every container
+            # image, because it is relatively big, so fetch it only when needed.
+            images = lb_instance.get_images_by_nvrs(
+                [self["brew"]["build"]])
+            if images:
+                self["rpm_manifest"] = images[0]["rpm_manifest"]
+            else:
+                log.warning("No image %s found in Lightblue.",
+                            self["brew"]["build"])
 
     def resolve(self, lb_instance, children=None):
         """
@@ -918,7 +931,7 @@ class LightBlue(object):
         return images
 
     def get_images_by_nvrs(self, nvrs, published=True, content_sets=None,
-                           srpm_nvrs=None):
+                           srpm_nvrs=None, include_rpms=True):
         """Query lightblue and returns containerImages defined by list of
         `nvrs`.
 
@@ -927,6 +940,8 @@ class LightBlue(object):
         :param list content_sets: List of content_sets the image includes RPMs
             from.
         :param list srpm_nvrs: list of SRPM NVRs to look for
+        :param bool include_rpms: When True, the rpm_manifest is included in
+            the returned ContainerImages.
         :return: List of containerImages.
         :rtype: list of ContainerImages.
         """
@@ -948,7 +963,8 @@ class LightBlue(object):
                     },
                 ]
             },
-            "projection": self._get_default_projection()
+            "projection": self._get_default_projection(
+                include_rpms=include_rpms)
         }
 
         if content_sets is not None:
