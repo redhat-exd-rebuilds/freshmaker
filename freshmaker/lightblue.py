@@ -501,9 +501,9 @@ class ContainerImage(dict):
     def resolve_published(self, lb_instance):
         # Get the published version of this image to find out if the image
         # was actually published.
-        image = lb_instance.get_images_by_nvrs(
-            self["brew"]["build"], published=True)
-        if image:
+        images = lb_instance.get_images_by_nvrs(
+            [self["brew"]["build"]], published=True)
+        if images:
             self["published"] = True
         else:
             self["published"] = False
