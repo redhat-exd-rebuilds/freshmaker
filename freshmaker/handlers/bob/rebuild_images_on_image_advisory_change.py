@@ -29,7 +29,7 @@ from freshmaker.errata import Errata
 from freshmaker.pulp import Pulp
 from freshmaker.events import ErrataAdvisoryStateChangedEvent
 from freshmaker.handlers import ContainerBuildHandler, fail_event_on_handler_exception
-from freshmaker.types import EventState
+from freshmaker.types import EventState, ArtifactType, ArtifactBuildState
 
 
 class RebuildImagesOnImageAdvisoryChange(ContainerBuildHandler):
@@ -94,6 +94,14 @@ class RebuildImagesOnImageAdvisoryChange(ContainerBuildHandler):
         # Submit rebuild request to Bob :).
         for repo_name in docker_repos.keys():
             self.log_info("Requesting Bob rebuild of %s", repo_name)
+
+            # TODO: The Bob API does not return any useful data, so just mark
+            # the rebuild as "DONE". If there will be some state sent by
+            # the API, we could set the build state according to it.
+            build = self.record_build(
+                db_event, repo_name, ArtifactType.IMAGE,
+                state=ArtifactBuildState.DONE.value)
+
             bob_url = "%s/update_children/%s" % (
                 conf.bob_server_url.rstrip('/'), repo_name)
             headers = {"Authorization": "Bearer %s" % conf.bob_auth_token}

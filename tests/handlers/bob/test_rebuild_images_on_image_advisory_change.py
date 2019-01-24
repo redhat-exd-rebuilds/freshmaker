@@ -26,6 +26,7 @@ import freshmaker
 from freshmaker.errata import ErrataAdvisory
 from freshmaker.events import ErrataAdvisoryStateChangedEvent
 from freshmaker.handlers.bob import RebuildImagesOnImageAdvisoryChange
+from freshmaker import models, db
 from tests import helpers
 
 
@@ -40,7 +41,10 @@ class RebuildImagesOnImageAdvisoryChangeTest(helpers.ModelsTestCase):
                            security_impact="",
                            product_short_name="product"))
         self.handler = RebuildImagesOnImageAdvisoryChange()
-        self.db_event = MagicMock()
+        self.db_event = models.Event.get_or_create(
+            db.session, self.event.msg_id, self.event.search_key,
+            self.event.__class__)
+
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'RebuildImagesOnImageAdvisoryChange': {
@@ -83,6 +87,11 @@ class RebuildImagesOnImageAdvisoryChangeTest(helpers.ModelsTestCase):
         requests_get.assert_any_call(
             'http://localhost/update_children/scl/bar-526',
             headers={'Authorization': 'Bearer x'})
+
+        self.assertEqual(self.db_event.state, models.EventState.COMPLETE.value)
+
+        builds = set([b.name for b in self.db_event.builds])
+        self.assertEqual(builds, set(['scl/foo-526', 'scl/bar-526']))
 
     @patch("freshmaker.errata.Errata.get_docker_repo_tags")
     @patch("freshmaker.pulp.Pulp.get_docker_repository_name")
