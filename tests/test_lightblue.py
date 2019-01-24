@@ -522,6 +522,34 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
         image.resolve_content_sets(lb)
         self.assertEqual(image["content_sets"], [])
 
+    def test_resolve_published(self):
+        image = ContainerImage.create({
+            '_id': '1233829',
+            'brew': {
+                'build': 'package-name-1-4-12.10',
+            },
+        })
+
+        lb = Mock()
+        lb.get_images_by_nvrs.return_value = [image]
+        image.resolve_published(lb)
+        self.assertEqual(image["published"], True)
+        lb.get_images_by_nvrs.assert_called_once_with(
+            ["package-name-1-4-12.10"], published=True)
+
+    def test_resolve_published_unpublished(self):
+        image = ContainerImage.create({
+            '_id': '1233829',
+            'brew': {
+                'build': 'package-name-1-4-12.10',
+            },
+        })
+
+        lb = Mock()
+        lb.get_images_by_nvrs.return_value = []
+        image.resolve_published(lb)
+        self.assertEqual(image["published"], False)
+
 
 class TestContainerRepository(helpers.FreshmakerTestCase):
 

@@ -512,25 +512,6 @@ class TestManualTriggerRebuild(helpers.ModelsTestCase):
             'manual.rebuild',
             {'msg_id': 'manual_rebuild_123', u'errata_id': 1, 'dry_run': True})
 
-    @patch('freshmaker.parsers.internal.manual_rebuild.ErrataAdvisory.'
-           'from_advisory_id')
-    def test_not_rebuild_nonrpm_advisory(self, from_advisory_id):
-        from_advisory_id.return_value = ErrataAdvisory(
-            123, 'name', 'REL_PREP', ['docker'])
-
-        resp = self.client.post('/api/1/builds/',
-                                data=json.dumps({'errata_id': 1}),
-                                content_type='application/json')
-        data = json.loads(resp.get_data(as_text=True))
-
-        self.assertEqual(
-            {
-                'status': 400,
-                'error': 'Bad Request',
-                'message': 'Erratum 1 is not a RPM advisory'
-            },
-            data)
-
 
 class TestOpenIDCLogin(ViewBaseTest):
     """Test that OpenIDC login"""
