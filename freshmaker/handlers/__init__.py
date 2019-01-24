@@ -386,6 +386,7 @@ class BaseHandler(object):
                     return False
                 self.log_debug('%r, type=%r is whitelisted.',
                                criteria, artifact_type.name.lower())
+                self.log_debug('name=%r, whitelist=%r', handler_name, whitelist)
                 return True
         except re.error as exc:
             err_msg = ("Error while compiling whilelist rule "
