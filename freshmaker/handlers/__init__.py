@@ -25,6 +25,7 @@ import abc
 import json
 import re
 import six
+import copy
 from functools import wraps
 
 from freshmaker import conf, log, db, models
@@ -368,8 +369,10 @@ class BaseHandler(object):
         :rtype: bool
         """
         # Global rules
-        whitelist_rules = conf.handler_build_whitelist.get("global", {})
-        blacklist_rules = conf.handler_build_blacklist.get("global", {})
+        whitelist_rules = copy.deepcopy(
+            conf.handler_build_whitelist.get("global", {}))
+        blacklist_rules = copy.deepcopy(
+            conf.handler_build_blacklist.get("global", {}))
 
         # This handler rules
         handler_name = self.name

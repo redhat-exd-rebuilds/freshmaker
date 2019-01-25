@@ -248,6 +248,40 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
     """Test BaseHandler.allow_build"""
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+        'global': {
+            'image': any_(
+                {
+                    'advisory_state': 'ON_QA',
+                    'advisory_name': 'RHBA-.*',
+                }
+            )
+        },
+        'RebuildImagesOnImageAdvisoryChange': {
+            'image': any_(
+                {
+                    'advisory_state': 'SHIPPED_LIVE',
+                    'advisory_name': 'RHBA-.*',
+                }
+            )
+        }
+    })
+    def test_whitelist_not_overwritten(self):
+        """
+        Test that "global" config section is not overwritten by handler-specific
+        section after calling the handler.allow_build().
+        """
+        handler = MyHandler()
+        handler.name = "RebuildImagesOnImageAdvisoryChange"
+        allowed = handler.allow_build(
+            ArtifactType.IMAGE, advisory_state="SHIPPED_LIVE")
+        self.assertTrue(allowed)
+
+        handler.name = "foo"
+        allowed = handler.allow_build(
+            ArtifactType.IMAGE, advisory_state="SHIPPED_LIVE")
+        self.assertFalse(allowed)
+
+    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'MyHandler': {
             'image': {
                 'name': 'test'
