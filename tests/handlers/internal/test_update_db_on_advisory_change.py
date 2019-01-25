@@ -365,8 +365,8 @@ class TestBatches(helpers.ModelsTestCase):
             args = json.loads(build.build_args)
             self.assertEqual(args["repository"], build.name + "_repo")
             self.assertEqual(args["commit"], build.name + "_123")
-            self.assertEqual(args["parent"],
-                             build.dep_on.rebuilt_nvr if build.dep_on else None)
+            self.assertEqual(args["original_parent"],
+                             build.dep_on.original_nvr if build.dep_on else None)
             self.assertEqual(args["renewed_odcs_compose_ids"],
                              [10, 11])
 
@@ -378,7 +378,7 @@ class TestCheckImagesToRebuild(helpers.ModelsTestCase):
         super(TestCheckImagesToRebuild, self).setUp()
 
         build_args = json.dumps({
-            "parent": "nvr",
+            "original_parent": "nvr",
             "repository": "repo",
             "target": "target",
             "commit": "hash",

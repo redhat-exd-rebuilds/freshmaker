@@ -464,7 +464,16 @@ class ContainerBuildHandler(BaseHandler):
                                 args["commit"])
         branch = args["branch"]
         target = args["target"]
-        parent = args["parent"]
+
+        # If this container image depends on another container image
+        # we are going to rebuild, use the new NVR of that image
+        # as a dependency. Otherwise fallback to build_args, which means
+        # the parent is not rebuilt by Freshmaker, but we just take existing
+        # parent from Koji.
+        if build.dep_on:
+            parent = build.dep_on.rebuilt_nvr
+        else:
+            parent = args["original_parent"]
 
         # If set to None, then OSBS defaults to using the arches
         # of the build tag associated with the target.

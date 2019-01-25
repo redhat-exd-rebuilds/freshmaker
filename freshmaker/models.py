@@ -565,6 +565,7 @@ class ArtifactBuild(FreshmakerBase):
             "state_name": ArtifactBuildState(self.state).name,
             "state_reason": self.state_reason,
             "dep_on": self.dep_on.name if self.dep_on else None,
+            "dep_on_id": self.dep_on.id if self.dep_on else None,
             "time_submitted": _utc_datetime_to_iso(self.time_submitted),
             "time_completed": _utc_datetime_to_iso(self.time_completed),
             "event_id": self.event_id,
