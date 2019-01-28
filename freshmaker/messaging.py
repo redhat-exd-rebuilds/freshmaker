@@ -40,11 +40,25 @@ def publish(topic, msg):
     :param dict msg: the message contents of the message (typically JSON)
     :return: the value returned from underlying backend "send" method.
     """
+    from freshmaker.monitor import (
+        messaging_tx_to_send_counter, messaging_tx_sent_ok_counter,
+        messaging_tx_failed_counter)
+
+    messaging_tx_to_send_counter.inc()
+
     try:
         handler = _messaging_backends[conf.messaging_sender]['publish']
     except KeyError:
+        messaging_tx_failed_counter.inc()
         raise KeyError("No messaging backend found for %r" % conf.messaging)
-    return handler(topic, msg)
+
+    try:
+        rv = handler(topic, msg)
+        messaging_tx_sent_ok_counter.inc()
+        return rv
+    except Exception:
+        messaging_tx_failed_counter.inc()
+        raise
 
 
 def _fedmsg_publish(topic, msg):
