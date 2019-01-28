@@ -268,8 +268,11 @@ class BaseHandler(object):
         :rtype: ArtifactBuild.
         """
 
-        ev = models.Event.get_or_create(db.session, event.msg_id,
-                                        event.search_key, event.__class__)
+        if isinstance(event, models.Event):
+            ev = event
+        else:
+            ev = models.Event.get_or_create(
+                db.session, event.msg_id, event.search_key, event.__class__)
         build = models.ArtifactBuild.create(db.session, ev, name,
                                             artifact_type.name.lower(),
                                             build_id, dep_on, state,
