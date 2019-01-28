@@ -20,7 +20,7 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
-from mock import patch, MagicMock
+from mock import patch
 
 import freshmaker
 from freshmaker.errata import ErrataAdvisory
@@ -45,7 +45,6 @@ class RebuildImagesOnImageAdvisoryChangeTest(helpers.ModelsTestCase):
         self.db_event = models.Event.get_or_create(
             db.session, self.event.msg_id, self.event.search_key,
             self.event.__class__)
-
 
     def test_can_handle(self):
         self.event.advisory.content_types = ["docker"]

@@ -107,7 +107,7 @@ class RebuildImagesOnImageAdvisoryChange(ContainerBuildHandler):
             # TODO: The Bob API does not return any useful data, so just mark
             # the rebuild as "DONE". If there will be some state sent by
             # the API, we could set the build state according to it.
-            build = self.record_build(
+            self.record_build(
                 db_event, repo_name, ArtifactType.IMAGE,
                 state=ArtifactBuildState.DONE.value)
 
