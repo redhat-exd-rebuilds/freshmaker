@@ -39,7 +39,8 @@ from freshmaker.api_utils import json_error
 from freshmaker.api_utils import pagination_metadata
 from freshmaker.auth import login_required, requires_role, require_scopes
 from freshmaker.parsers.internal.manual_rebuild import FreshmakerManualRebuildParser
-from freshmaker.monitor import MonitorAPI, build_api_latency, event_api_latency
+from freshmaker.monitor import (
+    MonitorAPI, freshmaker_build_api_latency, freshmaker_event_api_latency)
 
 api_v1 = {
     'event_types': {
@@ -199,7 +200,7 @@ class BuildStateAPI(MethodView):
 
 
 class EventAPI(MethodView):
-    @event_api_latency.time()
+    @freshmaker_event_api_latency.time()
     def get(self, id):
         if id is None:
             p_query = filter_events(request)
@@ -220,7 +221,7 @@ class EventAPI(MethodView):
 
 
 class BuildAPI(MethodView):
-    @build_api_latency.time()
+    @freshmaker_build_api_latency.time()
     def get(self, id):
         if id is None:
             p_query = filter_artifact_builds(request)

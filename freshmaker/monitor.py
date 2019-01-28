@@ -37,6 +37,7 @@ registry = CollectorRegistry()
 ProcessCollector(registry=registry)
 multiprocess.MultiProcessCollector(registry)
 
+# Generic metrics
 messaging_received_counter = Counter(
     'messaging_received',
     'Total number of messages received',
@@ -79,6 +80,7 @@ db_transaction_rollback_counter = Counter(
     'Number of transactions, which were rolled back',
     registry=registry)
 
+# Freshmaker-specific metrics
 freshmaker_artifact_build_done_counter = Counter(
     'freshmaker_artifact_build_done',
     'Number of successful artifact builds',
@@ -91,7 +93,6 @@ freshmaker_artifact_build_canceled_counter = Counter(
     'freshmaker_artifact_build_canceled',
     'Number of artifact builds, which were canceled',
     registry=registry)
-
 
 freshmaker_event_complete_counter = Counter(
     'freshmaker_event_complete',
@@ -106,11 +107,10 @@ freshmaker_event_skipped_counter = Counter(
     'Number of events, for which no action was taken',
     registry=registry)
 
-
-build_api_latency = Histogram(
+freshmaker_build_api_latency = Histogram(
     'build_api_latency',
     'BuildAPI latency', registry=registry)
-event_api_latency = Histogram(
+freshmaker_event_api_latency = Histogram(
     'event_api_latency',
     'EventAPI latency', registry=registry)
 
