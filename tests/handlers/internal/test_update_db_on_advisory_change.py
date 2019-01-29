@@ -784,7 +784,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "generate_pulp_repos": False,
                 "arches": "x86_64",
                 "odcs_compose_ids": None,
-                "published": False,
+                "published": True,
             })]
         ]
 
@@ -799,6 +799,46 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
         self.assertNotEqual(None, parent_image)
         self.assertEqual(ArtifactBuildState.PLANNED.value, parent_image.state)
         self.mock_prepare_pulp_repo.assert_not_called()
+
+    def test_record_batches_generate_pulp_repos_when_image_unpublished(self):
+        batches = [
+            [ContainerImage({
+                "brew": {
+                    "completion_date": "20170420T17:05:37.000-0400",
+                    "build": "rhel-server-docker-7.3-82",
+                    "package": "rhel-server-docker"
+                },
+                'parsed_data': {
+                    'layers': [
+                        'sha512:12345678980',
+                        'sha512:10987654321'
+                    ]
+                },
+                "parent": None,
+                "content_sets": ["content-set-1"],
+                "repository": "repo-1",
+                "commit": "123456789",
+                "target": "target-candidate",
+                "git_branch": "rhel-7",
+                "error": None,
+                "generate_pulp_repos": False,
+                "arches": "x86_64",
+                "odcs_compose_ids": None,
+                "published": False,
+            })]
+        ]
+
+        handler = RebuildImagesOnRPMAdvisoryChange()
+        handler._record_batches(batches, self.mock_event)
+
+        # Check parent image
+        query = db.session.query(ArtifactBuild)
+        parent_image = query.filter(
+            ArtifactBuild.original_nvr == 'rhel-server-docker-7.3-82'
+        ).first()
+        self.assertNotEqual(None, parent_image)
+        self.assertEqual(ArtifactBuildState.PLANNED.value, parent_image.state)
+        self.mock_prepare_pulp_repo.assert_called()
 
     def test_pulp_compose_generated_just_once(self):
         batches = [
