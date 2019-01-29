@@ -119,3 +119,21 @@ class TestRebuildImagesOnODCSComposeDone(helpers.ModelsTestCase):
         args, kwargs = start_to_build_images.call_args
         passed_builds = sorted(args[0], key=lambda build: build.id)
         self.assertEqual([self.build_1, self.build_3], passed_builds)
+
+    @patch('freshmaker.models.ArtifactBuild.composes_ready',
+           new_callable=PropertyMock)
+    @patch('freshmaker.handlers.ContainerBuildHandler.start_to_build_images')
+    def test_start_to_build_parent_image_done(self, start_to_build_images, composes_ready):
+        composes_ready.return_value = True
+        self.build_1.state = ArtifactBuildState.DONE.value
+
+        event = ODCSComposeStateChangeEvent(
+            'msg-id', {'id': self.compose_1.id, 'state': 'done'}
+        )
+
+        handler = RebuildImagesOnODCSComposeDone()
+        handler.handle(event)
+
+        args, kwargs = start_to_build_images.call_args
+        passed_builds = sorted(args[0], key=lambda build: build.id)
+        self.assertEqual([self.build_3, self.build_2], passed_builds)
