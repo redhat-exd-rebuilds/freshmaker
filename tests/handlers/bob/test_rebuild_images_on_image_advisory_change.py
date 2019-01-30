@@ -20,7 +20,7 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
-from mock import patch
+from mock import patch, MagicMock
 
 import freshmaker
 from freshmaker.errata import ErrataAdvisory
@@ -96,6 +96,17 @@ class RebuildImagesOnImageAdvisoryChangeTest(helpers.ModelsTestCase):
             'bar-container-1-1': {'bar-526': ['5.26', 'latest']}}
         get_docker_repository_name.side_effect = [
             "scl/foo-526", "scl/bar-526"]
+
+        resp1 = MagicMock()
+        resp1.json.return_value = {
+            "message": "Foobar",
+            "impacted": ["bob/repo1", "bob/repo2"]}
+        resp2 = MagicMock()
+        resp2.json.return_value = {
+            "message": "Foobar",
+            "impacted": ["bob/repo3", "bob/repo4"]}
+        requests_get.side_effect = [resp1, resp2]
+
         self.handler.rebuild_images_depending_on_advisory(self.db_event, 123)
 
         get_docker_repo_tags.assert_called_once_with(123)
@@ -108,10 +119,19 @@ class RebuildImagesOnImageAdvisoryChangeTest(helpers.ModelsTestCase):
             'http://localhost/update_children/scl/bar-526',
             headers={'Authorization': 'Bearer x'})
 
+        db.session.refresh(self.db_event)
+
         self.assertEqual(self.db_event.state, models.EventState.COMPLETE.value)
 
         builds = set([b.name for b in self.db_event.builds])
-        self.assertEqual(builds, set(['scl/foo-526', 'scl/bar-526']))
+        self.assertEqual(builds, set(['scl/foo-526', 'scl/bar-526',
+                                      'bob/repo1', 'bob/repo2',
+                                      'bob/repo3', 'bob/repo4']))
+        for build in self.db_event.builds:
+            if build in ['bob/repo1', 'bob/repo2']:
+                self.assertEqual(build.dep_on.name == "scl/foo-526")
+            elif build in ['bob/repo3', 'bob/repo4']:
+                self.assertEqual(build.dep_on.name == "scl/bar-526")
 
     @patch("freshmaker.errata.Errata.get_docker_repo_tags")
     @patch("freshmaker.pulp.Pulp.get_docker_repository_name")

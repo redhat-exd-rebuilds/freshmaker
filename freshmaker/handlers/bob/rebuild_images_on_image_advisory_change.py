@@ -104,11 +104,8 @@ class RebuildImagesOnImageAdvisoryChange(ContainerBuildHandler):
         for repo_name in docker_repos.keys():
             self.log_info("Requesting Bob rebuild of %s", repo_name)
 
-            # TODO: The Bob API does not return any useful data, so just mark
-            # the rebuild as "DONE". If there will be some state sent by
-            # the API, we could set the build state according to it.
-            self.record_build(
-                db_event, repo_name, ArtifactType.IMAGE,
+            parent_build = self.record_build(
+                db_event, repo_name, ArtifactType.IMAGE_REPOSITORY,
                 state=ArtifactBuildState.DONE.value)
 
             bob_url = "%s/update_children/%s" % (
@@ -120,11 +117,13 @@ class RebuildImagesOnImageAdvisoryChange(ContainerBuildHandler):
 
             r = requests.get(bob_url, headers=headers)
             r.raise_for_status()
-            # TODO: Once the Bob API is clear here, we can handle the response,
-            # but for now just log it. This should also be changed to log_debug
-            # once we are in production, but for now log_info makes debugging
-            # this new code easier.
-            self.log_info("Response: %r", r.json())
+            resp = r.json()
+            self.log_info("Response: %r", resp)
+            if "impacted" in resp:
+                for external_repo_name in resp["impacted"]:
+                    self.record_build(
+                        db_event, external_repo_name, ArtifactType.IMAGE_REPOSITORY,
+                        state=ArtifactBuildState.DONE.value, dep_on=parent_build)
 
         db_event.transition(EventState.COMPLETE)
         db.session.commit()

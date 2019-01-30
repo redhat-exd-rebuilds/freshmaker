@@ -32,6 +32,7 @@ class ArtifactType(Enum):
     RPM = 0
     IMAGE = 1
     MODULE = 2
+    IMAGE_REPOSITORY = 3
 
 
 class ArtifactBuildState(Enum):
