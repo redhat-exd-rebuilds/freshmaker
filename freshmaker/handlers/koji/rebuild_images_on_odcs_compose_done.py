@@ -24,7 +24,8 @@
 import six
 
 from freshmaker import db
-from freshmaker.models import ArtifactBuild, ArtifactBuildState, Compose
+from freshmaker.models import (
+    ArtifactBuild, ArtifactBuildState, Compose, ArtifactBuildCompose)
 from freshmaker.handlers import (
     ContainerBuildHandler, fail_event_on_handler_exception)
 from freshmaker.events import ODCSComposeStateChangeEvent
@@ -47,11 +48,13 @@ class RebuildImagesOnODCSComposeDone(ContainerBuildHandler):
         if event.dry_run:
             self.force_dry_run()
 
-        query = db.session.query(ArtifactBuild).join('composes')
+        builds_ready_to_rebuild = db.session.query(ArtifactBuild).join(
+            ArtifactBuildCompose).join(Compose)
         # Get all the builds waiting for this compose in PLANNED state ...
-        builds_ready_to_rebuild = query.filter(
+        builds_ready_to_rebuild = builds_ready_to_rebuild.filter(
             ArtifactBuild.state == ArtifactBuildState.PLANNED.value,
-            Compose.odcs_compose_id == event.compose['id'])
+            Compose.odcs_compose_id == event.compose['id'],
+            ArtifactBuildCompose.compose_id == Compose.id)
         # ... and depending on DONE parent image or parent image which is
         # not planned to be built in this Event (dep_on == None).
         builds_ready_to_rebuild = [

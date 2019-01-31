@@ -95,6 +95,23 @@ class TestRebuildImagesOnODCSComposeDone(helpers.ModelsTestCase):
                 build_id=build.id, compose_id=compose.id))
         db.session.commit()
 
+        # Create another DB event, build and compose just to have more data
+        # in database.
+        another_db_event = Event.create(
+            db.session, 'msg-2', 'search-key-2',
+            EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
+            state=EventState.INITIALIZED,
+            released=False)
+        another_build_1 = ArtifactBuild.create(
+            db.session, another_db_event, 'another-build-1', ArtifactType.IMAGE,
+            state=ArtifactBuildState.PLANNED)
+        another_compose_1 = Compose(odcs_compose_id=2)
+        db.session.add(another_compose_1)
+        db.session.commit()
+        db.session.add(ArtifactBuildCompose(
+            build_id=another_build_1.id, compose_id=another_compose_1.id))
+        db.session.commit()
+
     def test_cannot_handle_if_compose_is_not_done(self):
         event = ODCSComposeStateChangeEvent(
             'msg-id', {'id': 1, 'state': 'generating'}
