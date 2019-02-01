@@ -123,8 +123,8 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
         self.start_to_build_images(
             db_event.get_image_builds_in_first_batch(db.session))
 
-        msg = ('Waiting for composes to finish in order to start to '
-               'schedule images for rebuild.')
+        msg = 'Advisory %s: Rebuilding %d container images.' % (
+            db_event.search_key, len(db_event.builds))
         db_event.transition(EventState.BUILDING, msg)
 
         return []

@@ -100,6 +100,10 @@ class RebuildImagesOnImageAdvisoryChange(ContainerBuildHandler):
         self.log_info("Found following Docker repositories updated by the advisory: %r",
                       docker_repos.keys())
 
+        # Count the number of impacted builds to show them in state reason
+        # when moving the Event to COMPLETE.
+        num_impacted = None
+
         # Submit rebuild request to Bob :).
         for repo_name in docker_repos.keys():
             self.log_info("Requesting Bob rebuild of %s", repo_name)
@@ -120,10 +124,18 @@ class RebuildImagesOnImageAdvisoryChange(ContainerBuildHandler):
             resp = r.json()
             self.log_info("Response: %r", resp)
             if "impacted" in resp:
+                if num_impacted is None:
+                    num_impacted = 0
+                num_impacted += len(resp["impacted"])
                 for external_repo_name in resp["impacted"]:
                     self.record_build(
                         db_event, external_repo_name, ArtifactType.IMAGE_REPOSITORY,
                         state=ArtifactBuildState.DONE.value, dep_on=parent_build)
 
-        db_event.transition(EventState.COMPLETE)
+        msg = "Advisory %s: Informed Bob about update of %d image repositories." % (
+            db_event.search_key, len(docker_repos))
+        if num_impacted is not None:
+            msg += " Bob is rebuilding %d impacted external image repositories." % (
+                num_impacted)
+        db_event.transition(EventState.COMPLETE, msg)
         db.session.commit()

@@ -161,7 +161,7 @@ class TestRebuildImagesOnParentImageBuild(helpers.ModelsTestCase):
 
         self.assertEqual(EventState.COMPLETE.value,
                          self.db_advisory_rpm_signed_event.state)
-        self.assertEqual("1 of 4 container image(s) failed to rebuild.",
+        self.assertEqual("Advisory 12345: 1 of 4 container image(s) failed to rebuild.",
                          self.db_advisory_rpm_signed_event.state_reason)
 
     @mock.patch('freshmaker.handlers.ContainerBuildHandler.build_image_artifact_build')
