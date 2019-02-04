@@ -571,6 +571,7 @@ class ArtifactBuild(FreshmakerBase):
             "build_id": self.build_id,
             "url": build_url,
             "build_args": build_args,
+            "odcs_composes": [rel.compose.odcs_compose_id for rel in self.composes],
         }
 
     def get_root_dep_on(self):
