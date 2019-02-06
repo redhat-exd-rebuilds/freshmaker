@@ -90,18 +90,23 @@ class TestRebuildImagesOnParentImageBuild(helpers.ModelsTestCase):
         self.assertEqual(build_1.build_id, 2)
         self.assertEqual(build_2.build_id, 3)
 
+    @mock.patch('freshmaker.handlers.koji.rebuild_images_on_parent_image_build.get_rebuilt_nvr')
     @mock.patch('freshmaker.handlers.ContainerBuildHandler.build_image_artifact_build')
     @mock.patch('freshmaker.handlers.ContainerBuildHandler.get_repo_urls')
-    def test_not_build_containers_when_dependency_container_build_task_failed(self, repo_urls, build_image):
+    def test_not_build_containers_when_dependency_container_build_task_failed(
+            self, repo_urls, build_image, rebuilt_nvr):
         """
         Tests when dependency container build task failed in brew, only update build state in db.
         """
         build_image.side_effect = [1, 2, 3, 4]
         repo_urls.return_value = ["url"]
+        rebuilt_nvr.side_effect = ["foo-1-1.2", "foo-1-1.3"]
         e1 = models.Event.create(db.session, "test_msg_id", "RHSA-2018-001", events.TestingEvent)
         event = self.get_event_from_msg(get_fedmsg('brew_container_task_failed'))
 
-        base_build = models.ArtifactBuild.create(db.session, e1, 'test-product-docker', ArtifactType.IMAGE, event.task_id)
+        base_build = models.ArtifactBuild.create(
+            db.session, e1, 'test-product-docker', ArtifactType.IMAGE, event.task_id,
+            original_nvr='foo-1-1', rebuilt_nvr='foo-1-1.1')
         base_build.build_args = json.dumps({})
 
         models.ArtifactBuild.create(db.session, e1, 'docker-up', ArtifactType.IMAGE, 0,
@@ -109,10 +114,12 @@ class TestRebuildImagesOnParentImageBuild(helpers.ModelsTestCase):
         self.handler.handle(event)
         self.assertEqual(base_build.state, ArtifactBuildState.BUILD.value)
         self.assertEqual(base_build.build_id, 1)
+        self.assertEqual(base_build.rebuilt_nvr, "foo-1-1.2")
         event.task_id = 1
         self.handler.handle(event)
         self.assertEqual(base_build.state, ArtifactBuildState.BUILD.value)
         self.assertEqual(base_build.build_id, 2)
+        self.assertEqual(base_build.rebuilt_nvr, "foo-1-1.3")
         event.task_id = 2
         self.handler.handle(event)
         self.assertEqual(base_build.state, ArtifactBuildState.FAILED.value)
