@@ -116,7 +116,7 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
         build_args = {}
         build_args["repository"] = "repo"
         build_args["commit"] = "hash"
-        build_args["parent"] = None
+        build_args["original_parent"] = None
         build_args["target"] = "target"
         build_args["branch"] = "branch"
         build_args["arches"] = "x86_64"

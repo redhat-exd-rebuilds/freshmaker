@@ -155,8 +155,11 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                         ((build.dep_on and build.dep_on.original_nvr in printed) or
                          (not build.dep_on and batch == 0))):
                     args = json.loads(build.build_args)
-                    based_on = "based on %s" % args["parent"] \
-                        if args["parent"] else "base image"
+                    if build.dep_on:
+                        based_on = "based on %s" % build.dep_on.rebuilt_nvr
+                    else:
+                        based_on = "based on %s" % args["original_parent"] \
+                            if args["original_parent"] else "base image"
                     self.log_info(
                         '      - %s#%s (%s)' %
                         (args["repository"], args["commit"], based_on))
@@ -224,12 +227,6 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                     if "parent" in image and image["parent"] else None
                 dep_on = builds[parent_nvr] if parent_nvr in builds else None
 
-                # If this container image depends on another container image
-                # we are going to rebuild, use the new NVR of that image
-                # as a dependency instead of the original one.
-                if dep_on:
-                    parent_nvr = dep_on.rebuilt_nvr
-
                 if "error" in image and image["error"]:
                     state_reason = image["error"]
                     state = ArtifactBuildState.FAILED.value
@@ -262,7 +259,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                 build_args = {}
                 build_args["repository"] = image["repository"]
                 build_args["commit"] = image["commit"]
-                build_args["parent"] = parent_nvr
+                build_args["original_parent"] = parent_nvr
                 build_args["target"] = image["target"]
                 build_args["branch"] = image["git_branch"]
                 build_args["arches"] = image["arches"]
