@@ -151,6 +151,10 @@ class Event(FreshmakerBase):
     dry_run = db.Column(db.Boolean, default=False)
     # For manual rebuilds, set to user requesting the rebuild. Otherwise null.
     requester = db.Column(db.String, nullable=True)
+    # For manual rebuilds, contains the white-space separate list of artifacts
+    # (for example NVR of container images) to rebuild if passed using the
+    # REST API.
+    requested_rebuilds = db.Column(db.String, nullable=True)
 
     manual_triggered = db.Column(
         db.Boolean,
@@ -355,6 +359,8 @@ class Event(FreshmakerBase):
             "url": event_url,
             "dry_run": self.dry_run,
             "requester": self.requester,
+            "requested_rebuilds": (self.requested_rebuilds.split(" ")
+                                   if self.requested_rebuilds else []),
         }
 
     def find_dependent_events(self):

@@ -268,6 +268,7 @@ class BuildAPI(MethodView):
         # to check for the event status.
         db_event = models.Event.get_or_create_from_event(db.session, event)
         db_event.requester = g.user.username
+        db_event.requested_rebuilds = " ".join(event.container_images)
         db.session.commit()
 
         # Forward the POST data (including the msg_id of the database event we

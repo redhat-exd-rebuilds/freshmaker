@@ -175,6 +175,7 @@ class TestModels(helpers.ModelsTestCase):
             'state_name': 'INITIALIZED',
             'state_reason': None,
             'url': 'http://localhost:5001/api/1/events/1',
+            'requested_rebuilds': [],
         })
 
 
