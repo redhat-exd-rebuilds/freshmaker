@@ -21,11 +21,11 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
-import xmlrpclib
 import os
 import requests
 import dogpile.cache
 from requests_kerberos import HTTPKerberosAuth
+from six.moves.xmlrpc_client import ServerProxy
 from kobo.xmlrpc import SafeCookieTransport
 
 from freshmaker.events import (
@@ -120,8 +120,7 @@ class Errata(object):
             self.server_url = conf.errata_tool_server_url.rstrip('/')
 
         xmlrpc_url = self.server_url + '/errata/xmlrpc.cgi'
-        self.xmlrpc = xmlrpclib.ServerProxy(
-            xmlrpc_url, transport=SafeCookieTransport())
+        self.xmlrpc = ServerProxy(xmlrpc_url, transport=SafeCookieTransport())
 
     def _errata_authorized_get(self, *args, **kwargs):
         r = requests.get(
