@@ -40,7 +40,7 @@ from freshmaker.api_utils import pagination_metadata
 from freshmaker.auth import login_required, requires_role, require_scopes
 from freshmaker.parsers.internal.manual_rebuild import FreshmakerManualRebuildParser
 from freshmaker.monitor import (
-    MonitorAPI, freshmaker_build_api_latency, freshmaker_event_api_latency)
+    monitor_api, freshmaker_build_api_latency, freshmaker_event_api_latency)
 
 api_v1 = {
     'event_types': {
@@ -124,7 +124,6 @@ api_v1 = {
             }
         },
     },
-    'monitor': MonitorAPI.rest_api_v1,
     'about': {
         'about': {
             'url': '/api/1/about/',
@@ -301,7 +300,6 @@ API_V1_MAPPING = {
     'event_types': EventTypeAPI,
     'build_types': BuildTypeAPI,
     'build_states': BuildStateAPI,
-    'monitor': MonitorAPI,
     'about': AboutAPI,
 }
 
@@ -315,6 +313,8 @@ def register_api_v1():
                              endpoint=key,
                              view_func=view,
                              **val['options'])
+
+    app.register_blueprint(monitor_api)
 
 
 register_api_v1()

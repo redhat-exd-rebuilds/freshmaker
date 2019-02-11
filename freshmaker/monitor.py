@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2018  Red Hat, Inc.
+# Copyright (c) 2019  Red Hat, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -19,16 +19,19 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+# For an up-to-date version of this module, see:
+#   https://pagure.io/monitor-flask-sqlalchemy
+
 import os
 import tempfile
 
-from freshmaker import db
-from flask import Response
-from flask.views import MethodView
-from prometheus_client import (
+from flask import Blueprint, Response
+from prometheus_client import (  # noqa: F401
     ProcessCollector, CollectorRegistry, Counter, multiprocess,
-    Histogram, generate_latest)
+    Histogram, generate_latest, start_http_server, CONTENT_TYPE_LATEST)
 from sqlalchemy import event
+
+# Service-specific imports
 
 
 if not os.environ.get('prometheus_multiproc_dir'):
@@ -36,23 +39,40 @@ if not os.environ.get('prometheus_multiproc_dir'):
 registry = CollectorRegistry()
 ProcessCollector(registry=registry)
 multiprocess.MultiProcessCollector(registry)
+if os.getenv('MONITOR_STANDALONE_METRICS_SERVER_ENABLE', 'false') == 'true':
+    port = os.getenv('MONITOR_STANDALONE_METRICS_SERVER_PORT', '10040')
+    start_http_server(int(port), registry=registry)
+
 
 # Generic metrics
-messaging_received_counter = Counter(
-    'messaging_received',
+messaging_rx_counter = Counter(
+    'messaging_rx',
     'Total number of messages received',
     registry=registry)
-messaging_received_ignored_counter = Counter(
-    'messaging_received_ignored',
+messaging_rx_ignored_counter = Counter(
+    'messaging_rx_ignored',
     'Number of received messages, which were ignored',
     registry=registry)
-messaging_received_passed_counter = Counter(
-    'messaging_received_passed',
+messaging_rx_processed_ok_counter = Counter(
+    'messaging_rx_processed_ok',
     'Number of received messages, which were processed successfully',
     registry=registry)
-messaging_received_failed_counter = Counter(
-    'messaging_received_failed',
+messaging_rx_failed_counter = Counter(
+    'messaging_rx_failed',
     'Number of received messages, which failed during processing',
+    registry=registry)
+
+messaging_tx_to_send_counter = Counter(
+    'messaging_tx_to_send',
+    'Total number of messages to send',
+    registry=registry)
+messaging_tx_sent_ok_counter = Counter(
+    'messaging_tx_sent_ok',
+    'Number of messages, which were sent successfully',
+    registry=registry)
+messaging_tx_failed_counter = Counter(
+    'messaging_tx_failed',
+    'Number of messages, for which the sender failed',
     registry=registry)
 
 db_dbapi_error_counter = Counter(
@@ -67,20 +87,12 @@ db_handle_error_counter = Counter(
     'db_handle_error',
     'Number of exceptions during connection',
     registry=registry)
-db_transaction_begin_counter = Counter(
-    'db_transaction_begin',
-    'Number of started transactions',
-    registry=registry)
-db_transaction_commit_counter = Counter(
-    'db_transaction_commit',
-    'Number of transactions, which were committed',
-    registry=registry)
 db_transaction_rollback_counter = Counter(
     'db_transaction_rollback',
     'Number of transactions, which were rolled back',
     registry=registry)
 
-# Freshmaker-specific metrics
+# Service-specific metrics
 freshmaker_artifact_build_done_counter = Counter(
     'freshmaker_artifact_build_done',
     'Number of successful artifact builds',
@@ -115,45 +127,36 @@ freshmaker_event_api_latency = Histogram(
     'EventAPI latency', registry=registry)
 
 
-@event.listens_for(db.engine, 'dbapi_error', named=True)
-def receive_dbapi_error(**kw):
-    db_dbapi_error_counter.inc()
+def db_hook_event_listeners(target=None):
+    # Service-specific import of db
+    from freshmaker import db
+
+    if not target:
+        target = db.engine
+
+    @event.listens_for(target, 'dbapi_error', named=True)
+    def receive_dbapi_error(**kw):
+        db_dbapi_error_counter.inc()
+
+    @event.listens_for(target, 'engine_connect')
+    def receive_engine_connect(conn, branch):
+        db_engine_connect_counter.inc()
+
+    @event.listens_for(target, 'handle_error')
+    def receive_handle_error(exception_context):
+        db_handle_error_counter.inc()
+
+    @event.listens_for(target, 'rollback')
+    def receive_rollback(conn):
+        db_transaction_rollback_counter.inc()
 
 
-@event.listens_for(db.engine, 'engine_connect')
-def receive_engine_connect(conn, branch):
-    db_engine_connect_counter.inc()
+monitor_api = Blueprint(
+    'monitor', __name__,
+    url_prefix='/api/1/monitor')
 
 
-@event.listens_for(db.engine, 'handle_error')
-def receive_handle_error(exception_context):
-    db_handle_error_counter.inc()
-
-
-@event.listens_for(db.engine, 'begin')
-def receive_begin(conn):
-    db_transaction_begin_counter.inc()
-
-
-@event.listens_for(db.engine, 'commit')
-def receive_commit(conn):
-    db_transaction_commit_counter.inc()
-
-
-@event.listens_for(db.engine, 'rollback')
-def receive_rollback(conn):
-    db_transaction_rollback_counter.inc()
-
-
-class MonitorAPI(MethodView):
-    rest_api_v1 = {
-        'basic': {
-            'url': '/api/1/monitor/metrics/',
-            'options': {
-                'methods': ['GET'],
-            }
-        }
-    }
-
-    def get(self):
-        return Response(generate_latest(registry))
+@monitor_api.route('/metrics')
+def metrics():
+    return Response(generate_latest(registry),
+                    content_type=CONTENT_TYPE_LATEST)

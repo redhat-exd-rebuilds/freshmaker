@@ -57,3 +57,6 @@ from freshmaker.auth import init_auth  # noqa
 init_auth(login_manager, conf.auth_backend)
 
 from freshmaker import views  # noqa
+
+from freshmaker.monitor import db_hook_event_listeners  # noqa
+db_hook_event_listeners(target=db.engine)

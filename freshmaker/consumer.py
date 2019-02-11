@@ -30,8 +30,8 @@ import moksha.hub
 
 from freshmaker import log, conf, messaging, events, app
 from freshmaker.monitor import (
-    messaging_received_counter, messaging_received_ignored_counter,
-    messaging_received_passed_counter, messaging_received_failed_counter)
+    messaging_rx_counter, messaging_rx_ignored_counter,
+    messaging_rx_processed_ok_counter, messaging_rx_failed_counter)
 from freshmaker.utils import load_classes
 
 
@@ -85,7 +85,7 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
             super(FreshmakerConsumer, self).validate(message)
 
     def consume(self, message):
-        messaging_received_counter.inc()
+        messaging_rx_counter.inc()
 
         # Sometimes, the messages put into our queue are artificially put there
         # by other parts of our own codebase.  If they are already abstracted
@@ -100,7 +100,7 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
         if not msg:
             # We do not log here anything, because it would create lot of
             # useless messages in the logs.
-            messaging_received_ignored_counter.inc()
+            messaging_rx_ignored_counter.inc()
             return
 
         # Primary work is done here.
@@ -115,9 +115,9 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
             # to have global app_context.
             with app.app_context():
                 self.process_event(msg)
-            messaging_received_passed_counter.inc()
+            messaging_rx_processed_ok_counter.inc()
         except Exception:
-            messaging_received_failed_counter.inc()
+            messaging_rx_failed_counter.inc()
             log.exception('Failed while handling {0!r}'.format(msg))
 
         if self.stop_condition and self.stop_condition(message):

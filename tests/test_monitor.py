@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2017  Red Hat, Inc.
+# Copyright (c) 2019  Red Hat, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -19,11 +19,17 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import os
 import mock
+import pytest
 import freshmaker
+import requests
 
+from six.moves import reload_module
 from freshmaker import app, db, events, models, login_manager
 from tests import helpers
+
+num_of_metrics = 44
 
 
 @login_manager.user_loader
@@ -48,13 +54,10 @@ class TestViews(helpers.ModelsTestCase):
         db.session.expire_all()
 
     def test_monitor_api_structure(self):
-        resp = self.client.get('/api/1/monitor/metrics/')
+        resp = self.client.get('/api/1/monitor/metrics')
         self.assertEqual(
-            len([l.startswith('# TYPE')
-                 for l in resp.get_data(as_text=True).splitlines()]), 140)
-        self.assertEqual(
-            len([l.startswith('# HELP')
-                 for l in resp.get_data(as_text=True).splitlines()]), 140)
+            len([l for l in resp.get_data(as_text=True).splitlines()
+                 if l.startswith('# TYPE')]), num_of_metrics)
 
 
 class ConsumerTest(helpers.ModelsTestCase):
@@ -80,7 +83,7 @@ class ConsumerTest(helpers.ModelsTestCase):
         return msg
 
     def _get_monitor_value(self, key):
-        resp = self.client.get('/api/1/monitor/metrics/')
+        resp = self.client.get('/api/1/monitor/metrics')
         for line in resp.get_data(as_text=True).splitlines():
             k, v = line.split(" ")[:2]
             if k == key:
@@ -99,7 +102,7 @@ class ConsumerTest(helpers.ModelsTestCase):
         global_consumer.return_value = consumer
         handle.return_value = [freshmaker.events.TestingEvent("ModuleBuilt handled")]
 
-        prev_counter_value = self._get_monitor_value("messaging_received_passed_total")
+        prev_counter_value = self._get_monitor_value("messaging_rx_processed_ok_total")
 
         msg = self._module_state_change_msg()
         consumer.consume(msg)
@@ -107,5 +110,20 @@ class ConsumerTest(helpers.ModelsTestCase):
         event = consumer.incoming.get()
         self.assertEqual(event.msg_id, "ModuleBuilt handled")
 
-        counter_value = self._get_monitor_value("messaging_received_passed_total")
+        counter_value = self._get_monitor_value("messaging_rx_processed_ok_total")
         self.assertEqual(prev_counter_value + 1, counter_value)
+
+
+def test_standalone_metrics_server_disabled_by_default():
+    with pytest.raises(requests.exceptions.ConnectionError):
+        requests.get('http://127.0.0.1:10040/metrics')
+
+
+def test_standalone_metrics_server():
+    os.environ['MONITOR_STANDALONE_METRICS_SERVER_ENABLE'] = 'true'
+    reload_module(freshmaker.monitor)
+
+    r = requests.get('http://127.0.0.1:10040/metrics')
+
+    assert len([l for l in r.text.splitlines()
+                if l.startswith('# TYPE')]) == num_of_metrics
