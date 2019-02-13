@@ -201,8 +201,11 @@ class Event(FreshmakerBase):
         instance = cls.get(session, message_id)
         if instance:
             return instance
-        return cls.create(session, message_id, search_key, event_type,
-                          released=released, manual=manual, dry_run=dry_run)
+        instance = cls.create(
+            session, message_id, search_key, event_type,
+            released=released, manual=manual, dry_run=dry_run)
+        session.commit()
+        return instance
 
     @classmethod
     def get_or_create_from_event(cls, session, event, released=True):
