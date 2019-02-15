@@ -124,8 +124,8 @@ def parse_nvr(nvre):
 def get_api_url(deployment, env):
     API_URLS = {
         "redhat": {
-            "prod": "https://freshmaker.host.prod.eng.bos.redhat.com",
-            "stage": "https://freshmaker.host.stage.eng.bos.redhat.com",
+            "prod": "https://freshmaker.engineering.redhat.com",
+            "stage": "https://freshmaker.stage.engineering.redhat.com",
             "qe": "https://freshmaker.host.qe.eng.pek2.redhat.com",
             "dev": "https://freshmaker-dev.cloud.paas.upshift.redhat.com",
         },
@@ -237,26 +237,54 @@ def print_events(events):
     print(tabulate(table, headers="firstrow"))
 
 
-def make_tree_dict(child_parent_mapping):
+def make_tree_dict(builds_by_id):
     """
-    Takes the list of tuples with child-parent mapping and constructs a tree
-    represented by nested dict.
+    Takes the list of tuples with child_id-parent_id mapping and constructs
+    a tree represented by nested dict.
     """
-    has_parent = set()
-    all_items = {}
-    for child, parent in child_parent_mapping:
-        if parent not in all_items:
-            all_items[parent] = {}
-        if child not in all_items:
-            all_items[child] = {}
-        all_items[parent][child] = all_items[child]
-        has_parent.add(child)
 
-    result = {}
-    for key, value in all_items.items():
-        if key not in has_parent:
-            result[key] = value
-    return result
+    # Temporary dict to store the parent/children images in a trees like this:
+    #   {
+    #       grand_parent_id: {
+    #           parent_id: {
+    #               child_id: {
+    #                   ...
+    #               },
+    #               ...
+    #           },
+    #           ...
+    #       },
+    #       parent_id: {
+    #           ...
+    #       },
+    #       child_id: {
+    #           ...
+    #       }
+    #       ...
+    #   }
+    #
+    # If the image does not have a parent, its parent_id is None.
+    # The goal here is to construct the final tree containing all
+    # the children and its parents back to the image without any
+    # parent (with parent_id None).
+    trees = {}
+    for child_id, build in builds_by_id.items():
+        parent_id = build["dep_on_id"]
+
+        if parent_id not in trees:
+            trees[parent_id] = {}
+        if child_id not in trees:
+            trees[child_id] = {}
+
+        # Note that this does not copy objects but references them,
+        # so the change in trees[child_id] is reflected also in
+        # trees[parent_id][child_id].
+        # This is the key thing here, because it allows us to construct
+        # the final tree with parent_id None.
+        trees[parent_id][child_id] = trees[child_id]
+
+    # Return the final tree.
+    return trees[None]
 
 
 def print_detailed_events(events, states=None):
@@ -267,16 +295,15 @@ def print_detailed_events(events, states=None):
     for event in events:
         print("Event id:", event["id"])
 
-        # Temporary list with child-parent mapping between the builds.
-        builds_mapping = []
+        # Temporary dict to find a build by its Freshmaker id.
+        builds_by_id = {}
         # Temporary dict to find build based on rebuilt_nvr.
         builds_by_nvr = {}
         for build in event["builds"]:
-            builds_mapping.append(
-                (build["rebuilt_nvr"], build["build_args"].get("parent")))
+            builds_by_id[build["id"]] = build
             builds_by_nvr[build["rebuilt_nvr"]] = build
 
-        tree = make_tree_dict(builds_mapping)
+        tree = make_tree_dict(builds_by_id)
 
         def _prepare_table(subtree, level = 0):
             """
@@ -285,24 +312,23 @@ def print_detailed_events(events, states=None):
             method.
             """
             rows = []
-            for nvr, children in subtree.items():
-                if nvr in builds_by_nvr:
-                    build = builds_by_nvr[nvr]
+            for build_id, children in subtree.items():
+                build = builds_by_id[build_id]
 
-                    if states:
-                        if build['state_name'].lower() not in states:
-                            continue
+                if states:
+                    if build['state_name'].lower() not in states:
+                        continue
 
-                    nvr = parse_nvr(build["original_nvr"])
-                    new_nvr = parse_nvr(build["rebuilt_nvr"])
+                nvr = parse_nvr(build["original_nvr"])
+                new_nvr = parse_nvr(build["rebuilt_nvr"])
 
-                    padding = "-" * (level * 2) + ">" + " " * (8 - level * 2)
-                    row = [padding + str(build["id"]), build["build_id"],
-                           build["state_name"], nvr["name"],
-                           "%s-%s" % (nvr["version"], nvr["release"]),
-                           "%s-%s" % (new_nvr["version"], new_nvr["release"]),
-                           build["state_reason"]]
-                    rows.append(row)
+                padding = "-" * (level * 2) + ">" + " " * (8 - level * 2)
+                row = [padding + str(build["id"]), build["build_id"],
+                        build["state_name"], nvr["name"],
+                        "%s-%s" % (nvr["version"], nvr["release"]),
+                        "%s-%s" % (new_nvr["version"], new_nvr["release"]),
+                        build["state_reason"]]
+                rows.append(row)
                 rows += _prepare_table(children, level + 1)
 
             return rows
