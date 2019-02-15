@@ -88,6 +88,41 @@ def load_krb_user_from_request(request):
     return user
 
 
+@commit_on_success
+def load_ssl_user_from_request(request):
+    """
+    Loads SSL user from current request.
+
+    SSL_CLIENT_VERIFY and SSL_CLIENT_S_DN needs to be set in
+    request.environ. This is set by frontend httpd mod_ssl module.
+    """
+    ssl_client_verify = request.environ.get('SSL_CLIENT_VERIFY')
+    if ssl_client_verify != 'SUCCESS':
+        raise Unauthorized('Cannot verify client: %s' % ssl_client_verify)
+
+    username = request.environ.get('SSL_CLIENT_S_DN')
+    if not username:
+        raise Unauthorized('Unable to get user information (DN) from client certificate')
+
+    user = User.find_user_by_name(username)
+    if not user:
+        user = User.create_user(username=username)
+
+    g.groups = []
+    g.user = user
+    return user
+
+
+def load_krb_or_ssl_user_from_request(request):
+    """
+    Loads User using Kerberos or SSL auth.
+    """
+    if request.environ.get('REMOTE_USER'):
+        return load_krb_user_from_request(request)
+    else:
+        return load_ssl_user_from_request(request)
+
+
 def query_ldap_groups(uid):
     client = ldap.initialize(conf.auth_ldap_server)
     groups = client.search_s(conf.auth_ldap_group_base,
@@ -195,6 +230,15 @@ def init_auth(login_manager, backend):
     elif backend == 'openidc':
         global load_openidc_user
         load_openidc_user = login_manager.request_loader(load_openidc_user)
+    elif backend == 'kerberos_or_ssl':
+        _validate_kerberos_config()
+        global load_krb_or_ssl_user_from_request
+        load_krb_or_ssl_user_from_request = login_manager.request_loader(
+            load_krb_or_ssl_user_from_request)
+    elif backend == 'ssl':
+        global load_ssl_user_from_request
+        load_ssl_user_from_request = login_manager.request_loader(
+            load_ssl_user_from_request)
     else:
         raise ValueError('Unknown backend name {0}.'.format(backend))
 
