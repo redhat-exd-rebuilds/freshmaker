@@ -49,7 +49,7 @@ node('fedora-28') {
         sh 'mkdir -p rpmbuild-output'
         sh 'make -f .copr/Makefile srpm outdir=./rpmbuild-output/'
         sh 'curl -O https://kojipkgs.fedoraproject.org//packages/python-prometheus_client/0.5.0/2.fc28/noarch/python2-prometheus_client-0.5.0-2.fc28.noarch.rpm'
-        sh 'sudo dnf -y python2-prometheus_client-0.5.0-2.fc28.noarch.rpm'
+        sh 'sudo dnf -y install python2-prometheus_client-0.5.0-2.fc28.noarch.rpm'
         sh 'sudo dnf -y builddep ./rpmbuild-output/freshmaker-*.src.rpm'
         sh 'sudo dnf -y install python2-tox python3-tox'
         /* Needed to get the latest /etc/mock/fedora-28-x86_64.cfg */
