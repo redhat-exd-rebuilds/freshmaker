@@ -278,7 +278,8 @@ def get_distgit_files(
         try:
             cmd = ['git', 'archive', '--remote=%s' % repo_url,
                    commit_or_branch, f]
-            tar_data = _run_command(cmd, logger=logger, return_output=True)
+            tar_data = _run_command(cmd, logger=logger, return_output=True,
+                                    log_output=False)
             tar_bytes = io.BytesIO(tar_data)
             tar = tarfile.open(fileobj=tar_bytes)
             for member in tar.getmembers():
@@ -338,7 +339,8 @@ def bump_distgit_repo(namespace, name, branch='master', user=None, commit_author
     return rev
 
 
-def _run_command(command, logger=None, rundir=None, output=subprocess.PIPE, error=subprocess.PIPE, env=None, return_output=False):
+def _run_command(command, logger=None, rundir=None, output=subprocess.PIPE, error=subprocess.PIPE, env=None, return_output=False,
+                 log_output=True):
     """Run a command, return output if return_output is True. Error out if command exit with non-zero code."""
 
     if rundir is None:
@@ -351,7 +353,7 @@ def _run_command(command, logger=None, rundir=None, output=subprocess.PIPE, erro
                           close_fds=True)
     (out, err) = p1.communicate()
 
-    if out and logger:
+    if out and logger and log_output:
         logger.debug(out)
 
     if p1.returncode != 0:

@@ -540,6 +540,9 @@ class ContainerImage(dict):
 class LightBlue(object):
     """Interface to query lightblue"""
 
+    region = dogpile.cache.make_region().configure(
+        conf.dogpile_cache_backend, expiration_time=120)
+
     def __init__(self, server_url, cert, private_key,
                  verify_ssl=None,
                  entity_versions=None):
@@ -1048,8 +1051,9 @@ class LightBlue(object):
             return None
         return images[0]
 
+    @region.cache_on_arguments()
     def get_image_by_layer(self, top_layer, build_layers_count,
-                           srpm_name=None):
+                           srpm_name):
         """
         Find parent image by layer from either published repository or not
 
@@ -1165,7 +1169,7 @@ class LightBlue(object):
             parent_build_layers_count = len(layers) - 1 - idx
             image = self.get_image_by_layer(parent_top_layer,
                                             parent_build_layers_count,
-                                            srpm_name=srpm_name)
+                                            srpm_name)
             children = images if images else [child_image]
             if image:
                 image.resolve(self, children)
@@ -1179,7 +1183,8 @@ class LightBlue(object):
                     # the package so we know against which image it has been
                     # built.
                     parent = self.get_image_by_layer(parent_top_layer,
-                                                     parent_build_layers_count)
+                                                     parent_build_layers_count,
+                                                     None)
 
                     children_image_layers_count = parent_build_layers_count + 1
                     if parent is None and children_image_layers_count != 2:
@@ -1280,14 +1285,26 @@ class LightBlue(object):
         if filter_fnc:
             images = [image for image in images if not filter_fnc(image)]
 
-        for image in images:
+        def _resolve_image(image):
             # We do not set "children" here in resolve_content_sets call, because
             # published images should have the content_set set.
             image.resolve(self, None)
             # Images returned by this method are latest released images, so
             # mark them like that.
             image["latest_released"] = True
-        return images
+            return image
+
+        resolved_images = []
+        with concurrent.futures.ThreadPoolExecutor(
+                max_workers=conf.max_thread_workers) as executor:
+            futures = {executor.submit(_resolve_image, i): i
+                       for i in images}
+            concurrent.futures.wait(futures)
+            for future in futures:
+                image = future.result()
+                resolved_images.append(image)
+
+        return resolved_images
 
     def _deduplicate_images_to_rebuild(self, to_rebuild):
         """
@@ -1547,7 +1564,8 @@ class LightBlue(object):
                 if rebuild_list[srpm_name]:
                     image['parent'] = rebuild_list[srpm_name][0]
                 else:
-                    parent = self.get_image_by_layer(layers[1], len(layers) - 1)
+                    parent = self.get_image_by_layer(layers[1], len(layers) - 1,
+                                                     None)
                     if parent:
                         parent.resolve(self, [image])
                     elif len(layers) != 2:
