@@ -48,7 +48,7 @@ node('fedora-28') {
         sh 'sudo rm -f rpmbuild-output/*.src.rpm'
         sh 'mkdir -p rpmbuild-output'
         sh 'make -f .copr/Makefile srpm outdir=./rpmbuild-output/'
-        sh 'wget -k https://kojipkgs.fedoraproject.org//packages/python-prometheus_client/0.5.0/2.fc28/noarch/python2-prometheus_client-0.5.0-2.fc28.noarch.rpm'
+        sh 'curl -O https://kojipkgs.fedoraproject.org//packages/python-prometheus_client/0.5.0/2.fc28/noarch/python2-prometheus_client-0.5.0-2.fc28.noarch.rpm'
         sh 'sudo dnf -y python2-prometheus_client-0.5.0-2.fc28.noarch.rpm'
         sh 'sudo dnf -y builddep ./rpmbuild-output/freshmaker-*.src.rpm'
         sh 'sudo dnf -y install python2-tox python3-tox'
