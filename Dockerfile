@@ -12,6 +12,7 @@ COPY $freshmaker_rpm /tmp
 RUN cd /etc/yum.repos.d/ \
     && dnf -v -y install 'dnf-command(config-manager)' \
     && dnf config-manager --add-repo http://download-ipv4.eng.brq.redhat.com/rel-eng/RCMTOOLS/latest-RCMTOOLS-2-F-28/compose/Everything/x86_64/os/ \
+    && dnf -y clean all \
     && dnf -v --nogpg -y install \
     httpd mod_wsgi mod_auth_gssapi python2-rhmsg mod_ssl \
     /tmp/$(basename $freshmaker_rpm) \
