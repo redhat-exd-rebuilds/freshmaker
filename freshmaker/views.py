@@ -41,6 +41,7 @@ from freshmaker.auth import login_required, requires_role, require_scopes
 from freshmaker.parsers.internal.manual_rebuild import FreshmakerManualRebuildParser
 from freshmaker.monitor import (
     monitor_api, freshmaker_build_api_latency, freshmaker_event_api_latency)
+from freshmaker.image_verifier import ImageVerifier
 
 api_v1 = {
     'event_types': {
@@ -127,6 +128,22 @@ api_v1 = {
     'about': {
         'about': {
             'url': '/api/1/about/',
+            'options': {
+                'methods': ['GET'],
+            }
+        },
+    },
+    'verify_image': {
+        'verify_image': {
+            'url': '/api/1/verify-image/<image>',
+            'options': {
+                'methods': ['GET'],
+            }
+        },
+    },
+    'verify_image_repository': {
+        'verify_image_repository': {
+            'url': '/api/1/verify-image-repository/<project>/<repo>',
             'options': {
                 'methods': ['GET'],
             }
@@ -294,6 +311,34 @@ class AboutAPI(MethodView):
         return jsonify(json), 200
 
 
+class VerifyImageAPI(MethodView):
+    def get(self, image):
+        if not image:
+            raise ValueError("No image name provided")
+
+        verifier = ImageVerifier()
+        images = verifier.verify_image(image)
+        ret = {}
+        ret["msg"] = ("Found %d images which are handled by Freshmaker for defined "
+                      "content_sets." % len(images))
+        ret["images"] = images
+        return jsonify(ret), 200
+
+
+class VerifyImageRepositoryAPI(MethodView):
+    def get(self, project, repo):
+        if not project and not repo:
+            raise ValueError("No image repository name provided")
+
+        verifier = ImageVerifier()
+        images = verifier.verify_repository("%s/%s" % (project, repo))
+        ret = {}
+        ret["msg"] = ("Found %d images which are handled by Freshmaker for defined "
+                      "content_sets." % len(images))
+        ret["images"] = images
+        return jsonify(ret), 200
+
+
 API_V1_MAPPING = {
     'events': EventAPI,
     'builds': BuildAPI,
@@ -301,6 +346,8 @@ API_V1_MAPPING = {
     'build_types': BuildTypeAPI,
     'build_states': BuildStateAPI,
     'about': AboutAPI,
+    'verify_image': VerifyImageAPI,
+    'verify_image_repository': VerifyImageRepositoryAPI,
 }
 
 

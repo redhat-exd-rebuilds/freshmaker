@@ -969,20 +969,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                     {
                         "$or": [
                             {
-                                "field": "content_sets.*",
-                                "op": "=",
-                                "rvalue": "content-set-1"
-                            },
-                            {
-                                "field": "content_sets.*",
-                                "op": "=",
-                                "rvalue": "content-set-2"
-                            },
-                        ],
-                    },
-                    {
-                        "$or": [
-                            {
                                 "field": "repositories.*.tags.*.name",
                                 "op": "=",
                                 "rvalue": "latest"
@@ -1000,6 +986,25 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                         ],
                     },
                     {
+                        "field": "parsed_data.files.*.key",
+                        "op": "=",
+                        "rvalue": "buildfile"
+                    },
+                    {
+                        "$or": [
+                            {
+                                "field": "content_sets.*",
+                                "op": "=",
+                                "rvalue": "content-set-1"
+                            },
+                            {
+                                "field": "content_sets.*",
+                                "op": "=",
+                                "rvalue": "content-set-2"
+                            },
+                        ],
+                    },
+                    {
                         "$or": [
                             {
                                 "field": "rpm_manifest.*.rpms.*.srpm_name",
@@ -1007,11 +1012,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                 "rvalue": "openssl"
                             },
                         ],
-                    },
-                    {
-                        "field": "parsed_data.files.*.key",
-                        "op": "=",
-                        "rvalue": "buildfile"
                     },
                     {
                         "field": "repositories.*.published",
@@ -1028,8 +1028,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         # the tags criteria in order to assert with expected value.
         args, _ = cont_images.call_args
         request_arg = args[0]
-        tags_criteira = request_arg['query']['$and'][1]['$or']
-        request_arg['query']['$and'][1]['$or'] = sorted(
+        tags_criteira = request_arg['query']['$and'][0]['$or']
+        request_arg['query']['$and'][0]['$or'] = sorted(
             tags_criteira, key=lambda item: item['rvalue'])
 
         self.assertEqual(expected_image_request, request_arg)

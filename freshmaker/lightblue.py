@@ -843,7 +843,8 @@ class LightBlue(object):
         return ret
 
     def find_images_with_included_srpms(
-            self, content_sets, srpm_nvrs, repositories, published=True):
+            self, content_sets, srpm_nvrs, repositories, published=True,
+            include_rpms=True):
         """Query lightblue and find containerImages in given
         containerRepositories. By default limit only to images which have been
         published to at least one repository and images which have latest tag.
@@ -854,6 +855,7 @@ class LightBlue(object):
         :param list repositories: List of repository names to look for.
         :param bool published: whether to limit queries to published
             repositories
+        :param bool include_rpms: whether to include the RPMs in the result.
         """
         auto_rebuild_tags = set()
         for repo in repositories.values():
@@ -871,24 +873,10 @@ class LightBlue(object):
                 "$and": [
                     {
                         "$or": [{
-                            "field": "content_sets.*",
-                            "op": "=",
-                            "rvalue": r
-                        } for r in content_sets]
-                    },
-                    {
-                        "$or": [{
                             "field": "repositories.*.tags.*.name",
                             "op": "=",
                             "rvalue": tag
                         } for tag in auto_rebuild_tags]
-                    },
-                    {
-                        "$or": [{
-                            "field": "rpm_manifest.*.rpms.*.srpm_name",
-                            "op": "=",
-                            "rvalue": srpm_name
-                        } for srpm_name in srpm_name_to_nvr.keys()]
                     },
                     {
                         "field": "parsed_data.files.*.key",
@@ -898,8 +886,29 @@ class LightBlue(object):
                 ]
             },
             "projection": self._get_default_projection(
-                srpm_names=srpm_name_to_nvr.keys())
+                srpm_names=srpm_name_to_nvr.keys(),
+                include_rpms=include_rpms)
         }
+
+        if content_sets:
+            image_request["query"]["$and"].append(
+                {
+                    "$or": [{
+                        "field": "content_sets.*",
+                        "op": "=",
+                        "rvalue": r
+                    } for r in content_sets]
+                })
+
+        if srpm_nvrs:
+            image_request["query"]["$and"].append(
+                {
+                    "$or": [{
+                        "field": "rpm_manifest.*.rpms.*.srpm_name",
+                        "op": "=",
+                        "rvalue": srpm_name
+                    } for srpm_name in srpm_name_to_nvr.keys()]
+                })
 
         if published is not None:
             image_request["query"]["$and"].append(

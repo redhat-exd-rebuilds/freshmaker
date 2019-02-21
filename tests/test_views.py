@@ -413,6 +413,25 @@ class TestViews(helpers.ModelsTestCase):
         # version is 'unknown' in case of skip_install=True in tox.ini
         self.assertEqual(data['version'], 'unknown')
 
+    @patch("freshmaker.views.ImageVerifier")
+    def test_verify_image(self, verifier):
+        verifier.return_value.verify_image.return_value = {"foo-1-1": ["content-set"]}
+        resp = self.client.get('/api/1/verify-image/foo-1-1')
+        data = json.loads(resp.get_data(as_text=True))
+        self.assertEqual(data, {
+            'images': {'foo-1-1': ['content-set']},
+            'msg': 'Found 1 images which are handled by Freshmaker for defined content_sets.'})
+
+    @patch("freshmaker.views.ImageVerifier")
+    def test_verify_image_repository(self, verifier):
+        verifier.return_value.verify_repository.return_value = {
+            "foo-1-1": ["content-set"]}
+        resp = self.client.get('/api/1/verify-image-repository/foo/bar')
+        data = json.loads(resp.get_data(as_text=True))
+        self.assertEqual(data, {
+            'images': {'foo-1-1': ['content-set']},
+            'msg': 'Found 1 images which are handled by Freshmaker for defined content_sets.'})
+
 
 class TestViewsMultipleFilterValues(helpers.ModelsTestCase):
     def setUp(self):
