@@ -674,15 +674,12 @@ class LightBlue(object):
         return images
 
     def _set_container_repository_filters(
-            self, request, published=True, deprecated=False,
+            self, request, published=True,
             release_category="Generally Available"):
         """
         Sets the additional filters to containerRepository request
-        based on the self.published, self.deprecated and self.release_category
-        attributes.
+        based on the self.published, self.release_category attributes.
         :param bool published: whether to limit queries to published
-            repositories
-        :param bool deprecated: set to True to limit results to deprecated
             repositories
         :param str release_category: filter only repositories with specific
             release category (options: Deprecated, Generally Available, Beta, Tech Preview)
@@ -692,13 +689,6 @@ class LightBlue(object):
                 "field": "published",
                 "op": "=",
                 "rvalue": published
-            })
-
-        if deprecated is not None:
-            request["query"]["$and"].append({
-                "field": "deprecated",
-                "op": "=",
-                "rvalue": deprecated
             })
 
         if release_category:
@@ -711,15 +701,12 @@ class LightBlue(object):
         return request
 
     def find_all_container_repositories(
-            self, published=True, deprecated=False,
-            release_category="Generally Available"):
+            self, published=True, release_category="Generally Available"):
         """
         Returns dict with repository name as key and ContainerRepository as
         value.
 
         :param bool published: whether to limit queries to published
-            repositories
-        :param bool deprecated: set to True to limit results to deprecated
             repositories
         :param str release_category: filter only repositories with specific
             release category (options: Deprecated, Generally Available, Beta,
@@ -739,7 +726,7 @@ class LightBlue(object):
             ]
         }
         repo_request = self._set_container_repository_filters(
-            repo_request, published, deprecated, release_category)
+            repo_request, published, release_category)
         repositories = self.find_container_repositories(repo_request)
         return {r["repository"]: r for r in repositories}
 
@@ -1215,8 +1202,7 @@ class LightBlue(object):
 
     def find_images_with_packages_from_content_set(
             self, srpm_nvrs, content_sets, filter_fnc=None,
-            published=True, deprecated=False,
-            release_category="Generally Available",
+            published=True, release_category="Generally Available",
             leaf_container_images=None):
         """Query lightblue and find containers which contain given
         package from one of content sets
@@ -1232,8 +1218,6 @@ class LightBlue(object):
             Freshmaker configuration.
         :param bool published: whether to limit queries to published
             repositories
-        :param bool deprecated: set to True to limit results to deprecated
-            repositories
         :param str release_category: filter only repositories with specific
             release category (options: Deprecated, Generally Available, Beta, Tech Preview)
         :param list leaf_container_images: List of NVRs of leaf images to
@@ -1247,8 +1231,7 @@ class LightBlue(object):
             the given image - can be used for comparisons if needed
         :rtype: list
         """
-        repos = self.find_all_container_repositories(
-            published, deprecated, release_category)
+        repos = self.find_all_container_repositories(published, release_category)
         if not repos:
             return []
         if not leaf_container_images:
@@ -1507,7 +1490,7 @@ class LightBlue(object):
         return batches
 
     def find_images_to_rebuild(
-            self, srpm_nvrs, content_sets, published=True, deprecated=False,
+            self, srpm_nvrs, content_sets, published=True,
             release_category="Generally Available", filter_fnc=None,
             leaf_container_images=None):
         """
@@ -1524,8 +1507,6 @@ class LightBlue(object):
             when looking for the packages
         :param bool published: whether to limit queries to published
             repositories
-        :param bool deprecated: set to True to limit results to deprecated
-            repositories
         :param str release_category: filter only repositories with specific
             release category (options: Deprecated, Generally Available, Beta, Tech Preview)
         :param function filter_fnc: Function called as
@@ -1540,7 +1521,7 @@ class LightBlue(object):
             is not respected when `leaf_container_images` are used.
         """
         images = self.find_images_with_packages_from_content_set(
-            srpm_nvrs, content_sets, filter_fnc, published, deprecated,
+            srpm_nvrs, content_sets, filter_fnc, published,
             release_category, leaf_container_images=leaf_container_images)
 
         srpm_names = [koji.parse_NVR(srpm_nvr)["name"] for srpm_nvr in srpm_nvrs]

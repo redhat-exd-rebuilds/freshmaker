@@ -923,11 +923,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                         "rvalue": True
                     },
                     {
-                        "field": "deprecated",
-                        "op": "=",
-                        "rvalue": False
-                    },
-                    {
                         "field": "release_categories.*",
                         "op": "=",
                         "rvalue": "Generally Available"
