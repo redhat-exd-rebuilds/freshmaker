@@ -184,6 +184,7 @@ class TestModels(helpers.ModelsTestCase):
             'state_reason': None,
             'url': 'http://localhost:5001/api/1/events/1',
             'requested_rebuilds': [],
+            'requester_metadata': {},
         })
 
 

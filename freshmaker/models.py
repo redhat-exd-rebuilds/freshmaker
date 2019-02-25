@@ -155,6 +155,9 @@ class Event(FreshmakerBase):
     # (for example NVR of container images) to rebuild if passed using the
     # REST API.
     requested_rebuilds = db.Column(db.String, nullable=True)
+    # For manual rebuilds, contains the serialized JSON optionally submitted
+    # by the requester to track the context of this event.
+    requester_metadata = db.Column(db.String, nullable=True)
 
     manual_triggered = db.Column(
         db.Boolean,
@@ -332,6 +335,12 @@ class Event(FreshmakerBase):
             type_name = "UnknownEventType %d" % self.event_type_id
         return "<%s, search_key=%s>" % (type_name, self.search_key)
 
+    @property
+    def requester_metadata_json(self):
+        if not self.requester_metadata:
+            return {}
+        return json.loads(self.requester_metadata)
+
     def json(self):
         data = self._common_json()
         data['builds'] = [b.json() for b in self.builds]
@@ -364,6 +373,7 @@ class Event(FreshmakerBase):
             "requester": self.requester,
             "requested_rebuilds": (self.requested_rebuilds.split(" ")
                                    if self.requested_rebuilds else []),
+            "requester_metadata": self.requester_metadata_json,
         }
 
     def find_dependent_events(self):

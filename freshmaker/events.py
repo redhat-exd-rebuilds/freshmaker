@@ -316,7 +316,8 @@ class ManualRebuildWithAdvisoryEvent(ErrataAdvisoryRPMsSignedEvent):
     from advisory.
     """
 
-    def __init__(self, msg_id, advisory, container_images, **kwargs):
+    def __init__(self, msg_id, advisory, container_images,
+                 requester_metadata_json=None, **kwargs):
         """
         Creates new ManualRebuildWithAdvisoryEvent.
 
@@ -328,6 +329,7 @@ class ManualRebuildWithAdvisoryEvent(ErrataAdvisoryRPMsSignedEvent):
         super(ManualRebuildWithAdvisoryEvent, self).__init__(
             msg_id, advisory, **kwargs)
         self.container_images = container_images
+        self.requester_metadata_json = requester_metadata_json
 
 
 class BrewSignRPMEvent(BaseEvent):

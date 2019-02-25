@@ -21,6 +21,7 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
+import json
 import six
 from flask import request, jsonify
 from flask.views import MethodView
@@ -285,6 +286,8 @@ class BuildAPI(MethodView):
         db_event = models.Event.get_or_create_from_event(db.session, event)
         db_event.requester = g.user.username
         db_event.requested_rebuilds = " ".join(event.container_images)
+        if event.requester_metadata_json:
+            db_event.requester_metadata = json.dumps(event.requester_metadata_json)
         db.session.commit()
 
         # Forward the POST data (including the msg_id of the database event we

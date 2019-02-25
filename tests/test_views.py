@@ -507,7 +507,8 @@ class TestManualTriggerRebuild(helpers.ModelsTestCase):
             u'url': u'/api/1/events/1',
             u'dry_run': False,
             u'requester': 'tester1',
-            u'requested_rebuilds': []})
+            u'requested_rebuilds': [],
+            u'requester_metadata': {}})
         publish.assert_called_once_with(
             'manual.rebuild',
             {'msg_id': 'manual_rebuild_123', u'errata_id': 1})
@@ -553,6 +554,28 @@ class TestManualTriggerRebuild(helpers.ModelsTestCase):
             'manual.rebuild',
             {'msg_id': 'manual_rebuild_123', u'errata_id': 1,
              'container_images': ["foo-1-1", "bar-1-1"]})
+
+    @patch('freshmaker.messaging.publish')
+    @patch('freshmaker.parsers.internal.manual_rebuild.ErrataAdvisory.'
+           'from_advisory_id')
+    @patch('freshmaker.parsers.internal.manual_rebuild.time.time')
+    def test_manual_rebuild_metadata(self, time, from_advisory_id, publish):
+        time.return_value = 123
+        from_advisory_id.return_value = ErrataAdvisory(
+            123, 'name', 'REL_PREP', ['rpm'])
+
+        resp = self.client.post(
+            '/api/1/builds/', data=json.dumps({
+                'errata_id': 1, 'metadata': {"foo": ["bar"]}}),
+            content_type='application/json')
+        data = json.loads(resp.get_data(as_text=True))
+
+        # Other fields are predictible.
+        self.assertEqual(data['requester_metadata'], {"foo": ["bar"]})
+        publish.assert_called_once_with(
+            'manual.rebuild',
+            {'msg_id': 'manual_rebuild_123', u'errata_id': 1,
+             'metadata': {"foo": ["bar"]}})
 
 
 class TestOpenIDCLogin(ViewBaseTest):

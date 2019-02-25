@@ -51,8 +51,8 @@ class FreshmakerManualRebuildParser(BaseParser):
         advisory = ErrataAdvisory.from_advisory_id(errata, errata_id)
 
         event = ManualRebuildWithAdvisoryEvent(
-            msg_id, advisory, data.get("container_images", []), manual=True,
-            dry_run=dry_run)
+            msg_id, advisory, data.get("container_images", []), data.get("metadata", None),
+            manual=True, dry_run=dry_run)
 
         return event
 
