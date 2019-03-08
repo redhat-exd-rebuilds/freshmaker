@@ -29,7 +29,7 @@ from six.moves import reload_module
 from freshmaker import app, db, events, models, login_manager
 from tests import helpers
 
-num_of_metrics = 44
+num_of_metrics = 46
 
 
 @login_manager.user_loader

@@ -50,7 +50,7 @@ class TestModels(helpers.ModelsTestCase):
         self.assertEqual(e.message_id, "test_msg_id")
         self.assertEqual(e.search_key, "RHSA-2017-284")
         self.assertEqual(e.event_type, events.TestingEvent)
-        self.assertEqual(len(e.builds), 2)
+        self.assertEqual(len(e.builds.all()), 2)
 
         self.assertEqual(e.builds[0].name, "ed")
         self.assertEqual(e.builds[0].type, 2)

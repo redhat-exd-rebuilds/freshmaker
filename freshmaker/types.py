@@ -25,7 +25,7 @@ from freshmaker.monitor import (
     freshmaker_artifact_build_failed_counter,
     freshmaker_artifact_build_canceled_counter,
     freshmaker_event_complete_counter, freshmaker_event_failed_counter,
-    freshmaker_event_skipped_counter)
+    freshmaker_event_skipped_counter, freshmaker_event_canceled_counter)
 
 
 class ArtifactType(Enum):
@@ -70,7 +70,8 @@ class EventState(Enum):
             None,
             freshmaker_event_complete_counter,
             freshmaker_event_failed_counter,
-            freshmaker_event_skipped_counter
+            freshmaker_event_skipped_counter,
+            freshmaker_event_canceled_counter
         ]
 
         if type(value) == int:
@@ -87,3 +88,5 @@ class EventState(Enum):
     FAILED = 3
     # no action to take upon the event
     SKIPPED = 4
+    # handling of the event has been canceled (also canceling builds etc.)
+    CANCELED = 5

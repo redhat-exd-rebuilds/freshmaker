@@ -154,12 +154,12 @@ class RebuildImagesOnParentImageBuild(ContainerBuildHandler):
             db_event.transition(
                 EventState.COMPLETE,
                 'Advisory %s: %d of %d container image(s) failed to rebuild.' % (
-                    db_event.search_key, num_failed, len(db_event.builds),))
+                    db_event.search_key, num_failed, len(db_event.builds.all()),))
         else:
             db_event.transition(
                 EventState.COMPLETE,
                 'Advisory %s: All %s container images have been rebuilt.' % (
-                    db_event.search_key, len(db_event.builds),))
+                    db_event.search_key, len(db_event.builds.all()),))
 
     def _verify_advisory_rpms_in_container_build(self, errata_id, container_build_id):
         """

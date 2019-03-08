@@ -124,7 +124,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
             db_event.get_image_builds_in_first_batch(db.session))
 
         msg = 'Advisory %s: Rebuilding %d container images.' % (
-            db_event.search_key, len(db_event.builds))
+            db_event.search_key, len(db_event.builds.all()))
         db_event.transition(EventState.BUILDING, msg)
 
         return []
@@ -140,7 +140,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
         batch = 0
         printed = []
         while (len(printed) != len(builds.values()) or
-               len(printed) != len(db_event.builds)):
+               len(printed) != len(db_event.builds.all())):
             self.log_info('   Batch %d:', batch)
             old_printed_count = len(printed)
             for build in builds.values():

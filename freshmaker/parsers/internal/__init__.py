@@ -20,3 +20,4 @@
 # SOFTWARE.
 
 from .manual_rebuild import FreshmakerManualRebuildParser  # noqa
+from .freshmaker_manage_request import FreshmakerManageRequestParser  # noqa
