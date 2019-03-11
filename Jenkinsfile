@@ -42,19 +42,24 @@ node('master'){
 
     timestamps {
 
-node('fedora-28') {
+node('fedora-29') {
     checkout scm
     stage('Prepare') {
         sh 'sudo rm -f rpmbuild-output/*.src.rpm'
         sh 'mkdir -p rpmbuild-output'
         sh 'make -f .copr/Makefile srpm outdir=./rpmbuild-output/'
         sh 'sudo dnf -y builddep ./rpmbuild-output/freshmaker-*.src.rpm'
-        sh 'sudo dnf -y install python2-tox python3-tox'
-        /* Needed to get the latest /etc/mock/fedora-28-x86_64.cfg */
+        // TODO: some of the deps here should probably be in BuildRequires
+        sh 'sudo dnf -y install \
+            gcc \
+            krb5-devel \
+            openldap-devel \
+            python3-tox'
+        /* Needed to get the latest mock configs */
         sh 'sudo dnf -y update mock-core-configs'
     }
     stage('Run unit tests') {
-        sh 'tox -e flake8'
+        sh 'tox'
     }
     /* We take a flock on the mock configs, to avoid multiple unrelated jobs on
      * the same Jenkins slave trying to use the same mock root at the same
@@ -69,16 +74,25 @@ node('fedora-28') {
                 """
                 archiveArtifacts artifacts: 'mock-result/f28/**'
             },
+            'F29': {
+                sh """
+                mkdir -p mock-result/f29
+                flock /etc/mock/fedora-29-x86_64.cfg \
+                /usr/bin/mock -v --enable-network --resultdir=mock-result/f29 -r fedora-29-x86_64 --clean --rebuild rpmbuild-output/*.src.rpm
+                """
+                archiveArtifacts artifacts: 'mock-result/f29/**'
+            },
         )
     }
 }
+if ("${env.JOB_NAME}" != 'freshmaker-prs') {
 node('docker') {
     checkout scm
     stage('Build Docker container') {
-        unarchive mapping: ['mock-result/f28/': '.']
-        def f28_rpm = findFiles(glob: 'mock-result/f28/**/*.noarch.rpm')[0]
+        unarchive mapping: ['mock-result/f29/': '.']
+        def f29_rpm = findFiles(glob: 'mock-result/f29/**/*.noarch.rpm')[0]
         def appversion = sh(returnStdout: true, script: """
-            rpm2cpio ${f28_rpm} | \
+            rpm2cpio ${f29_rpm} | \
             cpio --quiet --extract --to-stdout ./usr/lib/python\\*/site-packages/freshmaker\\*.egg-info/PKG-INFO | \
             awk '/^Version: / {print \$2}'
         """).trim()
@@ -92,7 +106,7 @@ node('docker') {
             /* Note that the docker.build step has some magic to guess the
              * Dockerfile used, which will break if the build directory (here ".")
              * is not the final argument in the string. */
-            def image = docker.build "factory2/freshmaker:internal-${appversion}", "--build-arg freshmaker_rpm=$f28_rpm --build-arg cacert_url=https://password.corp.redhat.com/RH-IT-Root-CA.crt ."
+            def image = docker.build "factory2/freshmaker:internal-${appversion}", "--build-arg freshmaker_rpm=$f29_rpm --build-arg cacert_url=https://password.corp.redhat.com/RH-IT-Root-CA.crt ."
             /* Pushes to the internal registry can sometimes randomly fail
              * with "unknown blob" due to a known issue with the registry
              * storage configuration. So we retry up to 3 times. */
@@ -104,7 +118,7 @@ node('docker') {
         docker.withRegistry(
                 'https://quay.io/',
                 'quay-io-factory2-builder-sa-credentials') {
-            def image = docker.build "factory2/freshmaker:${appversion}", "--build-arg freshmaker_rpm=$f28_rpm ."
+            def image = docker.build "factory2/freshmaker:${appversion}", "--build-arg freshmaker_rpm=$f29_rpm ."
             image.push()
         }
         /* Save container version for later steps (this is ugly but I can't find anything better...) */
@@ -137,6 +151,7 @@ node('docker') {
             }
         }
     }
+}
 }
 
     } // end timestamps
