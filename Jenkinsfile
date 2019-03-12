@@ -43,8 +43,8 @@ node('master'){
     timestamps {
 
 node('fedora-29') {
-    checkout scm
     stage('Prepare') {
+        checkout scm
         sh 'sudo rm -f rpmbuild-output/*.src.rpm'
         sh 'mkdir -p rpmbuild-output'
         sh 'make -f .copr/Makefile srpm outdir=./rpmbuild-output/'
@@ -87,8 +87,8 @@ node('fedora-29') {
 }
 if ("${env.JOB_NAME}" != 'freshmaker-prs') {
 node('docker') {
-    checkout scm
     stage('Build Docker container') {
+        checkout scm
         unarchive mapping: ['mock-result/f29/': '.']
         def f29_rpm = findFiles(glob: 'mock-result/f29/**/*.noarch.rpm')[0]
         def appversion = sh(returnStdout: true, script: """
@@ -127,9 +127,9 @@ node('docker') {
     }
 }
 node('docker') {
-    checkout scm
     if (scmVars.GIT_BRANCH == 'origin/master') {
         stage('Tag "latest".') {
+            checkout scm
             unarchive mapping: ['appversion': 'appversion']
             def appversion = readFile('appversion').trim()
             docker.withRegistry(
