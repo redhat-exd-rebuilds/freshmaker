@@ -89,6 +89,8 @@ if ("${env.JOB_NAME}" != 'freshmaker-prs') {
 node('docker') {
     stage('Build Docker container') {
         checkout scm
+        // Remember to reflect the version change in the Dockerfile in the future.
+        sh 'grep -q "FROM fedora:29" Dockerfile'
         unarchive mapping: ['mock-result/f29/': '.']
         def f29_rpm = findFiles(glob: 'mock-result/f29/**/*.noarch.rpm')[0]
         def appversion = sh(returnStdout: true, script: """
