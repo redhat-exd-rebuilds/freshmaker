@@ -62,7 +62,7 @@ class Pulp(object):
                 'filters': {
                     'id': {'$in': repo_ids},
                 },
-                'fields': ['notes.content_set'],
+                'fields': ['notes'],
             }
         }
         repos = self._rest_post('repositories/search/', json.dumps(query_data))
