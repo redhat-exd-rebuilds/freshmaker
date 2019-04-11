@@ -243,6 +243,8 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
             handler = MyHandler()
             handler.build_image_artifact_build(self.build_1, ["http://localhost/x.repo"])
 
+        self.assertEqual(self.build_1.state, ArtifactBuildState.PLANNED.value)
+
 
 class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
     """Test BaseHandler.allow_build"""

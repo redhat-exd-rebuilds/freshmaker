@@ -81,37 +81,46 @@ def fail_event_on_handler_exception(func):
     return decorator
 
 
-def fail_artifact_build_on_handler_exception(func):
+def fail_artifact_build_on_handler_exception(whitelist=None):
     """
     Decorator which marks the models.ArtifactBuild associated with handler by
     BaseHandler.set_context() as FAILED in case the `func` raises an
     exception.
 
     The exception is re-raised by this decorator once its finished.
+
+    :param list/set whitelist: When set, defines the whitelist of Exception
+        subclasses which do not cause the ArtifactBuild to fail but are instead
+        just re-raised.
     """
-    @wraps(func)
-    def decorator(handler, *args, **kwargs):
-        try:
-            return func(handler, *args, **kwargs)
-        except Exception as e:
-            err = 'Could not process message handler. See the traceback.'
-            log.exception(err)
+    def wrapper(func):
+        @wraps(func)
+        def decorator(handler, *args, **kwargs):
+            try:
+                return func(handler, *args, **kwargs)
+            except Exception as e:
+                if whitelist and type(e) in whitelist:
+                    raise
 
-            # In case the exception interrupted the database transaction,
-            # rollback it.
-            db.session.rollback()
+                err = 'Could not process message handler. See the traceback.'
+                log.exception(err)
 
-            # Mark the event as failed.
-            build_id = handler.current_db_artifact_build_id
-            build = db.session.query(ArtifactBuild).filter_by(
-                id=build_id).first()
-            if build:
-                build.transition(
-                    ArtifactBuildState.FAILED.value, "Handling of "
-                    "build failed with traceback: %s" % (str(e)))
-                db.session.commit()
-            raise
-    return decorator
+                # In case the exception interrupted the database transaction,
+                # rollback it.
+                db.session.rollback()
+
+                # Mark the event as failed.
+                build_id = handler.current_db_artifact_build_id
+                build = db.session.query(ArtifactBuild).filter_by(
+                    id=build_id).first()
+                if build:
+                    build.transition(
+                        ArtifactBuildState.FAILED.value, "Handling of "
+                        "build failed with traceback: %s" % (str(e)))
+                    db.session.commit()
+                raise
+        return decorator
+    return wrapper
 
 
 class BaseHandler(object):
@@ -445,7 +454,7 @@ class ContainerBuildHandler(BaseHandler):
                                            scratch=conf.koji_container_scratch_build,
                                            compose_ids=compose_ids)
 
-    @fail_artifact_build_on_handler_exception
+    @fail_artifact_build_on_handler_exception(whitelist=[ODCSComposeNotReady])
     def build_image_artifact_build(self, build, repo_urls=[]):
         """
         Submits ArtifactBuild of 'image' type to Koji.
