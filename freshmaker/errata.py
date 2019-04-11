@@ -132,7 +132,7 @@ class Errata(object):
                 **kwargs)
             r.raise_for_status()
         except requests.exceptions.RequestException as e:
-            if e.response and e.response.status_code == 401:
+            if e.response is not None and e.response.status_code == 401:
                 log.info("CCache file probably expired, removing it.")
                 os.unlink(conf.krb_auth_ccache_file)
             raise
