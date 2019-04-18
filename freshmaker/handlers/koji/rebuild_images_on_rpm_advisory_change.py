@@ -370,13 +370,13 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                        private_key=conf.lightblue_private_key)
 
         # Check if we are allowed to rebuild unpublished images and clear
-        # published and release_category if so.
+        # published and release_categories if so.
         if self.event.is_allowed(self, published=True):
             published = True
-            release_category = "Generally Available"
+            release_categories = ("Generally Available", "Tech Preview",)
         else:
             published = None
-            release_category = None
+            release_categories = None
 
         # Limit the Lightblue query to particular leaf images if set in Event.
         leaf_container_images = None
@@ -392,6 +392,6 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
         batches = lb.find_images_to_rebuild(
             srpm_nvrs, content_sets,
             filter_fnc=self._filter_out_not_allowed_builds,
-            published=published, release_category=release_category,
+            published=published, release_categories=release_categories,
             leaf_container_images=leaf_container_images)
         return batches

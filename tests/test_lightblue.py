@@ -924,9 +924,9 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                     },
                     {
                         "field": "release_categories.*",
-                        "op": "=",
-                        "rvalue": "Generally Available"
-                    }
+                        "op": "$in",
+                        "rvalue": ("Generally Available", "Tech Preview"),
+                    },
                 ]
             },
             "projection": [

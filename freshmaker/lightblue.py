@@ -675,14 +675,14 @@ class LightBlue(object):
 
     def _set_container_repository_filters(
             self, request, published=True,
-            release_category="Generally Available"):
+            release_categories=("Generally Available", "Tech Preview",)):
         """
         Sets the additional filters to containerRepository request
-        based on the self.published, self.release_category attributes.
+        based on the self.published, self.release_categories attributes.
         :param bool published: whether to limit queries to published
             repositories
-        :param str release_category: filter only repositories with specific
-            release category (options: Deprecated, Generally Available, Beta, Tech Preview)
+        :param tuple release_categories: filter only repositories with specific
+            release categories (options: Deprecated, Generally Available, Beta, Tech Preview)
         """
         if published is not None:
             request["query"]["$and"].append({
@@ -691,25 +691,26 @@ class LightBlue(object):
                 "rvalue": published
             })
 
-        if release_category:
+        if release_categories:  # Check if release_categories is None or empty
             request["query"]["$and"].append({
                 "field": "release_categories.*",
-                "op": "=",
-                "rvalue": release_category
+                "op": "$in",
+                "rvalue": release_categories,
             })
 
         return request
 
     def find_all_container_repositories(
-            self, published=True, release_category="Generally Available"):
+            self, published=True,
+            release_categories=("Generally Available", "Tech Preview",)):
         """
         Returns dict with repository name as key and ContainerRepository as
         value.
 
         :param bool published: whether to limit queries to published
             repositories
-        :param str release_category: filter only repositories with specific
-            release category (options: Deprecated, Generally Available, Beta,
+        :param tuple release_categories: filter only repositories with specific
+            release categories (options: Deprecated, Generally Available, Beta,
             Tech Preview)
         :rtype: dict
         :return: Dict with repository name as key and ContainerRepository as
@@ -726,7 +727,7 @@ class LightBlue(object):
             ]
         }
         repo_request = self._set_container_repository_filters(
-            repo_request, published, release_category)
+            repo_request, published, release_categories)
         repositories = self.find_container_repositories(repo_request)
         return {r["repository"]: r for r in repositories}
 
@@ -1201,8 +1202,8 @@ class LightBlue(object):
             images.append(image)
 
     def find_images_with_packages_from_content_set(
-            self, srpm_nvrs, content_sets, filter_fnc=None,
-            published=True, release_category="Generally Available",
+            self, srpm_nvrs, content_sets, filter_fnc=None, published=True,
+            release_categories=("Generally Available", "Tech Preview",),
             leaf_container_images=None):
         """Query lightblue and find containers which contain given
         package from one of content sets
@@ -1218,8 +1219,8 @@ class LightBlue(object):
             Freshmaker configuration.
         :param bool published: whether to limit queries to published
             repositories
-        :param str release_category: filter only repositories with specific
-            release category (options: Deprecated, Generally Available, Beta, Tech Preview)
+        :param str release_categories: filter only repositories with specific
+            release categories (options: Deprecated, Generally Available, Beta, Tech Preview)
         :param list leaf_container_images: List of NVRs of leaf images to
             consider for the rebuild. If not set, all images found in
             Lightblue will be considered for rebuild.
@@ -1231,7 +1232,7 @@ class LightBlue(object):
             the given image - can be used for comparisons if needed
         :rtype: list
         """
-        repos = self.find_all_container_repositories(published, release_category)
+        repos = self.find_all_container_repositories(published, release_categories)
         if not repos:
             return []
         if not leaf_container_images:
@@ -1491,8 +1492,8 @@ class LightBlue(object):
 
     def find_images_to_rebuild(
             self, srpm_nvrs, content_sets, published=True,
-            release_category="Generally Available", filter_fnc=None,
-            leaf_container_images=None):
+            release_categories=("Generally Available", "Tech Preview",),
+            filter_fnc=None, leaf_container_images=None):
         """
         Find images to rebuild through image build layers
 
@@ -1507,8 +1508,8 @@ class LightBlue(object):
             when looking for the packages
         :param bool published: whether to limit queries to published
             repositories
-        :param str release_category: filter only repositories with specific
-            release category (options: Deprecated, Generally Available, Beta, Tech Preview)
+        :param tuple release_categories: filter only repositories with specific
+            release categories (options: Deprecated, Generally Available, Beta, Tech Preview)
         :param function filter_fnc: Function called as
             filter_fnc(container_image) with container_image being
             ContainerImage instance. If this function returns True, the image
@@ -1522,7 +1523,7 @@ class LightBlue(object):
         """
         images = self.find_images_with_packages_from_content_set(
             srpm_nvrs, content_sets, filter_fnc, published,
-            release_category, leaf_container_images=leaf_container_images)
+            release_categories, leaf_container_images=leaf_container_images)
 
         srpm_names = [koji.parse_NVR(srpm_nvr)["name"] for srpm_nvr in srpm_nvrs]
 
