@@ -925,7 +925,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                     {
                         "field": "release_categories.*",
                         "op": "$in",
-                        "rvalue": ("Generally Available", "Tech Preview"),
+                        "rvalue": ("Generally Available", "Tech Preview", "Beta"),
                     },
                 ]
             },

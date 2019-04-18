@@ -373,7 +373,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
         # published and release_categories if so.
         if self.event.is_allowed(self, published=True):
             published = True
-            release_categories = ("Generally Available", "Tech Preview",)
+            release_categories = ("Generally Available", "Tech Preview", "Beta",)
         else:
             published = None
             release_categories = None

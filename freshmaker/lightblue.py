@@ -675,7 +675,7 @@ class LightBlue(object):
 
     def _set_container_repository_filters(
             self, request, published=True,
-            release_categories=("Generally Available", "Tech Preview",)):
+            release_categories=("Generally Available", "Tech Preview", "Beta",)):
         """
         Sets the additional filters to containerRepository request
         based on the self.published, self.release_categories attributes.
@@ -702,7 +702,7 @@ class LightBlue(object):
 
     def find_all_container_repositories(
             self, published=True,
-            release_categories=("Generally Available", "Tech Preview",)):
+            release_categories=("Generally Available", "Tech Preview", "Beta",)):
         """
         Returns dict with repository name as key and ContainerRepository as
         value.
@@ -1203,7 +1203,7 @@ class LightBlue(object):
 
     def find_images_with_packages_from_content_set(
             self, srpm_nvrs, content_sets, filter_fnc=None, published=True,
-            release_categories=("Generally Available", "Tech Preview",),
+            release_categories=("Generally Available", "Tech Preview", "Beta",),
             leaf_container_images=None):
         """Query lightblue and find containers which contain given
         package from one of content sets
@@ -1492,7 +1492,7 @@ class LightBlue(object):
 
     def find_images_to_rebuild(
             self, srpm_nvrs, content_sets, published=True,
-            release_categories=("Generally Available", "Tech Preview",),
+            release_categories=("Generally Available", "Tech Preview", "Beta",),
             filter_fnc=None, leaf_container_images=None):
         """
         Find images to rebuild through image build layers
