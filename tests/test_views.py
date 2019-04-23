@@ -139,6 +139,7 @@ class TestViews(helpers.ModelsTestCase):
         self.assertEqual(data['event_id'], 1)
         self.assertEqual(data['build_id'], 1234)
         self.assertEqual(data['build_args'], {"key": "value"})
+        self.assertEqual(data['rebuild_reason'], "unknown")
 
     def test_query_builds(self):
         resp = self.client.get('/api/1/builds/')

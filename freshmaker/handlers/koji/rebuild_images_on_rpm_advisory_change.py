@@ -32,7 +32,8 @@ from freshmaker.handlers import ContainerBuildHandler, fail_event_on_handler_exc
 from freshmaker.lightblue import LightBlue
 from freshmaker.pulp import Pulp
 from freshmaker.errata import Errata
-from freshmaker.types import ArtifactType, ArtifactBuildState, EventState
+from freshmaker.types import (
+    ArtifactType, ArtifactBuildState, EventState, RebuildReason)
 from freshmaker.models import Event, Compose
 from freshmaker.utils import get_rebuilt_nvr
 
@@ -243,12 +244,22 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                 rebuilt_nvr = get_rebuilt_nvr(ArtifactType.IMAGE.value, nvr)
                 image_name = koji.parse_NVR(image["brew"]["build"])["name"]
 
+                # Only released images are considered as directly affected for
+                # rebuild. If some image is not in the latest released version and
+                # it is included in a rebuild, it must be just a dependency of
+                # other image.
+                if "latest_released" in image:
+                    rebuild_reason = RebuildReason.DIRECTLY_AFFECTED.value
+                else:
+                    rebuild_reason = RebuildReason.DEPENDENCY.value
+
                 build = self.record_build(
                     event, image_name, ArtifactType.IMAGE,
                     dep_on=dep_on,
                     state=ArtifactBuildState.PLANNED.value,
                     original_nvr=nvr,
-                    rebuilt_nvr=rebuilt_nvr)
+                    rebuilt_nvr=rebuilt_nvr,
+                    rebuild_reason=rebuild_reason)
 
                 # Set context to particular build so logging shows this build
                 # in case of error.

@@ -37,7 +37,8 @@ from flask_login import UserMixin
 from freshmaker import db, log
 from freshmaker import messaging
 from freshmaker.utils import get_url_for, krb_context
-from freshmaker.types import ArtifactType, ArtifactBuildState, EventState
+from freshmaker.types import (ArtifactType, ArtifactBuildState, EventState,
+                              RebuildReason)
 from freshmaker.events import (
     MBSModuleStateChangeEvent, GitModuleMetadataChangeEvent,
     GitRPMSpecChangeEvent, TestingEvent, GitDockerfileChangeEvent,
@@ -473,12 +474,17 @@ class ArtifactBuild(FreshmakerBase):
     # Build args in json format.
     build_args = db.Column(db.String, nullable=True)
 
+    # The reason why this artifact is rebuilt. Set according to
+    # `freshmaker.types.RebuildReason`.
+    rebuild_reason = db.Column(db.Integer, nullable=True)
+
     composes = db.relationship('ArtifactBuildCompose', back_populates='build')
 
     @classmethod
     def create(cls, session, event, name, type,
                build_id=None, dep_on=None, state=None,
-               original_nvr=None, rebuilt_nvr=None):
+               original_nvr=None, rebuilt_nvr=None,
+               rebuild_reason=0):
 
         now = datetime.utcnow()
         build = cls(
@@ -490,7 +496,8 @@ class ArtifactBuild(FreshmakerBase):
             state=state or ArtifactBuildState.BUILD.value,
             build_id=build_id,
             time_submitted=now,
-            dep_on=dep_on
+            dep_on=dep_on,
+            rebuild_reason=rebuild_reason
         )
         session.add(build)
         return build
@@ -610,6 +617,7 @@ class ArtifactBuild(FreshmakerBase):
             "url": build_url,
             "build_args": build_args,
             "odcs_composes": [rel.compose.odcs_compose_id for rel in self.composes],
+            "rebuild_reason": RebuildReason(self.rebuild_reason or 0).name.lower()
         }
 
     def get_root_dep_on(self):
