@@ -90,7 +90,7 @@ class TestPulp(helpers.FreshmakerTestCase):
                     'filters': {
                         'id': {'$in': repo_ids},
                     },
-                    'fields': ['notes.content_set'],
+                    'fields': ['notes'],
                 }
             }),
             auth=(self.username, self.password))
@@ -151,7 +151,7 @@ class TestPulp(helpers.FreshmakerTestCase):
                     'filters': {
                         'id': {'$in': repo_ids},
                     },
-                    'fields': ['notes.content_set'],
+                    'fields': ['notes'],
                 }
             }),
             auth=(self.username, self.password))

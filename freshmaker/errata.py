@@ -33,6 +33,7 @@ from freshmaker.events import (
     FreshmakerManualRebuildEvent)
 from freshmaker import conf, log
 from freshmaker.bugzilla import BugzillaAPI
+from freshmaker.utils import retry
 
 
 class ErrataAdvisory(object):
@@ -122,19 +123,19 @@ class Errata(object):
         xmlrpc_url = self.server_url + '/errata/xmlrpc.cgi'
         self.xmlrpc = ServerProxy(xmlrpc_url, transport=SafeCookieTransport())
 
+    @retry(wait_on=(requests.exceptions.RequestException,), logger=log)
     def _errata_authorized_get(self, *args, **kwargs):
-        r = requests.get(
-            *args,
-            auth=HTTPKerberosAuth(principal=conf.krb_auth_principal),
-            **kwargs)
-        if r.status_code == 401:
-            log.info("CCache file expired, removing it.")
-            os.unlink(conf.krb_auth_ccache_file)
+        try:
             r = requests.get(
                 *args,
                 auth=HTTPKerberosAuth(principal=conf.krb_auth_principal),
                 **kwargs)
-        r.raise_for_status()
+            r.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            if e.response is not None and e.response.status_code == 401:
+                log.info("CCache file probably expired, removing it.")
+                os.unlink(conf.krb_auth_ccache_file)
+            raise
         return r.json()
 
     def _errata_rest_get(self, endpoint):

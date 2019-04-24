@@ -20,7 +20,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from mock import patch
+from mock import patch, MagicMock
+from requests_kerberos.exceptions import MutualAuthenticationError
+from requests.exceptions import HTTPError
 
 from freshmaker.errata import Errata, ErrataAdvisory
 from freshmaker.events import (
@@ -352,3 +354,49 @@ class TestErrata(helpers.FreshmakerTestCase):
             xmlrpc.get_advisory_cdn_docker_file_list.return_value = None
             repo_tags = self.errata.get_docker_repo_tags(28484)
             self.assertEqual(repo_tags, None)
+
+
+class TestErrataAuthorizedGet(helpers.FreshmakerTestCase):
+    def setUp(self):
+        super(TestErrataAuthorizedGet, self).setUp()
+        self.errata = Errata("https://localhost/")
+
+        self.patcher = helpers.Patcher(
+            'freshmaker.errata.')
+        self.requests_get = self.patcher.patch("requests.get")
+        self.response = MagicMock()
+        self.response.json.return_value = {"foo": "bar"}
+        self.unlink = self.patcher.patch("os.unlink")
+
+    def tearDown(self):
+        super(TestErrataAuthorizedGet, self).tearDown()
+        self.patcher.unpatch_all()
+
+    def test_errata_authorized_get(self):
+        self.requests_get.return_value = self.response
+        data = self.errata._errata_authorized_get("http://localhost/test")
+        self.assertEqual(data, {"foo": "bar"})
+
+    def test_errata_authorized_get_kerberos_exception(self):
+        # Test that MutualAuthenticationError is retried.
+        self.requests_get.side_effect = [MutualAuthenticationError, self.response]
+
+        data = self.errata._errata_authorized_get("http://localhost/test")
+
+        self.assertEqual(data, {"foo": "bar"})
+        self.assertEqual(len(self.requests_get.mock_calls), 2)
+
+    def test_errata_authorized_get_kerberos_exception_401(self):
+        # Test that 401 error response is retried with kerberos ccache file
+        # removed.
+        error_response = MagicMock()
+        error_response.status_code = 401
+        error_response.raise_for_status.side_effect = HTTPError(
+            "Expected exception", response=error_response)
+        self.requests_get.side_effect = [error_response, self.response]
+
+        data = self.errata._errata_authorized_get("http://localhost/test")
+
+        self.assertEqual(data, {"foo": "bar"})
+        self.assertEqual(len(self.requests_get.mock_calls), 2)
+        self.unlink.assert_called_once_with(helpers.AnyStringWith("freshmaker_cc"))

@@ -316,7 +316,8 @@ class ManualRebuildWithAdvisoryEvent(ErrataAdvisoryRPMsSignedEvent):
     from advisory.
     """
 
-    def __init__(self, msg_id, advisory, container_images, **kwargs):
+    def __init__(self, msg_id, advisory, container_images,
+                 requester_metadata_json=None, **kwargs):
         """
         Creates new ManualRebuildWithAdvisoryEvent.
 
@@ -328,6 +329,7 @@ class ManualRebuildWithAdvisoryEvent(ErrataAdvisoryRPMsSignedEvent):
         super(ManualRebuildWithAdvisoryEvent, self).__init__(
             msg_id, advisory, **kwargs)
         self.container_images = container_images
+        self.requester_metadata_json = requester_metadata_json
 
 
 class BrewSignRPMEvent(BaseEvent):
@@ -379,3 +381,32 @@ class FreshmakerManualRebuildEvent(BaseEvent):
         super(FreshmakerManualRebuildEvent, self).__init__(
             msg_id, dry_run=dry_run)
         self.errata_id = errata_id
+
+
+class FreshmakerManageEvent(BaseEvent):
+    """
+    Event triggered by an internal message for managing Freshmaker itself.
+    """
+    _max_tries = 3
+
+    def __init__(self, msg_body, **kwargs):
+        super(FreshmakerManageEvent, self).__init__(None, manual=True, **kwargs)
+        self.body = msg_body
+
+    def __new__(cls, msg_body, *args, **kwargs):
+        # The intention here is to balance control over retries. We want
+        # to allow handlers to implement their own logic depending on
+        # `last_try`, when they *SHALL* return an empty list. But, we also
+        # want to avoid endless loops and guarantee some higher control. If
+        # handler(s) don't stop their tries (by returning new events),
+        # then the unhandleable `None` is returned here as last resort,
+        # instead of `FreshmakerManageEvent`.
+        instance = super(FreshmakerManageEvent, cls).__new__(cls)
+        instance.action = msg_body['action']
+        instance.try_count = msg_body['try']
+        instance.try_count += 1
+        instance.last_try = instance.try_count == FreshmakerManageEvent._max_tries
+
+        if instance.try_count > FreshmakerManageEvent._max_tries:
+            return None
+        return instance

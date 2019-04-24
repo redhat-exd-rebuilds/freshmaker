@@ -1,0 +1,13 @@
+{
+  "i": 86,
+  "source_version": "0.1.1",
+  "username": "freshmaker",
+  "signature": "124",
+  "timestamp": 1552038054.3143400,
+  "topic": "org.fedoraproject.prod.freshmaker.manage.eventcancel",
+  "source_name": "unittest",
+  "msg": {
+    "action": "unsupported"
+  },
+  "msg_id": "2019-4483a0ba-1234-46a1-be7e-d2bf4104ed46"
+}

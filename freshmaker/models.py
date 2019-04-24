@@ -145,8 +145,10 @@ class Event(FreshmakerBase):
     state = db.Column(db.Integer, nullable=False)
     state_reason = db.Column(db.String, nullable=True)
     time_created = db.Column(db.DateTime, nullable=True)
-    # List of builds associated with this Event.
-    builds = relationship("ArtifactBuild", back_populates="event")
+    # AppenderQuery for getting builds associated with this Event.
+    builds = relationship("ArtifactBuild", back_populates="event",
+                          lazy="dynamic", cascade="all, delete-orphan",
+                          passive_deletes=True)
     # True if the even should be handled in dry run mode.
     dry_run = db.Column(db.Boolean, default=False)
     # For manual rebuilds, set to user requesting the rebuild. Otherwise null.
@@ -155,6 +157,9 @@ class Event(FreshmakerBase):
     # (for example NVR of container images) to rebuild if passed using the
     # REST API.
     requested_rebuilds = db.Column(db.String, nullable=True)
+    # For manual rebuilds, contains the serialized JSON optionally submitted
+    # by the requester to track the context of this event.
+    requester_metadata = db.Column(db.String, nullable=True)
 
     manual_triggered = db.Column(
         db.Boolean,
@@ -201,8 +206,11 @@ class Event(FreshmakerBase):
         instance = cls.get(session, message_id)
         if instance:
             return instance
-        return cls.create(session, message_id, search_key, event_type,
-                          released=released, manual=manual, dry_run=dry_run)
+        instance = cls.create(
+            session, message_id, search_key, event_type,
+            released=released, manual=manual, dry_run=dry_run)
+        session.commit()
+        return instance
 
     @classmethod
     def get_or_create_from_event(cls, session, event, released=True):
@@ -282,13 +290,23 @@ class Event(FreshmakerBase):
         return db.session.query(ArtifactBuild).filter_by(
             event_id=self.id).filter(state != state).count() == 0
 
-    def builds_transition(self, state, reason):
+    def builds_transition(self, state, reason, filters=None):
         """
         Calls transition(state, reason) for all builds associated with this
         event.
+
+        :param dict filters: Filter only specific builds to transition.
+        :return: list of build ids which were transitioned
         """
-        for build in self.builds:
-            build.transition(state, reason)
+
+        if not self.builds:
+            return []
+
+        builds_to_transition = self.builds.filter_by(
+            **filters).all() if isinstance(filters, dict) else self.builds
+
+        return [build.id
+                for build in builds_to_transition if build.transition(state, reason)]
 
     def transition(self, state, state_reason=None):
         """
@@ -296,6 +314,7 @@ class Event(FreshmakerBase):
 
         :param state: EventState value
         :param state_reason: Reason why this state has been set.
+        :return: True/False, whether state was changed
         """
 
         # Log the state and state_reason
@@ -307,7 +326,7 @@ class Event(FreshmakerBase):
             self, EventState(state).name, state_reason))
 
         if self.state == state:
-            return
+            return False
 
         self.state = state
         if EventState(state).counter:
@@ -319,6 +338,8 @@ class Event(FreshmakerBase):
         messaging.publish('event.state.changed', self.json())
         messaging.publish('event.state.changed.min', self.json_min())
 
+        return True
+
     def __repr__(self):
         return "<Event %s, %r, %s>" % (self.message_id, self.event_type, self.search_key)
 
@@ -329,6 +350,12 @@ class Event(FreshmakerBase):
             type_name = "UnknownEventType %d" % self.event_type_id
         return "<%s, search_key=%s>" % (type_name, self.search_key)
 
+    @property
+    def requester_metadata_json(self):
+        if not self.requester_metadata:
+            return {}
+        return json.loads(self.requester_metadata)
+
     def json(self):
         data = self._common_json()
         data['builds'] = [b.json() for b in self.builds]
@@ -336,7 +363,7 @@ class Event(FreshmakerBase):
 
     def json_min(self):
         builds_summary = defaultdict(int)
-        builds_summary['total'] = len(self.builds)
+        builds_summary['total'] = len(self.builds.all())
         for build in self.builds:
             state_name = ArtifactBuildState(build.state).name
             builds_summary[state_name] += 1
@@ -361,6 +388,7 @@ class Event(FreshmakerBase):
             "requester": self.requester,
             "requested_rebuilds": (self.requested_rebuilds.split(" ")
                                    if self.requested_rebuilds else []),
+            "requester_metadata": self.requester_metadata_json,
         }
 
     def find_dependent_events(self):
@@ -513,6 +541,7 @@ class ArtifactBuild(FreshmakerBase):
 
         :param state: ArtifactBuildState value
         :param state_reason: Reason why this state has been set.
+        :return: True/False, whether state was changed
         """
 
         # Log the state and state_reason
@@ -524,7 +553,7 @@ class ArtifactBuild(FreshmakerBase):
             self, ArtifactBuildState(state).name, state_reason))
 
         if self.state == state:
-            return
+            return False
 
         self.state = state
         if ArtifactBuildState(state).counter:
@@ -547,6 +576,8 @@ class ArtifactBuild(FreshmakerBase):
                     "dependency cannot be built.")
 
         messaging.publish('build.state.changed', self.json())
+
+        return True
 
     def __repr__(self):
         return "<ArtifactBuild %s, type %s, state %s, event %s>" % (

@@ -118,6 +118,10 @@ freshmaker_event_skipped_counter = Counter(
     'freshmaker_event_skipped',
     'Number of events, for which no action was taken',
     registry=registry)
+freshmaker_event_canceled_counter = Counter(
+    'freshmaker_event_canceled',
+    'Number of events canceled during their handling',
+    registry=registry)
 
 freshmaker_build_api_latency = Histogram(
     'build_api_latency',

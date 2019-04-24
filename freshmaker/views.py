@@ -21,6 +21,7 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
+import json
 import six
 from flask import request, jsonify
 from flask.views import MethodView
@@ -33,6 +34,7 @@ from freshmaker import types
 from freshmaker import db
 from freshmaker import conf
 from freshmaker import version
+from freshmaker import log
 from freshmaker.api_utils import filter_artifact_builds
 from freshmaker.api_utils import filter_events
 from freshmaker.api_utils import json_error
@@ -42,6 +44,7 @@ from freshmaker.parsers.internal.manual_rebuild import FreshmakerManualRebuildPa
 from freshmaker.monitor import (
     monitor_api, freshmaker_build_api_latency, freshmaker_event_api_latency)
 from freshmaker.image_verifier import ImageVerifier
+from freshmaker.types import ArtifactBuildState, EventState
 
 api_v1 = {
     'event_types': {
@@ -100,7 +103,7 @@ api_v1 = {
         'event': {
             'url': '/api/1/events/<int:id>',
             'options': {
-                'methods': ['GET'],
+                'methods': ['GET', 'PATCH'],
             }
         },
     },
@@ -216,6 +219,9 @@ class BuildStateAPI(MethodView):
 
 
 class EventAPI(MethodView):
+
+    _freshmaker_manage_prefix = 'event'
+
     @freshmaker_event_api_latency.time()
     def get(self, id):
         if id is None:
@@ -234,6 +240,50 @@ class EventAPI(MethodView):
                 return jsonify(event.json()), 200
             else:
                 return json_error(404, "Not Found", "No such event found.")
+
+    @login_required
+    @requires_role('admins')
+    def patch(self, id):
+        """
+        Manage event
+
+        Accepts JSON with following key/value pairs:
+            - "action" - one of currently supported actions: 'cancel'
+        """
+        data = request.get_json(force=True)
+        if 'action' not in data:
+            return json_error(
+                400, "Bad Request", "Missing action in request."
+                " Don't know what to do with the event.")
+
+        if data['action'] == 'cancel':
+            event = models.Event.query.filter_by(id=id).first()
+            if not event:
+                return json_error(400, "Not Found", "No such event found.")
+
+            msg = "Event id %s requested for canceling by user %s" % \
+                (event.id, g.user.username)
+            log.info(msg)
+
+            event.transition(EventState.CANCELED, msg)
+            event.builds_transition(
+                ArtifactBuildState.CANCELED.value,
+                "Build canceled before running on external build system.",
+                filters={'state': ArtifactBuildState.PLANNED.value})
+            builds_id = event.builds_transition(
+                ArtifactBuildState.CANCELED.value, None,
+                filters={'state': ArtifactBuildState.BUILD.value})
+            db.session.commit()
+
+            data["action"] = self._freshmaker_manage_prefix + data["action"]
+            data["event_id"] = event.id
+            data["builds_id"] = builds_id
+            messaging.publish("manage.eventcancel", data)
+            # Return back the JSON representation of Event to client.
+            return jsonify(event.json()), 200
+        else:
+            return json_error(
+                400, "Bad Request", "Unsupported action requested.")
 
 
 class BuildAPI(MethodView):
@@ -285,6 +335,8 @@ class BuildAPI(MethodView):
         db_event = models.Event.get_or_create_from_event(db.session, event)
         db_event.requester = g.user.username
         db_event.requested_rebuilds = " ".join(event.container_images)
+        if event.requester_metadata_json:
+            db_event.requester_metadata = json.dumps(event.requester_metadata_json)
         db.session.commit()
 
         # Forward the POST data (including the msg_id of the database event we

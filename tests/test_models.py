@@ -31,6 +31,14 @@ from tests import helpers
 
 class TestModels(helpers.ModelsTestCase):
 
+    def test_get_or_create_from_event(self):
+        event = events.TestingEvent('msg-1')
+        # First call creates new event, second call returns the same one.
+        for i in range(2):
+            db_event = Event.get_or_create_from_event(db.session, event)
+            self.assertEqual(db_event.id, 1)
+            self.assertEqual(db_event.message_id, 'msg-1')
+
     def test_creating_event_and_builds(self):
         event = Event.create(db.session, "test_msg_id", "RHSA-2017-284", events.TestingEvent)
         build = ArtifactBuild.create(db.session, event, "ed", "module", 1234)
@@ -42,7 +50,7 @@ class TestModels(helpers.ModelsTestCase):
         self.assertEqual(e.message_id, "test_msg_id")
         self.assertEqual(e.search_key, "RHSA-2017-284")
         self.assertEqual(e.event_type, events.TestingEvent)
-        self.assertEqual(len(e.builds), 2)
+        self.assertEqual(len(e.builds.all()), 2)
 
         self.assertEqual(e.builds[0].name, "ed")
         self.assertEqual(e.builds[0].type, 2)
@@ -176,6 +184,7 @@ class TestModels(helpers.ModelsTestCase):
             'state_reason': None,
             'url': 'http://localhost:5001/api/1/events/1',
             'requested_rebuilds': [],
+            'requester_metadata': {},
         })
 
 

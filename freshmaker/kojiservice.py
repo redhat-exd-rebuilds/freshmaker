@@ -178,6 +178,9 @@ class KojiService(object):
 
         return task_id
 
+    def cancel_build(self, build_id):
+        return self.session.cancelBuild(build_id)
+
     def get_build_rpms(self, build_nvr, arches=None):
         build_info = self.session.getBuild(build_nvr)
         return self.session.listRPMs(buildID=build_info['id'],

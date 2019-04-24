@@ -350,6 +350,48 @@ class TestViews(helpers.ModelsTestCase):
         for id, build in zip([2, 1], evs):
             self.assertEqual(id, build['id'])
 
+    def test_patch_event_missing_action(self):
+        resp = self.client.patch(
+            '/api/1/events/1',
+            data=json.dumps({}))
+        data = json.loads(resp.get_data(as_text=True))
+        self.assertEqual(data['error'], 'Bad Request')
+        self.assertTrue(data['message'].startswith('Missing action in request.'))
+
+    def test_patch_event_unsupported_action(self):
+        resp = self.client.patch(
+            '/api/1/events/1',
+            data=json.dumps({'action': 'unsupported'}))
+        data = json.loads(resp.get_data(as_text=True))
+        self.assertEqual(data['error'], 'Bad Request')
+        self.assertTrue(data['message'].startswith('Unsupported action requested.'))
+
+    def test_patch_event_cancel(self):
+        event = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000003",
+                                    "RHSA-2018-103", events.TestingEvent)
+        models.ArtifactBuild.create(db.session, event, "mksh", "module", build_id=1237,
+                                    state=ArtifactBuildState.PLANNED.value)
+        models.ArtifactBuild.create(db.session, event, "bash", "module", build_id=1238,
+                                    state=ArtifactBuildState.PLANNED.value)
+        models.ArtifactBuild.create(db.session, event, "dash", "module", build_id=1239,
+                                    state=ArtifactBuildState.BUILD.value)
+        models.ArtifactBuild.create(db.session, event, "tcsh", "module", build_id=1240,
+                                    state=ArtifactBuildState.DONE.value)
+        db.session.commit()
+
+        resp = self.client.patch(
+            '/api/1/events/{}'.format(event.id),
+            data=json.dumps({'action': 'cancel'}))
+        data = json.loads(resp.get_data(as_text=True))
+
+        self.assertEqual(data['id'], event.id)
+        self.assertEqual(len(data['builds']), 4)
+        self.assertEqual(data['state_name'], 'CANCELED')
+        self.assertTrue(data['state_reason'].startswith(
+            'Event id {} requested for canceling by user '.format(event.id)))
+        self.assertEqual(len([b for b in data['builds'] if b['state_name'] == 'CANCELED']), 3)
+        self.assertEqual(len([b for b in data['builds'] if b['state_name'] == 'DONE']), 1)
+
     def test_query_event_types(self):
         resp = self.client.get('/api/1/event-types/')
         event_types = json.loads(resp.get_data(as_text=True))['items']
@@ -507,7 +549,8 @@ class TestManualTriggerRebuild(helpers.ModelsTestCase):
             u'url': u'/api/1/events/1',
             u'dry_run': False,
             u'requester': 'tester1',
-            u'requested_rebuilds': []})
+            u'requested_rebuilds': [],
+            u'requester_metadata': {}})
         publish.assert_called_once_with(
             'manual.rebuild',
             {'msg_id': 'manual_rebuild_123', u'errata_id': 1})
@@ -553,6 +596,28 @@ class TestManualTriggerRebuild(helpers.ModelsTestCase):
             'manual.rebuild',
             {'msg_id': 'manual_rebuild_123', u'errata_id': 1,
              'container_images': ["foo-1-1", "bar-1-1"]})
+
+    @patch('freshmaker.messaging.publish')
+    @patch('freshmaker.parsers.internal.manual_rebuild.ErrataAdvisory.'
+           'from_advisory_id')
+    @patch('freshmaker.parsers.internal.manual_rebuild.time.time')
+    def test_manual_rebuild_metadata(self, time, from_advisory_id, publish):
+        time.return_value = 123
+        from_advisory_id.return_value = ErrataAdvisory(
+            123, 'name', 'REL_PREP', ['rpm'])
+
+        resp = self.client.post(
+            '/api/1/builds/', data=json.dumps({
+                'errata_id': 1, 'metadata': {"foo": ["bar"]}}),
+            content_type='application/json')
+        data = json.loads(resp.get_data(as_text=True))
+
+        # Other fields are predictible.
+        self.assertEqual(data['requester_metadata'], {"foo": ["bar"]})
+        publish.assert_called_once_with(
+            'manual.rebuild',
+            {'msg_id': 'manual_rebuild_123', u'errata_id': 1,
+             'metadata': {"foo": ["bar"]}})
 
 
 class TestOpenIDCLogin(ViewBaseTest):
