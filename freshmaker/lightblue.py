@@ -197,7 +197,8 @@ class ContainerImage(dict):
         data = self._get_default_additional_data()
 
         with koji_service(
-                conf.koji_profile, log, dry_run=conf.dry_run) as session:
+                conf.koji_profile, log, dry_run=conf.dry_run,
+                login=False) as session:
             build = session.get_build(nvr)
             if not build:
                 raise KojiLookupError(
