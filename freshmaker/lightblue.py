@@ -693,9 +693,11 @@ class LightBlue(object):
 
         if release_categories:  # Check if release_categories is None or empty
             request["query"]["$and"].append({
-                "field": "release_categories.*",
-                "op": "$in",
-                "rvalue": release_categories,
+                "$or": [{
+                    "field": "release_categories.*",
+                    "op": "=",
+                    "rvalue": category
+                } for category in release_categories]
             })
 
         return request
