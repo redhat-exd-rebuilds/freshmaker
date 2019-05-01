@@ -333,7 +333,7 @@ def print_detailed_events(events, states=None):
 
             return rows
 
-        table = [["Build ID", "Task ID", "State", "Name", "NVR",
+        table = [["Freshmaker ID", "Task ID", "State", "Name", "NVR",
                   "Rebuilt NVR", "State Reason"]]
         table += _prepare_table(tree)
 
