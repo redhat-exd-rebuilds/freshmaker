@@ -24,7 +24,7 @@ from freshmaker import db, events
 from freshmaker.models import ArtifactBuild, ArtifactType
 from freshmaker.models import Event, EventState, EVENT_TYPES, EventDependency
 from freshmaker.models import Compose, ArtifactBuildCompose
-from freshmaker.types import ArtifactBuildState
+from freshmaker.types import ArtifactBuildState, RebuildReason
 from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
 from tests import helpers
 
@@ -41,8 +41,10 @@ class TestModels(helpers.ModelsTestCase):
 
     def test_creating_event_and_builds(self):
         event = Event.create(db.session, "test_msg_id", "RHSA-2017-284", events.TestingEvent)
-        build = ArtifactBuild.create(db.session, event, "ed", "module", 1234)
-        ArtifactBuild.create(db.session, event, "mksh", "module", 1235, build)
+        build = ArtifactBuild.create(db.session, event, "ed", "module", 1234,
+                                     rebuild_reason=RebuildReason.DIRECTLY_AFFECTED.value)
+        ArtifactBuild.create(db.session, event, "mksh", "module", 1235, build,
+                             rebuild_reason=RebuildReason.DEPENDENCY.value)
         db.session.commit()
         db.session.expire_all()
 
@@ -57,12 +59,14 @@ class TestModels(helpers.ModelsTestCase):
         self.assertEqual(e.builds[0].state, 0)
         self.assertEqual(e.builds[0].build_id, 1234)
         self.assertEqual(e.builds[0].dep_on, None)
+        self.assertEqual(e.builds[0].rebuild_reason, RebuildReason.DIRECTLY_AFFECTED.value)
 
         self.assertEqual(e.builds[1].name, "mksh")
         self.assertEqual(e.builds[1].type, 2)
         self.assertEqual(e.builds[1].state, 0)
         self.assertEqual(e.builds[1].build_id, 1235)
         self.assertEqual(e.builds[1].dep_on.name, "ed")
+        self.assertEqual(e.builds[1].rebuild_reason, RebuildReason.DEPENDENCY.value)
 
     def test_get_root_dep_on(self):
         event = Event.create(db.session, "test_msg_id", "test", events.TestingEvent)

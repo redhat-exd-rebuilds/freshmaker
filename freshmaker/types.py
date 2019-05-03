@@ -90,3 +90,14 @@ class EventState(Enum):
     SKIPPED = 4
     # handling of the event has been canceled (also canceling builds etc.)
     CANCELED = 5
+
+
+class RebuildReason(Enum):
+    # Rebuild reason is unknown - mainly to have some value for old
+    # ArtifactBuilds.
+    UNKNOWN = 0
+    # The artifact is directly rebuilt, because it is directly affected by some
+    # CVE, RPM update, ...
+    DIRECTLY_AFFECTED = 1
+    # The artifact is rebuilt, because it is dependency of other artifact.
+    DEPENDENCY = 2

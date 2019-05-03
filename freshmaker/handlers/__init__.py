@@ -258,7 +258,8 @@ class BaseHandler(object):
 
     def record_build(self, event, name, artifact_type,
                      build_id=None, dep_on=None, state=None,
-                     original_nvr=None, rebuilt_nvr=None):
+                     original_nvr=None, rebuilt_nvr=None,
+                     rebuild_reason=0):
         """
         Record build in db.
 
@@ -273,6 +274,8 @@ class BaseHandler(object):
             ``ArtifactBuildState.BUILD``.
         :param original_nvr: The original NVR of artifact.
         :param rebuilt_nvr: The NVR of newly rebuilt artifact.
+        :param rebuild_reason: The reason why this artifact is included in
+            this event.
         :return: recorded build.
         :rtype: ArtifactBuild.
         """
@@ -285,7 +288,8 @@ class BaseHandler(object):
         build = models.ArtifactBuild.create(db.session, ev, name,
                                             artifact_type.name.lower(),
                                             build_id, dep_on, state,
-                                            original_nvr, rebuilt_nvr)
+                                            original_nvr, rebuilt_nvr,
+                                            rebuild_reason)
 
         db.session.commit()
         return build

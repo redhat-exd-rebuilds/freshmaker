@@ -34,7 +34,8 @@ from freshmaker.handlers.koji import RebuildImagesOnRPMAdvisoryChange
 from freshmaker.handlers.internal import UpdateDBOnAdvisoryChange
 from freshmaker.lightblue import ContainerImage
 from freshmaker.models import Event, ArtifactBuild, EVENT_TYPES
-from freshmaker.types import ArtifactBuildState, ArtifactType, EventState
+from freshmaker.types import (
+    ArtifactBuildState, ArtifactType, EventState, RebuildReason)
 from tests import helpers
 
 
@@ -274,10 +275,11 @@ class TestBatches(helpers.ModelsTestCase):
         super(TestBatches, self).tearDown()
         self.patcher.unpatch_all()
 
-    def _mock_build(self, build, parent=None, error=None):
+    def _mock_build(
+            self, build, parent=None, error=None, **kwargs):
         if parent:
             parent = {"brew": {"build": parent + "-1-1.25"}}
-        return ContainerImage({
+        d = {
             'brew': {'build': build + "-1-1.25"},
             'repository': build + '_repo',
             'parsed_data': {
@@ -297,7 +299,9 @@ class TestBatches(helpers.ModelsTestCase):
             "arches": "x86_64",
             "odcs_compose_ids": [10, 11],
             "published": False,
-        })
+        }
+        d.update(kwargs)
+        return ContainerImage(d)
 
     @patch('freshmaker.odcsclient.create_odcs_client')
     def test_batches_records(self, create_odcs_client):
@@ -330,8 +334,8 @@ class TestBatches(helpers.ModelsTestCase):
                    [self._mock_build("child1_parent2", "child1_parent3"),
                     self._mock_build("child2_parent1", "child2_parent2")],
                    [self._mock_build("child1_parent1", "child1_parent2", error="Fail"),
-                    self._mock_build("child2", "child2_parent1")],
-                   [self._mock_build("child1", "child1_parent1")]]
+                    self._mock_build("child2", "child2_parent1", latest_released=True)],
+                   [self._mock_build("child1", "child1_parent1", latest_released=True)]]
 
         # Flat list of images from batches with brew build id as a key.
         images = {}
@@ -361,6 +365,11 @@ class TestBatches(helpers.ModelsTestCase):
                 self.assertEqual(build.dep_on.original_nvr, image['parent']['brew']['build'])
             else:
                 self.assertEqual(build.dep_on, None)
+
+            if build.name in ["child1", "child2"]:
+                self.assertEqual(build.rebuild_reason, RebuildReason.DIRECTLY_AFFECTED.value)
+            else:
+                self.assertEqual(build.rebuild_reason, RebuildReason.DEPENDENCY.value)
 
             args = json.loads(build.build_args)
             self.assertEqual(args["repository"], build.name + "_repo")
