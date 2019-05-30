@@ -727,6 +727,7 @@ class LightBlue(object):
             "projection": [
                 {"field": "repository", "include": True},
                 {"field": "auto_rebuild_tags", "include": True, "recursive": True},
+                {"field": "release_categories", "include": True, "recursive": True},
             ]
         }
         repo_request = self._set_container_repository_filters(
@@ -925,8 +926,10 @@ class LightBlue(object):
                     continue
                 published_repo = repositories[repository["repository"]]
                 tag_names = [tag["name"] for tag in repository["tags"]]
+
                 for auto_rebuild_tag in published_repo["auto_rebuild_tags"]:
                     if auto_rebuild_tag in tag_names:
+                        image["release_categories"] = published_repo["release_categories"]
                         new_images.append(image)
                         break
         images = new_images
@@ -1285,9 +1288,14 @@ class LightBlue(object):
             # We do not set "children" here in resolve_content_sets call, because
             # published images should have the content_set set.
             image.resolve(self, None)
-            # Images returned by this method are latest released images, so
-            # mark them like that.
-            image["latest_released"] = True
+
+            # Mark as latest_released only images which are not Beta or Tech Preview.
+            # This is important, because "latest_released" is used in deduplication
+            # code to mark the image to which the other images with same name-version
+            # but lower release can be upgraded.
+            release_categories = image.get("release_categories", [])
+            if "Beta" not in release_categories and "Tech Preview" not in release_categories:
+                image["latest_released"] = True
             return image
 
         resolved_images = []

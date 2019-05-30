@@ -609,11 +609,13 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                 "content_sets": ["dummy-content-set-1",
                                  "dummy-content-set-2"],
                 "auto_rebuild_tags": ["latest", "tag1"],
+                "release_categories": ["Generally Available"],
             },
             {
                 "repository": "product2/repo2",
                 "content_sets": ["dummy-content-set-1"],
                 "auto_rebuild_tags": ["latest", "tag2"],
+                "release_categories": ["Generally Available"],
             }
         ]
 
@@ -933,6 +935,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             "projection": [
                 {"field": "repository", "include": True},
                 {"field": "auto_rebuild_tags", "include": True, "recursive": True},
+                {"field": "release_categories", "include": True, "recursive": True},
             ]
         }
         cont_repos.assert_called_with(expected_repo_request)
@@ -1133,6 +1136,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                  },
                                  'content_sets': ["dummy-content-set-1"],
                                  'content_sets_source': 'lightblue_container_image',
+                                 "release_categories": ["Generally Available"],
                                  'repositories': [
                                      {'repository': 'product2/repo2', 'published': True,
                                       'tags': [{"name": "latest"}]}
@@ -1165,6 +1169,33 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                  }]
                              },
                          ])
+
+    @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
+    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @patch('freshmaker.kojiservice.KojiService.get_build')
+    @patch('freshmaker.kojiservice.KojiService.get_task_request')
+    @patch('os.path.exists')
+    def test_images_with_content_set_packages_beta(
+            self, exists, koji_task_request, koji_get_build, cont_images, cont_repos):
+        exists.return_value = True
+        cont_repos.return_value = self.fake_repositories_with_content_sets
+        cont_repos.return_value[1]["release_categories"] = ["Beta"]
+        cont_images.return_value = self.fake_container_images
+        koji_task_request.side_effect = self.fake_koji_task_requests
+        koji_get_build.side_effect = self.fake_koji_builds
+
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key)
+        ret = lb.find_images_with_packages_from_content_set(
+            set(["openssl-1.2.3-3"]), ["dummy-content-set-1"], filter_fnc=self._filter_fnc)
+
+        # Only the first image should be returned, because the first one
+        # is in repository "product1/repo1", but we have asked for images
+        # in repository "product/repo1".
+        self.assertEqual(1, len(ret))
+        self.assertTrue("latest_released" not in ret[0])
+        self.assertEqual(ret[0]["release_categories"], ["Beta"])
 
     @patch('freshmaker.lightblue.ContainerImage.resolve_published')
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
