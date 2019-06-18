@@ -21,6 +21,7 @@
 
 import unittest
 import json
+import datetime
 import six
 import contextlib
 import flask
@@ -321,6 +322,15 @@ class TestViews(helpers.ModelsTestCase):
         evs = json.loads(resp.get_data(as_text=True))['items']
         self.assertEqual(len(evs), 2)
 
+    def test_query_event_complete(self):
+        event = db.session.query(models.Event).get(1)
+        with patch('freshmaker.models.datetime') as datetime_patch:
+            datetime_patch.utcnow.return_value = datetime.datetime(2099, 8, 21, 13, 42, 20)
+            event.transition(models.EventState.COMPLETE.value)
+        resp = self.client.get('/api/1/events/1')
+        data = json.loads(resp.get_data(as_text=True))
+        self.assertEqual(data['time_done'], '2099-08-21T13:42:20Z')
+
     def test_query_event_by_message_id(self):
         resp = self.client.get('/api/1/events/?message_id=2017-00000000-0000-0000-0000-000000000001')
         evs = json.loads(resp.get_data(as_text=True))['items']
@@ -531,10 +541,11 @@ class TestManualTriggerRebuild(helpers.ModelsTestCase):
         time.return_value = 123
         from_advisory_id.return_value = ErrataAdvisory(
             123, 'name', 'REL_PREP', ['rpm'])
-
-        resp = self.client.post('/api/1/builds/',
-                                data=json.dumps({'errata_id': 1}),
-                                content_type='application/json')
+        with patch('freshmaker.models.datetime') as datetime_patch:
+            datetime_patch.utcnow.return_value = datetime.datetime(2017, 8, 21, 13, 42, 20)
+            resp = self.client.post('/api/1/builds/',
+                                    data=json.dumps({'errata_id': 1}),
+                                    content_type='application/json')
         data = json.loads(resp.get_data(as_text=True))
 
         # Other fields are predictible.
@@ -547,6 +558,8 @@ class TestManualTriggerRebuild(helpers.ModelsTestCase):
             u'state': 0,
             u'state_name': u'INITIALIZED',
             u'state_reason': None,
+            u'time_created': u'2017-08-21T13:42:20Z',
+            u'time_done': None,
             u'url': u'/api/1/events/1',
             u'dry_run': False,
             u'requester': 'tester1',

@@ -146,6 +146,7 @@ class Event(FreshmakerBase):
     state = db.Column(db.Integer, nullable=False)
     state_reason = db.Column(db.String, nullable=True)
     time_created = db.Column(db.DateTime, nullable=True)
+    time_done = db.Column(db.DateTime, nullable=True)
     # AppenderQuery for getting builds associated with this Event.
     builds = relationship("ArtifactBuild", back_populates="event",
                           lazy="dynamic", cascade="all, delete-orphan",
@@ -311,12 +312,16 @@ class Event(FreshmakerBase):
 
     def transition(self, state, state_reason=None):
         """
-        Sets the state and state_reason of this Event.
+        Sets the time_done, state, and state_reason of this Event.
 
         :param state: EventState value
         :param state_reason: Reason why this state has been set.
         :return: True/False, whether state was changed
         """
+
+        # Log the time done
+        if state == EventState.FAILED.value or state == EventState.COMPLETE.value:
+            self.time_done = datetime.utcnow()
 
         # Log the state and state_reason
         if state == EventState.FAILED.value:
@@ -384,6 +389,8 @@ class Event(FreshmakerBase):
             "state": self.state,
             "state_name": EventState(self.state).name,
             "state_reason": self.state_reason,
+            "time_created": _utc_datetime_to_iso(self.time_created),
+            "time_done": _utc_datetime_to_iso(self.time_done),
             "url": event_url,
             "dry_run": self.dry_run,
             "requester": self.requester,

@@ -20,6 +20,9 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
+import datetime
+from mock import patch
+
 from freshmaker import db, events
 from freshmaker.models import ArtifactBuild, ArtifactType
 from freshmaker.models import Event, EventState, EVENT_TYPES, EventDependency
@@ -170,7 +173,10 @@ class TestModels(helpers.ModelsTestCase):
             str(event), "<UnknownEventType 1024, search_key=test>")
 
     def test_event_json_min(self):
-        event = Event.create(db.session, "test_msg_id5", "RHSA-2017-289", events.TestingEvent)
+        with patch('freshmaker.models.datetime') as datetime_patch:
+            datetime_patch.utcnow.return_value = datetime.datetime(2017, 8, 21, 13, 42, 20)
+            event = Event.create(db.session, "test_msg_id5", "RHSA-2017-289", events.TestingEvent)
+
         build = ArtifactBuild.create(db.session, event, "ed", "module", 1234)
         build.state = ArtifactBuildState.FAILED
         ArtifactBuild.create(db.session, event, "mksh", "module", 1235, build)
@@ -186,6 +192,8 @@ class TestModels(helpers.ModelsTestCase):
             'state': 0,
             'state_name': 'INITIALIZED',
             'state_reason': None,
+            'time_created': '2017-08-21T13:42:20Z',
+            'time_done': None,
             'url': 'http://localhost:5001/api/1/events/1',
             'requested_rebuilds': [],
             'requester_metadata': {},
