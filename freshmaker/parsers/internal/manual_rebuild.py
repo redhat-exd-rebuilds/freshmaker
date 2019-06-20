@@ -52,7 +52,7 @@ class FreshmakerManualRebuildParser(BaseParser):
 
         event = ManualRebuildWithAdvisoryEvent(
             msg_id, advisory, data.get("container_images", []), data.get("metadata", None),
-            manual=True, dry_run=dry_run)
+            freshmaker_event_id=data.get('freshmaker_event_id'), manual=True, dry_run=dry_run)
 
         return event
 

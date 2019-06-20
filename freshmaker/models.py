@@ -244,6 +244,10 @@ class Event(FreshmakerBase):
         return session.query(cls).filter(cls.released == false(),
                                          cls.state.in_(states)).all()
 
+    @classmethod
+    def get_by_event_id(cls, session, event_id):
+        return session.query(cls).filter_by(id=event_id).first()
+
     def get_image_builds_in_first_batch(self, session):
         return session.query(ArtifactBuild).filter_by(
             dep_on=None,

@@ -317,7 +317,7 @@ class ManualRebuildWithAdvisoryEvent(ErrataAdvisoryRPMsSignedEvent):
     """
 
     def __init__(self, msg_id, advisory, container_images,
-                 requester_metadata_json=None, **kwargs):
+                 requester_metadata_json=None, freshmaker_event_id=None, **kwargs):
         """
         Creates new ManualRebuildWithAdvisoryEvent.
 
@@ -325,11 +325,14 @@ class ManualRebuildWithAdvisoryEvent(ErrataAdvisoryRPMsSignedEvent):
         :param ErrataAdvisory advisory: Errata advisory associated with event.
         :param list container_images: List of NVRs of images to rebuild or
             empty list to rebuild all images affected by the advisory.
+        :param freshmaker_event_id: Freshmaker event id on which this manual rebuild
+            is based off on.
         """
         super(ManualRebuildWithAdvisoryEvent, self).__init__(
             msg_id, advisory, **kwargs)
         self.container_images = container_images
         self.requester_metadata_json = requester_metadata_json
+        self.freshmaker_event_id = freshmaker_event_id
 
 
 class BrewSignRPMEvent(BaseEvent):
