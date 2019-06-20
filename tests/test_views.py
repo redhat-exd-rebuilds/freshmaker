@@ -461,10 +461,11 @@ class TestViews(helpers.ModelsTestCase):
         self.assertEqual(data['message'], 'No such build state found.')
 
     def test_about_api(self):
-        resp = self.client.get('/api/1/about/')
+        # Since the version is always changing, let's just mock it to be consistent
+        with patch('freshmaker.views.version', '1.0.0'):
+            resp = self.client.get('/api/1/about/')
         data = json.loads(resp.get_data(as_text=True))
-        # version is 'unknown' in case of skip_install=True in tox.ini
-        self.assertEqual(data['version'], 'unknown')
+        self.assertEqual(data['version'], '1.0.0')
 
     @patch("freshmaker.views.ImageVerifier")
     def test_verify_image(self, verifier):
