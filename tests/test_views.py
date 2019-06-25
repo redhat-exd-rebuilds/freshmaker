@@ -475,6 +475,24 @@ class TestViews(helpers.ModelsTestCase):
             'images': {'foo-1-1': ['content-set']},
             'msg': 'Found 1 images which are handled by Freshmaker for defined content_sets.'})
 
+    def test_dependencies(self):
+        event = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000003", "RHSA-2018-103", events.TestingEvent)
+        event1 = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000004", "RHSA-2018-104", events.TestingEvent)
+        db.session.commit()
+        event.add_event_dependency(db.session, event1)
+        db.session.commit()
+        resp = self.client.get('/api/1/events/4')
+        data = json.loads(resp.get_data(as_text=True))
+        self.assertEqual(data['id'], event1.id)
+        self.assertEqual(data['depends_on_events'], [event.id])
+        self.assertEqual(data['depending_events'], [])
+
+        resp = self.client.get('/api/1/events/3')
+        data = json.loads(resp.get_data(as_text=True))
+        self.assertEqual(data['id'], event.id)
+        self.assertEqual(data['depends_on_events'], [])
+        self.assertEqual(data['depending_events'], [event1.id])
+
 
 class TestViewsMultipleFilterValues(helpers.ModelsTestCase):
     def setUp(self):
@@ -540,6 +558,8 @@ class TestManualTriggerRebuild(helpers.ModelsTestCase):
         # Other fields are predictible.
         self.assertEqual(data, {
             u'builds': [],
+            u'depending_events': [],
+            u'depends_on_events': [],
             u'event_type_id': 13,
             u'id': 1,
             u'message_id': u'manual_rebuild_123',
