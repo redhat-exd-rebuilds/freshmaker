@@ -329,6 +329,10 @@ class BuildAPI(MethodView):
         parser = FreshmakerManualRebuildParser()
         event = parser.parse_post_data(data)
 
+        dependent_event = None
+        if event.freshmaker_event_id:
+            dependent_event = models.Event.get_by_event_id(db.session, event.freshmaker_event_id)
+
         # Store the event into database, so it gets the ID which we can return
         # to client sending this POST request. The client can then use the ID
         # to check for the event status.
@@ -337,6 +341,11 @@ class BuildAPI(MethodView):
         db_event.requested_rebuilds = " ".join(event.container_images)
         if event.requester_metadata_json:
             db_event.requester_metadata = json.dumps(event.requester_metadata_json)
+        if dependent_event:
+            dependency = db_event.add_event_dependency(db.session, dependent_event)
+            if not dependency:
+                log.warn('Dependency between {} and {} could not be added!'.format(
+                    event.freshmaker_event_id, dependent_event.id))
         db.session.commit()
 
         # Forward the POST data (including the msg_id of the database event we

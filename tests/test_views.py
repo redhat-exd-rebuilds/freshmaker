@@ -634,6 +634,36 @@ class TestManualTriggerRebuild(helpers.ModelsTestCase):
             {'msg_id': 'manual_rebuild_123', u'errata_id': 1,
              'metadata': {"foo": ["bar"]}})
 
+    @patch('freshmaker.messaging.publish')
+    @patch('freshmaker.parsers.internal.manual_rebuild.ErrataAdvisory.'
+           'from_advisory_id')
+    @patch('freshmaker.parsers.internal.manual_rebuild.time.time')
+    @patch('freshmaker.models.Event.add_event_dependency')
+    def test_dependent_manual_rebuild_on_existing_event(self, add_dependency, time,
+                                                        from_advisory_id, publish):
+        models.Event.create(db.session,
+                            "2017-00000000-0000-0000-0000-000000000003",
+                            "RHSA-2018-103", events.TestingEvent)
+        db.session.commit()
+        time.return_value = 123
+        from_advisory_id.return_value = ErrataAdvisory(
+            123, 'name', 'REL_PREP', ['rpm'])
+
+        resp = self.client.post(
+            '/api/1/builds/', data=json.dumps({
+                'errata_id': 1, 'container_images': ["foo-1-1"],
+                'freshmaker_event_id': 1}),
+            content_type='application/json')
+        data = json.loads(resp.get_data(as_text=True))
+        # Other fields are predictible.
+        self.assertEqual(data['requested_rebuilds'], ["foo-1-1"])
+        assert add_dependency.call_count == 1
+        assert "RHSA-2018-103" == add_dependency.call_args.args[1].search_key
+        publish.assert_called_once_with(
+            'manual.rebuild',
+            {'msg_id': 'manual_rebuild_123', u'errata_id': 1,
+             'container_images': ["foo-1-1"], 'freshmaker_event_id': 1})
+
 
 class TestOpenIDCLogin(ViewBaseTest):
     """Test that OpenIDC login"""
