@@ -1330,131 +1330,146 @@ class LightBlue(object):
         The foo-2-2 will be kept unchanged in a list, because it is the
         single record for the foo image in version 2.
         """
-        # Temporary dict mapping the NVR of image to coordinates in the
-        # `to_rebuild` list. For example
-        # nvr_to_coordinates["nvr"] = [[0, 3], ...] means that the image with
-        # nvr "nvr" is 4th image in the to_rebuild[0] list, ...
-        nvr_to_coordinates = {}
-        # Temporary dict mapping the NV to list of NVRs. The List of NVRs
-        # is always sorted descending.
-        nv_to_nvrs = {}
-        # Temporary dict mapping the NVR to image.
-        nvr_to_image = {}
-        # Temporary dict mapping NV to latest released NVR for that NV.
-        nv_to_latest_released_nvr = {}
-        # Temporary list containing names of all images to rebuild. This is
-        # later used to replace "foo-docker" with "foo-container".
-        n_to_nvs = {}
 
-        # Constructs the temporary dicts as desribed above.
-        for image_id, images in enumerate(to_rebuild):
-            for parent_id, image in enumerate(images):
-                nvr = image["brew"]["build"]
-                parsed_nvr = koji.parse_NVR(nvr)
-                nv = "%s-%s" % (parsed_nvr["name"], parsed_nvr["version"])
-                if nv not in nv_to_nvrs:
-                    nv_to_nvrs[nv] = []
-                if nvr not in nv_to_nvrs[nv]:
-                    nv_to_nvrs[nv].append(nvr)
-                if nvr not in nvr_to_coordinates:
-                    nvr_to_coordinates[nvr] = []
-                if parsed_nvr["name"] not in n_to_nvs:
-                    n_to_nvs[parsed_nvr["name"]] = []
-                if nv not in n_to_nvs[parsed_nvr["name"]]:
-                    n_to_nvs[parsed_nvr["name"]].append(nv)
-                nvr_to_coordinates[nvr].append([image_id, parent_id])
-                nvr_to_image[nvr] = image
-                if "latest_released" in image and image["latest_released"]:
-                    nv_to_latest_released_nvr[nv] = nvr
+        # We need to deduplicate images in two phases:
+        #
+        # 1) "handle_parent_change" - During this phase, we find out if update
+        #    to latest image changes also the parent images.
+        #    For example, foo-1-1 can be built against x-1-1, but foo-1-2 can
+        #    be built against y-1-1. If we simply replace "foo-1-1" by "foo-1-2"
+        #    while keeping the original parent image, the "foo-1-2" will be built
+        #    against x-1-1 instead of y-1-1. This would be wrong.
+        #
+        #    To fix that, we therefore find out that the parent image changed in
+        #    the latest release of foo-1-2 and we replace also the parent images
+        #    according to latest release foo-1-2.
+        #
+        # 2) "update_to_latest". During this phase, we simply find out old releases
+        #    of images in `to_rebuild` and update them to latest released NVR.
+        for phase in ["handle_parent_change", "update_to_latest"]:
+            # Temporary dict mapping the NVR of image to coordinates in the
+            # `to_rebuild` list. For example
+            # nvr_to_coordinates["nvr"] = [[0, 3], ...] means that the image with
+            # nvr "nvr" is 4th image in the to_rebuild[0] list, ...
+            nvr_to_coordinates = {}
+            # Temporary dict mapping the NV to list of NVRs. The List of NVRs
+            # is always sorted descending.
+            nv_to_nvrs = {}
+            # Temporary dict mapping the NVR to image.
+            nvr_to_image = {}
+            # Temporary dict mapping NV to latest released NVR for that NV.
+            nv_to_latest_released_nvr = {}
+            # Temporary list containing names of all images to rebuild. This is
+            # later used to replace "foo-docker" with "foo-container".
+            n_to_nvs = {}
 
-        # Sort the lists in nv_to_nvrs dict.
-        for nv in nv_to_nvrs.keys():
-            nv_to_nvrs[nv] = sorted_by_nvr(nv_to_nvrs[nv], reverse=True)
+            # Constructs the temporary dicts as desribed above.
+            for image_id, images in enumerate(to_rebuild):
+                for parent_id, image in enumerate(images):
+                    nvr = image["brew"]["build"]
+                    parsed_nvr = koji.parse_NVR(nvr)
+                    nv = "%s-%s" % (parsed_nvr["name"], parsed_nvr["version"])
+                    if nv not in nv_to_nvrs:
+                        nv_to_nvrs[nv] = []
+                    if nvr not in nv_to_nvrs[nv]:
+                        nv_to_nvrs[nv].append(nvr)
+                    if nvr not in nvr_to_coordinates:
+                        nvr_to_coordinates[nvr] = []
+                    if parsed_nvr["name"] not in n_to_nvs:
+                        n_to_nvs[parsed_nvr["name"]] = []
+                    if nv not in n_to_nvs[parsed_nvr["name"]]:
+                        n_to_nvs[parsed_nvr["name"]].append(nv)
+                    nvr_to_coordinates[nvr].append([image_id, parent_id])
+                    nvr_to_image[nvr] = image
+                    if "latest_released" in image and image["latest_released"]:
+                        nv_to_latest_released_nvr[nv] = nvr
 
-            # There might be container image NVRs which are not released yet,
-            # but some released image is already built on top of them.
-            # The issue is that such unreleased container image won't be in
-            # its containerRepository and therefore won't have proper
-            # content_sets set.
-            # In this case, we copy the content_sets from the released image.
-            # This might bring issue in case the content_sets changed
-            # dramaticaly between released and unreleased release of such
-            # image, but it's still the best guess we can do.
-            # This is also used only as fallback in case "content_sets.yml"
-            # does not exists in the dist-git repo, which should be rare
-            # situation.
-            latest_content_sets = []
-            for nvr in reversed(nv_to_nvrs[nv]):
-                image = nvr_to_image[nvr]
-                if ("content_sets" not in image or
-                        not image["content_sets"] or
-                        "content_sets_source" not in image):
-                    image["content_sets"] = latest_content_sets
-                elif image["content_sets_source"] == "child_image":
-                    if latest_content_sets:
+            # Sort the lists in nv_to_nvrs dict.
+            for nv in nv_to_nvrs.keys():
+                nv_to_nvrs[nv] = sorted_by_nvr(nv_to_nvrs[nv], reverse=True)
+
+                # There might be container image NVRs which are not released yet,
+                # but some released image is already built on top of them.
+                # The issue is that such unreleased container image won't be in
+                # its containerRepository and therefore won't have proper
+                # content_sets set.
+                # In this case, we copy the content_sets from the released image.
+                # This might bring issue in case the content_sets changed
+                # dramaticaly between released and unreleased release of such
+                # image, but it's still the best guess we can do.
+                # This is also used only as fallback in case "content_sets.yml"
+                # does not exists in the dist-git repo, which should be rare
+                # situation.
+                latest_content_sets = []
+                for nvr in reversed(nv_to_nvrs[nv]):
+                    image = nvr_to_image[nvr]
+                    if ("content_sets" not in image or
+                            not image["content_sets"] or
+                            "content_sets_source" not in image):
                         image["content_sets"] = latest_content_sets
-                else:
-                    latest_content_sets = image["content_sets"]
+                    elif image["content_sets_source"] == "child_image":
+                        if latest_content_sets:
+                            image["content_sets"] = latest_content_sets
+                    else:
+                        latest_content_sets = image["content_sets"]
 
-        # Temporary dict nv to replace as a key and new nv as a value.
-        # This is used to replace foo-7.5-docker with foo-7.5-container.
-        nvs_to_replace = {}
-        for n, nvs in n_to_nvs.items():
-            if not n.endswith("-docker"):
-                continue
-            new_n = n[:-len("-docker")] + "-container"
-            if new_n not in n_to_nvs:
-                continue
-            for new_nv in n_to_nvs[new_n]:
-                new_v = new_nv.split("-")[-1]
-                for old_nv in nvs:
-                    old_v = old_nv.split("-")[-1]
-                    if old_v == new_v:
-                        nvs_to_replace[old_nv] = new_nv
-
-        # Iterate through list of NVs.
-        for nv, nvrs in nv_to_nvrs.items():
-            # We want to replace NVRs which are lower than the latest released
-            # NVR with latest released NVR. If there are some higher NVRs, we
-            # want to keep them, because we don't want to rebuild the image
-            # against older NVR than the one it is currently built against.
-            if nv in nvs_to_replace:
-                nv_to_use = nvs_to_replace[nv]
-                nvrs_to_use = nv_to_nvrs[new_nv]
-            else:
-                nv_to_use = nv
-                nvrs_to_use = nvrs
-            if nv_to_use in nv_to_latest_released_nvr:
-                latest_released_nvr = nv_to_latest_released_nvr[nv_to_use]
-            else:
-                latest_released_nvr = nvrs_to_use[0]
-            # The latest_released_nvr_index points to the latest released NVR
-            # in the `nvrs` list. Because `nvrs` list is desc sorted, every NVR
-            # with higher index is lower and therefore we need to replace it.
-            try:
-                if not conf.lightblue_released_dependencies_only:
-                    latest_released_nvr_index = nvrs.index(latest_released_nvr)
+            # Iterate through list of NVs.
+            for nv, nvrs in nv_to_nvrs.items():
+                # We want to replace NVRs which are lower than the latest released
+                # NVR with latest released NVR. If there are some higher NVRs, we
+                # want to keep them, because we don't want to rebuild the image
+                # against older NVR than the one it is currently built against.
+                if nv in nv_to_latest_released_nvr:
+                    latest_released_nvr = nv_to_latest_released_nvr[nv]
                 else:
-                    # In case we want to use only released versions of images,
-                    # replace all the images with the latest released one.
+                    latest_released_nvr = nvrs[0]
+                # The latest_released_nvr_index points to the latest released NVR
+                # in the `nvrs` list. Because `nvrs` list is desc sorted, every NVR
+                # with higher index is lower and therefore we need to replace it.
+                try:
+                    if not conf.lightblue_released_dependencies_only:
+                        latest_released_nvr_index = nvrs.index(latest_released_nvr)
+                    else:
+                        # In case we want to use only released versions of images,
+                        # replace all the images with the latest released one.
+                        latest_released_nvr_index = -1
+                except ValueError:
+                    # In case the latest_released_nvr is not found in the nvrs,
+                    # it means the all nvrs should be replaced by new one from
+                    # nvs_to_replace and therefore set index to -1 indicating we
+                    # want to replace everything.
                     latest_released_nvr_index = -1
-            except ValueError:
-                # In case the latest_released_nvr is not found in the nvrs,
-                # it means the all nvrs should be replaced by new one from
-                # nvs_to_replace and therefore set index to -1 indicating we
-                # want to replace everything.
-                latest_released_nvr_index = -1
-            for nvr in nvrs[latest_released_nvr_index + 1:]:
-                for image_id, parent_id in nvr_to_coordinates[nvr]:
-                    # At first replace the image in to_rebuid based
-                    # on the coordinates from temp dict.
-                    to_rebuild[image_id][parent_id] = nvr_to_image[latest_released_nvr]
+                if phase == "handle_parent_change":
+                    # Find out the name of parent image of latest release image.
+                    latest_image = nvr_to_image[nvrs[latest_released_nvr_index]]
+                    if "parent" not in latest_image or not latest_image["parent"]:
+                        continue
+                    latest_parent_name = koji.parse_NVR(
+                        latest_image["parent"]["brew"]["build"])["name"]
 
-                    # And in case this image is not the the leaf image, also replace
-                    # the ["parent"] record for the child image to point to the image
-                    # with highest NVR.
-                    if parent_id != 0:
-                        to_rebuild[image_id][parent_id - 1]["parent"] = nvr_to_image[latest_released_nvr]
+                    # Go through the older images and in case the parent image differs,
+                    # update its parents according to latest image parents.
+                    for nvr in nvrs[latest_released_nvr_index:]:
+                        image = nvr_to_image[nvr]
+                        if "parent" not in image or not image["parent"]:
+                            continue
+                        parent_name = koji.parse_NVR(image["parent"]["brew"]["build"])["name"]
+                        if parent_name != latest_parent_name:
+                            for image_id, parent_id in nvr_to_coordinates[nvr]:
+                                latest_image_id, latest_parent_id = nvr_to_coordinates[latest_released_nvr][0]
+                                to_rebuild[image_id][parent_id:] = to_rebuild[latest_image_id][latest_parent_id:]
+                elif phase == "update_to_latest":
+                    for nvr in nvrs[latest_released_nvr_index + 1:]:
+                        for image_id, parent_id in nvr_to_coordinates[nvr]:
+                            # At first replace the image in to_rebuid based
+                            # on the coordinates from temp dict.
+                            to_rebuild[image_id][parent_id] = nvr_to_image[latest_released_nvr]
+
+                            # And in case this image is not the the leaf image, also replace
+                            # the ["parent"] record for the child image to point to the image
+                            # with highest NVR.
+                            if parent_id != 0:
+                                to_rebuild[image_id][parent_id - 1]["parent"] = nvr_to_image[latest_released_nvr]
 
         return to_rebuild
 
