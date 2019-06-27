@@ -1359,9 +1359,6 @@ class LightBlue(object):
             nvr_to_image = {}
             # Temporary dict mapping NV to latest released NVR for that NV.
             nv_to_latest_released_nvr = {}
-            # Temporary list containing names of all images to rebuild. This is
-            # later used to replace "foo-docker" with "foo-container".
-            n_to_nvs = {}
 
             # Constructs the temporary dicts as desribed above.
             for image_id, images in enumerate(to_rebuild):
@@ -1375,10 +1372,6 @@ class LightBlue(object):
                         nv_to_nvrs[nv].append(nvr)
                     if nvr not in nvr_to_coordinates:
                         nvr_to_coordinates[nvr] = []
-                    if parsed_nvr["name"] not in n_to_nvs:
-                        n_to_nvs[parsed_nvr["name"]] = []
-                    if nv not in n_to_nvs[parsed_nvr["name"]]:
-                        n_to_nvs[parsed_nvr["name"]].append(nv)
                     nvr_to_coordinates[nvr].append([image_id, parent_id])
                     nvr_to_image[nvr] = image
                     if "latest_released" in image and image["latest_released"]:
@@ -1423,25 +1416,20 @@ class LightBlue(object):
                     latest_released_nvr = nv_to_latest_released_nvr[nv]
                 else:
                     latest_released_nvr = nvrs[0]
+
                 # The latest_released_nvr_index points to the latest released NVR
                 # in the `nvrs` list. Because `nvrs` list is desc sorted, every NVR
                 # with higher index is lower and therefore we need to replace it.
-                try:
-                    if not conf.lightblue_released_dependencies_only:
-                        latest_released_nvr_index = nvrs.index(latest_released_nvr)
-                    else:
-                        # In case we want to use only released versions of images,
-                        # replace all the images with the latest released one.
-                        latest_released_nvr_index = -1
-                except ValueError:
-                    # In case the latest_released_nvr is not found in the nvrs,
-                    # it means the all nvrs should be replaced by new one from
-                    # nvs_to_replace and therefore set index to -1 indicating we
-                    # want to replace everything.
+                if not conf.lightblue_released_dependencies_only:
+                    latest_released_nvr_index = nvrs.index(latest_released_nvr)
+                else:
+                    # In case we want to use only released versions of images,
+                    # replace all the images with the latest released one.
                     latest_released_nvr_index = -1
+
                 if phase == "handle_parent_change":
                     # Find out the name of parent image of latest release image.
-                    latest_image = nvr_to_image[nvrs[latest_released_nvr_index]]
+                    latest_image = nvr_to_image[latest_released_nvr]
                     if "parent" not in latest_image or not latest_image["parent"]:
                         continue
                     latest_parent_name = koji.parse_NVR(
@@ -1449,7 +1437,7 @@ class LightBlue(object):
 
                     # Go through the older images and in case the parent image differs,
                     # update its parents according to latest image parents.
-                    for nvr in nvrs[latest_released_nvr_index:]:
+                    for nvr in nvrs[latest_released_nvr_index + 1:]:
                         image = nvr_to_image[nvr]
                         if "parent" not in image or not image["parent"]:
                             continue

@@ -1946,8 +1946,10 @@ class TestDeduplicateImagesToRebuild(helpers.FreshmakerTestCase):
             ])
         ]
 
-        ret = self.lb._deduplicate_images_to_rebuild([httpd, perl])
-        self.assertEqual(ret, expected_images)
+        for val in [True, False]:
+            with patch.object(freshmaker.conf, 'lightblue_released_dependencies_only', new=val):
+                ret = self.lb._deduplicate_images_to_rebuild([httpd, perl])
+                self.assertEqual(ret, expected_images)
 
 
 class TestArchitecturesFromRegistry(helpers.FreshmakerTestCase):
