@@ -95,6 +95,14 @@ class TestModels(helpers.ModelsTestCase):
         deps = set(parent.depending_artifact_builds())
         self.assertEqual(deps, set([build2, build3]))
 
+    def test_event_transition(self):
+        for i, state in enumerate([
+                EventState.COMPLETE, EventState.COMPLETE.value, "complete"]):
+            event = Event.create(db.session, "test_msg_id_{}".format(i), "test", events.TestingEvent)
+            event.transition(state, "reason")
+            self.assertEqual(event.state, EventState.COMPLETE.value)
+            self.assertTrue(event.time_done is not None)
+
     def test_build_transition_recursion(self):
         for i, state in enumerate([ArtifactBuildState.FAILED.value,
                                    ArtifactBuildState.CANCELED.value]):
