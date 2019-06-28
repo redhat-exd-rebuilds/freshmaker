@@ -72,3 +72,27 @@ The handler which rebuilds all the modules after the `.spec` file of RPM includi
                 build_id = self.build_module(name, version, rev)
                 if build_id is not None:
                     self.record_build(event, name, ArtifactType.MODULE, build_id)
+
+
+# Initial development setup
+
+Create and activate a [Python virtual environment](https://virtualenv.pypa.io/en/stable/).
+
+Install the dependencies with:
+
+    sudo python3 setup.py install
+
+
+Install the requirements:
+
+    pip3 install -r requirements.txt
+
+
+Install the requirements useful to run the tests:
+
+    pip3 install -r test-requirements.txt
+
+
+Run the tests:
+
+    python3 -m pytest tests/
