@@ -1355,53 +1355,62 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
 
         image_a = ContainerImage.create({
             'brew': {'package': 'image-a', 'build': 'image-a-v-r1'},
+            'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'image-a-commit'
         })
         image_b = ContainerImage.create({
             'brew': {'package': 'image-b', 'build': 'image-b-v-r1'},
+            'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'image-b-commit',
             'parent': image_a,
         })
         image_c = ContainerImage.create({
             'brew': {'package': 'image-c', 'build': 'image-c-v-r1'},
+            'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'image-c-commit',
             'parent': image_b,
         })
         image_e = ContainerImage.create({
             'brew': {'package': 'image-e', 'build': 'image-e-v-r1'},
+            'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'image-e-commit',
             'parent': image_a,
         })
         image_d = ContainerImage.create({
             'brew': {'package': 'image-d', 'build': 'image-d-v-r1'},
+            'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'image-d-commit',
             'parent': image_e,
         })
         image_j = ContainerImage.create({
             'brew': {'package': 'image-j', 'build': 'image-j-v-r1'},
+            'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'image-j-commit',
             'parent': image_e,
         })
         image_k = ContainerImage.create({
             'brew': {'package': 'image-k', 'build': 'image-k-v-r1'},
+            'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'image-k-commit',
             'parent': image_j,
         })
         image_g = ContainerImage.create({
             'brew': {'package': 'image-g', 'build': 'image-g-v-r1'},
+            'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'image-g-commit',
             'parent': None,
         })
         image_f = ContainerImage.create({
             'brew': {'package': 'image-f', 'build': 'image-f-v-r1'},
+            'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'image-f-commit',
             'parent': image_g,
@@ -1410,36 +1419,42 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         leaf_image1 = ContainerImage.create({
             'brew': {'build': 'leaf-image-1-1'},
             'parsed_data': {'layers': ['fake layer']},
+            'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'leaf-image1-commit',
         })
         leaf_image2 = ContainerImage.create({
             'brew': {'build': 'leaf-image-2-1'},
             'parsed_data': {'layers': ['fake layer']},
+            'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'leaf-image2-commit',
         })
         leaf_image3 = ContainerImage.create({
             'brew': {'build': 'leaf-image-3-1'},
             'parsed_data': {'layers': ['fake layer']},
+            'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'leaf-image3-commit',
         })
         leaf_image4 = ContainerImage.create({
             'brew': {'build': 'leaf-image-4-1'},
             'parsed_data': {'layers': ['fake layer']},
+            'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'leaf-image4-commit',
         })
         leaf_image5 = ContainerImage.create({
             'brew': {'build': 'leaf-image-5-1'},
             'parsed_data': {'layers': ['fake layer']},
+            'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'leaf-image5-commit',
         })
         leaf_image6 = ContainerImage.create({
             'brew': {'build': 'leaf-image-6-1'},
             'parsed_data': {'layers': ['fake layer']},
+            'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'leaf-image6-commit',
         })
@@ -1496,6 +1511,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             'brew': {'package': 'image-a', 'build': 'image-a-v-r1'},
             'repository': 'repo-1',
             'commit': 'image-a-commit',
+            'repositories': [{"repository": "foo/bar"}],
             'rpm_manifest': [{
                 "rpms": [
                     {"srpm_name": "dummy"}
@@ -1664,6 +1680,7 @@ class TestDeduplicateImagesToRebuild(helpers.FreshmakerTestCase):
             'brew': {'build': nvr},
             'content_sets': [],
             'content_sets_source': 'distgit',
+            'repositories': [{"repository": "product/repo1"}],
         })
 
     def _create_imgs(self, nvrs):
@@ -1877,6 +1894,50 @@ class TestDeduplicateImagesToRebuild(helpers.FreshmakerTestCase):
             ])
         ]
 
+        ret = self.lb._deduplicate_images_to_rebuild([httpd, perl])
+        self.assertEqual(ret, expected_images)
+
+    def test_same_nv_different_r_different_repos(self):
+        httpd = self._create_imgs([
+            "httpd-2.4-12",
+            "s2i-base-1-2",
+            "s2i-core-1-11",
+            "rhel-server-docker-7.4-125",
+        ])
+
+        perl = self._create_imgs([
+            "perl-5.7-1",
+            ["s2i-base-1-3", {
+                "content_sets": ["foo"],
+                "repositories": [{
+                    "repository": "product/repo2",
+                    "content_sets": ["foo"]
+                }]}],
+            "s2i-core-2-12",
+            "rhel-server-docker-7.4-150",
+        ])
+
+        expected_images = [
+            self._create_imgs([
+                "httpd-2.4-12",
+                "s2i-base-1-2",
+                "s2i-core-1-11",
+                "rhel-server-docker-7.4-150",
+            ]),
+            self._create_imgs([
+                "perl-5.7-1",
+                ["s2i-base-1-3", {
+                    "content_sets": ["foo"],
+                    "repositories": [{
+                        "repository": "product/repo2",
+                        "content_sets": ["foo"]
+                    }]}],
+                "s2i-core-2-12",
+                "rhel-server-docker-7.4-150",
+            ])
+        ]
+
+        self.maxDiff = None
         ret = self.lb._deduplicate_images_to_rebuild([httpd, perl])
         self.assertEqual(ret, expected_images)
 

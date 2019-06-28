@@ -1360,34 +1360,38 @@ class LightBlue(object):
             # nvr_to_coordinates["nvr"] = [[0, 3], ...] means that the image with
             # nvr "nvr" is 4th image in the to_rebuild[0] list, ...
             nvr_to_coordinates = {}
-            # Temporary dict mapping the NV to list of NVRs. The List of NVRs
-            # is always sorted descending.
-            nv_to_nvrs = {}
+            # Temporary dict mapping the NV-repository_key to list of NVRs.
+            # The List of NVRs is always sorted descending.
+            image_group_to_nvrs = {}
             # Temporary dict mapping the NVR to image.
             nvr_to_image = {}
-            # Temporary dict mapping NV to latest released NVR for that NV.
-            nv_to_latest_released_nvr = {}
+            # Temporary dict mapping image_group to latest released NVR for that image_group.
+            image_group_to_latest_released_nvr = {}
 
             # Constructs the temporary dicts as desribed above.
             for image_id, images in enumerate(to_rebuild):
                 for parent_id, image in enumerate(images):
                     nvr = image["brew"]["build"]
+                    # Also include the sorted names of repositories in the image group
+                    # to handle the case when different releases of single name-version are
+                    # included in different container repositories.
+                    repository_key = "-".join(sorted([r["repository"] for r in image["repositories"]]))
                     parsed_nvr = koji.parse_NVR(nvr)
-                    nv = "%s-%s" % (parsed_nvr["name"], parsed_nvr["version"])
-                    if nv not in nv_to_nvrs:
-                        nv_to_nvrs[nv] = []
-                    if nvr not in nv_to_nvrs[nv]:
-                        nv_to_nvrs[nv].append(nvr)
+                    image_group = "%s-%s-%s" % (parsed_nvr["name"], parsed_nvr["version"], repository_key)
+                    if image_group not in image_group_to_nvrs:
+                        image_group_to_nvrs[image_group] = []
+                    if nvr not in image_group_to_nvrs[image_group]:
+                        image_group_to_nvrs[image_group].append(nvr)
                     if nvr not in nvr_to_coordinates:
                         nvr_to_coordinates[nvr] = []
                     nvr_to_coordinates[nvr].append([image_id, parent_id])
                     nvr_to_image[nvr] = image
                     if "latest_released" in image and image["latest_released"]:
-                        nv_to_latest_released_nvr[nv] = nvr
+                        image_group_to_latest_released_nvr[image_group] = nvr
 
-            # Sort the lists in nv_to_nvrs dict.
-            for nv in nv_to_nvrs.keys():
-                nv_to_nvrs[nv] = sorted_by_nvr(nv_to_nvrs[nv], reverse=True)
+            # Sort the lists in image_group_to_nvrs dict.
+            for image_group in image_group_to_nvrs.keys():
+                image_group_to_nvrs[image_group] = sorted_by_nvr(image_group_to_nvrs[image_group], reverse=True)
 
                 # There might be container image NVRs which are not released yet,
                 # but some released image is already built on top of them.
@@ -1402,7 +1406,7 @@ class LightBlue(object):
                 # does not exists in the dist-git repo, which should be rare
                 # situation.
                 latest_content_sets = []
-                for nvr in reversed(nv_to_nvrs[nv]):
+                for nvr in reversed(image_group_to_nvrs[image_group]):
                     image = nvr_to_image[nvr]
                     if ("content_sets" not in image or
                             not image["content_sets"] or
@@ -1415,13 +1419,13 @@ class LightBlue(object):
                         latest_content_sets = image["content_sets"]
 
             # Iterate through list of NVs.
-            for nv, nvrs in nv_to_nvrs.items():
+            for image_group, nvrs in image_group_to_nvrs.items():
                 # We want to replace NVRs which are lower than the latest released
                 # NVR with latest released NVR. If there are some higher NVRs, we
                 # want to keep them, because we don't want to rebuild the image
                 # against older NVR than the one it is currently built against.
-                if nv in nv_to_latest_released_nvr:
-                    latest_released_nvr = nv_to_latest_released_nvr[nv]
+                if image_group in image_group_to_latest_released_nvr:
+                    latest_released_nvr = image_group_to_latest_released_nvr[image_group]
                 else:
                     latest_released_nvr = nvrs[0]
 
