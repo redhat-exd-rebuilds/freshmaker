@@ -1079,6 +1079,28 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             ["content-set-1", "content-set-2"], ["openssl-1.2.3-1"], repositories)
         self.assertEqual(ret, [])
 
+    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @patch('os.path.exists')
+    def test_images_with_included_newer_srpm_multilpe_nvrs(
+            self, exists, cont_images):
+
+        exists.return_value = True
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key)
+        repositories = {
+            repo["repository"]: repo for repo in
+            self.fake_repositories_with_content_sets}
+        cont_images.return_value = (
+            self.fake_container_images +
+            self.fake_container_images_floating_tag)
+        ret = lb.find_images_with_included_srpms(
+            ["content-set-1", "content-set-2"],
+            ["openssl-1.2.3-1", "openssl-1.2.3-50"], repositories)
+        self.assertEqual(
+            [image["brew"]["build"] for image in ret],
+            ['package-name-2-4-12.10', 'package-name-3-4-12.10'])
+
     def _filter_fnc(self, image):
         return image["brew"]["build"].startswith("filtered_")
 

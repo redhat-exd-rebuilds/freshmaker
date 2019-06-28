@@ -769,9 +769,9 @@ class LightBlue(object):
                 ]
         return projection
 
-    def filter_out_images_with_lower_srpm_nvr(self, images, srpm_name_to_nvr):
+    def filter_out_images_with_lower_srpm_nvr(self, images, srpm_name_to_nvrs):
         """
-        Checks whether the input NVRs defined in `srpm_name_to_nvr` dict are
+        Checks whether the input NVRs defined in `srpm_name_to_nvrs` dict are
         newer than the matching SRPM NVRs in the container image.
 
         If all the SRPM NVRs in the container image are newer than matching
@@ -785,8 +785,8 @@ class LightBlue(object):
         package. Therefore we filter it out in this method.
 
         :param list images: List of ContainerImage instances.
-        :param dict srpm_name_to_nvr: Dict with SRPM name as a key and NVR
-            as a value.
+        :param dict srpm_name_to_nvrs: Dict with SRPM name as a key and list
+            of NVRs as a value.
         :rtype: list
         :return: List of ContainerImage instances without the filtered images.
         """
@@ -807,22 +807,26 @@ class LightBlue(object):
             # Check whether all the input SRPMs in the container image are
             # older or newer and filter the container images in case they are
             # not older.
+            image_included = False
             rpms = rpm_manifest["rpms"]
             for rpm in rpms:
-                if "srpm_name" in rpm and rpm["srpm_name"] in srpm_name_to_nvr:
+                if "srpm_name" in rpm and rpm["srpm_name"] in srpm_name_to_nvrs:
                     image_srpm_nvr = kobo.rpmlib.parse_nvr(rpm["srpm_nevra"])
-                    input_srpm_nvr = kobo.rpmlib.parse_nvr(
-                        srpm_name_to_nvr[rpm["srpm_name"]])
-                    # compare_nvr return values:
-                    #   - nvr1 newer than nvr2: 1
-                    #   - same nvrs: 0
-                    #   - nvr1 older: -1
-                    # We want to rebuild only images with SRPM NVR lower than
-                    # input SRPM NVR, therefore we check for -1.
-                    if kobo.rpmlib.compare_nvr(image_srpm_nvr, input_srpm_nvr,
-                                               ignore_epoch=True) == -1:
-                        ret.append(image)
-                        break
+                    for srpm_nvr in srpm_name_to_nvrs[rpm["srpm_name"]]:
+                        input_srpm_nvr = kobo.rpmlib.parse_nvr(srpm_nvr)
+                        # compare_nvr return values:
+                        #   - nvr1 newer than nvr2: 1
+                        #   - same nvrs: 0
+                        #   - nvr1 older: -1
+                        # We want to rebuild only images with SRPM NVR lower than
+                        # input SRPM NVR, therefore we check for -1.
+                        if kobo.rpmlib.compare_nvr(
+                                image_srpm_nvr, input_srpm_nvr, ignore_epoch=True) == -1:
+                            ret.append(image)
+                            image_included = True
+                            break
+                if image_included:
+                    break
             else:
                 # Oh-no, the mighty for/else block!
                 # The else clause executes after the loop completes normally.
@@ -831,7 +835,7 @@ class LightBlue(object):
                 image.log_error(
                     "Will not rebuild %s, because it does not contain "
                     "older version of any input package: %r" % (
-                        image["brew"]["build"], srpm_name_to_nvr.values()))
+                        image["brew"]["build"], srpm_name_to_nvrs.values()))
         return ret
 
     def find_images_with_included_srpms(
@@ -856,8 +860,10 @@ class LightBlue(object):
         # Lightblue cannot compare NVRs, so just ask for all the container
         # images with any version/release of SRPM we are interested in and
         # compare it on client side.
-        srpm_name_to_nvr = {koji.parse_NVR(srpm_nvr)["name"]: srpm_nvr
-                            for srpm_nvr in srpm_nvrs}
+        srpm_name_to_nvrs = {}
+        for srpm_nvr in srpm_nvrs:
+            name = koji.parse_NVR(srpm_nvr)["name"]
+            srpm_name_to_nvrs.setdefault(name, []).append(srpm_nvr)
 
         image_request = {
             "objectType": "containerImage",
@@ -878,7 +884,7 @@ class LightBlue(object):
                 ]
             },
             "projection": self._get_default_projection(
-                srpm_names=srpm_name_to_nvr.keys(),
+                srpm_names=srpm_name_to_nvrs.keys(),
                 include_rpms=include_rpms)
         }
 
@@ -899,7 +905,7 @@ class LightBlue(object):
                         "field": "rpm_manifest.*.rpms.*.srpm_name",
                         "op": "=",
                         "rvalue": srpm_name
-                    } for srpm_name in srpm_name_to_nvr.keys()]
+                    } for srpm_name in srpm_name_to_nvrs.keys()]
                 })
 
         if published is not None:
@@ -933,7 +939,7 @@ class LightBlue(object):
                         new_images.append(image)
                         break
         images = new_images
-        images = self.filter_out_images_with_lower_srpm_nvr(images, srpm_name_to_nvr)
+        images = self.filter_out_images_with_lower_srpm_nvr(images, srpm_name_to_nvrs)
         return images
 
     def get_images_by_nvrs(self, nvrs, published=True, content_sets=None,
@@ -988,15 +994,17 @@ class LightBlue(object):
             # Lightblue cannot compare NVRs, so just ask for all the container
             # images with any version/release of SRPM we are interested in and
             # compare it on client side.
-            srpm_name_to_nvr = {koji.parse_NVR(srpm_nvr)["name"]: srpm_nvr
-                                for srpm_nvr in srpm_nvrs}
+            srpm_name_to_nvrs = {}
+            for srpm_nvr in srpm_nvrs:
+                name = koji.parse_NVR(srpm_nvr)["name"]
+                srpm_name_to_nvrs.setdefault(name, []).append(srpm_nvr)
             image_request["query"]["$and"].append(
                 {
                     "$or": [{
                         "field": "rpm_manifest.*.rpms.*.srpm_name",
                         "op": "=",
                         "rvalue": srpm_name
-                    } for srpm_name in srpm_name_to_nvr.keys()]
+                    } for srpm_name in srpm_name_to_nvrs.keys()]
                 }
             )
 
@@ -1010,7 +1018,7 @@ class LightBlue(object):
 
         images = self.find_container_images(image_request)
         if srpm_nvrs is not None:
-            images = self.filter_out_images_with_lower_srpm_nvr(images, srpm_name_to_nvr)
+            images = self.filter_out_images_with_lower_srpm_nvr(images, srpm_name_to_nvrs)
         return images
 
     def find_unpublished_image_for_build(self, build):
