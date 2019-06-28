@@ -455,6 +455,21 @@ class Event(FreshmakerBase):
         db.session.commit()
         return dep_events
 
+    def get_artifact_build_from_event_dependencies(self, nvr):
+        """
+        It returns the artifact build, with `DONE` state, from the event dependencies (the build
+        of the parent event). `nvr` is used as `original_nvr` when finding the `ArtifactBuild`.
+        It returns all the parent artifact builds from the first found event dependency.
+        If the build is not found, it returns None.
+        """
+        for parent_event in self.event_dependencies:
+            parent_build = db.session.query(
+                ArtifactBuild).filter_by(event_id=parent_event.id,
+                                         original_nvr=nvr,
+                                         state=ArtifactBuildState.DONE.value).all()
+            if parent_build:
+                return parent_build
+
 
 Index('idx_event_message_id', Event.message_id, unique=True)
 
