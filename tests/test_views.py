@@ -317,6 +317,30 @@ class TestViews(helpers.ModelsTestCase):
         self.assertEqual(data['event_type_id'], models.EVENT_TYPES[events.TestingEvent])
         self.assertEqual(len(data['builds']), 3)
 
+    def test_query_event_without_builds(self):
+        resp = self.client.get('/api/1/events/?show_full_json=False')
+        data = json.loads(resp.get_data(as_text=True))
+        self.assertEqual(data['items'][0]['id'], 2)
+        self.assertRaises(KeyError, lambda: data['items'][0]['builds'])
+
+    def test_query_event_id_without_builds(self):
+        resp = self.client.get('/api/1/events/2?show_full_json=False')
+        data = json.loads(resp.get_data(as_text=True))
+        self.assertEqual(data['id'], 2)
+        self.assertRaises(KeyError, lambda: data['builds'])
+
+    def test_query_event_without_builds_v2(self):
+        resp = self.client.get('/api/2/events/')
+        data = json.loads(resp.get_data(as_text=True))
+        self.assertEqual(data['items'][0]['id'], 2)
+        self.assertRaises(KeyError, lambda: data['items'][0]['builds'])
+
+    def test_query_event_id_without_builds_v2(self):
+        resp = self.client.get('/api/2/events/2')
+        data = json.loads(resp.get_data(as_text=True))
+        self.assertEqual(data['id'], 2)
+        self.assertRaises(KeyError, lambda: data['builds'])
+
     def test_query_events(self):
         resp = self.client.get('/api/1/events/')
         evs = json.loads(resp.get_data(as_text=True))['items']
