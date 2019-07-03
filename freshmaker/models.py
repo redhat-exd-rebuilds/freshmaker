@@ -354,7 +354,7 @@ class Event(FreshmakerBase):
 
         # Log the time done
         if state in [EventState.FAILED.value, EventState.COMPLETE.value,
-                     EventState.SKIPPED.value]:
+                     EventState.SKIPPED.value, EventState.CANCELED.value]:
             self.time_done = datetime.utcnow()
 
         if EventState(state).counter:
