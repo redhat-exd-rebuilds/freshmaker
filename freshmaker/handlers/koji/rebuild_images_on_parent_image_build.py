@@ -29,8 +29,8 @@ from freshmaker.errata import Errata
 from freshmaker.events import (
     BrewContainerTaskStateChangeEvent, ErrataAdvisoryRPMsSignedEvent)
 from freshmaker.models import ArtifactBuild, EVENT_TYPES
-from freshmaker.handlers import (
-    ContainerBuildHandler, fail_event_on_handler_exception)
+from freshmaker.handlers import (ContainerBuildHandler,
+                                 fail_artifact_build_on_handler_exception)
 from freshmaker.kojiservice import koji_service
 from freshmaker.types import ArtifactType, ArtifactBuildState, EventState
 from freshmaker.utils import get_rebuilt_nvr
@@ -44,7 +44,6 @@ class RebuildImagesOnParentImageBuild(ContainerBuildHandler):
     def can_handle(self, event):
         return isinstance(event, BrewContainerTaskStateChangeEvent)
 
-    @fail_event_on_handler_exception
     def handle(self, event):
         """
         When build container task state changed in brew, update build state in
@@ -66,69 +65,77 @@ class RebuildImagesOnParentImageBuild(ContainerBuildHandler):
             if found_build.event.state not in [EventState.INITIALIZED.value,
                                                EventState.BUILDING.value]:
                 return
-            # update build state in db
-            if event.new_state == 'CLOSED':
-                # if build is triggered by an advisory, verify the container
-                # contains latest RPMs from the advisory
-                if found_build.event.event_type_id == EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent]:
-                    errata_id = found_build.event.search_key
-                    # build_id is actually task id in build system, find out the actual build first
-                    with koji_service(
-                            conf.koji_profile, log, login=False,
-                            dry_run=self.dry_run) as session:
-                        container_build_id = session.get_container_build_id_from_task(build_id)
+            self.update_db_build_state(build_id, found_build, event)
+            self.rebuild_dependent_containers(found_build)
 
-                    ret, msg = self._verify_advisory_rpms_in_container_build(errata_id, container_build_id)
-                    if ret:
-                        found_build.transition(ArtifactBuildState.DONE.value, "Built successfully.")
-                    else:
-                        found_build.transition(ArtifactBuildState.FAILED.value, msg)
+    @fail_artifact_build_on_handler_exception()
+    def update_db_build_state(self, build_id, found_build, event):
+        """ Update build state in db. """
+        if event.new_state == 'CLOSED':
+            # if build is triggered by an advisory, verify the container
+            # contains latest RPMs from the advisory
+            if found_build.event.event_type_id == EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent]:
+                errata_id = found_build.event.search_key
+                # build_id is actually task id in build system, find out the actual build first
+                with koji_service(
+                        conf.koji_profile, log, login=False,
+                        dry_run=self.dry_run) as session:
+                    container_build_id = session.get_container_build_id_from_task(build_id)
 
-                # for other builds, mark them as DONE
-                else:
+                ret, msg = self._verify_advisory_rpms_in_container_build(errata_id, container_build_id)
+                if ret:
                     found_build.transition(ArtifactBuildState.DONE.value, "Built successfully.")
-            if event.new_state == 'FAILED':
-                args = json.loads(found_build.build_args)
-                if "retry_count" not in args:
-                    args["retry_count"] = 0
-                args["retry_count"] += 1
-                found_build.build_args = json.dumps(args)
-                if args["retry_count"] < 3:
-                    # Change the rebuilt_nvr, because Koji/OSBS might be in weird
-                    # state in which the build for old NVR already exists and rebuild
-                    # would fail because of NVR conflict.
-                    found_build.rebuilt_nvr = get_rebuilt_nvr(
-                        found_build.type, found_build.original_nvr)
-                    found_build.transition(
-                        ArtifactBuildState.PLANNED.value,
-                        "Retrying failed build %s" % (str(found_build.build_id)))
-                    self.start_to_build_images([found_build])
                 else:
-                    found_build.transition(
-                        ArtifactBuildState.FAILED.value,
-                        "Failed to build in Koji.")
-            db.session.commit()
+                    found_build.transition(ArtifactBuildState.FAILED.value, msg)
 
-            if found_build.state == ArtifactBuildState.DONE.value:
-                # check db to see whether there is any planned image build
-                # depends on this build
-                planned_builds = db.session.query(ArtifactBuild).filter_by(
-                    type=ArtifactType.IMAGE.value,
-                    state=ArtifactBuildState.PLANNED.value,
-                    dep_on=found_build
-                ).all()
+            # for other builds, mark them as DONE
+            else:
+                found_build.transition(ArtifactBuildState.DONE.value, "Built successfully.")
+        if event.new_state == 'FAILED':
+            args = json.loads(found_build.build_args)
+            if "retry_count" not in args:
+                args["retry_count"] = 0
+            args["retry_count"] += 1
+            found_build.build_args = json.dumps(args)
+            if args["retry_count"] < 3:
+                # Change the rebuilt_nvr, because Koji/OSBS might be in weird
+                # state in which the build for old NVR already exists and rebuild
+                # would fail because of NVR conflict.
+                found_build.rebuilt_nvr = get_rebuilt_nvr(
+                    found_build.type, found_build.original_nvr)
+                found_build.transition(
+                    ArtifactBuildState.PLANNED.value,
+                    "Retrying failed build %s" % (str(found_build.build_id)))
+                self.start_to_build_images([found_build])
+            else:
+                found_build.transition(
+                    ArtifactBuildState.FAILED.value,
+                    "Failed to build in Koji.")
+        db.session.commit()
 
-                log.info("Found following PLANNED builds to rebuild that "
-                         "depends on %r", found_build)
-                for build in planned_builds:
-                    log.info("  %r", build)
+    @fail_artifact_build_on_handler_exception()
+    def rebuild_dependent_containers(self, found_build):
+        """ Rebuild containers depend on the success build as necessary. """
+        if found_build.state == ArtifactBuildState.DONE.value:
+            # check db to see whether there is any planned image build
+            # depends on this build
+            planned_builds = db.session.query(ArtifactBuild).filter_by(
+                type=ArtifactType.IMAGE.value,
+                state=ArtifactBuildState.PLANNED.value,
+                dep_on=found_build
+            ).all()
 
-                self.start_to_build_images(planned_builds)
+            log.info("Found following PLANNED builds to rebuild that "
+                     "depends on %r", found_build)
+            for build in planned_builds:
+                log.info("  %r", build)
 
-            # Finally, we check if all builds scheduled by event
-            # found_build.event (ErrataAdvisoryRPMsSignedEvent) have been
-            # switched to FAILED or COMPLETE. If yes, mark the event COMPLETE.
-            self._mark_event_complete_when_all_builds_done(found_build.event)
+            self.start_to_build_images(planned_builds)
+
+        # Finally, we check if all builds scheduled by event
+        # found_build.event (ErrataAdvisoryRPMsSignedEvent) have been
+        # switched to FAILED or COMPLETE. If yes, mark the event COMPLETE.
+        self._mark_event_complete_when_all_builds_done(found_build.event)
 
     def _mark_event_complete_when_all_builds_done(self, db_event):
         """Mark ErrataAdvisoryRPMsSignedEvent COMPLETE
