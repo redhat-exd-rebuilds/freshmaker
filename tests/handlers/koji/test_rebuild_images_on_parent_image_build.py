@@ -272,7 +272,7 @@ class TestRebuildImagesOnParentImageBuild(helpers.ModelsTestCase):
     @mock.patch('freshmaker.handlers.ContainerBuildHandler.build_image_artifact_build')
     @mock.patch('freshmaker.handlers.ContainerBuildHandler.get_repo_urls')
     @mock.patch('freshmaker.handlers.koji.rebuild_images_on_parent_image_build.'
-                'RebuildImagesOnParentImageBuild.update_db_build_state',
+                'RebuildImagesOnParentImageBuild.start_to_build_images',
                 side_effect=RuntimeError('something went wrong!'))
     def test_no_event_state_change_if_service_fails(
             self, update_db, get_repo_urls, build_image_artifact_build):
@@ -287,7 +287,10 @@ class TestRebuildImagesOnParentImageBuild(helpers.ModelsTestCase):
             db.session, self.db_advisory_rpm_signed_event,
             'image-a-0.1-1', ArtifactType.IMAGE,
             build_id=12345,
-            state=ArtifactBuildState.PLANNED.value)
+            state=ArtifactBuildState.PLANNED.value,
+            original_nvr='image-a-0.1-1', rebuilt_nvr='image-a-0.1-2')
+        # Empty json.
+        self.image_a_build.build_args = "{}"
 
         db.session.commit()
 

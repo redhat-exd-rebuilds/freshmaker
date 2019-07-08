@@ -30,7 +30,8 @@ from freshmaker.events import (
     BrewContainerTaskStateChangeEvent, ErrataAdvisoryRPMsSignedEvent)
 from freshmaker.models import ArtifactBuild, EVENT_TYPES
 from freshmaker.handlers import (ContainerBuildHandler,
-                                 fail_artifact_build_on_handler_exception)
+                                 fail_artifact_build_on_handler_exception,
+                                 fail_event_on_handler_exception)
 from freshmaker.kojiservice import koji_service
 from freshmaker.types import ArtifactType, ArtifactBuildState, EventState
 from freshmaker.utils import get_rebuilt_nvr
@@ -44,6 +45,7 @@ class RebuildImagesOnParentImageBuild(ContainerBuildHandler):
     def can_handle(self, event):
         return isinstance(event, BrewContainerTaskStateChangeEvent)
 
+    @fail_event_on_handler_exception
     def handle(self, event):
         """
         When build container task state changed in brew, update build state in
