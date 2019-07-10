@@ -115,7 +115,7 @@ def is_content_advisory_rebuilt_by_freshmaker(errata_name):
     data = r.json()
     errata_id = str(data["content"]["content"]["errata_id"])
 
-    url = FRESHMAKER_URL + "events/?search_key=%s" % errata_id
+    url = FRESHMAKER_URL + "events/?search_key=%s&per_page=1" % errata_id
     r = requests.get(url)
     r.raise_for_status()
     data = r.json()
