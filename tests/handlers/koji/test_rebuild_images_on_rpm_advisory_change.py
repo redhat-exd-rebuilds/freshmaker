@@ -1417,3 +1417,110 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
 
         # Pulp repo should not be prepared for FAILED build.
         self.mock_prepare_pulp_repo.assert_not_called()
+
+    def test_parent_image_already_built(self):
+        batches = [
+            [ContainerImage({
+                "brew": {
+                    "completion_date": "20170420T17:05:37.000-0400",
+                    "build": "rhel-server-docker-7.3-82",
+                    "package": "rhel-server-docker"
+                },
+                'parsed_data': {
+                    'layers': [
+                        'sha512:12345678980',
+                        'sha512:10987654321'
+                    ]
+                },
+                "parent": None,
+                "content_sets": ["content-set-1"],
+                "repository": "repo-1",
+                "commit": "123456789",
+                "target": "target-candidate",
+                "git_branch": "rhel-7",
+                "error": None,
+                "generate_pulp_repos": True,
+                "arches": "x86_64",
+                "odcs_compose_ids": None,
+                "published": False,
+            })],
+            [ContainerImage({
+                "brew": {
+                    "build": "rh-dotnetcore10-docker-1.0-16",
+                    "package": "rh-dotnetcore10-docker",
+                    "completion_date": "20170511T10:06:09.000-0400"
+                },
+                'parsed_data': {
+                    'layers': [
+                        'sha512:2345af2e293',
+                        'sha512:12345678980',
+                        'sha512:10987654321'
+                    ]
+                },
+                "parent": ContainerImage({
+                    "brew": {
+                        "completion_date": "20170420T17:05:37.000-0400",
+                        "build": "rhel-server-docker-7.3-82",
+                        "package": "rhel-server-docker"
+                    },
+                    'parsed_data': {
+                        'layers': [
+                            'sha512:12345678980',
+                            'sha512:10987654321'
+                        ]
+                    },
+                    "parent": None,
+                    "content_sets": ["content-set-1"],
+                    "repository": "repo-1",
+                    "commit": "123456789",
+                    "target": "target-candidate",
+                    "git_branch": "rhel-7",
+                    "error": None
+                }),
+                "content_sets": ["content-set-1"],
+                "repository": "repo-1",
+                "commit": "987654321",
+                "target": "target-candidate",
+                "git_branch": "rhel-7",
+                "error": None,
+                "generate_pulp_repos": True,
+                "arches": "x86_64",
+                "odcs_compose_ids": None,
+                "published": False,
+            })]
+        ]
+
+        et_event = ErrataAdvisoryRPMsSignedEvent(
+            "msg-id-2",
+            ErrataAdvisory(123, "RHSA-2017", "REL_PREP", [],
+                           security_impact="None",
+                           product_short_name="product"))
+        event0 = Event.create(db.session, 'msg-id-1', '1230',
+                              EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent])
+        event1 = Event.create(db.session, 'msg-id-2', '1231',
+                              EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent])
+        ArtifactBuild.create(
+            db.session, event0, "parent", "image",
+            state=ArtifactBuildState.DONE,
+            original_nvr="rhel-server-docker-7.3-82", rebuilt_nvr="some-test-nvr")
+        db.session.commit()
+        event1.add_event_dependency(db.session, event0)
+        db.session.commit()
+
+        handler = RebuildImagesOnRPMAdvisoryChange()
+        handler._record_batches(batches, et_event)
+
+        # Check parent image
+        query = db.session.query(ArtifactBuild)
+        parent_image = query.filter(
+            ArtifactBuild.original_nvr == 'rhel-server-docker-7.3-82'
+        ).all()
+        self.assertEqual(len(parent_image), 1)
+        self.assertEqual(ArtifactBuildState.DONE.value, parent_image[0].state)
+
+        # Check child image
+        child_image = query.filter(
+            ArtifactBuild.original_nvr == 'rh-dotnetcore10-docker-1.0-16'
+        ).first()
+        self.assertNotEqual(None, child_image)
+        self.assertEqual(child_image.dep_on, None)
