@@ -65,6 +65,8 @@ node('fedora-29') {
             python3-flask-login \
             python3-flask-sqlalchemy \
             python3-ldap \
+            kobo \
+            kobo-rpmlib \
             python3-tox'
         /* Needed to get the latest mock configs */
         sh 'sudo dnf -y update mock-core-configs'
