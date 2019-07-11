@@ -61,7 +61,7 @@ node('fedora-29') {
             python3-flask \
             python3-prometheus_client \
             python3-PyYAML \
-            python3-requests
+            python3-requests \
             python3-tox'
         /* Needed to get the latest mock configs */
         sh 'sudo dnf -y update mock-core-configs'
