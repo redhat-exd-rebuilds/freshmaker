@@ -56,6 +56,12 @@ node('fedora-29') {
             openldap-devel \
             python3-sphinxcontrib-httpdomain python3-pytest-cov \
             python3-flake8 python3-pylint python3-sphinx \
+            python3-dogpile-cache \
+            python3-fedmsg \
+            python3-flask \
+            python3-prometheus_client \
+            python3-PyYAML \
+            python3-requests
             python3-tox'
         /* Needed to get the latest mock configs */
         sh 'sudo dnf -y update mock-core-configs'
