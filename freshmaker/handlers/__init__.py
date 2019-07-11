@@ -61,6 +61,13 @@ def fail_event_on_handler_exception(func):
         try:
             return func(handler, *args, **kwargs)
         except Exception as e:
+            # Skip the exception in case it has been already handled by
+            # some decorator. This can happen in case multiple decorators
+            # are nested.
+            if handler._last_handled_exception == e:
+                raise
+            handler._last_handled_exception = e
+
             err = 'Could not process message handler. See the traceback.'
             log.exception(err)
 
@@ -99,6 +106,13 @@ def fail_artifact_build_on_handler_exception(whitelist=None):
             try:
                 return func(handler, *args, **kwargs)
             except Exception as e:
+                # Skip the exception in case it has been already handled by
+                # some decorator. This can happen in case multiple decorators
+                # are nested.
+                if handler._last_handled_exception == e:
+                    raise
+                handler._last_handled_exception = e
+
                 if whitelist and type(e) in whitelist:
                     raise
 
@@ -139,6 +153,13 @@ class BaseHandler(object):
         self._db_artifact_build_id = None
         self._log_prefix = ""
         self._force_dry_run = False
+        # Stores the last exception handled by exception handler decorators.
+        # Used in the exception handler decorators to support their nesting.
+        # For example, there can be `fail_artifact_build_on_handler_exception`
+        # used for method already decorated by `fail_event_on_handler_exception`.
+        # In this case, we want the exception to be handled only by the first
+        # decorator but not the others.
+        self._last_handled_exception = None
         self.odcs = FreshmakerODCSClient(self)
 
     def _log(self, log_fnc, msg, *args, **kwargs):

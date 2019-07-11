@@ -678,7 +678,7 @@ class TestManualTriggerRebuild(helpers.ModelsTestCase):
         # Other fields are predictible.
         self.assertEqual(data['requested_rebuilds'], ["foo-1-1"])
         assert add_dependency.call_count == 1
-        assert "RHSA-2018-103" == add_dependency.call_args.args[1].search_key
+        assert "RHSA-2018-103" == add_dependency.call_args[0][1].search_key
         publish.assert_called_once_with(
             'manual.rebuild',
             {'msg_id': 'manual_rebuild_123', u'errata_id': 1,

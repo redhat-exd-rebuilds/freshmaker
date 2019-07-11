@@ -91,6 +91,10 @@ def get_image_advisories_from_image_nvrs(grouped_images):
             r = requests.get(ERRATA_URL + "build/" + nvr, auth=krb_auth)
             r.raise_for_status()
             data = r.json()
+            if not data['all_errata']:
+                # Super weird.  This means we have a container that wasn't shipped via an advisory.
+                logging.warn("Failed to find errata for %s at %s" % (nvr, r.request.url))
+                continue
             errata_id = data["all_errata"][0]["id"]
             errata_name = data["all_errata"][0]["name"]
             nvr_to_image_erratum[nvr] = errata_name
@@ -115,7 +119,7 @@ def is_content_advisory_rebuilt_by_freshmaker(errata_name):
     data = r.json()
     errata_id = str(data["content"]["content"]["errata_id"])
 
-    url = FRESHMAKER_URL + "events/?search_key=%s" % errata_id
+    url = FRESHMAKER_URL + "events/?search_key=%s&per_page=1" % errata_id
     r = requests.get(url)
     r.raise_for_status()
     data = r.json()
@@ -161,6 +165,8 @@ def show_advisories(security_images, freshmaker_images):
         # For each image (nvr) not built by Freshmaker, get the info about
         # advisory it was included in and add it to `advisories`.
         for nvr in non_freshmaker_nvrs:
+            if nvr not in nvr_to_image_erratum:
+                continue
             errata_id, errata_name, products = nvr_to_image_erratum[nvr]
             if errata_name not in advisories:
                 freshmaker_url = is_content_advisory_rebuilt_by_freshmaker(

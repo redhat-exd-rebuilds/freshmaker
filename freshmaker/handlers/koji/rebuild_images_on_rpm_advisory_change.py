@@ -223,10 +223,24 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                     self.log_debug("Skipping recording build %s, "
                                    "it is already in db", nvr)
                     continue
+
+                parent_build = db_event.get_artifact_build_from_event_dependencies(nvr)
+                if parent_build:
+                    self.log_debug(
+                        "Skipping recording build %s, "
+                        "it is already built in dependant event %r", nvr, parent_build[0].event_id)
+                    continue
+
                 self.log_debug("Recording %s", nvr)
                 parent_nvr = image["parent"]["brew"]["build"] \
                     if "parent" in image and image["parent"] else None
                 dep_on = builds[parent_nvr] if parent_nvr in builds else None
+
+                if parent_nvr:
+                    build = db_event.get_artifact_build_from_event_dependencies(parent_nvr)
+                    if build:
+                        parent_nvr = build[0].rebuilt_nvr
+                        dep_on = None
 
                 if "error" in image and image["error"]:
                     state_reason = image["error"]

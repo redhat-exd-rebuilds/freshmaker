@@ -331,10 +331,12 @@ class Event(FreshmakerBase):
         :param state_reason: Reason why this state has been set.
         :return: True/False, whether state was changed
         """
+        # Convert state from its possible representation to number.
+        state = self.validate_state("state", state)
 
-        # Log the time done
-        if state == EventState.FAILED.value or state == EventState.COMPLETE.value:
-            self.time_done = datetime.utcnow()
+        # Update the state reason.
+        if state_reason is not None:
+            self.state_reason = state_reason
 
         # Log the state and state_reason
         if state == EventState.FAILED.value:
@@ -344,14 +346,19 @@ class Event(FreshmakerBase):
         log_fnc("Event %r moved to state %s, %r" % (
             self, EventState(state).name, state_reason))
 
+        # In case Event is already in the state, return False.
         if self.state == state:
             return False
 
         self.state = state
+
+        # Log the time done
+        if state in [EventState.FAILED.value, EventState.COMPLETE.value,
+                     EventState.SKIPPED.value, EventState.CANCELED.value]:
+            self.time_done = datetime.utcnow()
+
         if EventState(state).counter:
             EventState(state).counter.inc()
-        if state_reason is not None:
-            self.state_reason = state_reason
 
         db.session.commit()
         messaging.publish('event.state.changed', self.json())
@@ -447,6 +454,21 @@ class Event(FreshmakerBase):
             dep_events.append(dep_event)
         db.session.commit()
         return dep_events
+
+    def get_artifact_build_from_event_dependencies(self, nvr):
+        """
+        It returns the artifact build, with `DONE` state, from the event dependencies (the build
+        of the parent event). `nvr` is used as `original_nvr` when finding the `ArtifactBuild`.
+        It returns all the parent artifact builds from the first found event dependency.
+        If the build is not found, it returns None.
+        """
+        for parent_event in self.event_dependencies:
+            parent_build = db.session.query(
+                ArtifactBuild).filter_by(event_id=parent_event.id,
+                                         original_nvr=nvr,
+                                         state=ArtifactBuildState.DONE.value).all()
+            if parent_build:
+                return parent_build
 
 
 Index('idx_event_message_id', Event.message_id, unique=True)
@@ -572,6 +594,8 @@ class ArtifactBuild(FreshmakerBase):
         :param state_reason: Reason why this state has been set.
         :return: True/False, whether state was changed
         """
+        # Convert state from its possible representation to number.
+        state = self.validate_state("state", state)
 
         # Log the state and state_reason
         if state == ArtifactBuildState.FAILED.value:

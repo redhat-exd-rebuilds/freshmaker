@@ -269,6 +269,44 @@ class TestRebuildImagesOnParentImageBuild(helpers.ModelsTestCase):
         self.assertEqual(build.state, ArtifactBuildState.FAILED.value)
         six.assertRegex(self, build.state_reason, r"The following RPMs in container build.*")
 
+    @mock.patch('freshmaker.handlers.ContainerBuildHandler.build_image_artifact_build')
+    @mock.patch('freshmaker.handlers.ContainerBuildHandler.get_repo_urls')
+    @mock.patch('freshmaker.handlers.koji.rebuild_images_on_parent_image_build.'
+                'RebuildImagesOnParentImageBuild.start_to_build_images',
+                side_effect=RuntimeError('something went wrong!'))
+    def test_no_event_state_change_if_service_fails(
+            self, update_db, get_repo_urls, build_image_artifact_build):
+        build_image_artifact_build.return_value = 67890
+
+        self.db_advisory_rpm_signed_event = models.Event.create(
+            db.session, 'msg-id-123', '12345',
+            events.ErrataAdvisoryStateChangedEvent,
+            state=EventState.BUILDING.value)
+
+        self.image_a_build = models.ArtifactBuild.create(
+            db.session, self.db_advisory_rpm_signed_event,
+            'image-a-0.1-1', ArtifactType.IMAGE,
+            build_id=12345,
+            state=ArtifactBuildState.PLANNED.value,
+            original_nvr='image-a-0.1-1', rebuilt_nvr='image-a-0.1-2')
+        # Empty json.
+        self.image_a_build.build_args = "{}"
+
+        db.session.commit()
+
+        state_changed_event = events.BrewContainerTaskStateChangeEvent(
+            'msg-id-890', 'image-a', 'branch', 'target', 12345,
+            'BUILD', 'FAILED')
+
+        handler = RebuildImagesOnParentImageBuild()
+        with self.assertRaises(RuntimeError):
+            handler.handle(state_changed_event)
+
+        # As self.image_b_build starts to be rebuilt, not all images are
+        # rebuilt yet.
+        self.assertEqual(EventState.BUILDING.value,
+                         self.db_advisory_rpm_signed_event.state)
+
 
 if __name__ == '__main__':
     unittest.main()

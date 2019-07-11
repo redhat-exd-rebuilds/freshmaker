@@ -769,9 +769,9 @@ class LightBlue(object):
                 ]
         return projection
 
-    def filter_out_images_with_lower_srpm_nvr(self, images, srpm_name_to_nvr):
+    def filter_out_images_with_lower_srpm_nvr(self, images, srpm_name_to_nvrs):
         """
-        Checks whether the input NVRs defined in `srpm_name_to_nvr` dict are
+        Checks whether the input NVRs defined in `srpm_name_to_nvrs` dict are
         newer than the matching SRPM NVRs in the container image.
 
         If all the SRPM NVRs in the container image are newer than matching
@@ -785,8 +785,8 @@ class LightBlue(object):
         package. Therefore we filter it out in this method.
 
         :param list images: List of ContainerImage instances.
-        :param dict srpm_name_to_nvr: Dict with SRPM name as a key and NVR
-            as a value.
+        :param dict srpm_name_to_nvrs: Dict with SRPM name as a key and list
+            of NVRs as a value.
         :rtype: list
         :return: List of ContainerImage instances without the filtered images.
         """
@@ -807,22 +807,26 @@ class LightBlue(object):
             # Check whether all the input SRPMs in the container image are
             # older or newer and filter the container images in case they are
             # not older.
+            image_included = False
             rpms = rpm_manifest["rpms"]
             for rpm in rpms:
-                if "srpm_name" in rpm and rpm["srpm_name"] in srpm_name_to_nvr:
+                if "srpm_name" in rpm and rpm["srpm_name"] in srpm_name_to_nvrs:
                     image_srpm_nvr = kobo.rpmlib.parse_nvr(rpm["srpm_nevra"])
-                    input_srpm_nvr = kobo.rpmlib.parse_nvr(
-                        srpm_name_to_nvr[rpm["srpm_name"]])
-                    # compare_nvr return values:
-                    #   - nvr1 newer than nvr2: 1
-                    #   - same nvrs: 0
-                    #   - nvr1 older: -1
-                    # We want to rebuild only images with SRPM NVR lower than
-                    # input SRPM NVR, therefore we check for -1.
-                    if kobo.rpmlib.compare_nvr(image_srpm_nvr, input_srpm_nvr,
-                                               ignore_epoch=True) == -1:
-                        ret.append(image)
-                        break
+                    for srpm_nvr in srpm_name_to_nvrs[rpm["srpm_name"]]:
+                        input_srpm_nvr = kobo.rpmlib.parse_nvr(srpm_nvr)
+                        # compare_nvr return values:
+                        #   - nvr1 newer than nvr2: 1
+                        #   - same nvrs: 0
+                        #   - nvr1 older: -1
+                        # We want to rebuild only images with SRPM NVR lower than
+                        # input SRPM NVR, therefore we check for -1.
+                        if kobo.rpmlib.compare_nvr(
+                                image_srpm_nvr, input_srpm_nvr, ignore_epoch=True) == -1:
+                            ret.append(image)
+                            image_included = True
+                            break
+                if image_included:
+                    break
             else:
                 # Oh-no, the mighty for/else block!
                 # The else clause executes after the loop completes normally.
@@ -831,7 +835,7 @@ class LightBlue(object):
                 image.log_error(
                     "Will not rebuild %s, because it does not contain "
                     "older version of any input package: %r" % (
-                        image["brew"]["build"], srpm_name_to_nvr.values()))
+                        image["brew"]["build"], srpm_name_to_nvrs.values()))
         return ret
 
     def find_images_with_included_srpms(
@@ -856,8 +860,10 @@ class LightBlue(object):
         # Lightblue cannot compare NVRs, so just ask for all the container
         # images with any version/release of SRPM we are interested in and
         # compare it on client side.
-        srpm_name_to_nvr = {koji.parse_NVR(srpm_nvr)["name"]: srpm_nvr
-                            for srpm_nvr in srpm_nvrs}
+        srpm_name_to_nvrs = {}
+        for srpm_nvr in srpm_nvrs:
+            name = koji.parse_NVR(srpm_nvr)["name"]
+            srpm_name_to_nvrs.setdefault(name, []).append(srpm_nvr)
 
         image_request = {
             "objectType": "containerImage",
@@ -878,7 +884,7 @@ class LightBlue(object):
                 ]
             },
             "projection": self._get_default_projection(
-                srpm_names=srpm_name_to_nvr.keys(),
+                srpm_names=srpm_name_to_nvrs.keys(),
                 include_rpms=include_rpms)
         }
 
@@ -899,7 +905,7 @@ class LightBlue(object):
                         "field": "rpm_manifest.*.rpms.*.srpm_name",
                         "op": "=",
                         "rvalue": srpm_name
-                    } for srpm_name in srpm_name_to_nvr.keys()]
+                    } for srpm_name in srpm_name_to_nvrs.keys()]
                 })
 
         if published is not None:
@@ -933,7 +939,7 @@ class LightBlue(object):
                         new_images.append(image)
                         break
         images = new_images
-        images = self.filter_out_images_with_lower_srpm_nvr(images, srpm_name_to_nvr)
+        images = self.filter_out_images_with_lower_srpm_nvr(images, srpm_name_to_nvrs)
         return images
 
     def get_images_by_nvrs(self, nvrs, published=True, content_sets=None,
@@ -988,15 +994,17 @@ class LightBlue(object):
             # Lightblue cannot compare NVRs, so just ask for all the container
             # images with any version/release of SRPM we are interested in and
             # compare it on client side.
-            srpm_name_to_nvr = {koji.parse_NVR(srpm_nvr)["name"]: srpm_nvr
-                                for srpm_nvr in srpm_nvrs}
+            srpm_name_to_nvrs = {}
+            for srpm_nvr in srpm_nvrs:
+                name = koji.parse_NVR(srpm_nvr)["name"]
+                srpm_name_to_nvrs.setdefault(name, []).append(srpm_nvr)
             image_request["query"]["$and"].append(
                 {
                     "$or": [{
                         "field": "rpm_manifest.*.rpms.*.srpm_name",
                         "op": "=",
                         "rvalue": srpm_name
-                    } for srpm_name in srpm_name_to_nvr.keys()]
+                    } for srpm_name in srpm_name_to_nvrs.keys()]
                 }
             )
 
@@ -1010,7 +1018,7 @@ class LightBlue(object):
 
         images = self.find_container_images(image_request)
         if srpm_nvrs is not None:
-            images = self.filter_out_images_with_lower_srpm_nvr(images, srpm_name_to_nvr)
+            images = self.filter_out_images_with_lower_srpm_nvr(images, srpm_name_to_nvrs)
         return images
 
     def find_unpublished_image_for_build(self, build):
@@ -1352,41 +1360,38 @@ class LightBlue(object):
             # nvr_to_coordinates["nvr"] = [[0, 3], ...] means that the image with
             # nvr "nvr" is 4th image in the to_rebuild[0] list, ...
             nvr_to_coordinates = {}
-            # Temporary dict mapping the NV to list of NVRs. The List of NVRs
-            # is always sorted descending.
-            nv_to_nvrs = {}
+            # Temporary dict mapping the NV-repository_key to list of NVRs.
+            # The List of NVRs is always sorted descending.
+            image_group_to_nvrs = {}
             # Temporary dict mapping the NVR to image.
             nvr_to_image = {}
-            # Temporary dict mapping NV to latest released NVR for that NV.
-            nv_to_latest_released_nvr = {}
-            # Temporary list containing names of all images to rebuild. This is
-            # later used to replace "foo-docker" with "foo-container".
-            n_to_nvs = {}
+            # Temporary dict mapping image_group to latest released NVR for that image_group.
+            image_group_to_latest_released_nvr = {}
 
             # Constructs the temporary dicts as desribed above.
             for image_id, images in enumerate(to_rebuild):
                 for parent_id, image in enumerate(images):
                     nvr = image["brew"]["build"]
+                    # Also include the sorted names of repositories in the image group
+                    # to handle the case when different releases of single name-version are
+                    # included in different container repositories.
+                    repository_key = "-".join(sorted([r["repository"] for r in image["repositories"]]))
                     parsed_nvr = koji.parse_NVR(nvr)
-                    nv = "%s-%s" % (parsed_nvr["name"], parsed_nvr["version"])
-                    if nv not in nv_to_nvrs:
-                        nv_to_nvrs[nv] = []
-                    if nvr not in nv_to_nvrs[nv]:
-                        nv_to_nvrs[nv].append(nvr)
+                    image_group = "%s-%s-%s" % (parsed_nvr["name"], parsed_nvr["version"], repository_key)
+                    if image_group not in image_group_to_nvrs:
+                        image_group_to_nvrs[image_group] = []
+                    if nvr not in image_group_to_nvrs[image_group]:
+                        image_group_to_nvrs[image_group].append(nvr)
                     if nvr not in nvr_to_coordinates:
                         nvr_to_coordinates[nvr] = []
-                    if parsed_nvr["name"] not in n_to_nvs:
-                        n_to_nvs[parsed_nvr["name"]] = []
-                    if nv not in n_to_nvs[parsed_nvr["name"]]:
-                        n_to_nvs[parsed_nvr["name"]].append(nv)
                     nvr_to_coordinates[nvr].append([image_id, parent_id])
                     nvr_to_image[nvr] = image
                     if "latest_released" in image and image["latest_released"]:
-                        nv_to_latest_released_nvr[nv] = nvr
+                        image_group_to_latest_released_nvr[image_group] = nvr
 
-            # Sort the lists in nv_to_nvrs dict.
-            for nv in nv_to_nvrs.keys():
-                nv_to_nvrs[nv] = sorted_by_nvr(nv_to_nvrs[nv], reverse=True)
+            # Sort the lists in image_group_to_nvrs dict.
+            for image_group in image_group_to_nvrs.keys():
+                image_group_to_nvrs[image_group] = sorted_by_nvr(image_group_to_nvrs[image_group], reverse=True)
 
                 # There might be container image NVRs which are not released yet,
                 # but some released image is already built on top of them.
@@ -1401,7 +1406,7 @@ class LightBlue(object):
                 # does not exists in the dist-git repo, which should be rare
                 # situation.
                 latest_content_sets = []
-                for nvr in reversed(nv_to_nvrs[nv]):
+                for nvr in reversed(image_group_to_nvrs[image_group]):
                     image = nvr_to_image[nvr]
                     if ("content_sets" not in image or
                             not image["content_sets"] or
@@ -1414,34 +1419,29 @@ class LightBlue(object):
                         latest_content_sets = image["content_sets"]
 
             # Iterate through list of NVs.
-            for nv, nvrs in nv_to_nvrs.items():
+            for image_group, nvrs in image_group_to_nvrs.items():
                 # We want to replace NVRs which are lower than the latest released
                 # NVR with latest released NVR. If there are some higher NVRs, we
                 # want to keep them, because we don't want to rebuild the image
                 # against older NVR than the one it is currently built against.
-                if nv in nv_to_latest_released_nvr:
-                    latest_released_nvr = nv_to_latest_released_nvr[nv]
+                if image_group in image_group_to_latest_released_nvr:
+                    latest_released_nvr = image_group_to_latest_released_nvr[image_group]
                 else:
                     latest_released_nvr = nvrs[0]
+
                 # The latest_released_nvr_index points to the latest released NVR
                 # in the `nvrs` list. Because `nvrs` list is desc sorted, every NVR
                 # with higher index is lower and therefore we need to replace it.
-                try:
-                    if not conf.lightblue_released_dependencies_only:
-                        latest_released_nvr_index = nvrs.index(latest_released_nvr)
-                    else:
-                        # In case we want to use only released versions of images,
-                        # replace all the images with the latest released one.
-                        latest_released_nvr_index = -1
-                except ValueError:
-                    # In case the latest_released_nvr is not found in the nvrs,
-                    # it means the all nvrs should be replaced by new one from
-                    # nvs_to_replace and therefore set index to -1 indicating we
-                    # want to replace everything.
+                if not conf.lightblue_released_dependencies_only:
+                    latest_released_nvr_index = nvrs.index(latest_released_nvr)
+                else:
+                    # In case we want to use only released versions of images,
+                    # replace all the images with the latest released one.
                     latest_released_nvr_index = -1
+
                 if phase == "handle_parent_change":
                     # Find out the name of parent image of latest release image.
-                    latest_image = nvr_to_image[nvrs[latest_released_nvr_index]]
+                    latest_image = nvr_to_image[latest_released_nvr]
                     if "parent" not in latest_image or not latest_image["parent"]:
                         continue
                     latest_parent_name = koji.parse_NVR(
@@ -1449,7 +1449,7 @@ class LightBlue(object):
 
                     # Go through the older images and in case the parent image differs,
                     # update its parents according to latest image parents.
-                    for nvr in nvrs[latest_released_nvr_index:]:
+                    for nvr in nvrs[latest_released_nvr_index + 1:]:
                         image = nvr_to_image[nvr]
                         if "parent" not in image or not image["parent"]:
                             continue
