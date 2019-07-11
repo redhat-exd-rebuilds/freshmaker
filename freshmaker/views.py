@@ -224,6 +224,38 @@ class EventAPI(MethodView):
 
     @freshmaker_event_api_latency.time()
     def get(self, id):
+        """ Returns the list of Freshmaker events.
+
+        Whend ``id`` is set, only the Freshmaker Event defined by that ID is
+        returned.
+
+        **Sample response**:
+
+        .. sourcecode:: none
+
+            {
+                "builds": [],
+                "depending_events": [],
+                "depends_on_events": [],
+                "dry_run": null,
+                "event_type_id": 8,
+                "id": 1000,
+                "message_id": "ID:message-1",
+                "requested_rebuilds": [],
+                "requester": null,
+                "requester_metadata": {},
+                "search_key": "32460",
+                "state": 4,
+                "state_name": "SKIPPED",
+                "state_reason": "Event skipped",
+                "time_created": "2018-03-06T15:27:49Z",
+                "time_done": null,
+                "url": "/api/1/events/1000"
+            }
+
+        :statuscode 200: Current events are returned.
+        :statuscode 404: Freshmaker event not found.
+        """
         if id is None:
             p_query = filter_events(request)
 
@@ -245,10 +277,51 @@ class EventAPI(MethodView):
     @requires_role('admins')
     def patch(self, id):
         """
-        Manage event
+        Manage Freshmaker event defined by ID. The request must be
+        :mimetype:`application/json`.
 
-        Accepts JSON with following key/value pairs:
-            - "action" - one of currently supported actions: 'cancel'
+        Returns the cancelled Freshmaker event.
+
+        **Sample request**:
+
+        .. sourcecode:: http
+
+            PATCH /api/1/events HTTP/1.1
+            Accept: application/json
+            Content-Type: application/json
+
+            {
+                "action": "cancel"
+            }
+
+        **Sample response**:
+
+        .. sourcecode:: none
+
+            {
+                "builds": [],
+                "depending_events": [],
+                "depends_on_events": [],
+                "dry_run": null,
+                "event_type_id": 8,
+                "id": 1000,
+                "message_id": "ID:message-1",
+                "requested_rebuilds": [],
+                "requester": null,
+                "requester_metadata": {},
+                "search_key": "32460",
+                "state": 4,
+                "state_name": "SKIPPED",
+                "state_reason": "Event skipped",
+                "time_created": "2018-03-06T15:27:49Z",
+                "time_done": null,
+                "url": "/api/1/events/1000"
+            }
+
+        :jsonparam string action: Action to do with an Event. Currently only "cancel"
+            is supported.
+        :statuscode 200: Cancelled event is returned.
+        :statuscode 400: Action is missing or is unsupported.
         """
         data = request.get_json(force=True)
         if 'action' not in data:
@@ -311,12 +384,60 @@ class BuildAPI(MethodView):
     @requires_role('admins')
     def post(self):
         """
-        Trigger manual image rebuild.
+        Trigger manual Freshmaker rebuild. The request must be
+        :mimetype:`application/json`.
 
-        Accepts JSON in POST with following key/value pairs:
-            - "errata_id" - ID of Errata advisory to include in rebuild
-            - "container_images" - Optional. List of NVRs of leaf container
-              images to rebuild.
+        Returns the newly created Freshmaker event.
+
+        **Sample request**:
+
+        .. sourcecode:: http
+
+            POST /api/1/builds HTTP/1.1
+            Accept: application/json
+            Content-Type: application/json
+
+            {
+                "errata_id": 12345
+            }
+
+        **Sample response**:
+
+        .. sourcecode:: none
+
+            {
+                "builds": [],
+                "depending_events": [],
+                "depends_on_events": [],
+                "dry_run": null,
+                "event_type_id": 8,
+                "id": 1000,
+                "message_id": "ID:message-1",
+                "requested_rebuilds": [],
+                "requester": null,
+                "requester_metadata": {},
+                "search_key": "32460",
+                "state": 4,
+                "state_name": "SKIPPED",
+                "state_reason": "Event skipped",
+                "time_created": "2018-03-06T15:27:49Z",
+                "time_done": null,
+                "url": "/api/1/events/1000"
+            }
+
+        :jsonparam string errata_id: The ID of Errata advisory to rebuild
+            artifacts for.
+        :jsonparam list container_images: When set, defines list of NVRs
+            of leaf container images which should be rebuild in the
+            newly created Event.
+        :jsonparam bool dry_run: When True, the Event will be handled in
+            the DRY_RUN mode.
+        :jsonparam bool freshmaker_event_id: When set, defines the event
+            which will be used as dependant event. Successfull builds from
+            this Event will be reused in the newly created Event instead of
+            building all the artifacts from scratch.
+        :statuscode 200: New even generated.
+        :statuscode 400: Errata with this ID is not found.
         """
         data = request.get_json(force=True)
         if 'errata_id' not in data:
@@ -374,6 +495,34 @@ class AboutAPI(MethodView):
 
 class VerifyImageAPI(MethodView):
     def get(self, image):
+        """
+        Verifies whether the container image defined by the NVR is handled
+        by Freshmaker. If not, returns explanation why.
+
+        **Sample request**:
+
+        .. sourcecode:: http
+
+            GET /api/1/verify-image/foo-1-1 HTTP/1.1
+            Accept: application/json
+
+        **Sample response**:
+
+        .. sourcecode:: none
+
+            {
+                "images": {
+                    "foo-1-1": [
+                        "content-set-1",
+                        "content-set-2"
+                    ]
+                },
+                "msg": "Found 1 images which are handled by Freshmaker."
+            }
+
+        :statuscode 200: Image is handled by Freshmaker.
+        :statuscode 400: Image is not handled by Freshmaker or not found.
+        """
         if not image:
             raise ValueError("No image name provided")
 
@@ -388,6 +537,35 @@ class VerifyImageAPI(MethodView):
 
 class VerifyImageRepositoryAPI(MethodView):
     def get(self, project, repo):
+        """
+        Verifies whether the container image repository is handled
+        by Freshmaker. If not, returns explanation why.
+
+        **Sample request**:
+
+        .. sourcecode:: http
+
+            GET /api/1/verify-image-repository/foo/bar HTTP/1.1
+            Accept: application/json
+
+        **Sample response**:
+
+        .. sourcecode:: none
+
+            {
+                "images": {
+                    "foo-1-1": [
+                        "content-set-1",
+                        "content-set-2"
+                    ]
+                },
+                "msg": "Found 1 images which are handled by Freshmaker."
+            }
+
+        :statuscode 200: Image repository is handled by Freshmaker.
+        :statuscode 400: Image repository is not handled by Freshmaker or not
+            found.
+        """
         if not project and not repo:
             raise ValueError("No image repository name provided")
 
