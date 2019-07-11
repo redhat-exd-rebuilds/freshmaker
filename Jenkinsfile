@@ -67,7 +67,7 @@ node('fedora-29') {
             python3-sphinxcontrib-httpdomain \
             python3-sphinxcontrib-issuetracker
         '''
-        sh 'make -C docs html'
+        sh 'FRESHMAKER_DEVELOPER_ENV=1 make -C docs html'
         archiveArtifacts artifacts: 'docs/_build/html/**'
     }
     if (scmVars.GIT_BRANCH == 'origin/master') {
