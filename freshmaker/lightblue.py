@@ -645,8 +645,10 @@ class LightBlue(object):
 
         repos = []
         for repo_data in response['processed']:
-            if "auto_rebuild_tags" not in repo_data:
-                repo_data["auto_rebuild_tags"] = ["latest"]
+            if not repo_data.get('auto_rebuild_tags'):
+                log.info('"auto_rebuild_tags" not set for %s repository, ignoring repository',
+                         repo_data["repository"])
+                continue
             repo = ContainerRepository()
             repo.update(repo_data)
             repos.append(repo)

@@ -826,14 +826,28 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                     'metrics': {
                         'pulls_in_last_30_days': 0,
                         'last_update_date': '20170223T08:28:40.913-0500'
-                    }
+                    },
+                    'repository': 'spam',
+                    'auto_rebuild_tags': ['latest'],
                 },
                 {
                     'creationDate': '20161020T04:52:43.365-0400',
                     'metrics': {
                         'last_update_date': '20170501T03:00:19.892-0400',
                         'pulls_in_last_30_days': 20
-                    }
+                    },
+                    'repository': 'bacon',
+                    'auto_rebuild_tags': ['latest'],
+                },
+                {
+                    'creationDate': '20161020T04:52:43.365-0400',
+                    'metrics': {
+                        'last_update_date': '20170501T03:00:19.892-0400',
+                        'pulls_in_last_30_days': 20
+                    },
+                    # This repository is ignored by Freshmaker because it does not
+                    # have auto_rebuild_tags set.
+                    'repository': 'ignored-due-to-missing-tags',
                 }
             ],
             'entityVersion': '0.0.11',
@@ -870,6 +884,9 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         self.assertEqual(0, repo['metrics']['pulls_in_last_30_days'])
         self.assertEqual('20170223T08:28:40.913-0500', repo['metrics']['last_update_date'])
         self.assertEqual(["latest"], repo["auto_rebuild_tags"])
+
+        self.assertEqual(repos[0]['repository'], 'spam')
+        self.assertEqual(repos[1]['repository'], 'bacon')
 
     @patch('freshmaker.lightblue.requests.post')
     def test_raise_error_if_request_data_is_incorrect(self, post):
