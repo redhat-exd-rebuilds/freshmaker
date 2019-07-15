@@ -57,7 +57,8 @@ class ErrataAdvisory(object):
         self.has_hightouch_bug = has_hightouch_bug
 
         bugzilla = BugzillaAPI()
-        self.highest_cve_severity = bugzilla.get_highest_impact(self.cve_list)
+
+        self.highest_cve_severity, self.affected_pkgs = bugzilla.fetch_cve_metadata(self.cve_list)
 
     @classmethod
     def from_advisory_id(cls, errata, errata_id):
