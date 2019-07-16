@@ -256,19 +256,36 @@ class EventAPI(MethodView):
         :statuscode 200: Current events are returned.
         :statuscode 404: Freshmaker event not found.
         """
+        # Boolean that is set to false if builds should not
+        # be displayed in order to increase api speed
+        # For API v1, this is true by default to not break the backward compatibility
+        # For API v2, this is false by default
+        value = request.args.getlist('show_full_json')
+        show_full_json = request.base_url.find("/api/1/") != -1
+        if len(value) == 1 and value[0] == 'False':
+            show_full_json = False
+        elif len(value) == 1 and value[0] == 'True':
+            show_full_json = True
+
         if id is None:
             p_query = filter_events(request)
 
             json_data = {
                 'meta': pagination_metadata(p_query)
             }
-            json_data['items'] = [item.json() for item in p_query.items]
+
+            if not show_full_json:
+                json_data['items'] = [item.json_min() for item in p_query.items]
+            else:
+                json_data['items'] = [item.json() for item in p_query.items]
 
             return jsonify(json_data), 200
 
         else:
             event = models.Event.query.filter_by(id=id).first()
             if event:
+                if not show_full_json:
+                    return jsonify(event.json_min()), 200
                 return jsonify(event.json()), 200
             else:
                 return json_error(404, "Not Found", "No such event found.")
@@ -591,7 +608,7 @@ API_V1_MAPPING = {
 
 
 def register_api_v1():
-    """ Registers version 1 of MBS API. """
+    """ Registers version 1 of Freshmaker API. """
     for k, v in API_V1_MAPPING.items():
         view = v.as_view(k)
         for key, val in api_v1.get(k, {}).items():
@@ -603,4 +620,20 @@ def register_api_v1():
     app.register_blueprint(monitor_api)
 
 
+def register_api_v2():
+    """ Registers version 2 of Freshmaker API. """
+
+    # The API v2 has the same URL schema as v1, only semantic is different.
+    for k, v in API_V1_MAPPING.items():
+        view = v.as_view(k + "_v2")
+        for key, val in api_v1.get(k, {}).items():
+            app.add_url_rule(val['url'].replace("/api/1/", "/api/2/"),
+                             endpoint=key + "_v2",
+                             view_func=view,
+                             **val['options'])
+
+    app.register_blueprint(monitor_api)
+
+
 register_api_v1()
+register_api_v2()
