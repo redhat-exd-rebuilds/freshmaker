@@ -22,7 +22,8 @@
 from flask import request, url_for, jsonify
 
 from freshmaker import db
-from freshmaker.types import ArtifactType, ArtifactBuildState
+from freshmaker.errors import ValidationError
+from freshmaker.types import ArtifactType, ArtifactBuildState, EventState
 from freshmaker.models import ArtifactBuild, Event
 
 
@@ -154,7 +155,7 @@ def filter_events(flask_request):
 
     query = Event.query
 
-    for key in ['message_id', 'search_key', 'event_type_id', 'state']:
+    for key in ['message_id', 'search_key', 'event_type_id']:
         values = flask_request.args.getlist(key)
         if not values:
             continue
@@ -164,6 +165,19 @@ def filter_events(flask_request):
         else:
             search_attr = getattr(Event, key)
             query = query.filter(search_attr.in_(values))
+
+    states = flask_request.args.getlist("state")
+    search_states = []
+    for state in states:
+        if state.isdigit():
+            search_states.append(state)
+        else:
+            if state.upper() in [x.name for x in EventState]:
+                search_states.append(EventState[state.upper()].value)
+            else:
+                raise ValidationError("Invalid state was supplied: %s" % state)
+    if search_states:
+        query = query.filter(Event.state.in_(search_states))
 
     query = _order_by(flask_request, query, Event,
                       ["id", "message_id"], "-id")
