@@ -45,6 +45,13 @@ xml_with_empty_status = """
 <status_whiteboard></status_whiteboard>
 </bug></bugzilla>
 """
+
+xml_with_affected_pkgs = """
+<bugzilla><bug>
+<status_whiteboard>impact={impact},{packages}</status_whiteboard>
+</bug></bugzilla>
+"""
+
 xml_without_status = """<bugzilla><bug></bug></bugzilla>"""
 xml_with_empty_bug = """<bugzilla></bugzilla>"""
 
@@ -52,50 +59,63 @@ xml_with_empty_bug = """<bugzilla></bugzilla>"""
 class TestBugzillaAPI(helpers.FreshmakerTestCase):
 
     @patch("freshmaker.bugzilla.requests.get")
-    def test_get_highest_impact(self, requests_get):
+    def test_fetch_cve_metadata(self, requests_get):
         impacts = ["Low", "Moderate", "Important", "Critical"]
         bugzilla = BugzillaAPI()
         for num_of_cves in range(1, 4):
             requests_get.side_effect = [
                 MockResponse(xml_with_status.format(impact=impact))
                 for impact in impacts]
-            ret = bugzilla.get_highest_impact(["CVE-1"] * num_of_cves)
-            self.assertEqual(ret, impacts[num_of_cves - 1].lower())
+            highest_cve_severity, _ = bugzilla.fetch_cve_metadata(["CVE-1"] * num_of_cves)
+            self.assertEqual(highest_cve_severity, impacts[num_of_cves - 1].lower())
 
     @patch("freshmaker.bugzilla.requests.get")
-    def test_get_highest_impact_empty_list(self, requests_get):
+    def test_fetch_cve_metadata_empty_list(self, requests_get):
         bugzilla = BugzillaAPI()
-        ret = bugzilla.get_highest_impact([])
-        self.assertEqual(ret, None)
+        highest_cve_severity, _ = bugzilla.fetch_cve_metadata([])
+        self.assertEqual(highest_cve_severity, None)
         requests_get.assert_not_called()
 
     @patch("freshmaker.bugzilla.requests.get")
-    def test_get_highest_impact_no_status(self, requests_get):
+    def test_fetch_cve_metadata_no_status(self, requests_get):
         bugzilla = BugzillaAPI()
         requests_get.return_value = MockResponse(xml_without_status)
-        ret = bugzilla.get_highest_impact(["CVE-1"])
-        self.assertEqual(ret, None)
+        highest_cve_severity, _ = bugzilla.fetch_cve_metadata(["CVE-1"])
+        self.assertEqual(highest_cve_severity, None)
 
     @patch("freshmaker.bugzilla.requests.get")
-    def test_get_highest_impact_empty_status(self, requests_get):
+    def test_fetch_cve_metadata_empty_status(self, requests_get):
         bugzilla = BugzillaAPI()
         requests_get.return_value = MockResponse(xml_with_empty_status)
-        ret = bugzilla.get_highest_impact(["CVE-1"])
-        self.assertEqual(ret, None)
+        highest_cve_severity, _ = bugzilla.fetch_cve_metadata(["CVE-1"])
+        self.assertEqual(highest_cve_severity, None)
 
     @patch("freshmaker.bugzilla.requests.get")
-    def test_get_highest_impact_empty_bug(self, requests_get):
+    def test_fetch_cve_metadata_empty_bug(self, requests_get):
         bugzilla = BugzillaAPI()
         requests_get.return_value = MockResponse(xml_with_empty_bug)
-        ret = bugzilla.get_highest_impact(["CVE-1"])
-        self.assertEqual(ret, None)
+        highest_cve_severity, _ = bugzilla.fetch_cve_metadata(["CVE-1"])
+        self.assertEqual(highest_cve_severity, None)
 
     @patch("freshmaker.bugzilla.requests.get")
-    def test_get_highest_impact_unknown_impact(self, requests_get):
+    def test_fetch_cve_metadata_unknown_impact(self, requests_get):
         impacts = ["Low", "unknown"]
         requests_get.side_effect = [
             MockResponse(xml_with_status.format(impact=impact))
             for impact in impacts]
         bugzilla = BugzillaAPI()
-        ret = bugzilla.get_highest_impact(["CVE-1", "CVE-2"])
-        self.assertEqual(ret, "low")
+        highest_cve_severity, _ = bugzilla.fetch_cve_metadata(["CVE-1", "CVE-2"])
+        self.assertEqual(highest_cve_severity, "low")
+
+    @patch("freshmaker.bugzilla.requests.get")
+    def test_fetch_cve_metadata_with_affected_pkgs(self, requests_get):
+        impacts = ["Low"]
+        packages = "openshift-enterprise-3.11/atomic-openshift=affected,openshift-enterprise-4.1/openshift=notaffected"
+        requests_get.side_effect = [
+            MockResponse(xml_with_affected_pkgs.format(impact=impact, packages=packages))
+            for impact in impacts]
+        bugzilla = BugzillaAPI()
+        highest_cve_severity, affected_pkgs = bugzilla.fetch_cve_metadata(["CVE-1"])
+        self.assertEqual(highest_cve_severity, "low")
+        self.assertEqual(affected_pkgs[0]['product'], 'openshift-enterprise-3.11')
+        self.assertEqual(affected_pkgs[0]['pkg_name'], 'atomic-openshift')

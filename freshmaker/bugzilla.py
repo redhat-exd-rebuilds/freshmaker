@@ -83,17 +83,21 @@ class BugzillaAPI(object):
         # Convert the whiteboard to a dict, and return
         return dict(entry.split('=', 1) for entry in whiteboard.split(','))
 
-    def get_highest_impact(self, cve_list):
+    def fetch_cve_metadata(self, cve_list):
         """
-        Fetches metadata about each CVE in `cve_list` and returns the name of
-        highest severity rate. See `BugzillaAPI.THREAT_SEVERITIES` for
-        list of possible severity rates.
+        Fetches metadata about each CVE in `cve_list` and returns a tuple with
+        the name of highest severity rate and the affected packages (a dictionary
+        with product and pkg_name).
+        See `BugzillaAPI.THREAT_SEVERITIES` for list of possible severity rates.
 
         :param list cve_list: List of strings with CVE names.
         :rtype: str
-        :return: Name of highest severity rate occuring in CVEs from `cve_list`.
+        :return: Tuple, the first element is the name of highest severity rate occuring
+        in CVEs from `cve_list`. The second element is a list of dicts, with "product"
+        and "pkg_name" of the affected packages.
         """
         max_rating = -1
+        affected_pkgs = []
         for cve in cve_list:
             try:
                 data = self._get_cve_whiteboard(cve)
@@ -119,6 +123,14 @@ class BugzillaAPI(object):
                 continue
 
             try:
+                affected_pkgs.extend([
+                    {'product': pkg.split('/')[0], 'pkg_name': pkg.split('/')[-1]}
+                    for pkg, isaffected in data.items() if isaffected == 'affected'])
+            except IndexError:
+                log.warning("CVE %s has no affected packages in bugzilla whiteboard", cve)
+                continue
+
+            try:
                 rating = BugzillaAPI.THREAT_SEVERITIES.index(severity)
             except ValueError:
                 log.error("Unknown threat_severity '%s' for CVE %s",
@@ -128,5 +140,5 @@ class BugzillaAPI(object):
             max_rating = max(max_rating, rating)
 
         if max_rating == -1:
-            return None
-        return BugzillaAPI.THREAT_SEVERITIES[max_rating]
+            return (None, affected_pkgs)
+        return (BugzillaAPI.THREAT_SEVERITIES[max_rating], affected_pkgs)
