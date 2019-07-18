@@ -24,6 +24,7 @@
 
 import json
 import koji
+import kobo
 
 from freshmaker import conf, db
 from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
@@ -411,6 +412,18 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
         # For each SRPM NVR, find out all the containers which include
         # this SRPM NVR.
         srpm_nvrs = set(errata.get_builds(errata_id))
+        # affected_pkgs contains the list of actually affected pkgs from the CVE.
+        # We don't need to build images that really don't affect the CVE, even if they are
+        # listed in the RHSA. So let's just remove the ones that are not listed in here.
+        # In case this is empty we are just going to use the "old" behavior before this
+        # change was made, and rebuild everything.
+        affected_pkgs = set([pkg['pkg_name'] for pkg in self.event.advisory.affected_pkgs])
+        if affected_pkgs:
+            tmp_srpm_nvrs = srpm_nvrs
+            srpm_nvrs = set([srpm_nvr for srpm_nvr in srpm_nvrs if kobo.rpmlib.parse_nvr(srpm_nvr)["name"] in affected_pkgs])
+            self.log_info(("Not going to rebuild these container images,"
+                           "because they're not affected: %r"), tmp_srpm_nvrs.difference(srpm_nvrs))
+
         self.log_info(
             "Going to find all the container images to rebuild as "
             "result of %r update.", srpm_nvrs)
