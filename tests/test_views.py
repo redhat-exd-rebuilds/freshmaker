@@ -519,14 +519,14 @@ class TestViews(helpers.ModelsTestCase):
         resp = self.client.get('/api/1/events/4')
         data = json.loads(resp.get_data(as_text=True))
         self.assertEqual(data['id'], event1.id)
-        self.assertEqual(data['depends_on_events'], [event.id])
-        self.assertEqual(data['depending_events'], [])
+        self.assertEqual(data['depends_on_events'], [])
+        self.assertEqual(data['depending_events'], [event.id])
 
         resp = self.client.get('/api/1/events/3')
         data = json.loads(resp.get_data(as_text=True))
         self.assertEqual(data['id'], event.id)
-        self.assertEqual(data['depends_on_events'], [])
-        self.assertEqual(data['depending_events'], [event1.id])
+        self.assertEqual(data['depends_on_events'], [event1.id])
+        self.assertEqual(data['depending_events'], [])
 
 
 class TestViewsMultipleFilterValues(helpers.ModelsTestCase):

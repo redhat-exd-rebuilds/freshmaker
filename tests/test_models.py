@@ -388,7 +388,7 @@ class TestEventDependency(helpers.ModelsTestCase):
         event = Event.create(db.session, "test_msg_id", "test", events.TestingEvent)
         db.session.commit()
         self.assertEqual(event.event_dependencies, [])
-        self.assertEqual(event.depends_on_events, [])
+        self.assertEqual(event.depending_events, [])
 
     def test_add_a_dependent_event(self):
         event = Event.create(db.session, "test_msg_id", "test", events.TestingEvent)
@@ -401,8 +401,8 @@ class TestEventDependency(helpers.ModelsTestCase):
         self.assertEqual(event.event_dependencies, [event1])
         self.assertEqual(event.event_dependencies[0].search_key, "test2")
         self.assertEqual(event1.event_dependencies, [])
-        self.assertEqual(event1.depends_on_events, [event])
-        self.assertEqual(event.depends_on_events, [])
+        self.assertEqual(event1.depending_events, [event])
+        self.assertEqual(event.depending_events, [])
 
     def test_add_existing_dependent_event(self):
         event = Event.create(db.session, "test_msg_id", "test", events.TestingEvent)
@@ -415,7 +415,7 @@ class TestEventDependency(helpers.ModelsTestCase):
 
         self.assertIsNone(rel)
         self.assertEqual(event.event_dependencies, [event1])
-        self.assertEqual(event1.depends_on_events, [event])
+        self.assertEqual(event1.depending_events, [event])
 
     def test_return_added_dependency_relationship(self):
         event = Event.create(db.session, "test_msg_id", "test", events.TestingEvent)
