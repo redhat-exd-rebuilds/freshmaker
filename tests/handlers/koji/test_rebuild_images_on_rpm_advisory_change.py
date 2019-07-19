@@ -516,6 +516,29 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             published=True, release_categories=('Generally Available', 'Tech Preview', 'Beta'),
             leaf_container_images=["foo", "bar"])
 
+    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+        'RebuildImagesOnRPMAdvisoryChange': {
+            'image': {'advisory_name': 'RHBA-*'}
+        }
+    })
+    @patch('os.path.exists', return_value=True)
+    def test_whitelist_affected_packages(self, exists):
+        """
+        In case there are more pkgs in a RHSA, but not all of them are actually affected from the CVE,
+        the images that will have to be rebuild will be only the ones affected.
+        This test is checking this process.
+        """
+        self.event.advisory.affected_pkgs = [{'product': 'whatever', 'pkg_name': 'httpd'}]
+        self.get_builds.return_value = ["httpd-2.4-11.el7", "foo-1-1"]
+        for x in self.handler._find_images_to_rebuild(123456):
+            pass
+
+        self.find_images_to_rebuild.assert_called_once_with(
+            set(['httpd-2.4-11.el7']), ['content-set-1'],
+            filter_fnc=self.handler._filter_out_not_allowed_builds,
+            published=True, release_categories=('Generally Available', 'Tech Preview', 'Beta'),
+            leaf_container_images=None)
+
 
 class TestAllowBuild(helpers.ModelsTestCase):
     """Test RebuildImagesOnRPMAdvisoryChange.allow_build"""
