@@ -44,15 +44,20 @@ class ImageVerifier(object):
         Verifies the Lightblue ContainerRepository data.
         Raises ValueError in case of error.
         """
-        if "Generally Available" not in repo["release_categories"]:
+        categories = set(["Generally Available", "Tech Preview", "Beta"])
+        if not set(repo["release_categories"]).intersection(categories):
             raise ValueError(
-                "Only repositories with \"Generally Available\" release_categories can be "
-                "rebuilt, but found %r." % repo["release_categories"])
+                "Only repositories with one of %r release_categories can be "
+                "rebuilt, but found %r." % (categories, repo["release_categories"]))
 
         if not repo["published"]:
             raise ValueError(
                 "Only published repositories can be rebuilt, but this repository is not "
                 "published.")
+
+        if "auto_rebuild_tags" not in repo:
+            raise ValueError(
+                "The \"auto_rebuild_tags\" in COMET is not set.")
 
         if "auto_rebuild_tags" in repo and repo["auto_rebuild_tags"] == []:
             raise ValueError(
