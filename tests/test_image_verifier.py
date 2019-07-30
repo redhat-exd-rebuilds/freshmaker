@@ -49,16 +49,16 @@ class TestImageVerifier(helpers.FreshmakerTestCase):
 
     def test_verify_repository_deprecated(self):
         self.lb.find_container_repositories.return_value = [{
-            "release_categories": "Deprecated",
+            "release_categories": ["Deprecated"],
             "published": True,
             "auto_rebuild_tags": "latest"}]
         six.assertRaisesRegex(
-            self, ValueError, r'.*but found \'Deprecated\'.',
+            self, ValueError, r'.*but found \[\'Deprecated\'\].',
             self.verifier.verify_repository, "foo/bar")
 
     def test_verify_repository_not_published(self):
         self.lb.find_container_repositories.return_value = [{
-            "release_categories": "Generally Available",
+            "release_categories": ["Generally Available"],
             "published": False,
             "auto_rebuild_tags": "latest"}]
         six.assertRaisesRegex(
@@ -67,7 +67,7 @@ class TestImageVerifier(helpers.FreshmakerTestCase):
 
     def test_verify_repository_no_auto_rebuild_tags(self):
         self.lb.find_container_repositories.return_value = [{
-            "release_categories": "Generally Available",
+            "release_categories": ["Generally Available"],
             "published": True,
             "auto_rebuild_tags": []}]
         six.assertRaisesRegex(
@@ -77,7 +77,7 @@ class TestImageVerifier(helpers.FreshmakerTestCase):
     def test_verify_repository_no_images(self):
         self.lb.find_container_repositories.return_value = [{
             "repository": "foo/bar",
-            "release_categories": "Generally Available",
+            "release_categories": ["Generally Available"],
             "published": True,
             "auto_rebuild_tags": ["latest"]}]
         self.lb.get_images_by_nvrs.return_value = []
@@ -88,7 +88,7 @@ class TestImageVerifier(helpers.FreshmakerTestCase):
     def test_verify_repository_no_content_sets(self):
         self.lb.find_container_repositories.return_value = [{
             "repository": "foo/bar",
-            "release_categories": "Generally Available",
+            "release_categories": ["Generally Available"],
             "published": True,
             "auto_rebuild_tags": ["latest"]}]
         self.lb.find_images_with_included_srpms.return_value = [{
@@ -101,7 +101,7 @@ class TestImageVerifier(helpers.FreshmakerTestCase):
     def test_verify_repository(self):
         self.lb.find_container_repositories.return_value = [{
             "repository": "foo/bar",
-            "release_categories": "Generally Available",
+            "release_categories": ["Generally Available"],
             "published": True,
             "auto_rebuild_tags": ["latest"]}]
         self.lb.find_images_with_included_srpms.return_value = [{
@@ -113,7 +113,7 @@ class TestImageVerifier(helpers.FreshmakerTestCase):
     def test_get_verify_image(self):
         self.lb.find_container_repositories.return_value = [{
             "repository": "foo/bar",
-            "release_categories": "Generally Available",
+            "release_categories": ["Generally Available"],
             "published": True,
             "auto_rebuild_tags": ["latest"]}]
         self.lb.get_images_by_nvrs.return_value = [{
@@ -137,7 +137,7 @@ class TestImageVerifier(helpers.FreshmakerTestCase):
     def test_verify_image_no_images(self):
         self.lb.find_container_repositories.return_value = [{
             "repository": "foo/bar",
-            "release_categories": "Generally Available",
+            "release_categories": ["Generally Available"],
             "published": True,
             "auto_rebuild_tags": ["latest"]}]
         self.lb.get_images_by_nvrs.return_value = []
