@@ -33,15 +33,16 @@ from tests import helpers
 
 class ConsumerBaseTest(helpers.ModelsTestCase):
 
-    def _module_state_change_msg(self, state=None):
+    def _compose_state_change_msg(self, state=None):
         msg = {'body': {
             "msg_id": "2017-7afcb214-cf82-4130-92d2-22f45cf59cf7",
-            "topic": "org.fedoraproject.prod.mbs.module.state.change",
+            "topic": "org.fedoraproject.prod.odcs.state.change",
             "signature": "qRZ6oXBpKD/q8BTjBNa4MREkAPxT+KzI8Oret+TSKazGq/6gk0uuprdFpkfBXLR5dd4XDoh3NQWp\nyC74VYTDVqJR7IsEaqHtrv01x1qoguU/IRWnzrkGwqXm+Es4W0QZjHisBIRRZ4ywYBG+DtWuskvy\n6/5Mc3dXaUBcm5TnT0c=\n",
             "msg": {
-                "state": 5,
-                "id": 70,
-                "state_name": state or "ready"
+                "compose": {
+                    "id": 1,
+                    "state": 4,
+                }
             }
         }}
 
@@ -50,7 +51,7 @@ class ConsumerBaseTest(helpers.ModelsTestCase):
 
 class ConsumerTest(ConsumerBaseTest):
 
-    @mock.patch("freshmaker.handlers.internal.UpdateDBOnModuleBuild.handle")
+    @mock.patch("freshmaker.handlers.internal.UpdateDBOnODCSComposeFail.handle")
     @mock.patch("freshmaker.consumer.get_global_consumer")
     def test_consumer_processing_message(self, global_consumer, handle):
         """
@@ -62,16 +63,16 @@ class ConsumerTest(ConsumerBaseTest):
         global_consumer.return_value = consumer
         handle.return_value = [freshmaker.events.TestingEvent("ModuleBuilt handled")]
 
-        msg = self._module_state_change_msg()
+        msg = self._compose_state_change_msg()
         consumer.consume(msg)
 
         event = consumer.incoming.get()
         self.assertEqual(event.msg_id, "ModuleBuilt handled")
 
-    @mock.patch("freshmaker.handlers.koji.RebuildImagesOnRPMBodhiUpdate.can_handle")
-    @mock.patch("freshmaker.handlers.internal.UpdateDBOnModuleBuild.order",
+    @mock.patch("freshmaker.handlers.koji.RebuildImagesOnODCSComposeDone.can_handle")
+    @mock.patch("freshmaker.handlers.internal.UpdateDBOnODCSComposeFail.order",
                 new_callable=mock.PropertyMock)
-    @mock.patch("freshmaker.handlers.internal.UpdateDBOnModuleBuild.can_handle")
+    @mock.patch("freshmaker.handlers.internal.UpdateDBOnODCSComposeFail.can_handle")
     @mock.patch("freshmaker.consumer.get_global_consumer")
     def test_consumer_handlers_order(self, global_consumer, handler1,
                                      handler1_order, handler2):
@@ -98,14 +99,14 @@ class ConsumerTest(ConsumerBaseTest):
             handler2.side_effect = mocked_handler2
             handler1_order.return_value = 100 if reverse else 0
 
-            msg = self._module_state_change_msg()
+            msg = self._compose_state_change_msg()
             consumer.consume(msg)
             self.assertEqual(order_lst, [2, 1] if reverse else [1, 2])
 
-    @mock.patch("freshmaker.handlers.koji.RebuildImagesOnRPMBodhiUpdate.handle")
-    @mock.patch("freshmaker.handlers.koji.RebuildImagesOnRPMBodhiUpdate.can_handle")
-    @mock.patch("freshmaker.handlers.internal.UpdateDBOnModuleBuild.handle")
-    @mock.patch("freshmaker.handlers.internal.UpdateDBOnModuleBuild.can_handle")
+    @mock.patch("freshmaker.handlers.koji.RebuildImagesOnODCSComposeDone.handle")
+    @mock.patch("freshmaker.handlers.koji.RebuildImagesOnODCSComposeDone.can_handle")
+    @mock.patch("freshmaker.handlers.internal.UpdateDBOnODCSComposeFail.handle")
+    @mock.patch("freshmaker.handlers.internal.UpdateDBOnODCSComposeFail.can_handle")
     @mock.patch("freshmaker.consumer.get_global_consumer")
     def test_consumer_multiple_handlers_called(
             self, global_consumer, handler1_can_handle, handler1, handler2_can_handle,
@@ -115,7 +116,7 @@ class ConsumerTest(ConsumerBaseTest):
 
         handler1_can_handle.return_value = True
         handler2_can_handle.return_value = True
-        msg = self._module_state_change_msg()
+        msg = self._compose_state_change_msg()
         consumer.consume(msg)
 
         handler1.assert_called_once()
@@ -133,7 +134,7 @@ class ConsumerTest(ConsumerBaseTest):
         for topic in topics:
             self.assertIn(mock.call(topic, callback), consumer.hub.subscribe.call_args_list)
 
-    @mock.patch("freshmaker.handlers.internal.UpdateDBOnModuleBuild.handle",
+    @mock.patch("freshmaker.handlers.internal.UpdateDBOnODCSComposeFail.handle",
                 autospec=True)
     @mock.patch("freshmaker.consumer.get_global_consumer")
     def test_consumer_mark_event_as_failed_on_exception(
@@ -155,7 +156,7 @@ class ConsumerTest(ConsumerBaseTest):
 
         handle.side_effect = mocked_handle
 
-        msg = self._module_state_change_msg()
+        msg = self._compose_state_change_msg()
         consumer.consume(msg)
 
         db_event = Event.get(db.session, "msg_id")

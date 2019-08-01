@@ -68,15 +68,16 @@ class ConsumerTest(helpers.ModelsTestCase):
     def tearDown(self):
         super(ConsumerTest, self). tearDown()
 
-    def _module_state_change_msg(self, state=None):
+    def _compose_state_change_msg(self, state=None):
         msg = {'body': {
             "msg_id": "2017-7afcb214-cf82-4130-92d2-22f45cf59cf7",
-            "topic": "org.fedoraproject.prod.mbs.module.state.change",
+            "topic": "org.fedoraproject.prod.odcs.state.change",
             "signature": "qRZ6oXBpKD/q8BTjBNa4MREkAPxT+KzI8Oret+TSKazGq/6gk0uuprdFpkfBXLR5dd4XDoh3NQWp\nyC74VYTDVqJR7IsEaqHtrv01x1qoguU/IRWnzrkGwqXm+Es4W0QZjHisBIRRZ4ywYBG+DtWuskvy\n6/5Mc3dXaUBcm5TnT0c=\n",
             "msg": {
-                "state": 5,
-                "id": 70,
-                "state_name": state or "ready"
+                "compose": {
+                    "id": 1,
+                    "state": 4,
+                }
             }
         }}
 
@@ -90,7 +91,7 @@ class ConsumerTest(helpers.ModelsTestCase):
                 return int(float(v))
         return None
 
-    @mock.patch("freshmaker.handlers.internal.UpdateDBOnModuleBuild.handle")
+    @mock.patch("freshmaker.handlers.internal.UpdateDBOnODCSComposeFail.handle")
     @mock.patch("freshmaker.consumer.get_global_consumer")
     def test_consumer_processing_message(self, global_consumer, handle):
         """
@@ -104,7 +105,7 @@ class ConsumerTest(helpers.ModelsTestCase):
 
         prev_counter_value = self._get_monitor_value("messaging_rx_processed_ok_total")
 
-        msg = self._module_state_change_msg()
+        msg = self._compose_state_change_msg()
         consumer.consume(msg)
 
         event = consumer.incoming.get()

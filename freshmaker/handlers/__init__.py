@@ -30,7 +30,6 @@ from functools import wraps
 
 from freshmaker import conf, log, db, models
 from freshmaker.kojiservice import koji_service, parse_NVR
-from freshmaker.mbs import MBS
 from freshmaker.models import ArtifactBuildState
 from freshmaker.types import EventState
 from freshmaker.models import ArtifactBuild, Event
@@ -265,17 +264,6 @@ class BaseHandler(object):
         generate internal events for other handlers in Freshmaker.
         """
         raise NotImplementedError()
-
-    def build_module(self, name, branch, rev):
-        """
-        Build a module in MBS.
-
-        :param name: module name.
-        :param branch: module branch.
-        :param rev: git revision.
-        """
-        mbs = MBS(conf)
-        return mbs.build_module(name, branch, rev)
 
     def record_build(self, event, name, artifact_type,
                      build_id=None, dep_on=None, state=None,

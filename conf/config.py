@@ -31,9 +31,6 @@ class BaseConfiguration(object):
     NET_RETRY_INTERVAL = 30
 
     SYSTEM = 'koji'
-    PDC_URL = 'http://modularity.fedorainfracloud.org:8080/rest_api/v1'
-    PDC_INSECURE = True
-    PDC_DEVELOP = True
 
     # Available backends are: console, file, journal.
     LOG_BACKEND = 'journal'
@@ -49,18 +46,13 @@ class BaseConfiguration(object):
     # Parsers defined for parse specific messages
     PARSERS = [
         'freshmaker.parsers.internal:FreshmakerManualRebuildParser',
-        'freshmaker.parsers.bodhi:BodhiUpdateCompleteStableParser',
-        'freshmaker.parsers.git:GitReceiveParser',
-        'freshmaker.parsers.mbs:MBSModuleStateChangeParser',
+        'freshmaker.parsers.odcs:ComposeStateChangeParser',
     ]
 
     # List of enabled composing handlers.
     HANDLERS = [
-        "freshmaker.handlers.koji:RebuildImagesOnRPMBodhiUpdate",
-        "freshmaker.handlers.koji:RebuildImagesOnGitDockerfileChange",
-        "freshmaker.handlers.mbs:RebuildModulesOnGitMMDChange",
-        "freshmaker.handlers.mbs:RebuildModulesOnGitRPMSpecChange",
-        "freshmaker.handlers.internal:UpdateDBOnModuleBuild",
+        'freshmaker.handlers.internal:UpdateDBOnODCSComposeFail',
+        'freshmaker.handlers.koji:RebuildImagesOnODCSComposeDone',
     ]
 
     # Base URL of git repository with source artifacts.
@@ -71,15 +63,6 @@ class BaseConfiguration(object):
 
     # GIT user for cloning and pushing repo
     GIT_USER = ""
-
-    # Base URL of Module Build Service.
-    MBS_BASE_URL = "https://mbs.fedoraproject.org"
-
-    # Authorization token to use when communicating with MBS.
-    MBS_AUTH_TOKEN = ""
-
-    # PDC API URL
-    PDC_URL = 'http://pdc.fedoraproject.org/rest_api/v1'
 
     # Read Koji configuration from profile instead of reading them from
     # configuration file directly. For staging Koji, it is stg.
@@ -286,12 +269,10 @@ class TestConfiguration(BaseConfiguration):
 
     MESSAGING = 'in_memory'
     MESSAGING_SENDER = 'in_memory'
-    PDC_URL = 'http://pdc.fedoraproject.org/rest_api/v1'
 
     # Global network-related values, in seconds
     NET_TIMEOUT = 3
     NET_RETRY_INTERVAL = 1
-    MBS_AUTH_TOKEN = "testingtoken"
 
     KOJI_CONTAINER_SCRATCH_BUILD = True
 
