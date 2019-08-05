@@ -243,6 +243,7 @@ def clone_distgit_repo(namespace, name, dest, branch='master', ssh=True,
                       commit=commit)
 
 
+@retry(logger=log)
 def get_distgit_files(
         namespace, name, commit_or_branch, files, ssh=True, user=None,
         logger=None):
