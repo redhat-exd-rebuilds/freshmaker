@@ -18,6 +18,7 @@ compose (mainly the RPM repository) with packages from Koji using the REST API.
    api_v1
    api_v2
    messaging_api
+   dev_scripts
 
 Indices and tables
 ==================
