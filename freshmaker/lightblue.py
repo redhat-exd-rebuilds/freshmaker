@@ -34,7 +34,6 @@ import kobo.rpmlib
 from itertools import groupby
 
 from six.moves import http_client
-from six.moves.urllib.parse import urlparse
 import concurrent.futures
 from freshmaker import log, conf
 from freshmaker.kojiservice import koji_service
@@ -260,81 +259,13 @@ class ContainerImage(dict):
                 raise KojiLookupError(
                     "Cannot find valid source of Koji build %r" % build)
 
-            data['arches'] = self._get_architectures_from_registry(nvr, build)
+            if not conf.supply_arch_overrides:
+                data['arches'] = None
+            else:
+                archives = session.list_archives(build_id=build['build_id'])
+                data['arches'] = [archive['extra']['image']['arch'] for archive in archives if archive['btype'] == 'image']
 
         return data
-
-    def _get_architectures_from_registry(self, nvr, build):
-        """ Determine the architectures of the build by reading the manifest """
-
-        # First thing, check our feature flag.  This feature won't work if the OSBS instance we're
-        # working with doesn't support supply arch_overrides, so, if our configuration says "don't
-        # supply arch overrides to OSBS" then return None.
-        if not conf.supply_arch_overrides:
-            return None
-
-        # If the image doesn't have the digest metadata we need, then we can
-        # assume it is an old single-arch build.  But, if it does have a digest then carefully
-        # query the registry for it to extract the list of arches produced last time.
-        if 'extra' not in build:
-            return 'x86_64'
-        if 'image' not in build['extra']:
-            return 'x86_64'
-        if 'index' not in build['extra']['image']:
-            return 'x86_64'
-
-        index = build['extra']['image']['index']
-        manifest_list = 'application/vnd.docker.distribution.manifest.list.v2+json'
-        digest = index.get('digests', {}).get(manifest_list)
-
-        if not digest:
-            return 'x86_64'
-
-        # If it has a digest, then it must have a pull url.
-        registry_urls = [url for url in index['pull'] if digest in url]
-        if not registry_urls:
-            raise KojiLookupError(
-                "Could not find pull url for Koji build %r %r" % (nvr, digest))
-
-        url = registry_urls[0].split(digest)[0].strip('@')
-        # If URL does not contain the scheme, use http as default.
-        if not url.startswith("http"):
-            url = "http://" + url
-        # Construct the proper API requests in
-        # GET /v2/<name>/manifests/<reference> format.
-        parsed_url = urlparse(url)
-        url = "%s://%s/v2/%s/manifests/%s" % (
-            parsed_url.scheme, parsed_url.netloc, parsed_url.path.strip("/"),
-            digest)
-
-        response = requests.get(url, headers=dict(Accept=manifest_list))
-        if not response.ok:
-            raise KojiLookupError(
-                "Could not pull manifest list from %s for %r: %r" % (url, nvr, response))
-
-        try:
-            data = response.json()
-        except ValueError as e:
-            raise KojiLookupError(
-                "Manifest list response for %r was not json: %r %s" % (nvr, e, url))
-
-        if 'manifests' not in data:
-            raise KojiLookupError(
-                "Manifest list response for %r was malformed: %s" % (nvr, url, data))
-
-        # Extract the list of arches, as written
-        manifests = data['manifests']
-        arches = [
-            manifest['platform']['architecture']
-            for manifest in manifests
-            if 'platform' in manifest and 'architecture' in manifest['platform']
-        ]
-        # But!  Convert some arch values into ones familiar to Brew.
-        # Notably, turn amd64 into x86_64.
-        arches = [conf.manifest_v2_arch_map.get(arch, arch) for arch in arches]
-
-        # Finally, return the list, joined.
-        return ' '.join(arches)
 
     @region.cache_on_arguments()
     def _get_additional_data_from_distgit(self, repository, branch, commit):
