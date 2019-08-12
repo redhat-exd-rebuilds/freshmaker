@@ -33,6 +33,7 @@ BuildRequires:    PyYAML
 BuildRequires:    git
 BuildRequires:    python-qpid-proton
 BuildRequires:    python2-tabulate
+BuildRequires:    python2-kerberos
 
 BuildRequires:    python2-setuptools
 BuildRequires:    python2-fedora
@@ -90,6 +91,7 @@ Requires:    python2-systemd
 Requires:    python2-psycopg2
 Requires:    python2-defusedxml
 Requires:    python2-prometheus_client
+Requires:    python2-kerberos
 
 
 %description
