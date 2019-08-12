@@ -421,7 +421,7 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
         self.assertEqual(self.dummy_image["repository"], "rpms/repo-1")
         self.assertEqual(self.dummy_image["commit"], "commit_hash1")
         self.assertEqual(self.dummy_image["target"], "target1")
-        self.assertEqual(self.dummy_image["arches"], ['ppc64le', 's390x'])
+        self.assertEqual(self.dummy_image["arches"], 'ppc64le s390x')
 
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')

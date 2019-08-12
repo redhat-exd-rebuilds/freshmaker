@@ -262,10 +262,16 @@ class ContainerImage(dict):
             if not conf.supply_arch_overrides:
                 data['arches'] = None
             else:
-                archives = session.list_archives(build_id=build['build_id'])
-                data['arches'] = [archive['extra']['image']['arch'] for archive in archives if archive['btype'] == 'image']
+                data['arches'] = self._get_arches_from_koji(session, build['build_id'])
 
         return data
+
+    def _get_arches_from_koji(self, koji_session, build_id):
+        archives = koji_session.list_archives(build_id=build_id)
+        arches = [
+            archive['extra']['image']['arch']
+            for archive in archives if archive['btype'] == 'image']
+        return ' '.join(sorted(arches))
 
     @region.cache_on_arguments()
     def _get_additional_data_from_distgit(self, repository, branch, commit):
