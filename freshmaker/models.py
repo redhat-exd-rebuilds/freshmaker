@@ -282,6 +282,9 @@ class Event(FreshmakerBase):
 
     @property
     def event_dependencies(self):
+        """
+        Returns the list of Events this Event depends on.
+        """
         events = []
         deps = EventDependency.query.filter_by(event_id=self.id).all()
         for dep in deps:
@@ -290,13 +293,16 @@ class Event(FreshmakerBase):
         return events
 
     @property
-    def depends_on_events(self):
-        depends_on_events = []
+    def depending_events(self):
+        """
+        Returns the list of Events depending on this Event.
+        """
+        depending_events = []
         parents = EventDependency.query.filter_by(event_dependency_id=self.id).all()
         for p in parents:
-            depends_on_events.append(Event.query.filter_by(
+            depending_events.append(Event.query.filter_by(
                 id=p.event_id).first())
-        return depends_on_events
+        return depending_events
 
     def has_all_builds_in_state(self, state):
         """
@@ -385,8 +391,8 @@ class Event(FreshmakerBase):
     def json(self):
         data = self._common_json()
         data['builds'] = [b.json() for b in self.builds]
-        data['depends_on_events'] = [event.id for event in self.depends_on_events]
-        data['depending_events'] = [event.id for event in self.event_dependencies]
+        data['depends_on_events'] = [event.id for event in self.event_dependencies]
+        data['depending_events'] = [event.id for event in self.depending_events]
         return data
 
     def json_min(self):

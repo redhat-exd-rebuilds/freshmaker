@@ -317,6 +317,30 @@ class TestViews(helpers.ModelsTestCase):
         self.assertEqual(data['event_type_id'], models.EVENT_TYPES[events.TestingEvent])
         self.assertEqual(len(data['builds']), 3)
 
+    def test_query_event_without_builds(self):
+        resp = self.client.get('/api/1/events/?show_full_json=False')
+        data = json.loads(resp.get_data(as_text=True))
+        self.assertEqual(data['items'][0]['id'], 2)
+        self.assertRaises(KeyError, lambda: data['items'][0]['builds'])
+
+    def test_query_event_id_without_builds(self):
+        resp = self.client.get('/api/1/events/2?show_full_json=False')
+        data = json.loads(resp.get_data(as_text=True))
+        self.assertEqual(data['id'], 2)
+        self.assertRaises(KeyError, lambda: data['builds'])
+
+    def test_query_event_without_builds_v2(self):
+        resp = self.client.get('/api/2/events/')
+        data = json.loads(resp.get_data(as_text=True))
+        self.assertEqual(data['items'][0]['id'], 2)
+        self.assertRaises(KeyError, lambda: data['items'][0]['builds'])
+
+    def test_query_event_id_without_builds_v2(self):
+        resp = self.client.get('/api/2/events/2')
+        data = json.loads(resp.get_data(as_text=True))
+        self.assertEqual(data['id'], 2)
+        self.assertRaises(KeyError, lambda: data['builds'])
+
     def test_query_events(self):
         resp = self.client.get('/api/1/events/')
         evs = json.loads(resp.get_data(as_text=True))['items']
@@ -342,6 +366,47 @@ class TestViews(helpers.ModelsTestCase):
         evs = json.loads(resp.get_data(as_text=True))['items']
         self.assertEqual(len(evs), 1)
         self.assertEqual(evs[0]['search_key'], 'RHSA-2018-101')
+
+    def test_query_event_by_state_name(self):
+        models.Event.create(db.session,
+                            "2018-00000000-0000-0000-0123-000000000001",
+                            "0123001",
+                            events.MBSModuleStateChangeEvent,
+                            state=EventState['COMPLETE'].value)
+        resp = self.client.get('/api/1/events/?state=complete')
+        evs = json.loads(resp.get_data(as_text=True))['items']
+        self.assertEqual(len(evs), 1)
+        self.assertEqual(evs[0]['state'], EventState['COMPLETE'].value)
+
+    def test_query_event_with_invalid_state_name(self):
+        resp = self.client.get('/api/1/events/?state=invalid')
+        data = json.loads(resp.get_data(as_text=True))
+        self.assertEqual(data['status'], 400)
+        self.assertEqual(data['message'], "Invalid state was supplied: invalid")
+
+    def test_query_event_by_multiple_state_names(self):
+        models.Event.create(db.session,
+                            "2018-00000000-0000-0000-0123-000000000001",
+                            "0123001",
+                            events.MBSModuleStateChangeEvent,
+                            state=EventState['BUILDING'].value)
+        models.Event.create(db.session,
+                            "2018-00000000-0000-0000-0123-000000000002",
+                            "0123002",
+                            events.MBSModuleStateChangeEvent,
+                            state=EventState['COMPLETE'].value)
+        models.Event.create(db.session,
+                            "2018-00000000-0000-0000-0123-000000000003",
+                            "0123003",
+                            events.MBSModuleStateChangeEvent,
+                            state=EventState['COMPLETE'].value)
+        resp = self.client.get('/api/1/events/?state=building&state=complete')
+        evs = json.loads(resp.get_data(as_text=True))['items']
+        self.assertEqual(len(evs), 3)
+        building_events = [e for e in evs if e['state'] == EventState['BUILDING'].value]
+        complete_events = [e for e in evs if e['state'] == EventState['COMPLETE'].value]
+        self.assertEqual(len(building_events), 1)
+        self.assertEqual(len(complete_events), 2)
 
     def test_query_event_order_by_default(self):
         resp = self.client.get('/api/1/events/')
@@ -495,14 +560,14 @@ class TestViews(helpers.ModelsTestCase):
         resp = self.client.get('/api/1/events/4')
         data = json.loads(resp.get_data(as_text=True))
         self.assertEqual(data['id'], event1.id)
-        self.assertEqual(data['depends_on_events'], [event.id])
-        self.assertEqual(data['depending_events'], [])
+        self.assertEqual(data['depends_on_events'], [])
+        self.assertEqual(data['depending_events'], [event.id])
 
         resp = self.client.get('/api/1/events/3')
         data = json.loads(resp.get_data(as_text=True))
         self.assertEqual(data['id'], event.id)
-        self.assertEqual(data['depends_on_events'], [])
-        self.assertEqual(data['depending_events'], [event1.id])
+        self.assertEqual(data['depends_on_events'], [event1.id])
+        self.assertEqual(data['depending_events'], [])
 
 
 class TestViewsMultipleFilterValues(helpers.ModelsTestCase):

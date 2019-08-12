@@ -163,8 +163,8 @@ class TestErrata(helpers.FreshmakerTestCase):
 
         self.patcher = helpers.Patcher(
             'freshmaker.errata.BugzillaAPI.')
-        self.patcher.patch("get_highest_impact",
-                           return_value="moderate")
+        self.patcher.patch("fetch_cve_metadata",
+                           return_value=["moderate", {}])
 
     def tearDown(self):
         super(TestErrata, self).tearDown()

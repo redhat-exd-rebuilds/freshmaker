@@ -121,18 +121,6 @@ class Config(object):
             'type': bool,
             'default': False,
             'desc': 'Debug mode'},
-        'pdc_url': {
-            'type': str,
-            'default': '',
-            'desc': 'PDC URL.'},
-        'pdc_insecure': {
-            'type': bool,
-            'default': False,
-            'desc': 'Allow insecure connection to PDC.'},
-        'pdc_develop': {
-            'type': bool,
-            'default': False,
-            'desc': 'PDC Development mode, basically noauth.'},
         'log_backend': {
             'type': str,
             'default': None,
@@ -171,7 +159,7 @@ class Config(object):
             'desc': 'Parsers defined for parse specific messages.'},
         'handlers': {
             'type': list,
-            'default': ["freshmaker.handlers.mbs:MBSModuleStateChangeHandler"],
+            'default': [],
             'desc': 'List of enabled handlers.'},
         'polling_interval': {
             'type': int,
@@ -193,14 +181,6 @@ class Config(object):
             'type': str,
             'default': 'Freshmaker <freshmaker-owner@fedoraproject.org>',
             'desc': 'Author for git commit.'},
-        'mbs_base_url': {
-            'type': str,
-            'default': "https://mbs.fedoraproject.org",
-            'desc': 'MBS Base URL'},
-        'mbs_auth_token': {
-            'type': str,
-            'default': '',
-            'desc': "OpenIDC token to use when communicating with MBS."},
         'koji_profile': {
             'type': str,
             'default': 'koji',

@@ -224,51 +224,63 @@ class EventAPI(MethodView):
 
     @freshmaker_event_api_latency.time()
     def get(self, id):
-        """ Returns the list of Freshmaker events.
+        """ Returns Freshmaker Events.
 
-        Whend ``id`` is set, only the Freshmaker Event defined by that ID is
+        If ``id`` is set, only the Freshmaker Event defined by that ID is
         returned.
 
-        **Sample response**:
+        :query string message_id: Return only events with this :ref:`message_id<event_message_id>`.
+        :query string search_key: Return only events with this :ref:`search_key<event_search_key>`.
+        :query number event_type_id: Return only events with this :ref:`event_type_id<event_event_type_id>`.
+        :query number/string state: Return only events int this :ref:`state<event_state>`.
+        :query bool show_full_json: When ``True``, the returned Freshmaker Event JSON objects
+            contains all the fields described in the
+            :ref:`Freshmaker Event representation for API version 1<event_json_api_1>`.
 
-        .. sourcecode:: none
+            When ``False``, the returned Freshmaker Event JSON objects are in the
+            :ref:`Freshmaker Event representation for API version 2<event_json_api_2>` format.
 
-            {
-                "builds": [],
-                "depending_events": [],
-                "depends_on_events": [],
-                "dry_run": null,
-                "event_type_id": 8,
-                "id": 1000,
-                "message_id": "ID:message-1",
-                "requested_rebuilds": [],
-                "requester": null,
-                "requester_metadata": {},
-                "search_key": "32460",
-                "state": 4,
-                "state_name": "SKIPPED",
-                "state_reason": "Event skipped",
-                "time_created": "2018-03-06T15:27:49Z",
-                "time_done": null,
-                "url": "/api/1/events/1000"
-            }
+            Default value for API version 1 is ``True``, for API version 2 is ``False``.
 
-        :statuscode 200: Current events are returned.
+        :query string order_by: Order the events by the given field. If ``-`` prefix is used,
+            the order will be descending. The default value is ``-id``. Available fields are:
+
+            - :ref:`id<event_id>`
+            - :ref:`message_id<event_message_id>`
+
+        :statuscode 200: Requested events are returned.
         :statuscode 404: Freshmaker event not found.
         """
+        # Boolean that is set to false if builds should not
+        # be displayed in order to increase api speed
+        # For API v1, this is true by default to not break the backward compatibility
+        # For API v2, this is false by default
+        value = request.args.getlist('show_full_json')
+        show_full_json = request.base_url.find("/api/1/") != -1
+        if len(value) == 1 and value[0] == 'False':
+            show_full_json = False
+        elif len(value) == 1 and value[0] == 'True':
+            show_full_json = True
+
         if id is None:
             p_query = filter_events(request)
 
             json_data = {
                 'meta': pagination_metadata(p_query)
             }
-            json_data['items'] = [item.json() for item in p_query.items]
+
+            if not show_full_json:
+                json_data['items'] = [item.json_min() for item in p_query.items]
+            else:
+                json_data['items'] = [item.json() for item in p_query.items]
 
             return jsonify(json_data), 200
 
         else:
             event = models.Event.query.filter_by(id=id).first()
             if event:
+                if not show_full_json:
+                    return jsonify(event.json_min()), 200
                 return jsonify(event.json()), 200
             else:
                 return json_error(404, "Not Found", "No such event found.")
@@ -280,7 +292,7 @@ class EventAPI(MethodView):
         Manage Freshmaker event defined by ID. The request must be
         :mimetype:`application/json`.
 
-        Returns the cancelled Freshmaker event.
+        Returns the cancelled Freshmaker event as JSON.
 
         **Sample request**:
 
@@ -292,30 +304,6 @@ class EventAPI(MethodView):
 
             {
                 "action": "cancel"
-            }
-
-        **Sample response**:
-
-        .. sourcecode:: none
-
-            {
-                "builds": [],
-                "depending_events": [],
-                "depends_on_events": [],
-                "dry_run": null,
-                "event_type_id": 8,
-                "id": 1000,
-                "message_id": "ID:message-1",
-                "requested_rebuilds": [],
-                "requester": null,
-                "requester_metadata": {},
-                "search_key": "32460",
-                "state": 4,
-                "state_name": "SKIPPED",
-                "state_reason": "Event skipped",
-                "time_created": "2018-03-06T15:27:49Z",
-                "time_done": null,
-                "url": "/api/1/events/1000"
             }
 
         :jsonparam string action: Action to do with an Event. Currently only "cancel"
@@ -387,7 +375,7 @@ class BuildAPI(MethodView):
         Trigger manual Freshmaker rebuild. The request must be
         :mimetype:`application/json`.
 
-        Returns the newly created Freshmaker event.
+        Returns the newly created Freshmaker event as JSON.
 
         **Sample request**:
 
@@ -401,29 +389,6 @@ class BuildAPI(MethodView):
                 "errata_id": 12345
             }
 
-        **Sample response**:
-
-        .. sourcecode:: none
-
-            {
-                "builds": [],
-                "depending_events": [],
-                "depends_on_events": [],
-                "dry_run": null,
-                "event_type_id": 8,
-                "id": 1000,
-                "message_id": "ID:message-1",
-                "requested_rebuilds": [],
-                "requester": null,
-                "requester_metadata": {},
-                "search_key": "32460",
-                "state": 4,
-                "state_name": "SKIPPED",
-                "state_reason": "Event skipped",
-                "time_created": "2018-03-06T15:27:49Z",
-                "time_done": null,
-                "url": "/api/1/events/1000"
-            }
 
         :jsonparam string errata_id: The ID of Errata advisory to rebuild
             artifacts for.
@@ -591,7 +556,7 @@ API_V1_MAPPING = {
 
 
 def register_api_v1():
-    """ Registers version 1 of MBS API. """
+    """ Registers version 1 of Freshmaker API. """
     for k, v in API_V1_MAPPING.items():
         view = v.as_view(k)
         for key, val in api_v1.get(k, {}).items():
@@ -603,4 +568,20 @@ def register_api_v1():
     app.register_blueprint(monitor_api)
 
 
+def register_api_v2():
+    """ Registers version 2 of Freshmaker API. """
+
+    # The API v2 has the same URL schema as v1, only semantic is different.
+    for k, v in API_V1_MAPPING.items():
+        view = v.as_view(k + "_v2")
+        for key, val in api_v1.get(k, {}).items():
+            app.add_url_rule(val['url'].replace("/api/1/", "/api/2/"),
+                             endpoint=key + "_v2",
+                             view_func=view,
+                             **val['options'])
+
+    app.register_blueprint(monitor_api)
+
+
 register_api_v1()
+register_api_v2()

@@ -5,15 +5,46 @@ import tempfile
 
 from freshmaker.config import all_, any_  # noqa
 
-# FIXME: workaround for this moment till confdir, dbdir (installdir etc.) are
-# declared properly somewhere/somehow
-confdir = os.path.abspath(os.path.dirname(__file__))
-# use parent dir as dbdir else fallback to current dir
-dbdir = os.path.abspath(os.path.join(confdir, '..')) if confdir.endswith('conf') \
-    else confdir
-
+dbdir = os.path.abspath(os.path.dirname(__file__))
 
 class BaseConfiguration(object):
+
+    # EDIT FOLLOWING OPTIONS BASED ON YOUR ENVIRONMENT:
+    # =================================================
+    #
+    # Base URL of git repository with source artifacts.
+    GIT_BASE_URL = "git://pkgs.fedoraproject.org"
+
+    # Read Koji configuration from profile instead of reading them from
+    # configuration file directly.
+    KOJI_PROFILE = "brew"
+
+    ERRATA_TOOL_SERVER_URL = "https://errata.localhost.tld"
+    PULP_SERVER_URL = "https://pulp.localhost.tld"
+    PULP_USERNAME = "username"
+    PULP_PASSWORD = "password"
+    LIGHTBLUE_SERVER_URL = "https://lightblue.localhost.tld"
+    LIGHTBLUE_CERTIFICATE = "./lb-freshmaker-cert.pem"
+    LIGHTBLUE_PRIVATE_KEY = "./lb-freshmaker-key.pem"
+    LIGHTBLUE_RELEASED_DEPENDENCIES_ONLY = True
+
+    HANDLER_BUILD_WHITELIST = {
+        'global': {
+            'image': any_(
+                # In DRY_RUN mode, allow rebuilding any shipped-live advisory.
+                # That's useful for testing when submitting rebuilds manually.
+                {
+                    'advisory_state': 'SHIPPED_LIVE',
+                    'dry_run': True,
+                    'published': True,
+                }
+            )
+        },
+    }
+
+
+    # DEFAULT VALUES:
+    # ===============
     # Make this random (used to generate session keys)
     SECRET_KEY = '74d9e9f9cd40e66fc6c4c2e9987dce48df3ce98542529fd0'
     SQLALCHEMY_DATABASE_URI = 'sqlite:///{0}'.format(os.path.join(
@@ -25,7 +56,7 @@ class BaseConfiguration(object):
 
     SERVER_NAME = 'localhost:5001'
 
-    DEBUG = False
+    DEBUG = True
     # Global network-related values, in seconds
     NET_TIMEOUT = 120
     NET_RETRY_INTERVAL = 30
@@ -33,42 +64,14 @@ class BaseConfiguration(object):
     SYSTEM = 'koji'
 
     # Available backends are: console, file, journal.
-    LOG_BACKEND = 'journal'
-
-    # Path to log file when LOG_BACKEND is set to "file".
-    LOG_FILE = 'freshmaker.log'
+    LOG_BACKEND = 'console'
 
     # Available log levels are: debug, info, warn, error.
-    LOG_LEVEL = 'info'
-
-    MESSAGING_TOPIC_PREFIX = ['org.fedoraproject.prod']
-
-    # Parsers defined for parse specific messages
-    PARSERS = [
-        'freshmaker.parsers.internal:FreshmakerManualRebuildParser',
-        'freshmaker.parsers.odcs:ComposeStateChangeParser',
-    ]
-
-    # List of enabled composing handlers.
-    HANDLERS = [
-        'freshmaker.handlers.internal:UpdateDBOnODCSComposeFail',
-        'freshmaker.handlers.koji:RebuildImagesOnODCSComposeDone',
-    ]
-
-    # Base URL of git repository with source artifacts.
-    GIT_BASE_URL = "git://pkgs.fedoraproject.org"
-
-    # SSH base URL of git repository
-    GIT_SSH_BASE_URL = "ssh://%s@pkgs.fedoraproject.org/"
-
-    # GIT user for cloning and pushing repo
-    GIT_USER = ""
+    LOG_LEVEL = 'debug'
 
     # Read Koji configuration from profile instead of reading them from
-    # configuration file directly. For staging Koji, it is stg.
-    KOJI_PROFILE = 'koji'
-    KOJI_PROXYUSER = False
-    KOJI_BUILD_OWNER = 'freshmaker'
+    # configuration file directly.
+    KOJI_PROFILE = "brew"
 
     # Settings for docker image rebuild handler
     KOJI_CONTAINER_SCRATCH_BUILD = False
@@ -260,49 +263,3 @@ class DevConfiguration(BaseConfiguration):
     AUTH_OPENIDC_USERINFO_URI = 'https://iddev.fedorainfracloud.org/openidc/UserInfo'
 
 
-class TestConfiguration(BaseConfiguration):
-    LOG_BACKEND = 'console'
-    LOG_LEVEL = 'debug'
-    DEBUG = True
-
-    SQLALCHEMY_DATABASE_URI = 'sqlite://'
-
-    MESSAGING = 'in_memory'
-    MESSAGING_SENDER = 'in_memory'
-
-    # Global network-related values, in seconds
-    NET_TIMEOUT = 3
-    NET_RETRY_INTERVAL = 1
-
-    KOJI_CONTAINER_SCRATCH_BUILD = True
-
-    LIGHTBLUE_SERVER_URL = ''  # replace with real dev server url
-    LIGHTBLUE_VERIFY_SSL = False
-
-    # Disable caching for tests
-    DOGPILE_CACHE_BACKEND = "dogpile.cache.null"
-
-    AUTH_BACKEND = 'noauth'
-    AUTH_LDAP_SERVER = 'ldap://ldap.example.com'
-    AUTH_LDAP_GROUP_BASE = 'ou=groups,dc=example,dc=com'
-    MAX_THREAD_WORKERS = 1
-
-    HANDLER_BUILD_WHITELIST = {
-        'GenerateAdvisorySignedEventOnRPMSign': {
-            'image': {
-                'advisory_state': 'REL_PREP|PUSH_READY|IN_PUSH|SHIPPED_LIVE',
-            },
-        },
-        'UpdateDBOnAdvisoryChange': {
-            'image': {
-                'advisory_state': 'REL_PREP|PUSH_READY|IN_PUSH|SHIPPED_LIVE',
-            },
-        },
-    }
-
-    KRB_AUTH_CCACHE_FILE = "freshmaker_cc_$pid_$tid"
-    ERRATA_TOOL_SERVER_URL = "http://localhost/"  # fake URL just for tests.
-
-
-class ProdConfiguration(BaseConfiguration):
-    pass

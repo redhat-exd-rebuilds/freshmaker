@@ -645,8 +645,10 @@ class LightBlue(object):
 
         repos = []
         for repo_data in response['processed']:
-            if "auto_rebuild_tags" not in repo_data:
-                repo_data["auto_rebuild_tags"] = ["latest"]
+            if not repo_data.get('auto_rebuild_tags'):
+                log.info('"auto_rebuild_tags" not set for %s repository, ignoring repository',
+                         repo_data["repository"])
+                continue
             repo = ContainerRepository()
             repo.update(repo_data)
             repos.append(repo)
@@ -1137,6 +1139,77 @@ class LightBlue(object):
 
         return images[0]
 
+    @region.cache_on_arguments()
+    def get_repository_from_name(self, repo_name):
+        """
+        Returns the ContainerRepository object based on the Repository name.
+        """
+        query = {
+            "objectType": "containerRepository",
+            "query": {
+                "$and": [
+                    {
+                        "field": "repository",
+                        "op": "=",
+                        "rvalue": repo_name
+                    },
+
+                ]
+            },
+            "projection": [
+                {"field": "*", "include": True, "recursive": True}
+            ]
+        }
+
+        repos = self.find_container_repositories(query)
+        if not repos:
+            return None
+
+        if len(repos) != 1:
+            raise ValueError("Multiple records found in Lightblue for repository %s." % repo_name)
+
+        return repos[0]
+
+    def find_latest_parent_image(self, parent_top_layer, parent_build_layers_count):
+        """
+        Finds the latest published parent image defined by the `parent_top_layer` and
+        `parent_build_layers_count`. For more info about these variables, refer to
+        `find_parent_images_with_package`.
+
+        This method tries to find out the latest published parent image. If it fails
+        to find out, it simply returns the unpublished image defined by the input args.
+        """
+        latest_parent = self.get_image_by_layer(
+            parent_top_layer, parent_build_layers_count, None)
+        if not latest_parent or "repositories" not in latest_parent:
+            return latest_parent
+
+        latest_parent_nvr = kobo.rpmlib.parse_nvr(latest_parent["brew"]["build"])
+
+        for repo in latest_parent["repositories"]:
+            repo_data = self.get_repository_from_name(repo["repository"])
+            if not repo_data:
+                continue
+
+            possible_latest_parents = self.find_images_with_included_srpms(
+                [], [], {repo["repository"]: repo_data}, include_rpms=False)
+            for possible_latest_parent in possible_latest_parents:
+                # Treat the `possible_latest_parent` as `latest_parent` in case its
+                # Name and Version are the same and Release is higher.
+                # compare_nvr return values:
+                #   - nvr1 newer than nvr2: 1
+                #   - same nvrs: 0
+                #   - nvr1 older: -1
+                parsed_nvr = kobo.rpmlib.parse_nvr(possible_latest_parent["brew"]["build"])
+                if (parsed_nvr["name"] == latest_parent_nvr["name"] and
+                        parsed_nvr["version"] == latest_parent_nvr["version"] and
+                        kobo.rpmlib.compare_nvr(
+                            latest_parent_nvr, parsed_nvr, ignore_epoch=True) == -1):
+                    latest_parent = possible_latest_parent
+                    latest_parent_nvr = kobo.rpmlib.parse_nvr(latest_parent["brew"]["build"])
+
+        return latest_parent
+
     def find_parent_images_with_package(self, child_image, srpm_name, layers):
         """
         Returns the chain of all parent images of the image with
@@ -1193,9 +1266,8 @@ class LightBlue(object):
                     # We still want to set the parent of the last image with
                     # the package so we know against which image it has been
                     # built.
-                    parent = self.get_image_by_layer(parent_top_layer,
-                                                     parent_build_layers_count,
-                                                     None)
+                    parent = self.find_latest_parent_image(
+                        parent_top_layer, parent_build_layers_count)
 
                     children_image_layers_count = parent_build_layers_count + 1
                     if parent is None and children_image_layers_count != 2:
@@ -1581,8 +1653,7 @@ class LightBlue(object):
                 if rebuild_list[srpm_name]:
                     image['parent'] = rebuild_list[srpm_name][0]
                 else:
-                    parent = self.get_image_by_layer(layers[1], len(layers) - 1,
-                                                     None)
+                    parent = self.find_latest_parent_image(layers[1], len(layers) - 1)
                     if parent:
                         parent.resolve(self, [image])
                     elif len(layers) != 2:

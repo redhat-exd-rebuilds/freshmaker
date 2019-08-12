@@ -826,14 +826,28 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                     'metrics': {
                         'pulls_in_last_30_days': 0,
                         'last_update_date': '20170223T08:28:40.913-0500'
-                    }
+                    },
+                    'repository': 'spam',
+                    'auto_rebuild_tags': ['latest'],
                 },
                 {
                     'creationDate': '20161020T04:52:43.365-0400',
                     'metrics': {
                         'last_update_date': '20170501T03:00:19.892-0400',
                         'pulls_in_last_30_days': 20
-                    }
+                    },
+                    'repository': 'bacon',
+                    'auto_rebuild_tags': ['latest'],
+                },
+                {
+                    'creationDate': '20161020T04:52:43.365-0400',
+                    'metrics': {
+                        'last_update_date': '20170501T03:00:19.892-0400',
+                        'pulls_in_last_30_days': 20
+                    },
+                    # This repository is ignored by Freshmaker because it does not
+                    # have auto_rebuild_tags set.
+                    'repository': 'ignored-due-to-missing-tags',
                 }
             ],
             'entityVersion': '0.0.11',
@@ -870,6 +884,9 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         self.assertEqual(0, repo['metrics']['pulls_in_last_30_days'])
         self.assertEqual('20170223T08:28:40.913-0500', repo['metrics']['last_update_date'])
         self.assertEqual(["latest"], repo["auto_rebuild_tags"])
+
+        self.assertEqual(repos[0]['repository'], 'spam')
+        self.assertEqual(repos[1]['repository'], 'bacon')
 
     @patch('freshmaker.lightblue.requests.post')
     def test_raise_error_if_request_data_is_incorrect(self, post):
@@ -1599,6 +1616,31 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                             {'field': 'rpm_manifest.*.rpms', 'include': True, 'recursive': True},
                             {'field': 'rpm_manifest.*.rpms.*.srpm_name', 'include': True, 'recursive': True}],
              'objectType': 'containerImage'})
+
+    @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
+    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @patch('os.path.exists')
+    def test_find_latest_parent_image(self, exists, cont_images, cont_repos):
+        repos = [{
+            "repository": "product/repo1", "published": True,
+            'tags': [{"name": "latest"}]}]
+
+        parent = ContainerImage.create({
+            "brew": {"build": "parent-1-2"}, "repositories": repos})
+        latest_parent = ContainerImage.create({
+            "brew": {"build": "parent-1-3"}, "repositories": repos})
+        older_parent = ContainerImage.create({
+            "brew": {"build": "parent-1-1"}, "repositories": repos})
+        too_new_parent = ContainerImage.create({
+            "brew": {"build": "parent-50-2"}, "repositories": repos})
+        cont_images.return_value = [parent, latest_parent, older_parent, too_new_parent]
+        cont_repos.return_value = [self.fake_repositories_with_content_sets[0]]
+
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key)
+        image = lb.find_latest_parent_image("foo", 1)
+        self.assertEqual(image["brew"]["build"], "parent-1-3")
 
 
 class TestEntityVersion(helpers.FreshmakerTestCase):
