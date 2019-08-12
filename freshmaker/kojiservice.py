@@ -207,6 +207,9 @@ class KojiService(object):
     def get_task_info(self, task_id):
         return self.session.getTaskInfo(task_id)
 
+    def list_archives(self, build_id):
+        return self.session.listArchives(build_id)
+
     def get_container_build_id_from_task(self, task_id):
         """
         Return container build id by check 'koji_builds' in build
