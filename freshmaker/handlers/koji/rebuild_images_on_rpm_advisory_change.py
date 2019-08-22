@@ -263,7 +263,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                 # rebuild. If some image is not in the latest released version and
                 # it is included in a rebuild, it must be just a dependency of
                 # other image.
-                if "latest_released" in image:
+                if image.get('directly_affected'):
                     rebuild_reason = RebuildReason.DIRECTLY_AFFECTED.value
                 else:
                     rebuild_reason = RebuildReason.DEPENDENCY.value

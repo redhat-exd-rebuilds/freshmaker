@@ -1313,6 +1313,7 @@ class LightBlue(object):
             release_categories = image.get("release_categories", [])
             if "Beta" not in release_categories and "Tech Preview" not in release_categories:
                 image["latest_released"] = True
+            image["directly_affected"] = True
             return image
 
         resolved_images = []

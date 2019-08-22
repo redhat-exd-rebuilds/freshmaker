@@ -835,8 +835,8 @@ class TestBatches(helpers.ModelsTestCase):
                    [self._mock_build("child1_parent2", "child1_parent3"),
                     self._mock_build("child2_parent1", "child2_parent2")],
                    [self._mock_build("child1_parent1", "child1_parent2", error="Fail"),
-                    self._mock_build("child2", "child2_parent1", latest_released=True)],
-                   [self._mock_build("child1", "child1_parent1", latest_released=True)]]
+                    self._mock_build("child2", "child2_parent1", directly_affected=True)],
+                   [self._mock_build("child1", "child1_parent1", directly_affected=True)]]
 
         # Flat list of images from batches with brew build id as a key.
         images = {}

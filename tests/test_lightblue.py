@@ -1182,6 +1182,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                  },
                                  'content_sets': ["dummy-content-set-1"],
                                  'content_sets_source': 'lightblue_container_image',
+                                 'directly_affected': True,
                                  "release_categories": ["Generally Available"],
                                  'repositories': [
                                      {'repository': 'product2/repo2', 'published': True,
