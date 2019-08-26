@@ -17,6 +17,11 @@ config = dict(
                 "propagate": True,
                 "handlers": ["console"],
             },
+            proton={
+                "level": "INFO",
+                "propagate": True,
+                "handlers": ["console"],
+            },
             # freshmaker={
             #     "level": "INFO",
             #     "propagate": True,
