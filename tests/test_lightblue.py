@@ -738,6 +738,43 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             },
         ]
 
+        self.fake_images_with_modules = [
+            {
+                'brew': {
+                    'completion_date': u'20170421T04:27:51.000-0400',
+                    'build': 'package-name-3-4-12.10',
+                    'package': 'package-name-1'
+                },
+                "content_sets": ["dummy-content-set-1",
+                                 "dummy-content-set-2"],
+                'repositories': [
+                    {'repository': 'product2/repo2', 'published': True,
+                     'tags': [{"name": "tag2"}]}
+                ],
+                'parsed_data': {
+                    'files': [
+                        {
+                            'key': 'buildfile',
+                            'content_url': 'http://git.repo.com/cgit/rpms/repo-1/plain/Dockerfile?id=commit_hash1',
+                            'filename': u'Dockerfile'
+                        }
+                    ],
+                },
+                'rpm_manifest': [{
+                    'rpms': [
+                        {
+                            "srpm_name": "openssl",
+                            "srpm_nevra": "openssl-1.2.1-2.module+el8.0.0+3248+9d514f3b.src"
+                        },
+                        {
+                            "srpm_name": "tespackage",
+                            "srpm_nevra": "testpackage-10:1.2.3-1.src"
+                        }
+                    ]
+                }]
+            },
+        ]
+
         self.fake_container_images = [
             ContainerImage.create(data)
             for data in self.fake_images_with_parsed_data]
@@ -745,6 +782,10 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         self.fake_container_images_floating_tag = [
             ContainerImage.create(data)
             for data in self.fake_images_with_parsed_data_floating_tag]
+
+        self.fake_images_with_modules = [
+            ContainerImage.create(data)
+            for data in self.fake_images_with_modules]
 
         self.fake_koji_builds = [{"task_id": 654321}, {"task_id": 123456}]
         self.fake_koji_task_requests = [
@@ -1648,6 +1689,31 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                        private_key=self.fake_private_key)
         image = lb.find_latest_parent_image("foo", 1)
         self.assertEqual(image["brew"]["build"], "parent-1-3")
+
+    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @patch('os.path.exists')
+    def test_images_with_modular_container_image(
+            self, exists, cont_images):
+
+        exists.return_value = True
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key)
+        repositories = {
+            repo["repository"]: repo for repo in
+            self.fake_repositories_with_content_sets}
+        cont_images.return_value = (
+            self.fake_images_with_modules)
+        ret = lb.find_images_with_included_srpms(
+            ["content-set-1", "content-set-2"], ["openssl-1.2.3-2.module+el8.0.0+3248+9d514f3b.src"], repositories)
+        self.assertEqual(
+            [image["brew"]["build"] for image in ret],
+            ["package-name-3-4-12.10"])
+        ret = lb.find_images_with_included_srpms(
+            ["content-set-1", "content-set-2"], ["openssl-1.2.3-2.el8.0.0+3248+9d514f3b.src"], repositories)
+        self.assertEqual(
+            [image["brew"]["build"] for image in ret],
+            [])
 
 
 class TestEntityVersion(helpers.FreshmakerTestCase):

@@ -777,6 +777,60 @@ class LightBlue(object):
                         image["brew"]["build"], srpm_name_to_nvrs.values()))
         return ret
 
+    def filter_out_non_modular_container_images(self, images, srpm_name_to_nvrs):
+        """
+        Filter out container images which contain a component from a module but
+        do not contain the module itself.
+
+        :param list images: List of ContainerImage instances.
+        :param dict srpm_name_to_nvrs: Dict with SRPM name as a key and list
+            of NVRs as a value.
+        :rtype: list
+        :return: List of ContainerImage instances without the filtered images.
+        """
+        ret = []
+        for image in images:
+            if "rpm_manifest" not in image or not image["rpm_manifest"]:
+                # Do not filter if we are not sure what RPMs are in the image.
+                ret.append(image)
+                log.info(("Not filtering out non modular container images"
+                          "because we are not sure what RPMs are in the image."))
+                continue
+            # There is always just single "rpm_manifest". Lightblue returns
+            # this as a list, because it is reference to
+            # containerImageRPMManifest.
+            rpm_manifest = image["rpm_manifest"][0]
+            if "rpms" not in rpm_manifest:
+                # Do not filter if we are not sure what RPMs are in the image.
+                ret.append(image)
+                log.info(("Not filtering out non modular container images"
+                          "because we are not sure what RPMs are in the image."))
+                continue
+            # Check whether the RPMs contained in the images are installed from module
+            # and if there are other images that does not install the RPM from module
+            # so that we can ignore these latter.
+            image_included = False
+            rpms = rpm_manifest["rpms"]
+            for rpm in rpms:
+                for srpm_nvr in srpm_name_to_nvrs.get(rpm.get("srpm_name"), []):
+                    if (("module+" in srpm_nvr and "module+" in rpm["srpm_nevra"]) or
+                            ("module+" not in srpm_nvr and "module+" not in rpm["srpm_nevra"])):
+                        ret.append(image)
+                        image_included = True
+                        break
+                if image_included:
+                    break
+            else:
+                # Oh-no, the mighty for/else block!
+                # The else clause executes after the loop completes normally.
+                # This means that the loop did not encounter a break statement.
+                # In our case, this means that we filtered out the image.
+                log.info(
+                    "Will not rebuild %s, because it does not contain "
+                    "RPMs from modules: %r" % (
+                        image["brew"]["build"], srpm_name_to_nvrs.values()))
+        return ret
+
     def find_images_with_included_srpms(
             self, content_sets, srpm_nvrs, repositories, published=True,
             include_rpms=True):
@@ -879,6 +933,7 @@ class LightBlue(object):
                         break
         images = new_images
         images = self.filter_out_images_with_lower_srpm_nvr(images, srpm_name_to_nvrs)
+        images = self.filter_out_non_modular_container_images(images, srpm_name_to_nvrs)
         return images
 
     def get_images_by_nvrs(self, nvrs, published=True, content_sets=None,
