@@ -115,21 +115,21 @@ node('fedora-29') {
      * time, which will error out. */
     stage('Build RPM') {
         parallel (
-            'F30': {
+            'F28': {
                 sh """
-                mkdir -p mock-result/f30
-                flock /etc/mock/fedora-30-x86_64.cfg \
-                /usr/bin/mock -v --enable-network --resultdir=mock-result/f30 -r fedora-30-x86_64 --clean --rebuild rpmbuild-output/*.src.rpm
+                mkdir -p mock-result/f28
+                flock /etc/mock/fedora-28-x86_64.cfg \
+                /usr/bin/mock -v --enable-network --resultdir=mock-result/f28 -r fedora-28-x86_64 --clean --rebuild rpmbuild-output/*.src.rpm
                 """
-                archiveArtifacts artifacts: 'mock-result/f30/**'
+                archiveArtifacts artifacts: 'mock-result/f28/**'
             },
-            'F31': {
+            'F29': {
                 sh """
-                mkdir -p mock-result/f31
-                flock /etc/mock/fedora-31-x86_64.cfg \
-                /usr/bin/mock -v --enable-network --resultdir=mock-result/f31 -r fedora-31-x86_64 --clean --rebuild rpmbuild-output/*.src.rpm
+                mkdir -p mock-result/f29
+                flock /etc/mock/fedora-29-x86_64.cfg \
+                /usr/bin/mock -v --enable-network --resultdir=mock-result/f29 -r fedora-29-x86_64 --clean --rebuild rpmbuild-output/*.src.rpm
                 """
-                archiveArtifacts artifacts: 'mock-result/f31/**'
+                archiveArtifacts artifacts: 'mock-result/f29/**'
             },
         )
     }
@@ -139,11 +139,11 @@ node('docker') {
     stage('Build Docker container') {
         checkout scm
         // Remember to reflect the version change in the Dockerfile in the future.
-        sh 'grep -q "FROM fedora:31" Dockerfile'
-        unarchive mapping: ['mock-result/f31/': '.']
-        def f31_rpm = findFiles(glob: 'mock-result/f31/**/*.noarch.rpm')[0]
+        sh 'grep -q "FROM fedora:29" Dockerfile'
+        unarchive mapping: ['mock-result/f29/': '.']
+        def f29_rpm = findFiles(glob: 'mock-result/f29/**/*.noarch.rpm')[0]
         def appversion = sh(returnStdout: true, script: """
-            rpm2cpio ${f31_rpm} | \
+            rpm2cpio ${f29_rpm} | \
             cpio --quiet --extract --to-stdout ./usr/lib/python\\*/site-packages/freshmaker\\*.egg-info/PKG-INFO | \
             awk '/^Version: / {print \$2}'
         """).trim()
@@ -157,7 +157,7 @@ node('docker') {
             /* Note that the docker.build step has some magic to guess the
              * Dockerfile used, which will break if the build directory (here ".")
              * is not the final argument in the string. */
-            def image = docker.build "factory2/freshmaker:internal-${appversion}", "--build-arg freshmaker_rpm=$f31_rpm --build-arg cacert_url=https://password.corp.redhat.com/RH-IT-Root-CA.crt ."
+            def image = docker.build "factory2/freshmaker:internal-${appversion}", "--build-arg freshmaker_rpm=$f29_rpm --build-arg cacert_url=https://password.corp.redhat.com/RH-IT-Root-CA.crt ."
             /* Pushes to the internal registry can sometimes randomly fail
              * with "unknown blob" due to a known issue with the registry
              * storage configuration. So we retry up to 3 times. */
@@ -169,7 +169,7 @@ node('docker') {
         docker.withRegistry(
                 'https://quay.io/',
                 'quay-io-factory2-builder-sa-credentials') {
-            def image = docker.build "factory2/freshmaker:${appversion}", "--build-arg freshmaker_rpm=$f31_rpm ."
+            def image = docker.build "factory2/freshmaker:${appversion}", "--build-arg freshmaker_rpm=$f29_rpm ."
             image.push()
         }
         /* Save container version for later steps (this is ugly but I can't find anything better...) */
