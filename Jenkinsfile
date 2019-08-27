@@ -115,14 +115,6 @@ node('fedora-29') {
      * time, which will error out. */
     stage('Build RPM') {
         parallel (
-            'F28': {
-                sh """
-                mkdir -p mock-result/f28
-                flock /etc/mock/fedora-28-x86_64.cfg \
-                /usr/bin/mock -v --enable-network --resultdir=mock-result/f28 -r fedora-28-x86_64 --clean --rebuild rpmbuild-output/*.src.rpm
-                """
-                archiveArtifacts artifacts: 'mock-result/f28/**'
-            },
             'F29': {
                 sh """
                 mkdir -p mock-result/f29
