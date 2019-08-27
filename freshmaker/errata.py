@@ -321,6 +321,15 @@ class Errata(object):
         :rtype: set of strings
         :return: Set of NVR builds.
         """
+        def get_srpms_nvrs(build_dict):
+            """ Gets srpms nvrs from the build dictionary. """
+            for key, val in build_dict.items():
+                if build_dict.get('SRPMS'):
+                    return {nvr.split(".src.rpm")[0] for nvr in build_dict['SRPMS']}
+                if isinstance(val, dict):
+                    return get_srpms_nvrs(val)
+                return
+
         if rhel_release_prefix is None:
             rhel_release_prefix = conf.errata_rhel_release_prefix
 
@@ -342,7 +351,7 @@ class Errata(object):
                          product_version, rhel_release_prefix)
                 continue
             for build in builds:
-                nvrs.update(set(build.keys()))
+                nvrs.update(get_srpms_nvrs(build))
         return nvrs
 
     def get_pulp_repository_ids(self, errata_id):
