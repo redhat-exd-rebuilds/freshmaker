@@ -474,6 +474,26 @@ class ContainerImage(dict):
             err = "Cannot resolve the container image: %s" % e
             self.log_error(err)
 
+    def get_rpms(self):
+        """
+        Extracts the RPMs from the Container image.
+        """
+        if "rpm_manifest" not in self or not self["rpm_manifest"]:
+            # Do not filter if we are not sure what RPMs are in the image.
+            log.info(("Not filtering out this image because we "
+                      "are not sure what RPMs are in there."))
+            return
+        # There is always just single "rpm_manifest". Lightblue returns
+        # this as a list, because it is reference to
+        # containerImageRPMManifest.
+        rpm_manifest = self["rpm_manifest"][0]
+        if "rpms" not in rpm_manifest:
+            # Do not filter if we are not sure what RPMs are in the image.
+            log.info(("Not filtering out this image because we "
+                      "are not sure what RPMs are in there."))
+            return
+        return rpm_manifest["rpms"]
+
 
 class LightBlue(object):
     """Interface to query lightblue"""
@@ -731,28 +751,11 @@ class LightBlue(object):
         """
         ret = []
         for image in images:
-            if "rpm_manifest" not in image or not image["rpm_manifest"]:
-                # Do not filter if we are not sure what RPMs are in the image.
+            rpms = image.get_rpms()
+            if rpms is None:
                 ret.append(image)
-                log.info(("Not filtering out images with lower srpm_nvr"
-                          "because we are not sure what RPMs are in the image."))
-                continue
-            # There is always just single "rpm_manifest". Lightblue returns
-            # this as a list, because it is reference to
-            # containerImageRPMManifest.
-            rpm_manifest = image["rpm_manifest"][0]
-            if "rpms" not in rpm_manifest:
-                # Do not filter if we are not sure what RPMs are in the image.
-                ret.append(image)
-                log.info(("Not filtering out images with lower srpm_nvr"
-                          "because we are not sure what RPMs are in the image."))
-                continue
-            # Check whether all the input SRPMs in the container image are
-            # older or newer and filter the container images in case they are
-            # not older.
             image_included = False
-            rpms = rpm_manifest["rpms"]
-            for rpm in rpms:
+            for rpm in rpms or []:
                 image_srpm_nvr = kobo.rpmlib.parse_nvr(rpm["srpm_nevra"])
                 for srpm_nvr in srpm_name_to_nvrs.get(rpm.get("srpm_name"), []):
                     input_srpm_nvr = kobo.rpmlib.parse_nvr(srpm_nvr)
@@ -792,28 +795,14 @@ class LightBlue(object):
         """
         ret = []
         for image in images:
-            if "rpm_manifest" not in image or not image["rpm_manifest"]:
-                # Do not filter if we are not sure what RPMs are in the image.
+            rpms = image.get_rpms()
+            if rpms is None:
                 ret.append(image)
-                log.info(("Not filtering out non modular container images"
-                          "because we are not sure what RPMs are in the image."))
-                continue
-            # There is always just single "rpm_manifest". Lightblue returns
-            # this as a list, because it is reference to
-            # containerImageRPMManifest.
-            rpm_manifest = image["rpm_manifest"][0]
-            if "rpms" not in rpm_manifest:
-                # Do not filter if we are not sure what RPMs are in the image.
-                ret.append(image)
-                log.info(("Not filtering out non modular container images"
-                          "because we are not sure what RPMs are in the image."))
-                continue
+            image_included = False
             # Check whether the RPMs contained in the images are installed from module
             # and if there are other images that does not install the RPM from module
             # so that we can ignore these latter.
-            image_included = False
-            rpms = rpm_manifest["rpms"]
-            for rpm in rpms:
+            for rpm in rpms or []:
                 for srpm_nvr in srpm_name_to_nvrs.get(rpm.get("srpm_name"), []):
                     if (("module+" in srpm_nvr and "module+" in rpm["srpm_nevra"]) or
                             ("module+" not in srpm_nvr and "module+" not in rpm["srpm_nevra"])):
@@ -1107,16 +1096,8 @@ class LightBlue(object):
         if srpm_name:
             tmp = []
             for image in images:
-                if "rpm_manifest" not in image or not image["rpm_manifest"]:
-                    continue
-                # There can be just single "rpm_manifest". Lightblue returns
-                # this as a list, because it is reference to
-                # containerImageRPMManifest.
-                rpm_manifest = image["rpm_manifest"][0]
-                if "rpms" not in rpm_manifest:
-                    continue
-                rpms = rpm_manifest["rpms"]
-                for rpm in rpms:
+                rpms = image.get_rpms()
+                for rpm in rpms or []:
                     if "srpm_name" in rpm and rpm["srpm_name"] == srpm_name:
                         tmp.append(image)
                         break

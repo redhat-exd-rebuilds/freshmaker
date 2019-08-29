@@ -1022,7 +1022,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         repositories = {
             repo["repository"]: repo for repo in
             self.fake_repositories_with_content_sets}
-        cont_images.return_value = self.fake_images_with_parsed_data
+        cont_images.return_value = self.fake_container_images
         ret = lb.find_images_with_included_srpms(
             ["content-set-1", "content-set-2"], ["openssl-1.2.3-2"], repositories)
 
