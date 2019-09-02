@@ -55,6 +55,12 @@ xml_with_affected_pkgs = """
 xml_without_status = """<bugzilla><bug></bug></bugzilla>"""
 xml_with_empty_bug = """<bugzilla></bugzilla>"""
 
+xml_with_severity = """
+<bugzilla><bug>
+<bug_severity>{severity}</bug_severity>
+</bug></bugzilla>
+"""
+
 
 class TestBugzillaAPI(helpers.FreshmakerTestCase):
 
@@ -119,3 +125,13 @@ class TestBugzillaAPI(helpers.FreshmakerTestCase):
         self.assertEqual(highest_cve_severity, "low")
         self.assertEqual(affected_pkgs[0]['product'], 'openshift-enterprise-3.11')
         self.assertEqual(affected_pkgs[0]['pkg_name'], 'atomic-openshift')
+
+    @patch("freshmaker.bugzilla.requests.get")
+    def test_fetch_cve_metadata_with_severity(self, requests_get):
+        severities = ["low", "medium", "high", "critical"]
+        impacts = ["low", "moderate", "important", "critical"]
+        bugzilla = BugzillaAPI()
+        for i in range(0, 4):
+            requests_get.side_effect = [MockResponse(xml_with_severity.format(severity=severities[i]))]
+            highest_cve_severity, _ = bugzilla.fetch_cve_metadata(["CVE-1"])
+            self.assertEqual(highest_cve_severity, impacts[i])
