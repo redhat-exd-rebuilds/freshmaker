@@ -474,6 +474,26 @@ class ContainerImage(dict):
             err = "Cannot resolve the container image: %s" % e
             self.log_error(err)
 
+    def get_rpms(self):
+        """
+        Extracts the RPMs from the Container image.
+        """
+        if "rpm_manifest" not in self or not self["rpm_manifest"]:
+            # Do not filter if we are not sure what RPMs are in the image.
+            log.info(("Not filtering out this image because we "
+                      "are not sure what RPMs are in there."))
+            return
+        # There is always just single "rpm_manifest". Lightblue returns
+        # this as a list, because it is reference to
+        # containerImageRPMManifest.
+        rpm_manifest = self["rpm_manifest"][0]
+        if "rpms" not in rpm_manifest:
+            # Do not filter if we are not sure what RPMs are in the image.
+            log.info(("Not filtering out this image because we "
+                      "are not sure what RPMs are in there."))
+            return
+        return rpm_manifest["rpms"]
+
 
 class LightBlue(object):
     """Interface to query lightblue"""
@@ -731,39 +751,25 @@ class LightBlue(object):
         """
         ret = []
         for image in images:
-            if "rpm_manifest" not in image or not image["rpm_manifest"]:
-                # Do not filter if we are not sure what RPMs are in the image.
+            rpms = image.get_rpms()
+            if rpms is None:
                 ret.append(image)
-                continue
-            # There is always just single "rpm_manifest". Lightblue returns
-            # this as a list, because it is reference to
-            # containerImageRPMManifest.
-            rpm_manifest = image["rpm_manifest"][0]
-            if "rpms" not in rpm_manifest:
-                # Do not filter if we are not sure what RPMs are in the image.
-                ret.append(image)
-                continue
-            # Check whether all the input SRPMs in the container image are
-            # older or newer and filter the container images in case they are
-            # not older.
             image_included = False
-            rpms = rpm_manifest["rpms"]
-            for rpm in rpms:
-                if "srpm_name" in rpm and rpm["srpm_name"] in srpm_name_to_nvrs:
-                    image_srpm_nvr = kobo.rpmlib.parse_nvr(rpm["srpm_nevra"])
-                    for srpm_nvr in srpm_name_to_nvrs[rpm["srpm_name"]]:
-                        input_srpm_nvr = kobo.rpmlib.parse_nvr(srpm_nvr)
-                        # compare_nvr return values:
-                        #   - nvr1 newer than nvr2: 1
-                        #   - same nvrs: 0
-                        #   - nvr1 older: -1
-                        # We want to rebuild only images with SRPM NVR lower than
-                        # input SRPM NVR, therefore we check for -1.
-                        if kobo.rpmlib.compare_nvr(
-                                image_srpm_nvr, input_srpm_nvr, ignore_epoch=True) == -1:
-                            ret.append(image)
-                            image_included = True
-                            break
+            for rpm in rpms or []:
+                image_srpm_nvr = kobo.rpmlib.parse_nvr(rpm["srpm_nevra"])
+                for srpm_nvr in srpm_name_to_nvrs.get(rpm.get("srpm_name"), []):
+                    input_srpm_nvr = kobo.rpmlib.parse_nvr(srpm_nvr)
+                    # compare_nvr return values:
+                    #   - nvr1 newer than nvr2: 1
+                    #   - same nvrs: 0
+                    #   - nvr1 older: -1
+                    # We want to rebuild only images with SRPM NVR lower than
+                    # input SRPM NVR, therefore we check for -1.
+                    if kobo.rpmlib.compare_nvr(
+                            image_srpm_nvr, input_srpm_nvr, ignore_epoch=True) == -1:
+                        ret.append(image)
+                        image_included = True
+                        break
                 if image_included:
                     break
             else:
@@ -771,9 +777,48 @@ class LightBlue(object):
                 # The else clause executes after the loop completes normally.
                 # This means that the loop did not encounter a break statement.
                 # In our case, this means that we filtered out the image.
-                image.log_error(
+                log.info("Will not rebuild %s, because it does not contain "
+                         "older version of any input package: %r" % (
+                             image["brew"]["build"], srpm_name_to_nvrs.values()))
+        return ret
+
+    def filter_out_non_modular_container_images(self, images, srpm_name_to_nvrs):
+        """
+        Filter out container images which contain a component from a module but
+        do not contain the module itself.
+
+        :param list images: List of ContainerImage instances.
+        :param dict srpm_name_to_nvrs: Dict with SRPM name as a key and list
+            of NVRs as a value.
+        :rtype: list
+        :return: List of ContainerImage instances without the filtered images.
+        """
+        ret = []
+        for image in images:
+            rpms = image.get_rpms()
+            if rpms is None:
+                ret.append(image)
+            image_included = False
+            # Check whether the RPMs contained in the images are installed from module
+            # and if there are other images that does not install the RPM from module
+            # so that we can ignore these latter.
+            for rpm in rpms or []:
+                for srpm_nvr in srpm_name_to_nvrs.get(rpm.get("srpm_name"), []):
+                    if (("module+" in srpm_nvr and "module+" in rpm["srpm_nevra"]) or
+                            ("module+" not in srpm_nvr and "module+" not in rpm["srpm_nevra"])):
+                        ret.append(image)
+                        image_included = True
+                        break
+                if image_included:
+                    break
+            else:
+                # Oh-no, the mighty for/else block!
+                # The else clause executes after the loop completes normally.
+                # This means that the loop did not encounter a break statement.
+                # In our case, this means that we filtered out the image.
+                log.info(
                     "Will not rebuild %s, because it does not contain "
-                    "older version of any input package: %r" % (
+                    "RPMs from modules: %r" % (
                         image["brew"]["build"], srpm_name_to_nvrs.values()))
         return ret
 
@@ -879,6 +924,7 @@ class LightBlue(object):
                         break
         images = new_images
         images = self.filter_out_images_with_lower_srpm_nvr(images, srpm_name_to_nvrs)
+        images = self.filter_out_non_modular_container_images(images, srpm_name_to_nvrs)
         return images
 
     def get_images_by_nvrs(self, nvrs, published=True, content_sets=None,
@@ -1050,16 +1096,8 @@ class LightBlue(object):
         if srpm_name:
             tmp = []
             for image in images:
-                if "rpm_manifest" not in image or not image["rpm_manifest"]:
-                    continue
-                # There can be just single "rpm_manifest". Lightblue returns
-                # this as a list, because it is reference to
-                # containerImageRPMManifest.
-                rpm_manifest = image["rpm_manifest"][0]
-                if "rpms" not in rpm_manifest:
-                    continue
-                rpms = rpm_manifest["rpms"]
-                for rpm in rpms:
+                rpms = image.get_rpms()
+                for rpm in rpms or []:
                     if "srpm_name" in rpm and rpm["srpm_name"] == srpm_name:
                         tmp.append(image)
                         break
