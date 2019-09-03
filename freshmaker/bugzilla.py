@@ -38,6 +38,14 @@ class BugzillaAPI(object):
         "critical",
     ]
 
+    SEVERITY_MAPPING = {
+        # severity: impact
+        "low": "low",
+        "medium": "moderate",
+        "high": "important",
+        "critical": "critical",
+    }
+
     def __init__(self, server_url=None):
         """
         Creates new BugzillaAPI instance.
@@ -49,14 +57,15 @@ class BugzillaAPI(object):
         else:
             self.server_url = conf.bugzilla_server_url.rstrip('/')
 
-    def _get_cve_whiteboard(self, cve):
+    def query_bugzilla(self, cve):
         """
-        Returns the whiteboard dict about `cve` obtained from
-        show_bug.cgi?ctype=xml&id=$cve endpoint
+        Queries Bugzilla to find out infos about the cve, specifically
+        the list of major xml elements in the cve.
+        It queries show_bug.cgi?ctype=xml&id=$cve endpoint.
 
         :param str cve: CVE, for example "CVE-2017-10268".
-        :rtype: dict
-        :return: the status whiteboard of the bugzilla CVE.
+        :rtype: list
+        :return: list of major xml elements.
         """
         log.debug("Querying bugzilla for %s", cve)
         r = requests.get(
@@ -69,7 +78,17 @@ class BugzillaAPI(object):
 
         # List the major xml elements
         elements = list(list(root)[0])
+        return elements
 
+    def _get_cve_whiteboard(self, elements):
+        """
+        Returns the whiteboard dict about `cve` obtained from
+        show_bug.cgi?ctype=xml&id=$cve endpoint
+
+        :param str elements: list of major xml elements, returned by `query_bugzilla`.
+        :rtype: dict
+        :return: the status whiteboard of the bugzilla CVE.
+        """
         # Extract the whiteboard string
         whiteboard = [e.text for e in elements if e.tag == 'status_whiteboard']
 
@@ -97,10 +116,12 @@ class BugzillaAPI(object):
         and "pkg_name" of the affected packages.
         """
         max_rating = -1
+        elements = []
         affected_pkgs = []
+        severity = None
         for cve in cve_list:
             try:
-                data = self._get_cve_whiteboard(cve)
+                elements = self.query_bugzilla(cve)
             except requests.exceptions.HTTPError as e:
                 if e.response.status_code == 404:
                     log.warning(
@@ -114,22 +135,37 @@ class BugzillaAPI(object):
                     "threat_severity unknown.", cve)
                 continue
 
-            try:
-                severity = data["impact"].lower()
-            except KeyError:
-                log.warning(
-                    "CVE %s has no 'impact' in bugzilla whiteboard, "
-                    "threat_severity unknown.", cve)
-                continue
+            whiteboard = self._get_cve_whiteboard(elements)
 
-            try:
-                affected_pkgs.extend([
-                    {'product': pkg.split('/')[0], 'pkg_name': pkg.split('/')[-1]}
-                    for pkg, isaffected in data.items() if isaffected == 'affected'])
-            except IndexError:
-                log.warning("CVE %s has no affected packages in bugzilla whiteboard", cve)
-                continue
+            # Since Aug 1st 2019 the "whiteboard" field was removed. This is kept for backward
+            # compatibility. But in case the field is not present, instead of "impact" we need to
+            # check "severity", and in this case we also won't filter any package from RHSA builds,
+            # and just use all the packages attached to the advisory.
+            if whiteboard:
+                try:
+                    severity = whiteboard["impact"].lower()
+                except KeyError:
+                    log.info(
+                        "CVE %s has no 'impact' in bugzilla whiteboard, "
+                        "we'll try to get it from the 'severity field'.", cve)
 
+                try:
+                    affected_pkgs.extend([
+                        {'product': pkg.split('/')[0], 'pkg_name': pkg.split('/')[-1]}
+                        for pkg, isaffected in whiteboard.items() if isaffected == 'affected'])
+                except IndexError:
+                    log.warning("CVE %s has no affected packages in bugzilla whiteboard", cve)
+
+            if not severity:
+                try:
+                    # extract the severity string
+                    severity = [e.text for e in elements if e.tag == 'bug_severity']
+                    severity = BugzillaAPI.SEVERITY_MAPPING[severity[0].lower()]
+                except (IndexError, ValueError):
+                    log.warning(
+                        "CVE %s has no 'severity' in bugzilla cve, "
+                        "threat_severity unknown.", cve)
+                    continue
             try:
                 rating = BugzillaAPI.THREAT_SEVERITIES.index(severity)
             except ValueError:
