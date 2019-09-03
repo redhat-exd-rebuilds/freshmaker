@@ -311,6 +311,10 @@ class Errata(object):
         Returns set of NVRs of builds added to the advisory. These are just
         brew build NVRs, not the particular RPM NVRs.
 
+        If module build is attached to advisory, also all the NVRs of builds
+        included in this module build are returned, together with the NVR of
+        the module build.
+
         :param number errata_id: ID of advisory.
         :param string rhel_release_prefix: When set to non-empty string,
             it will be used to limit the set of builds returned by this
@@ -351,7 +355,16 @@ class Errata(object):
                          product_version, rhel_release_prefix)
                 continue
             for build in builds:
-                nvrs.update(get_srpms_nvrs(build))
+                # Add attached Koji build NVRs.
+                nvrs.update(set(build.keys()))
+
+                # Add attached SRPM NVRs. For normal RPM builds, these are the
+                # same as Koji build NVRs, but for modules, these are SRPMs
+                # included in a module.
+                srpm_nvrs = get_srpms_nvrs(build)
+                if srpm_nvrs:
+                    nvrs.update(srpm_nvrs)
+
         return nvrs
 
     def get_pulp_repository_ids(self, errata_id):

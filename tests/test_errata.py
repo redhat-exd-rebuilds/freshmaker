@@ -324,6 +324,25 @@ class TestErrata(helpers.FreshmakerTestCase):
         ret = self.errata.get_builds(28484, "RHEL-7")
         self.assertEqual(ret, set(['libntirpc-1.4.3-4.el7rhgs']))
 
+    @patch.object(Errata, "_errata_rest_get")
+    @patch.object(Errata, "_errata_http_get")
+    def test_get_builds_no_srpm(
+            self, errata_http_get, errata_rest_get):
+        api = MockedErrataAPI(errata_rest_get, errata_http_get)
+        api.builds_json = {
+            "PRODUCT1": [
+                {
+                    "libntirpc-1.4.3-4.el7rhgs":
+                    {
+                        "PRODUCT2-3.2-NFS":
+                            {"x86_64": ["libntirpc-devel-1.4.3-4.el7rhgs.x86_64.rpm"]}
+                    }
+                }
+            ]
+        }
+        ret = self.errata.get_builds(28484, "")
+        self.assertEqual(ret, set(['libntirpc-1.4.3-4.el7rhgs']))
+
     def test_get_docker_repo_tags(self):
         with patch.object(self.errata, "xmlrpc") as xmlrpc:
             xmlrpc.get_advisory_cdn_docker_file_list.return_value = {
