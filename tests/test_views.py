@@ -22,7 +22,6 @@
 import unittest
 import json
 import datetime
-import six
 import contextlib
 import flask
 
@@ -474,7 +473,7 @@ class TestViews(helpers.ModelsTestCase):
         self.assertEqual(len(event_types), len(models.EVENT_TYPES))
 
     def test_query_event_type(self):
-        for cls, val in six.iteritems(models.EVENT_TYPES):
+        for cls, val in models.EVENT_TYPES.items():
             resp = self.client.get('/api/1/event-types/%s' % val)
             event = json.loads(resp.get_data(as_text=True))
             self.assertEqual(event['id'], val)

@@ -21,8 +21,6 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
-import six
-
 from freshmaker import db
 from freshmaker.models import (
     ArtifactBuild, ArtifactBuildState, Compose, ArtifactBuildCompose)
@@ -65,7 +63,7 @@ class RebuildImagesOnODCSComposeDone(ContainerBuildHandler):
         if not self.dry_run:
             # In non-dry-run mode, check that all the composes are ready.
             # In dry-run mode, the composes are fake, so they are always ready.
-            builds_ready_to_rebuild = six.moves.filter(
+            builds_ready_to_rebuild = filter(
                 lambda build: build.composes_ready, builds_ready_to_rebuild)
 
         # Start the rebuild.

@@ -22,7 +22,6 @@
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
 import json
-import six
 from flask import request, jsonify
 from flask.views import MethodView
 from flask import g
@@ -158,7 +157,7 @@ api_v1 = {
 class EventTypeAPI(MethodView):
     def get(self, id):
         event_types = []
-        for cls, val in six.iteritems(models.EVENT_TYPES):
+        for cls, val in models.EVENT_TYPES.items():
             event_types.append({'name': cls.__name__, 'id': val})
 
         if id is None:

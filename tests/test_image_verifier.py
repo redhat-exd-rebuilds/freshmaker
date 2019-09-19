@@ -21,7 +21,6 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
-import six
 from mock import MagicMock
 
 from freshmaker.image_verifier import ImageVerifier
@@ -37,14 +36,14 @@ class TestImageVerifier(helpers.FreshmakerTestCase):
 
     def test_verify_repository_no_repo(self):
         self.lb.find_container_repositories.return_value = None
-        six.assertRaisesRegex(
-            self, ValueError, r'Cannot get repository.*',
+        self.assertRaisesRegex(
+            ValueError, r'Cannot get repository.*',
             self.verifier.verify_repository, "foo/bar")
 
     def test_get_verify_repository_multiple_repos(self):
         self.lb.find_container_repositories.return_value = ["foo", "bar"]
-        six.assertRaisesRegex(
-            self, ValueError, r'Multiple records found.*',
+        self.assertRaisesRegex(
+            ValueError, r'Multiple records found.*',
             self.verifier.verify_repository, "foo/bar")
 
     def test_verify_repository_deprecated(self):
@@ -52,8 +51,8 @@ class TestImageVerifier(helpers.FreshmakerTestCase):
             "release_categories": ["Deprecated"],
             "published": True,
             "auto_rebuild_tags": "latest"}]
-        six.assertRaisesRegex(
-            self, ValueError, r'.*but found \[\'Deprecated\'\].',
+        self.assertRaisesRegex(
+            ValueError, r'.*but found \[\'Deprecated\'\].',
             self.verifier.verify_repository, "foo/bar")
 
     def test_verify_repository_not_published(self):
@@ -61,8 +60,8 @@ class TestImageVerifier(helpers.FreshmakerTestCase):
             "release_categories": ["Generally Available"],
             "published": False,
             "auto_rebuild_tags": "latest"}]
-        six.assertRaisesRegex(
-            self, ValueError, r'.*is not published.',
+        self.assertRaisesRegex(
+            ValueError, r'.*is not published.',
             self.verifier.verify_repository, "foo/bar")
 
     def test_verify_repository_no_auto_rebuild_tags(self):
@@ -70,8 +69,8 @@ class TestImageVerifier(helpers.FreshmakerTestCase):
             "release_categories": ["Generally Available"],
             "published": True,
             "auto_rebuild_tags": []}]
-        six.assertRaisesRegex(
-            self, ValueError, r'.*this repository are disabled.',
+        self.assertRaisesRegex(
+            ValueError, r'.*this repository are disabled.',
             self.verifier.verify_repository, "foo/bar")
 
     def test_verify_repository_no_images(self):
@@ -81,8 +80,8 @@ class TestImageVerifier(helpers.FreshmakerTestCase):
             "published": True,
             "auto_rebuild_tags": ["latest"]}]
         self.lb.get_images_by_nvrs.return_value = []
-        six.assertRaisesRegex(
-            self, ValueError, r'No published images tagged by.*',
+        self.assertRaisesRegex(
+            ValueError, r'No published images tagged by.*',
             self.verifier.verify_repository, "foo/bar")
 
     def test_verify_repository_no_content_sets(self):
@@ -94,8 +93,8 @@ class TestImageVerifier(helpers.FreshmakerTestCase):
         self.lb.find_images_with_included_srpms.return_value = [{
             "brew": {"build": "foo-1-1"},
             "content_sets": []}]
-        six.assertRaisesRegex(
-            self, ValueError, r'.*are not set for this image.',
+        self.assertRaisesRegex(
+            ValueError, r'.*are not set for this image.',
             self.verifier.verify_repository, "foo/bar")
 
     def test_verify_repository(self):
@@ -124,14 +123,14 @@ class TestImageVerifier(helpers.FreshmakerTestCase):
 
     def test_get_verify_image_no_repo(self):
         self.lb.find_container_repositories.return_value = []
-        six.assertRaisesRegex(
-            self, ValueError, r'Cannot get repository.*',
+        self.assertRaisesRegex(
+            ValueError, r'Cannot get repository.*',
             self.verifier.verify_image, "foo/bar")
 
     def test_get_verify_image_multiple_repos(self):
         self.lb.find_container_repositories.return_value = ["foo", "bar"]
-        six.assertRaisesRegex(
-            self, ValueError, r'.*found in multiple repositories in Lightblue.',
+        self.assertRaisesRegex(
+            ValueError, r'.*found in multiple repositories in Lightblue.',
             self.verifier.verify_image, "foo/bar")
 
     def test_verify_image_no_images(self):
@@ -141,6 +140,6 @@ class TestImageVerifier(helpers.FreshmakerTestCase):
             "published": True,
             "auto_rebuild_tags": ["latest"]}]
         self.lb.get_images_by_nvrs.return_value = []
-        six.assertRaisesRegex(
-            self, ValueError, r'No published images tagged by.*',
+        self.assertRaisesRegex(
+            ValueError, r'No published images tagged by.*',
             self.verifier.verify_image, "foo/bar")

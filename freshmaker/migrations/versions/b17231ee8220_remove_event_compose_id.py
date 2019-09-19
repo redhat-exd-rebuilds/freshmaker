@@ -14,7 +14,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 from itertools import count
-from six import next
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import text

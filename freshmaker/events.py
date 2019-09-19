@@ -26,10 +26,7 @@ import itertools
 from freshmaker import conf
 from freshmaker.types import ArtifactType
 
-try:
-    from inspect import signature
-except ImportError:
-    from funcsigs import signature
+from inspect import signature
 
 
 class BaseEvent(object):

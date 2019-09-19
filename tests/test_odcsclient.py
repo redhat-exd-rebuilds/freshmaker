@@ -22,8 +22,6 @@
 # Written by Chenxiong Qi <cqi@redhat.com>
 #            Jan kaluza <jkaluza@redhat.com>
 
-import six
-
 from mock import patch, Mock
 from odcs.client.odcs import AuthMech
 
@@ -63,8 +61,8 @@ class TestCreateODCSClient(helpers.FreshmakerTestCase):
 
     @patch.object(conf, 'odcs_auth_mech', new='fas')
     def test_error_if_unsupported_auth_configured(self):
-        six.assertRaisesRegex(
-            self, ValueError, r'.*fas is not supported yet.',
+        self.assertRaisesRegex(
+            ValueError, r'.*fas is not supported yet.',
             create_odcs_client)
 
     @patch.object(conf, 'odcs_auth_mech', new='openidc')
@@ -82,8 +80,8 @@ class TestCreateODCSClient(helpers.FreshmakerTestCase):
 
     @patch.object(conf, 'odcs_auth_mech', new='openidc')
     def test_error_if_missing_openidc_token(self):
-        six.assertRaisesRegex(
-            self, ValueError, r'Missing OpenIDC token.*',
+        self.assertRaisesRegex(
+            ValueError, r'Missing OpenIDC token.*',
             create_odcs_client)
 
 

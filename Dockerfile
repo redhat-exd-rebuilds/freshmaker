@@ -14,10 +14,8 @@ RUN cd /etc/yum.repos.d/ \
     && dnf config-manager --add-repo http://download-ipv4.eng.brq.redhat.com/rel-eng/RCMTOOLS/latest-RCMTOOLS-2-F-29/compose/Everything/x86_64/os/ \
     && dnf -y clean all \
     && dnf -v --nogpg -y install \
-    httpd mod_wsgi mod_auth_gssapi python2-rhmsg mod_ssl \
+    httpd mod_wsgi mod_auth_gssapi python3-rhmsg mod_ssl python3-odcs-client \
     /tmp/$(basename $freshmaker_rpm) \
-    && dnf config-manager --add-repo http://download-ipv4.eng.brq.redhat.com/rel-eng/repos/eng-rhel-7/x86_64 \
-    && dnf --nogpg -y upgrade python2-odcs-client \
     && dnf -y -v downgrade https://kojipkgs.fedoraproject.org//packages/qpid-proton/0.26.0/1.fc29/x86_64/qpid-proton-c-0.26.0-1.fc29.x86_64.rpm \
     https://kojipkgs.fedoraproject.org//packages/qpid-proton/0.26.0/1.fc29/x86_64/python2-qpid-proton-0.26.0-1.fc29.x86_64.rpm \
     https://kojipkgs.fedoraproject.org//packages/qpid-proton/0.26.0/1.fc29/x86_64/python3-qpid-proton-0.26.0-1.fc29.x86_64.rpm \

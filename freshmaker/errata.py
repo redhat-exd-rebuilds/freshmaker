@@ -25,7 +25,7 @@ import os
 import requests
 import dogpile.cache
 from requests_kerberos import HTTPKerberosAuth
-from six.moves.xmlrpc_client import ServerProxy
+from xmlrpc.client import ServerProxy
 from kobo.xmlrpc import SafeCookieTransport
 
 from freshmaker.events import (

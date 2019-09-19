@@ -22,7 +22,6 @@
 import json
 import mock
 import os
-import six
 import sys
 import unittest
 
@@ -267,7 +266,7 @@ class TestRebuildImagesOnParentImageBuild(helpers.ModelsTestCase):
 
         self.handler.handle(event)
         self.assertEqual(build.state, ArtifactBuildState.FAILED.value)
-        six.assertRegex(self, build.state_reason, r"The following RPMs in container build.*")
+        self.assertRegex(build.state_reason, r"The following RPMs in container build.*")
 
     @mock.patch('freshmaker.handlers.ContainerBuildHandler.build_image_artifact_build')
     @mock.patch('freshmaker.handlers.ContainerBuildHandler.get_repo_urls')

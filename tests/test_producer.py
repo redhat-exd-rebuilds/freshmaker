@@ -25,7 +25,7 @@
 import koji
 
 from mock import patch, MagicMock
-from six.moves import queue
+import queue
 
 from freshmaker import db
 from freshmaker.events import ErrataAdvisoryRPMsSignedEvent

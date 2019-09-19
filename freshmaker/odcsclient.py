@@ -22,10 +22,10 @@
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
 # We have name conflict between two modules here:
-#  - "odcs" module provided by python2-odcs-client
+#  - "odcs" module provided by python3-odcs-client
 #  - "odcs" submodule in freshmaker.handlers.odcs
 #
-# Unfortunatelly we want to use "odcs" provided by python2-odcs-client
+# Unfortunatelly we want to use "odcs" provided by python3-odcs-client
 # in freshmaker.handlers __init__.py. We cannot  "import odcs" there, because
 # it would import freshmaker.handlers.odcs, so instead, we import it here
 # and in freshmaker.handler do "from freshmaker.odcsclient import ODCS".

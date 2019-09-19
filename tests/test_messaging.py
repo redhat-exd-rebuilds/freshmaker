@@ -21,7 +21,6 @@
 # Written by Chenxiong Qi <cqi@redhat.com>
 
 
-import six
 import unittest
 
 from mock import patch
@@ -83,8 +82,8 @@ class TestSelectMessagingBackend(BaseMessagingTest):
 
     def test_raise_error_if_backend_not_exists(self):
         messaging_patcher = patch.object(conf, 'messaging_sender', new='XXXX')
-        six.assertRaisesRegex(
-            self, ValueError, 'Unsupported messaging system',
+        self.assertRaisesRegex(
+            ValueError, 'Unsupported messaging system',
             messaging_patcher.start)
 
 
@@ -104,7 +103,6 @@ class TestPublishToFedmsg(BaseMessagingTest):
 
 
 @unittest.skipUnless(rhmsg, 'rhmsg is not available in Fedora yet.')
-@unittest.skipIf(six.PY3, 'rhmsg has no Python 3 package so far.')
 class TestPublishToRhmsg(BaseMessagingTest):
     """Test publish message to UMB using _rhmsg_publish backend"""
 

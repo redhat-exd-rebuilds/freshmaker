@@ -14,84 +14,74 @@ BuildRequires:    fedmsg-hub
 BuildRequires:    help2man
 BuildRequires:    kobo
 BuildRequires:    kobo-rpmlib
-BuildRequires:    python2-devel
-BuildRequires:    python2-flask-migrate
-BuildRequires:    python2-funcsigs
-BuildRequires:    python2-futures
-BuildRequires:    python2-pdc-client
-BuildRequires:    python-enum34
-BuildRequires:    python-flask-script
-BuildRequires:    python-httplib2
-BuildRequires:    python-m2ext
-BuildRequires:    python-munch
-BuildRequires:    python2-odcs-client
-BuildRequires:    python-dogpile-cache
-BuildRequires:    python2-krbcontext
-BuildRequires:    python-flask-login
-BuildRequires:    python-ldap
-BuildRequires:    PyYAML
+BuildRequires:    python3-devel
+BuildRequires:    python3-flask-migrate
+BuildRequires:    python3-pdc-client
+BuildRequires:    python3-flask-script
+BuildRequires:    python3-httplib2
+BuildRequires:    python3-munch
+BuildRequires:    python3-odcs-client
+BuildRequires:    python3-dogpile-cache
+BuildRequires:    python3-krbcontext
+BuildRequires:    python3-flask-login
+BuildRequires:    python3-ldap
+BuildRequires:    python3-pyyaml
 BuildRequires:    git
-BuildRequires:    python-qpid-proton
-BuildRequires:    python2-tabulate
-BuildRequires:    python2-kerberos
+BuildRequires:    python3-qpid-proton
+BuildRequires:    python3-tabulate
+BuildRequires:    python3-kerberos
 
-BuildRequires:    python2-setuptools
-BuildRequires:    python2-fedora
-BuildRequires:    python2-flask
-BuildRequires:    python2-flask-sqlalchemy
-BuildRequires:    python2-mock
-BuildRequires:    python2-nose
-BuildRequires:    python2-psutil
-BuildRequires:    python2-pytest
-BuildRequires:    python2-pyOpenSSL
-BuildRequires:    python2-six
-BuildRequires:    python2-sqlalchemy
-BuildRequires:    python2-koji
-BuildRequires:    python2-psycopg2
-BuildRequires:    python2-defusedxml
-BuildRequires:    python2-prometheus_client
+BuildRequires:    python3-setuptools
+BuildRequires:    python3-fedora
+BuildRequires:    python3-flask
+BuildRequires:    python3-flask-sqlalchemy
+BuildRequires:    python3-mock
+BuildRequires:    python3-nose
+BuildRequires:    python3-psutil
+BuildRequires:    python3-pytest
+BuildRequires:    python3-pyOpenSSL
+BuildRequires:    python3-sqlalchemy
+BuildRequires:    python3-koji
+BuildRequires:    python3-psycopg2
+BuildRequires:    python3-defusedxml
+BuildRequires:    python3-prometheus_client
 
 BuildRequires:    systemd
 %{?systemd_requires}
 
-Requires:    fedmsg-hub
+Requires:    python3-fedmsg
 Requires:    systemd
-Requires:    kobo
-Requires:    kobo-rpmlib
-Requires:    python2-funcsigs
-Requires:    python2-futures
-Requires:    python2-openidc-client
-Requires:    python2-pdc-client
-Requires:    python-enum34
-Requires:    python-flask-script
-Requires:    python-httplib2
-Requires:    python-m2ext
-Requires:    python-munch
-Requires:    python2-odcs-client
-Requires:    python-dogpile-cache
-Requires:    python2-krbcontext
-Requires:    python-flask-login
-Requires:    python-ldap
-Requires:    PyYAML
+Requires:    python3-kobo
+Requires:    python3-kobo-rpmlib
+Requires:    python3-openidc-client
+Requires:    python3-pdc-client
+Requires:    python3-flask-script
+Requires:    python3-httplib2
+Requires:    python3-munch
+Requires:    python3-odcs-client
+Requires:    python3-dogpile-cache
+Requires:    python3-krbcontext
+Requires:    python3-flask-login
+Requires:    python3-ldap
+Requires:    python3-pyyaml
 Requires:    git
-Requires:    python-qpid-proton
-Requires:    python2-tabulate
+Requires:    python3-qpid-proton
+Requires:    python3-tabulate
 
-Requires:    python2-koji
-Requires:    python2-fedora
-Requires:    python2-flask
-Requires:    python2-flask-migrate
-Requires:    python2-flask-sqlalchemy
-Requires:    python2-mock
-Requires:    python2-psutil
-Requires:    python2-pyOpenSSL
-Requires:    python2-six
-Requires:    python2-sqlalchemy
-Requires:    python2-systemd
-Requires:    python2-psycopg2
-Requires:    python2-defusedxml
-Requires:    python2-prometheus_client
-Requires:    python2-kerberos
+Requires:    python3-koji
+Requires:    python3-fedora
+Requires:    python3-flask
+Requires:    python3-flask-migrate
+Requires:    python3-flask-sqlalchemy
+Requires:    python3-mock
+Requires:    python3-psutil
+Requires:    python3-pyOpenSSL
+Requires:    python3-sqlalchemy
+Requires:    python3-systemd
+Requires:    python3-psycopg2
+Requires:    python3-defusedxml
+Requires:    python3-prometheus_client
+Requires:    python3-kerberos
 
 
 %description
@@ -106,13 +96,13 @@ sed -i '/koji/d' requirements.txt
 
 
 %build
-%py2_build
+%py3_build
 
 
 %install
-%py2_install
+%py3_install
 
-export PYTHONPATH=%{buildroot}%{python2_sitelib}
+export PYTHONPATH=%{buildroot}%{python3_sitelib}
 mkdir -p %{buildroot}%{_mandir}/man1
 for command in freshmaker-manager freshmaker-frontend freshmaker-gencert freshmaker-upgradedb ; do
 FRESHMAKER_CONFIG_FILE=conf/config.py %{buildroot}%{_bindir}/$command --help || true
@@ -125,13 +115,13 @@ install -d -m 0755 %{buildroot}%{_datadir}/freshmaker
 install -p -m 0644 contrib/freshmaker.wsgi %{buildroot}%{_datadir}/freshmaker
 
 # %check
-# nosetests-%{python2_version} -v
+# nosetests-%{python3_version} -v
 
 
 %files
 %doc README.md
 %license LICENSE
-%{python2_sitelib}/freshmaker*
+%{python3_sitelib}/freshmaker*
 %{_bindir}/freshmaker-*
 %{_mandir}/man1/freshmaker-*.1*
 %dir %{_sysconfdir}/freshmaker
@@ -140,7 +130,7 @@ install -p -m 0644 contrib/freshmaker.wsgi %{buildroot}%{_datadir}/freshmaker
 %config(noreplace) %{_sysconfdir}/freshmaker/config.py
 %exclude %{_sysconfdir}/freshmaker/*.py[co]
 %exclude %{_sysconfdir}/fedmsg.d/*.py[co]
-%exclude %{python2_sitelib}/conf/
+%exclude %{python3_sitelib}/conf/
 
 
 %changelog

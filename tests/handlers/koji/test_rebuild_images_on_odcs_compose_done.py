@@ -21,8 +21,6 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
-import six
-
 from mock import patch, PropertyMock
 
 from freshmaker import db
@@ -90,7 +88,7 @@ class TestRebuildImagesOnODCSComposeDone(helpers.ModelsTestCase):
         builds = [self.build_1, self.build_2, self.build_3,
                   self.build_4, self.build_5, self.build_6]
         composes = [self.compose_1] * 6
-        for build, compose in six.moves.zip(builds, composes):
+        for build, compose in zip(builds, composes):
             db.session.add(ArtifactBuildCompose(
                 build_id=build.id, compose_id=compose.id))
         db.session.commit()

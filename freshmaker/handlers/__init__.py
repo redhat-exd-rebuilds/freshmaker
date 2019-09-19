@@ -24,7 +24,6 @@
 import abc
 import json
 import re
-import six
 import copy
 from functools import wraps
 
@@ -339,7 +338,7 @@ class BaseHandler(object):
             if not rule:
                 return False
 
-            if not isinstance(rule[0], six.string_types):
+            if not isinstance(rule[0], str):
                 raise TypeError(
                     "Rule does not have any operator, use any_() or all_() "
                     "methods to construct the rule: %r" % rule)
@@ -627,4 +626,4 @@ class ContainerBuildHandler(BaseHandler):
             db.session.add(build)
             db.session.commit()
 
-        list(six.moves.map(build_image, builds))
+        list(map(build_image, builds))

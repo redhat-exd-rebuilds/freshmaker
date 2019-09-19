@@ -1,7 +1,6 @@
 fedmsg
 moksha.hub
 psutil
-funcsigs  # Python2 only
 httplib2
 kobo
 mock
@@ -9,16 +8,13 @@ munch
 pdc-client
 pyOpenSSL
 python-fedora
-six
 sqlalchemy
-futures  # Python 2 only
 Flask
 Flask-Migrate
 Flask-SQLAlchemy
 Flask-Script
 Flask-Login
 requests
-enum34 ; python_version <= '2.7'
 odcs[client]
 dogpile.cache
 pyldap

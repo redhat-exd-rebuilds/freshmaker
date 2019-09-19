@@ -28,12 +28,12 @@ import json
 import os
 import re
 import requests
-import six
+import io
 import dogpile.cache
 import kobo.rpmlib
 from itertools import groupby
 
-from six.moves import http_client
+import http.client
 import concurrent.futures
 from freshmaker import log, conf
 from freshmaker.kojiservice import koji_service
@@ -88,7 +88,7 @@ class LightBlueSystemError(LightBlueError):
         except ValueError as e:
             log.exception(e)
         # If no JSON is returned, try to get the title of HTML page.
-        buf = six.StringIO(self.raw)
+        buf = io.StringIO(self.raw)
         html = ''.join((line.strip('\n') for line in buf))
         match = re.search('<title>(.+)</title>', html)
         return match.groups()[0]
@@ -572,15 +572,15 @@ class LightBlue(object):
         """
         status_code = response.status_code
 
-        if status_code == http_client.OK:
+        if status_code == http.client.OK:
             return
 
         # Warn early, in case there is an error in the error handling code below
         log.warning("Request to %s gave %r" % (response.request.url, response))
 
-        if status_code in (http_client.NOT_FOUND,
-                           http_client.INTERNAL_SERVER_ERROR,
-                           http_client.UNAUTHORIZED):
+        if status_code in (http.client.NOT_FOUND,
+                           http.client.INTERNAL_SERVER_ERROR,
+                           http.client.UNAUTHORIZED):
             raise LightBlueSystemError(status_code, response.content)
 
         raise LightBlueRequestError(status_code, response.json())
@@ -1314,7 +1314,7 @@ class LightBlue(object):
             images, get_nvr=lambda image: image['brew']['build'], reverse=True)
         images = []
         for k, v in groupby(sorted_images, key=lambda x: x['brew']['build']):
-            images.append(six.next(v))
+            images.append(next(v))
 
         # In case we query for unpublished images, we need to return just
         # the latest NVR for given name-version, otherwise images would

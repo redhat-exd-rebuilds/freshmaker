@@ -18,14 +18,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import queue
 import random
-import six
 import string
 import time
 import uuid
 import unittest
 import koji
-from six.moves import queue
 
 from mock import patch, MagicMock
 from functools import wraps
@@ -343,7 +342,7 @@ class ModuleStateChangeMessage(FedMsgFactory):
         self.scmurl = "git://pkgs.fedoraproject.org/modules/%s?#%s" % (self.name, '123')
 
         self._states_dict = {}
-        for state, code in six.iteritems(BUILD_STATES):
+        for state, code in BUILD_STATES.items():
             self._states_dict[state] = {'state_name': state, 'state': code}
 
     @property

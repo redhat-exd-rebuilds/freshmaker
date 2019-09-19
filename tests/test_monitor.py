@@ -24,8 +24,8 @@ import mock
 import pytest
 import freshmaker
 import requests
+import importlib
 
-from six.moves import reload_module
 from freshmaker import app, db, events, models, login_manager
 from tests import helpers
 
@@ -122,7 +122,7 @@ def test_standalone_metrics_server_disabled_by_default():
 
 def test_standalone_metrics_server():
     os.environ['MONITOR_STANDALONE_METRICS_SERVER_ENABLE'] = 'true'
-    reload_module(freshmaker.monitor)
+    importlib.reload(freshmaker.monitor)
 
     r = requests.get('http://127.0.0.1:10040/metrics')
 
