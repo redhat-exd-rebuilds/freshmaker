@@ -10,10 +10,10 @@ Source0:    https://files.pythonhosted.org/packages/source/o/%{name}/%{name}-%{v
 
 BuildArch:    noarch
 
-BuildRequires:    fedmsg-hub
+BuildRequires:    python3-fedmsg
 BuildRequires:    help2man
-BuildRequires:    kobo
-BuildRequires:    kobo-rpmlib
+BuildRequires:    python3-kobo
+BuildRequires:    python3-kobo-rpmlib
 BuildRequires:    python3-devel
 BuildRequires:    python3-flask-migrate
 BuildRequires:    python3-pdc-client
