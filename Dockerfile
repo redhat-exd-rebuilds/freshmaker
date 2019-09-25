@@ -31,4 +31,4 @@ RUN if [ "$cacert_url" != "undefined" ]; then \
 USER 1001
 EXPOSE 8080
 
-ENTRYPOINT fedmsg-hub
+ENTRYPOINT fedmsg-hub-3
