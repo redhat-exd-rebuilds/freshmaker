@@ -19,6 +19,7 @@ RUN cd /etc/yum.repos.d/ \
     && dnf -y -v downgrade https://kojipkgs.fedoraproject.org//packages/qpid-proton/0.26.0/1.fc29/x86_64/qpid-proton-c-0.26.0-1.fc29.x86_64.rpm \
     https://kojipkgs.fedoraproject.org//packages/qpid-proton/0.26.0/1.fc29/x86_64/python2-qpid-proton-0.26.0-1.fc29.x86_64.rpm \
     https://kojipkgs.fedoraproject.org//packages/qpid-proton/0.26.0/1.fc29/x86_64/python3-qpid-proton-0.26.0-1.fc29.x86_64.rpm \
+    && dnf -y -v upgrade https://kojipkgs.fedoraproject.org/packages/kobo/0.10.0/1.fc31/noarch/python3-kobo-0.10.0-1.fc31.noarch.rpm \
     && dnf -y clean all \
     && rm -f /tmp/*
 
