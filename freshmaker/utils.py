@@ -279,8 +279,7 @@ def get_distgit_files(
         try:
             cmd = ['git', 'archive', '--remote=%s' % repo_url,
                    commit_or_branch, f]
-            tar_data = _run_command(cmd, logger=logger, return_output=True,
-                                    log_output=False)
+            tar_data = _run_command(cmd, logger=logger, log_output=False)
             tar_bytes = io.BytesIO(tar_data.encode())
             tar = tarfile.open(fileobj=tar_bytes)
             for member in tar.getmembers():
@@ -317,10 +316,10 @@ def get_commit_hash(repo, branch='master', revision='HEAD', logger=None):
         # this is a remote repo url
         with temp_dir(prefix='freshmaker-%s-' % repo.split('/').pop()) as repodir:
             clone_repo(repo, repodir, branch=branch, logger=logger)
-            commit_hash = _run_command(cmd, rundir=repodir, return_output=True).strip()
+            commit_hash = _run_command(cmd, rundir=repodir).strip()
     else:
         # repo is local dir
-        commit_hash = _run_command(cmd, rundir=repo, return_output=True).strip()
+        commit_hash = _run_command(cmd, rundir=repo).strip()
 
     return commit_hash
 
@@ -340,9 +339,9 @@ def bump_distgit_repo(namespace, name, branch='master', user=None, commit_author
     return rev
 
 
-def _run_command(command, logger=None, rundir=None, output=subprocess.PIPE, error=subprocess.PIPE, env=None, return_output=False,
+def _run_command(command, logger=None, rundir=None, output=subprocess.PIPE, error=subprocess.PIPE, env=None,
                  log_output=True):
-    """Run a command, return output if return_output is True. Error out if command exit with non-zero code."""
+    """Run a command, return output. Error out if command exit with non-zero code."""
 
     if rundir is None:
         rundir = tempfile.gettempdir()
@@ -362,5 +361,5 @@ def _run_command(command, logger=None, rundir=None, output=subprocess.PIPE, erro
             logger.error("Got an error from %s", command[0])
             logger.error(err)
         raise OSError("Got an error (%d) from %s: %s" % (p1.returncode, command[0], err))
-    if return_output:
-        return out
+
+    return out
