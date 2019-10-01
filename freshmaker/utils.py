@@ -281,7 +281,7 @@ def get_distgit_files(
                    commit_or_branch, f]
             tar_data = _run_command(cmd, logger=logger, return_output=True,
                                     log_output=False)
-            tar_bytes = io.BytesIO(tar_data)
+            tar_bytes = io.BytesIO(tar_data.encode())
             tar = tarfile.open(fileobj=tar_bytes)
             for member in tar.getmembers():
                 ret[member.name] = tar.extractfile(member).read()
