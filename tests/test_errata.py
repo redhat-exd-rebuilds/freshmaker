@@ -162,7 +162,7 @@ class TestErrata(helpers.FreshmakerTestCase):
         self.errata = Errata("https://localhost/")
 
         self.patcher = helpers.Patcher(
-            'freshmaker.errata.BugzillaAPI.')
+            'freshmaker.errata.SFM2API.')
         self.patcher.patch("fetch_cve_metadata",
                            return_value=["moderate", {}])
 
