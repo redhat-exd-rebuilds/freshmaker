@@ -226,10 +226,10 @@ class Config(object):
             'desc': 'Dict with base container "name-version" as key and URL '
                     'to extra .repo file to include in a rebuild',
         },
-        'bugzilla_server_url': {
+        'sfm2_api_url': {
             'type': str,
-            'default': 'https://bugzilla.redhat.com',
-            'desc': 'Server URL of BugzillaAPI.'},
+            'default': 'https://sfm2.prodsec.redhat.com',
+            'desc': 'SFM2 API URl'},
         'lightblue_server_url': {
             'type': str,
             'default': '',

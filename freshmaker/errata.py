@@ -32,7 +32,7 @@ from freshmaker.events import (
     BrewSignRPMEvent, ErrataBaseEvent,
     FreshmakerManualRebuildEvent)
 from freshmaker import conf, log
-from freshmaker.bugzilla import BugzillaAPI
+from freshmaker.sfm2 import SFM2API
 from freshmaker.utils import retry
 
 
@@ -56,9 +56,9 @@ class ErrataAdvisory(object):
         self.cve_list = cve_list or []
         self.has_hightouch_bug = has_hightouch_bug
 
-        bugzilla = BugzillaAPI()
+        sfm2 = SFM2API()
 
-        self.highest_cve_severity, self.affected_pkgs = bugzilla.fetch_cve_metadata(self.cve_list)
+        self.highest_cve_severity, self.affected_pkgs = sfm2.fetch_cve_metadata(self.cve_list)
 
     @classmethod
     def from_advisory_id(cls, errata, errata_id):
