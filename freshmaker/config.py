@@ -228,8 +228,9 @@ class Config(object):
         },
         'sfm2_api_url': {
             'type': str,
-            'default': 'https://sfm2.prodsec.redhat.com',
-            'desc': 'SFM2 API URl'},
+            'default': '',
+            'desc': 'SFM2 API URl'
+        },
         'lightblue_server_url': {
             'type': str,
             'default': '',

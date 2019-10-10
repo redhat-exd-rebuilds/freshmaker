@@ -49,6 +49,9 @@ class BaseConfiguration(config.BaseConfiguration):
     # replace with real value when deploy
     ERRATA_TOOL_SERVER_URL = ''
 
+    # replace with real value when deploy
+    SFM2_API_URL = ''
+
     # Pulp server url, e.g. http://localhost/
     PULP_SERVER_URL = ''
 
