@@ -27,8 +27,6 @@ import requests
 import ldap
 import flask
 
-from itertools import chain
-
 from flask import g
 from flask_login import login_required as _login_required
 from werkzeug.exceptions import Unauthorized
@@ -48,9 +46,9 @@ def _validate_kerberos_config():
         errors.append("kerberos authentication enabled with no LDAP server "
                       "configured, check AUTH_LDAP_SERVER in your config.")
 
-    if not conf.auth_ldap_group_base:
-        errors.append("kerberos authentication enabled with no LDAP group "
-                      "base configured, check AUTH_LDAP_GROUP_BASE in your "
+    if not conf.auth_ldap_user_base:
+        errors.append("kerberos authentication enabled with no LDAP user "
+                      "base configured, check AUTH_LDAP_USER_BASE in your "
                       "config.")
 
     if errors:
@@ -124,14 +122,33 @@ def load_krb_or_ssl_user_from_request(request):
 
 
 def query_ldap_groups(uid):
-    client = ldap.initialize(conf.auth_ldap_server)
-    groups = client.search_s(conf.auth_ldap_group_base,
-                             ldap.SCOPE_ONELEVEL,
-                             attrlist=['cn', 'gidNumber'],
-                             filterstr='memberUid={0}'.format(uid))
+    """
+    Get the user's LDAP groups.
 
-    group_names = list(chain(*[info['cn'] for _, info in groups]))
-    return group_names
+    :param str uid: the user's uid LDAP attribute
+    :return: a set of distinguished names representing the user's group membership
+    :rtype: set
+    """
+    client = ldap.initialize(conf.auth_ldap_server)
+    users = client.search_s(
+        conf.auth_ldap_user_base,
+        ldap.SCOPE_ONELEVEL,
+        attrlist=['memberOf'],
+        filterstr=f'(&(uid={uid})(objectClass=posixAccount))',
+    )
+
+    group_distinguished_names = set()
+    if users:
+        # users will only contain one entry if the user exists in the LDAP directory
+        # since the LDAP filter is limited to a single user.
+        _, user_attributes = users[0]
+        group_distinguished_names = {
+            # The value of group is the entire distinguished name of the group
+            group.decode('utf-8')
+            for group in user_attributes.get('memberOf', [])
+        }
+
+    return group_distinguished_names
 
 
 @commit_on_success

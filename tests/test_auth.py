@@ -141,10 +141,14 @@ class TestLoadKrbOrSSLUserFromRequest(ModelsTestCase):
 
 
 class TestLoadKrbUserFromRequest(ModelsTestCase):
+    sample_groups = {
+        'cn=admins,ou=groups,dc=example,dc=com',
+        'cn=devel,ou=groups,dc=example,dc=com',
+    }
 
     @patch('freshmaker.auth.query_ldap_groups')
     def test_create_new_user(self, query_ldap_groups):
-        query_ldap_groups.return_value = ['devel', 'admins']
+        query_ldap_groups.return_value = self.sample_groups
 
         environ_base = {
             'REMOTE_USER': 'newuser@EXAMPLE.COM'
@@ -161,11 +165,11 @@ class TestLoadKrbUserFromRequest(ModelsTestCase):
 
             # Ensure user's groups are created
             self.assertEqual(2, len(flask.g.groups))
-            self.assertEqual(['admins', 'devel'], sorted(flask.g.groups))
+            self.assertEqual(self.sample_groups, flask.g.groups)
 
     @patch('freshmaker.auth.query_ldap_groups')
     def test_return_existing_user(self, query_ldap_groups):
-        query_ldap_groups.return_value = ['devel', 'admins']
+        query_ldap_groups.return_value = self.sample_groups
         original_users_count = db.session.query(User.id).count()
 
         environ_base = {
@@ -179,7 +183,7 @@ class TestLoadKrbUserFromRequest(ModelsTestCase):
                              db.session.query(User.id).count())
             self.assertEqual(self.user.id, flask.g.user.id)
             self.assertEqual(self.user.username, flask.g.user.username)
-            self.assertEqual(['admins', 'devel'], sorted(flask.g.groups))
+            self.assertEqual(self.sample_groups, flask.g.groups)
 
     def test_401_if_remote_user_not_present(self):
         with app.test_request_context():
@@ -298,17 +302,23 @@ class TestQueryLdapGroups(FreshmakerTestCase):
     @patch('freshmaker.auth.ldap.initialize')
     def test_get_groups(self, initialize):
         initialize.return_value.search_s.return_value = [
-            ('cn=odcsdev,ou=Groups,dc=example,dc=com',
-             {'gidNumber': ['5523'], 'cn': ['odcsdev']}),
-            ('cn=freshmakerdev,ou=Groups,dc=example,dc=com',
-             {'gidNumber': ['17861'], 'cn': ['freshmakerdev']}),
-            ('cn=devel,ou=Groups,dc=example,dc=com',
-             {'gidNumber': ['5781'], 'cn': ['devel']})
+            (
+                'uid=tom_hanks,ou=users,dc=example,dc=com',
+                {
+                    'memberOf': [
+                        b'cn=Toy Story,ou=groups,dc=example,dc=com',
+                        b'cn=Forrest Gump,ou=groups,dc=example,dc=com',
+                    ],
+                }
+            )
         ]
 
-        groups = query_ldap_groups('me')
-        self.assertEqual(sorted(['odcsdev', 'freshmakerdev', 'devel']),
-                         sorted(groups))
+        groups = query_ldap_groups('tom_hanks')
+        expected = {
+            'cn=Toy Story,ou=groups,dc=example,dc=com',
+            'cn=Forrest Gump,ou=groups,dc=example,dc=com',
+        }
+        self.assertEqual(expected, groups)
 
 
 class TestInitAuth(FreshmakerTestCase):
@@ -353,7 +363,7 @@ class TestInitAuth(FreshmakerTestCase):
             self.assertRaises(ValueError, init_auth, self.login_manager,
                               'kerberos')
 
-    def test_init_auths_no_ldap_group_base(self):
-        with patch.object(freshmaker.auth.conf, 'auth_ldap_group_base', ''):
+    def test_init_auths_no_ldap_user_base(self):
+        with patch.object(freshmaker.auth.conf, 'auth_ldap_user_base', ''):
             self.assertRaises(ValueError, init_auth, self.login_manager,
                               'kerberos')
