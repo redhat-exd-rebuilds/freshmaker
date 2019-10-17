@@ -78,7 +78,8 @@ def init_config(app):
         config_section = os.environ['FRESHMAKER_CONFIG_SECTION']
 
     # TestConfiguration shall only be used for running tests, otherwise...
-    if any(['nosetests' in arg or 'noserunner.py' in arg or 'py.test' in arg or 'pytest.py' in arg for arg in sys.argv]):
+    test_executables = {'py.test', 'pytest', 'pytest.py'}
+    if os.path.basename(sys.argv[0]) in test_executables:
         config_section = 'TestConfiguration'
         from conf import config
         config_module = config
