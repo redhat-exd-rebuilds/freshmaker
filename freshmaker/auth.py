@@ -246,9 +246,9 @@ def init_auth(login_manager, backend):
 def requires_role(role):
     """Check if user is in the configured role.
 
-    :param str role: role name, supported roles: 'allowed_clients', 'admins'.
+    :param str role: the role name
     """
-    valid_roles = ['allowed_clients', 'admins']
+    valid_roles = ['admins']
     if role not in valid_roles:
         raise ValueError(
             "Unknown role <%s> specified, supported roles: %s." % (

@@ -165,15 +165,6 @@ class BaseConfiguration(object):
     KRB_AUTH_CCACHE_FILE = tempfile.mkstemp(
         suffix=str(os.getpid()), prefix="freshmaker_cc_")
 
-    # Users are required to be in allowed_clients to generate composes,
-    # you can add group names or usernames (it can be normal user or host
-    # principal) into ALLOWED_CLIENTS. The group names are from ldap for
-    # kerberos users or FAS for openidc users.
-    ALLOWED_CLIENTS = {
-        'groups': [],
-        'users': [],
-    }
-
     # Users in ADMINS are granted with admin permission.
     ADMINS = {
         'groups': [],

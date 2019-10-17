@@ -42,16 +42,10 @@ def user_loader(username):
 class ViewBaseTest(helpers.ModelsTestCase):
     def setUp(self):
         super(ViewBaseTest, self).setUp()
-        patched_allowed_clients = {'groups': ['freshmaker-clients'],
-                                   'users': ['dev']}
         patched_admins = {'groups': ['admin'], 'users': ['root']}
-        self.patch_allowed_clients = patch.object(freshmaker.auth.conf,
-                                                  'allowed_clients',
-                                                  new=patched_allowed_clients)
         self.patch_admins = patch.object(freshmaker.auth.conf,
                                          'admins',
                                          new=patched_admins)
-        self.patch_allowed_clients.start()
         self.patch_admins.start()
 
         self.patch_oidc_base_namespace = patch.object(
@@ -66,7 +60,6 @@ class ViewBaseTest(helpers.ModelsTestCase):
     def tearDown(self):
         super(ViewBaseTest, self).tearDown()
 
-        self.patch_allowed_clients.stop()
         self.patch_admins.stop()
         self.patch_oidc_base_namespace.stop()
 
