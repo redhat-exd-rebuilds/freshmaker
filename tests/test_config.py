@@ -23,6 +23,8 @@
 import os
 import threading
 
+import pytest
+
 from freshmaker import conf
 from tests import helpers
 
@@ -34,3 +36,16 @@ class TestConfig(helpers.FreshmakerTestCase):
             conf.krb_auth_ccache_file,
             "freshmaker_cc_%s_%s" % (os.getpid(),
                                      threading.current_thread().ident))
+
+
+@pytest.mark.parametrize('value', (
+    'not a dict',
+    {'admins': 'not a dict'},
+    {'admins': {'groups': 'not a list'}},
+    {'admins': {'users': 'not a list'}},
+    {'admins': {'invalid key': []}},
+    {'admins': {'groups': [1]}},
+))
+def test_permissions(value):
+    with pytest.raises(ValueError, match='The permissions configuration must be a dictionary'):
+        conf.permissions = value

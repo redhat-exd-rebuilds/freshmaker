@@ -265,20 +265,14 @@ def requires_role(role):
 
     :param str role: the role name
     """
-    valid_roles = ['admins']
-    if role not in valid_roles:
-        raise ValueError(
-            "Unknown role <%s> specified, supported roles: %s." % (
-                role, str(valid_roles)))
-
     def wrapper(f):
         @wraps(f)
         def wrapped(*args, **kwargs):
             if conf.auth_backend == 'noauth':
                 return f(*args, **kwargs)
 
-            groups = getattr(conf, role).get('groups', [])
-            users = getattr(conf, role).get('users', [])
+            groups = conf.permissions[role]['groups']
+            users = conf.permissions[role]['users']
             in_groups = bool(set(flask.g.groups) & set(groups))
             in_users = flask.g.user.username in users
             if in_groups or in_users:

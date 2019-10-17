@@ -19,6 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from collections import defaultdict
 import unittest
 import json
 import datetime
@@ -42,10 +43,10 @@ def user_loader(username):
 class ViewBaseTest(helpers.ModelsTestCase):
     def setUp(self):
         super(ViewBaseTest, self).setUp()
-        patched_admins = {'groups': ['admin'], 'users': ['root']}
-        self.patch_admins = patch.object(freshmaker.auth.conf,
-                                         'admins',
-                                         new=patched_admins)
+        patched_admins = defaultdict(lambda: {'groups': [], 'users': []})
+        patched_admins['admins'] = {'groups': ['admin'], 'users': ['root']}
+        self.patch_admins = patch.object(
+            freshmaker.auth.conf, 'permissions', new=patched_admins)
         self.patch_admins.start()
 
         self.patch_oidc_base_namespace = patch.object(

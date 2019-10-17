@@ -162,12 +162,6 @@ class BaseConfiguration(object):
     KRB_AUTH_CCACHE_FILE = tempfile.mkstemp(
         suffix=str(os.getpid()), prefix="freshmaker_cc_")
 
-    # Users in ADMINS are granted with admin permission.
-    ADMINS = {
-        'groups': [],
-        'users': [],
-    }
-
     # Select which authentication backend to work with. There are 3 choices
     # noauth: no authentication is enabled. Useful for development particularly.
     # kerberos: Kerberos authentication is enabled.

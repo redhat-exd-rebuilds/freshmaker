@@ -24,6 +24,7 @@
 #            Filip Valder <fvalder@redhat.com>
 #            Jan Kaluza <jkaluza@redhat.com>
 
+from collections import defaultdict
 import imp
 import os
 import threading
@@ -351,6 +352,13 @@ class Config(object):
             'type': int,
             'default': 10,
             'desc': 'Maximum number of thread workers used by Freshmaker.'},
+        'permissions': {
+            'type': dict,
+            'default': {},
+            'desc': 'The permissions with keys as role names and the values as dictionaries with '
+                    'the keys "groups" and "users" which have values that are lists. Any roles not '
+                    'provided as keys, will contain defaut empty values.'
+        },
     }
 
     def __init__(self, conf_section_obj):
@@ -447,6 +455,41 @@ class Config(object):
         if s not in ("fedmsg", "amq", "in_memory", "rhmsg"):
             raise ValueError("Unsupported messaging system.")
         self._messaging_sender = s
+
+    def _setifok_permissions(self, permissions):
+        invalid_value = ValueError(
+            'The permissions configuration must be a dictionary with the keys as role names and '
+            'the values as dictionaries with the keys "users" and "groups", which must have values '
+            'that are lists. For example, {"admins": {"groups": [], "users": ["user"]}}.'
+        )
+        if not isinstance(permissions, dict):
+            raise invalid_value
+
+        for role, mapping in permissions.items():
+            if not isinstance(mapping, dict):
+                raise invalid_value
+
+            allowed_keys = {'users', 'groups'}
+            if mapping.keys() - allowed_keys:
+                raise invalid_value
+
+            for key in allowed_keys:
+                if key not in mapping:
+                    mapping[key] = []
+                    continue
+
+                if not isinstance(mapping[key], list):
+                    raise invalid_value
+
+                for entry in mapping[key]:
+                    if not isinstance(entry, str):
+                        raise invalid_value
+
+        # Use a default dict where any missing key will return {'groups': [], 'users': []}. This
+        # allows Freshmaker developers to add roles without needing to check if they key is set.
+        fixed_permissions = defaultdict(lambda: {'groups': [], 'users': []})
+        fixed_permissions.update(permissions)
+        self._permissions = fixed_permissions
 
     def _get_krb_auth_ccache_file(self):
         if not self._krb_auth_ccache_file:
