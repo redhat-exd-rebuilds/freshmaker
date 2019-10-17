@@ -80,7 +80,7 @@ Create and activate a [Python virtual environment](https://virtualenv.pypa.io/en
 
 Install the dependencies with:
 
-    sudo python3 setup.py install
+    python3 setup.py develop
 
 
 Install the requirements:
