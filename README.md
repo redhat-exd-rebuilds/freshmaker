@@ -95,4 +95,4 @@ Install the requirements useful to run the tests:
 
 Run the tests:
 
-    python3 -m pytest tests/
+    pytest tests/
