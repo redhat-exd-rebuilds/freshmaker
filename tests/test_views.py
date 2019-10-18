@@ -43,11 +43,12 @@ def user_loader(username):
 class ViewBaseTest(helpers.ModelsTestCase):
     def setUp(self):
         super(ViewBaseTest, self).setUp()
-        patched_admins = defaultdict(lambda: {'groups': [], 'users': []})
-        patched_admins['admin'] = {'groups': ['admin'], 'users': ['root']}
-        self.patch_admins = patch.object(
-            freshmaker.auth.conf, 'permissions', new=patched_admins)
-        self.patch_admins.start()
+        patched_permissions = defaultdict(lambda: {'groups': [], 'users': []})
+        patched_permissions['admin'] = {'groups': ['admin'], 'users': ['root']}
+        patched_permissions['manual_rebuilder'] = {'groups': [], 'users': ['tom_hanks']}
+        self.patched_permissions = patch.object(
+            freshmaker.auth.conf, 'permissions', new=patched_permissions)
+        self.patched_permissions.start()
 
         self.patch_oidc_base_namespace = patch.object(
             freshmaker.auth.conf, 'oidc_base_namespace',
@@ -61,7 +62,7 @@ class ViewBaseTest(helpers.ModelsTestCase):
     def tearDown(self):
         super(ViewBaseTest, self).tearDown()
 
-        self.patch_admins.stop()
+        self.patched_permissions.stop()
         self.patch_oidc_base_namespace.stop()
 
     @contextlib.contextmanager
@@ -730,8 +731,14 @@ class TestManualTriggerRebuild(ViewBaseTest):
 
 class TestPatchAPI(ViewBaseTest):
     def test_patch_event_cancel(self):
-        event = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000003",
-                                    "RHSA-2018-103", events.TestingEvent)
+        event = models.Event.create(
+            db.session,
+            '2017-00000000-0000-0000-0000-000000000003',
+            'RHSA-2018-103',
+            events.TestingEvent,
+            # Tests that admins can cancel any event, regardless of the requester
+            requester='tom_hanks',
+        )
         models.ArtifactBuild.create(db.session, event, "mksh", "module", build_id=1237,
                                     state=ArtifactBuildState.PLANNED.value)
         models.ArtifactBuild.create(db.session, event, "bash", "module", build_id=1238,
@@ -753,6 +760,43 @@ class TestPatchAPI(ViewBaseTest):
             'Event id {} requested for canceling by user '.format(event.id)))
         self.assertEqual(len([b for b in data['builds'] if b['state_name'] == 'CANCELED']), 3)
         self.assertEqual(len([b for b in data['builds'] if b['state_name'] == 'DONE']), 1)
+
+    def test_patch_event_cancel_user(self):
+        event = models.Event.create(
+            db.session,
+            '2017-00000000-0000-0000-0000-000000000003',
+            'RHSA-2018-103',
+            events.TestingEvent,
+            requester='tom_hanks',
+        )
+        db.session.commit()
+
+        with self.test_request_context(user='tom_hanks'):
+            resp = self.client.patch(f'/api/1/events/{event.id}', json={'action': 'cancel'})
+        assert resp.status_code == 200
+
+    def test_patch_event_cancel_user_not_their_event(self):
+        event = models.Event.create(
+            db.session,
+            '2017-00000000-0000-0000-0000-000000000003',
+            'RHSA-2018-103',
+            events.TestingEvent,
+            requester='han_solo',
+        )
+        db.session.commit()
+
+        with self.test_request_context(user='tom_hanks'):
+            resp = self.client.patch(f'/api/1/events/{event.id}', json={'action': 'cancel'})
+        assert resp.status_code == 403
+        assert resp.json['message'] == 'You must be an admin to cancel someone else\'s event.'
+
+    def test_patch_event_not_allowed(self):
+        with self.test_request_context(user='john_smith'):
+            resp = self.client.patch(f'/api/1/events/1', json={'action': 'cancel'})
+        assert resp.status_code == 403
+        assert resp.json['message'] == (
+            'User john_smith does not have any of the following roles: admin, manual_rebuilder'
+        )
 
 
 class TestOpenIDCLogin(ViewBaseTest):
