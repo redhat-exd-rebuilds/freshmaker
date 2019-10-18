@@ -435,32 +435,6 @@ class TestViews(helpers.ModelsTestCase):
         self.assertEqual(data['error'], 'Bad Request')
         self.assertTrue(data['message'].startswith('Unsupported action requested.'))
 
-    def test_patch_event_cancel(self):
-        event = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000003",
-                                    "RHSA-2018-103", events.TestingEvent)
-        models.ArtifactBuild.create(db.session, event, "mksh", "module", build_id=1237,
-                                    state=ArtifactBuildState.PLANNED.value)
-        models.ArtifactBuild.create(db.session, event, "bash", "module", build_id=1238,
-                                    state=ArtifactBuildState.PLANNED.value)
-        models.ArtifactBuild.create(db.session, event, "dash", "module", build_id=1239,
-                                    state=ArtifactBuildState.BUILD.value)
-        models.ArtifactBuild.create(db.session, event, "tcsh", "module", build_id=1240,
-                                    state=ArtifactBuildState.DONE.value)
-        db.session.commit()
-
-        resp = self.client.patch(
-            '/api/1/events/{}'.format(event.id),
-            data=json.dumps({'action': 'cancel'}))
-        data = json.loads(resp.get_data(as_text=True))
-
-        self.assertEqual(data['id'], event.id)
-        self.assertEqual(len(data['builds']), 4)
-        self.assertEqual(data['state_name'], 'CANCELED')
-        self.assertTrue(data['state_reason'].startswith(
-            'Event id {} requested for canceling by user '.format(event.id)))
-        self.assertEqual(len([b for b in data['builds'] if b['state_name'] == 'CANCELED']), 3)
-        self.assertEqual(len([b for b in data['builds'] if b['state_name'] == 'DONE']), 1)
-
     def test_query_event_types(self):
         resp = self.client.get('/api/1/event-types/')
         event_types = json.loads(resp.get_data(as_text=True))['items']
@@ -605,7 +579,7 @@ class TestViewsMultipleFilterValues(helpers.ModelsTestCase):
         self.assertEqual(len(evs), 2)
 
 
-class TestManualTriggerRebuild(helpers.ModelsTestCase):
+class TestManualTriggerRebuild(ViewBaseTest):
     def setUp(self):
         super(TestManualTriggerRebuild, self).setUp()
         self.client = app.test_client()
@@ -620,9 +594,13 @@ class TestManualTriggerRebuild(helpers.ModelsTestCase):
             123, 'name', 'REL_PREP', ['rpm'])
         with patch('freshmaker.models.datetime') as datetime_patch:
             datetime_patch.utcnow.return_value = datetime.datetime(2017, 8, 21, 13, 42, 20)
-            resp = self.client.post('/api/1/builds/',
-                                    data=json.dumps({'errata_id': 1}),
-                                    content_type='application/json')
+
+            with self.test_request_context(user='root'):
+                resp = self.client.post(
+                    '/api/1/builds/',
+                    data=json.dumps({'errata_id': 1}),
+                    content_type='application/json',
+                )
         data = json.loads(resp.get_data(as_text=True))
 
         # Other fields are predictible.
@@ -641,7 +619,7 @@ class TestManualTriggerRebuild(helpers.ModelsTestCase):
             u'time_done': None,
             u'url': u'/api/1/events/1',
             u'dry_run': False,
-            u'requester': 'tester1',
+            u'requester': 'root',
             u'requested_rebuilds': [],
             u'requester_metadata': {}})
         publish.assert_called_once_with(
@@ -657,9 +635,9 @@ class TestManualTriggerRebuild(helpers.ModelsTestCase):
         from_advisory_id.return_value = ErrataAdvisory(
             123, 'name', 'REL_PREP', ['rpm'])
 
-        resp = self.client.post('/api/1/builds/',
-                                data=json.dumps({'errata_id': 1, 'dry_run': True}),
-                                content_type='application/json')
+        payload = {'errata_id': 1, 'dry_run': True}
+        with self.test_request_context(user='root'):
+            resp = self.client.post('/api/1/builds/', json=payload, content_type='application/json')
         data = json.loads(resp.get_data(as_text=True))
 
         # Other fields are predictible.
@@ -677,10 +655,12 @@ class TestManualTriggerRebuild(helpers.ModelsTestCase):
         from_advisory_id.return_value = ErrataAdvisory(
             123, 'name', 'REL_PREP', ['rpm'])
 
-        resp = self.client.post(
-            '/api/1/builds/', data=json.dumps({
-                'errata_id': 1, 'container_images': ["foo-1-1", "bar-1-1"]}),
-            content_type='application/json')
+        payload = {
+            'errata_id': 1,
+            'container_images': ['foo-1-1', 'bar-1-1'],
+        }
+        with self.test_request_context(user='root'):
+            resp = self.client.post('/api/1/builds/', json=payload, content_type='application/json')
         data = json.loads(resp.get_data(as_text=True))
 
         # Other fields are predictible.
@@ -699,10 +679,12 @@ class TestManualTriggerRebuild(helpers.ModelsTestCase):
         from_advisory_id.return_value = ErrataAdvisory(
             123, 'name', 'REL_PREP', ['rpm'])
 
-        resp = self.client.post(
-            '/api/1/builds/', data=json.dumps({
-                'errata_id': 1, 'metadata': {"foo": ["bar"]}}),
-            content_type='application/json')
+        payload = {
+            'errata_id': 1,
+            'metadata': {'foo': ['bar']},
+        }
+        with self.test_request_context(user='root'):
+            resp = self.client.post('/api/1/builds/', json=payload, content_type='application/json')
         data = json.loads(resp.get_data(as_text=True))
 
         # Other fields are predictible.
@@ -727,12 +709,15 @@ class TestManualTriggerRebuild(helpers.ModelsTestCase):
         from_advisory_id.return_value = ErrataAdvisory(
             123, 'name', 'REL_PREP', ['rpm'])
 
-        resp = self.client.post(
-            '/api/1/builds/', data=json.dumps({
-                'errata_id': 1, 'container_images': ["foo-1-1"],
-                'freshmaker_event_id': 1}),
-            content_type='application/json')
+        payload = {
+            'errata_id': 1,
+            'container_images': ['foo-1-1'],
+            'freshmaker_event_id': 1,
+        }
+        with self.test_request_context(user='root'):
+            resp = self.client.post('/api/1/builds/', json=payload, content_type='application/json')
         data = json.loads(resp.get_data(as_text=True))
+
         # Other fields are predictible.
         self.assertEqual(data['requested_rebuilds'], ["foo-1-1"])
         assert add_dependency.call_count == 1
@@ -741,6 +726,33 @@ class TestManualTriggerRebuild(helpers.ModelsTestCase):
             'manual.rebuild',
             {'msg_id': 'manual_rebuild_123', u'errata_id': 1,
              'container_images': ["foo-1-1"], 'freshmaker_event_id': 1})
+
+
+class TestPatchAPI(ViewBaseTest):
+    def test_patch_event_cancel(self):
+        event = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000003",
+                                    "RHSA-2018-103", events.TestingEvent)
+        models.ArtifactBuild.create(db.session, event, "mksh", "module", build_id=1237,
+                                    state=ArtifactBuildState.PLANNED.value)
+        models.ArtifactBuild.create(db.session, event, "bash", "module", build_id=1238,
+                                    state=ArtifactBuildState.PLANNED.value)
+        models.ArtifactBuild.create(db.session, event, "dash", "module", build_id=1239,
+                                    state=ArtifactBuildState.BUILD.value)
+        models.ArtifactBuild.create(db.session, event, "tcsh", "module", build_id=1240,
+                                    state=ArtifactBuildState.DONE.value)
+        db.session.commit()
+
+        with self.test_request_context(user='root'):
+            resp = self.client.patch(f'/api/1/events/{event.id}', json={'action': 'cancel'})
+        data = json.loads(resp.get_data(as_text=True))
+
+        self.assertEqual(data['id'], event.id)
+        self.assertEqual(len(data['builds']), 4)
+        self.assertEqual(data['state_name'], 'CANCELED')
+        self.assertTrue(data['state_reason'].startswith(
+            'Event id {} requested for canceling by user '.format(event.id)))
+        self.assertEqual(len([b for b in data['builds'] if b['state_name'] == 'CANCELED']), 3)
+        self.assertEqual(len([b for b in data['builds'] if b['state_name'] == 'DONE']), 1)
 
 
 class TestOpenIDCLogin(ViewBaseTest):
