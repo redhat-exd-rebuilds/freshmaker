@@ -44,7 +44,7 @@ class ViewBaseTest(helpers.ModelsTestCase):
     def setUp(self):
         super(ViewBaseTest, self).setUp()
         patched_admins = defaultdict(lambda: {'groups': [], 'users': []})
-        patched_admins['admins'] = {'groups': ['admin'], 'users': ['root']}
+        patched_admins['admin'] = {'groups': ['admin'], 'users': ['root']}
         self.patch_admins = patch.object(
             freshmaker.auth.conf, 'permissions', new=patched_admins)
         self.patch_admins.start()

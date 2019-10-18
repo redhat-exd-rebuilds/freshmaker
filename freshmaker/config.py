@@ -460,7 +460,7 @@ class Config(object):
         invalid_value = ValueError(
             'The permissions configuration must be a dictionary with the keys as role names and '
             'the values as dictionaries with the keys "users" and "groups", which must have values '
-            'that are lists. For example, {"admins": {"groups": [], "users": ["user"]}}.'
+            'that are lists. For example, {"admin": {"groups": [], "users": ["user"]}}.'
         )
         if not isinstance(permissions, dict):
             raise invalid_value

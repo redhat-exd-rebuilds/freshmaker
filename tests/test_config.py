@@ -40,11 +40,11 @@ class TestConfig(helpers.FreshmakerTestCase):
 
 @pytest.mark.parametrize('value', (
     'not a dict',
-    {'admins': 'not a dict'},
-    {'admins': {'groups': 'not a list'}},
-    {'admins': {'users': 'not a list'}},
-    {'admins': {'invalid key': []}},
-    {'admins': {'groups': [1]}},
+    {'admin': 'not a dict'},
+    {'admin': {'groups': 'not a list'}},
+    {'admin': {'users': 'not a list'}},
+    {'admin': {'invalid key': []}},
+    {'admin': {'groups': [1]}},
 ))
 def test_permissions(value):
     with pytest.raises(ValueError, match='The permissions configuration must be a dictionary'):

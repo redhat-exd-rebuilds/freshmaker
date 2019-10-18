@@ -285,7 +285,7 @@ class EventAPI(MethodView):
                 return json_error(404, "Not Found", "No such event found.")
 
     @login_required
-    @requires_roles(['admins'])
+    @requires_roles(['admin'])
     def patch(self, id):
         """
         Manage Freshmaker event defined by ID. The request must be
@@ -368,7 +368,7 @@ class BuildAPI(MethodView):
 
     @login_required
     @require_scopes('submit-build')
-    @requires_roles(['admins'])
+    @requires_roles(['admin'])
     def post(self):
         """
         Trigger manual Freshmaker rebuild. The request must be
