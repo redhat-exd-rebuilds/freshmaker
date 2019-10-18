@@ -260,25 +260,41 @@ def init_auth(login_manager, backend):
         raise ValueError('Unknown backend name {0}.'.format(backend))
 
 
-def requires_role(role):
-    """Check if user is in the configured role.
+def user_has_role(role):
+    """
+    Check if the current user has the role.
 
-    :param str role: the role name
+    :param str role: the role to check
+    :return: a boolean determining if the user has the role
+    :rtype: bool
+    """
+    if conf.auth_backend == 'noauth':
+        return True
+
+    groups = conf.permissions[role]['groups']
+    users = conf.permissions[role]['users']
+    in_groups = bool(set(flask.g.groups) & set(groups))
+    in_users = flask.g.user.username in users
+    return in_groups or in_users
+
+
+def requires_roles(roles):
+    """
+    Assert the user has one of the required roles.
+
+    :param list roles: the list of role names to verify
+    :raises freshmaker.errors.Forbidden: if the user is not in the role
     """
     def wrapper(f):
         @wraps(f)
         def wrapped(*args, **kwargs):
-            if conf.auth_backend == 'noauth':
+            if any(user_has_role(role) for role in roles):
                 return f(*args, **kwargs)
 
-            groups = conf.permissions[role]['groups']
-            users = conf.permissions[role]['users']
-            in_groups = bool(set(flask.g.groups) & set(groups))
-            in_users = flask.g.user.username in users
-            if in_groups or in_users:
-                return f(*args, **kwargs)
-            raise Forbidden('User %s is not in role %s.' % (
-                flask.g.user.username, role))
+            raise Forbidden(
+                f'User {flask.g.user.username} does not have any of the following '
+                f'roles: {", ".join(roles)}'
+            )
         return wrapped
     return wrapper
 

@@ -38,7 +38,7 @@ from freshmaker.api_utils import filter_artifact_builds
 from freshmaker.api_utils import filter_events
 from freshmaker.api_utils import json_error
 from freshmaker.api_utils import pagination_metadata
-from freshmaker.auth import login_required, requires_role, require_scopes
+from freshmaker.auth import login_required, requires_roles, require_scopes
 from freshmaker.parsers.internal.manual_rebuild import FreshmakerManualRebuildParser
 from freshmaker.monitor import (
     monitor_api, freshmaker_build_api_latency, freshmaker_event_api_latency)
@@ -285,7 +285,7 @@ class EventAPI(MethodView):
                 return json_error(404, "Not Found", "No such event found.")
 
     @login_required
-    @requires_role('admins')
+    @requires_roles(['admins'])
     def patch(self, id):
         """
         Manage Freshmaker event defined by ID. The request must be
@@ -368,7 +368,7 @@ class BuildAPI(MethodView):
 
     @login_required
     @require_scopes('submit-build')
-    @requires_role('admins')
+    @requires_roles(['admins'])
     def post(self):
         """
         Trigger manual Freshmaker rebuild. The request must be
