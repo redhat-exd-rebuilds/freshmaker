@@ -144,8 +144,8 @@ node('docker') {
          * name, so let's munge it here. */
         appversion = appversion.replace('+', '-')
         docker.withRegistry(
-                'https://docker-registry.engineering.redhat.com/',
-                'docker-registry-factory2-builder-sa-credentials') {
+                'https://docker-registry.upshift.redhat.com/',
+                'factory2-upshift-registry-token') {
             /* Note that the docker.build step has some magic to guess the
              * Dockerfile used, which will break if the build directory (here ".")
              * is not the final argument in the string. */
@@ -176,8 +176,8 @@ node('docker') {
             unarchive mapping: ['appversion': 'appversion']
             def appversion = readFile('appversion').trim()
             docker.withRegistry(
-                    'https://docker-registry.engineering.redhat.com/',
-                    'docker-registry-factory2-builder-sa-credentials') {
+                    'https://docker-registry.upshift.redhat.com/',
+                    'factory2-upshift-registry-token') {
                 def image = docker.image("factory2/freshmaker:internal-${appversion}")
                 /* Pushes to the internal registry can sometimes randomly fail
                  * with "unknown blob" due to a known issue with the registry
