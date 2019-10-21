@@ -7,8 +7,9 @@
 Freshmaker
 ==========
 
-The ODCS (On Demand Compose Service) is a service allowing to generate temporary
-compose (mainly the RPM repository) with packages from Koji using the REST API.
+Freshmaker is a service that automatically rebuilds content. It is currently
+written to handle rebuilding container images with CVEs when new RPMs are
+available that address those CVEs.
 
 .. toctree::
    :maxdepth: 2
