@@ -18,6 +18,7 @@ available that address those CVEs.
    about
    api_v1
    api_v2
+   configuration
    messaging_api
    dev_scripts
 
