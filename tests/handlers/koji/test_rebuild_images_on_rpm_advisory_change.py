@@ -225,15 +225,28 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
         self.patcher.unpatch_all()
 
     def test_can_handle_manual_rebuild_with_advisory_event(self):
-        event = ManualRebuildWithAdvisoryEvent(
-            "123",
-            ErrataAdvisory(123, "RHBA-2017", "REL_PREP", ["rpm"],
-                           security_impact="",
-                           product_short_name="product"),
-            ["foo-container", "bar-container"])
-        handler = RebuildImagesOnRPMAdvisoryChange()
-        ret = handler.can_handle(event)
-        self.assertTrue(ret)
+        for content_type in [["rpm"], ["module"]]:
+            event = ManualRebuildWithAdvisoryEvent(
+                "123",
+                ErrataAdvisory(123, "RHBA-2017", "REL_PREP", content_type,
+                               security_impact="",
+                               product_short_name="product"),
+                ["foo-container", "bar-container"])
+            handler = RebuildImagesOnRPMAdvisoryChange()
+            ret = handler.can_handle(event)
+            self.assertTrue(ret)
+
+    def test_cannot_handle_manual_rebuild_for_non_rpm_and_module(self):
+        for content_type in [["non-rpm"], []]:
+            event = ManualRebuildWithAdvisoryEvent(
+                "123",
+                ErrataAdvisory(123, "RHBA-2017", "REL_PREP", content_type,
+                               security_impact="",
+                               product_short_name="product"),
+                ["foo-container", "bar-container"])
+            handler = RebuildImagesOnRPMAdvisoryChange()
+            ret = handler.can_handle(event)
+            self.assertFalse(ret)
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'RebuildImagesOnRPMAdvisoryChange': {
