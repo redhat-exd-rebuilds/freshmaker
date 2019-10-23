@@ -1,4 +1,5 @@
-# Copyright (c) 2018  Red Hat, Inc.
+# -*- coding: utf-8 -*-
+# Copyright (c) 2019  Red Hat, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -17,35 +18,19 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-#
-# Written by Jan Kaluza <jkaluza@redhat.com>
 
-import os
-import threading
-
+import flask
 import pytest
 
-from freshmaker import conf
-from tests import helpers
 
+@pytest.fixture(autouse=True)
+def clear_flask_g():
+    """
+    Clear the Flask global variables after each test.
 
-class TestConfig(helpers.FreshmakerTestCase):
-
-    def test_krb_auth_ccache_file(self):
-        self.assertEqual(
-            conf.krb_auth_ccache_file,
-            "freshmaker_cc_%s_%s" % (os.getpid(),
-                                     threading.current_thread().ident))
-
-
-@pytest.mark.parametrize('value', (
-    'not a dict',
-    {'admin': 'not a dict'},
-    {'admin': {'groups': 'not a list'}},
-    {'admin': {'users': 'not a list'}},
-    {'admin': {'invalid key': []}},
-    {'admin': {'groups': [1]}},
-))
-def test_permissions(value):
-    with pytest.raises(ValueError, match='The permissions configuration must be a dictionary'):
-        conf.permissions = value
+    Many of the tests end up modifying flask.g such as for testing or mocking authentication.
+    If it isn't cleared, it would end up leaking into other tests which don't expect it.
+    """
+    for attr in ('group', 'user'):
+        if hasattr(flask.g, attr):
+            delattr(flask.g, attr)

@@ -165,21 +165,6 @@ class BaseConfiguration(object):
     KRB_AUTH_CCACHE_FILE = tempfile.mkstemp(
         suffix=str(os.getpid()), prefix="freshmaker_cc_")
 
-    # Users are required to be in allowed_clients to generate composes,
-    # you can add group names or usernames (it can be normal user or host
-    # principal) into ALLOWED_CLIENTS. The group names are from ldap for
-    # kerberos users or FAS for openidc users.
-    ALLOWED_CLIENTS = {
-        'groups': [],
-        'users': [],
-    }
-
-    # Users in ADMINS are granted with admin permission.
-    ADMINS = {
-        'groups': [],
-        'users': [],
-    }
-
     # Select which authentication backend to work with. There are 3 choices
     # noauth: no authentication is enabled. Useful for development particularly.
     # kerberos: Kerberos authentication is enabled.
@@ -191,9 +176,8 @@ class BaseConfiguration(object):
     # For example: ldap://ldap.example.com/
     AUTH_LDAP_SERVER = ''
 
-    # Group base to query groups from LDAP server.
-    # Generally, it would be, for example, ou=groups,dc=example,dc=com
-    AUTH_LDAP_GROUP_BASE = ''
+    # The base to query for users in LDAP. For example, ou=users,dc=example,dc=com.
+    AUTH_LDAP_USER_BASE = ''
 
     AUTH_OPENIDC_USERINFO_URI = 'https://id.fedoraproject.org/openidc/UserInfo'
 

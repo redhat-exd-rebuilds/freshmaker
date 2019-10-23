@@ -27,8 +27,6 @@ import requests
 import ldap
 import flask
 
-from itertools import chain
-
 from flask import g
 from flask_login import login_required as _login_required
 from werkzeug.exceptions import Unauthorized
@@ -48,9 +46,9 @@ def _validate_kerberos_config():
         errors.append("kerberos authentication enabled with no LDAP server "
                       "configured, check AUTH_LDAP_SERVER in your config.")
 
-    if not conf.auth_ldap_group_base:
-        errors.append("kerberos authentication enabled with no LDAP group "
-                      "base configured, check AUTH_LDAP_GROUP_BASE in your "
+    if not conf.auth_ldap_user_base:
+        errors.append("kerberos authentication enabled with no LDAP user "
+                      "base configured, check AUTH_LDAP_USER_BASE in your "
                       "config.")
 
     if errors:
@@ -124,14 +122,33 @@ def load_krb_or_ssl_user_from_request(request):
 
 
 def query_ldap_groups(uid):
-    client = ldap.initialize(conf.auth_ldap_server)
-    groups = client.search_s(conf.auth_ldap_group_base,
-                             ldap.SCOPE_ONELEVEL,
-                             attrlist=['cn', 'gidNumber'],
-                             filterstr='memberUid={0}'.format(uid))
+    """
+    Get the user's LDAP groups.
 
-    group_names = list(chain(*[info['cn'] for _, info in groups]))
-    return group_names
+    :param str uid: the user's uid LDAP attribute
+    :return: a set of distinguished names representing the user's group membership
+    :rtype: set
+    """
+    client = ldap.initialize(conf.auth_ldap_server)
+    users = client.search_s(
+        conf.auth_ldap_user_base,
+        ldap.SCOPE_ONELEVEL,
+        attrlist=['memberOf'],
+        filterstr=f'(&(uid={uid})(objectClass=posixAccount))',
+    )
+
+    group_distinguished_names = set()
+    if users:
+        # users will only contain one entry if the user exists in the LDAP directory
+        # since the LDAP filter is limited to a single user.
+        _, user_attributes = users[0]
+        group_distinguished_names = {
+            # The value of group is the entire distinguished name of the group
+            group.decode('utf-8')
+            for group in user_attributes.get('memberOf', [])
+        }
+
+    return group_distinguished_names
 
 
 @commit_on_success
@@ -243,31 +260,41 @@ def init_auth(login_manager, backend):
         raise ValueError('Unknown backend name {0}.'.format(backend))
 
 
-def requires_role(role):
-    """Check if user is in the configured role.
-
-    :param str role: role name, supported roles: 'allowed_clients', 'admins'.
+def user_has_role(role):
     """
-    valid_roles = ['allowed_clients', 'admins']
-    if role not in valid_roles:
-        raise ValueError(
-            "Unknown role <%s> specified, supported roles: %s." % (
-                role, str(valid_roles)))
+    Check if the current user has the role.
 
+    :param str role: the role to check
+    :return: a boolean determining if the user has the role
+    :rtype: bool
+    """
+    if conf.auth_backend == 'noauth':
+        return True
+
+    groups = conf.permissions[role]['groups']
+    users = conf.permissions[role]['users']
+    in_groups = bool(set(flask.g.groups) & set(groups))
+    in_users = flask.g.user.username in users
+    return in_groups or in_users
+
+
+def requires_roles(roles):
+    """
+    Assert the user has one of the required roles.
+
+    :param list roles: the list of role names to verify
+    :raises freshmaker.errors.Forbidden: if the user is not in the role
+    """
     def wrapper(f):
         @wraps(f)
         def wrapped(*args, **kwargs):
-            if conf.auth_backend == 'noauth':
+            if any(user_has_role(role) for role in roles):
                 return f(*args, **kwargs)
 
-            groups = getattr(conf, role).get('groups', [])
-            users = getattr(conf, role).get('users', [])
-            in_groups = bool(set(flask.g.groups) & set(groups))
-            in_users = flask.g.user.username in users
-            if in_groups or in_users:
-                return f(*args, **kwargs)
-            raise Forbidden('User %s is not in role %s.' % (
-                flask.g.user.username, role))
+            raise Forbidden(
+                f'User {flask.g.user.username} does not have any of the following '
+                f'roles: {", ".join(roles)}'
+            )
         return wrapped
     return wrapper
 

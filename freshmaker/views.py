@@ -38,7 +38,7 @@ from freshmaker.api_utils import filter_artifact_builds
 from freshmaker.api_utils import filter_events
 from freshmaker.api_utils import json_error
 from freshmaker.api_utils import pagination_metadata
-from freshmaker.auth import login_required, requires_role, require_scopes
+from freshmaker.auth import login_required, requires_roles, require_scopes, user_has_role
 from freshmaker.parsers.internal.manual_rebuild import FreshmakerManualRebuildParser
 from freshmaker.monitor import (
     monitor_api, freshmaker_build_api_latency, freshmaker_event_api_latency)
@@ -285,7 +285,7 @@ class EventAPI(MethodView):
                 return json_error(404, "Not Found", "No such event found.")
 
     @login_required
-    @requires_role('admins')
+    @requires_roles(['admin', 'manual_rebuilder'])
     def patch(self, id):
         """
         Manage Freshmaker event defined by ID. The request must be
@@ -316,34 +316,36 @@ class EventAPI(MethodView):
                 400, "Bad Request", "Missing action in request."
                 " Don't know what to do with the event.")
 
-        if data['action'] == 'cancel':
-            event = models.Event.query.filter_by(id=id).first()
-            if not event:
-                return json_error(400, "Not Found", "No such event found.")
+        if data["action"] != "cancel":
+            return json_error(400, "Bad Request", "Unsupported action requested.")
 
-            msg = "Event id %s requested for canceling by user %s" % \
-                (event.id, g.user.username)
-            log.info(msg)
+        event = models.Event.query.filter_by(id=id).first()
+        if not event:
+            return json_error(400, "Not Found", "No such event found.")
 
-            event.transition(EventState.CANCELED, msg)
-            event.builds_transition(
-                ArtifactBuildState.CANCELED.value,
-                "Build canceled before running on external build system.",
-                filters={'state': ArtifactBuildState.PLANNED.value})
-            builds_id = event.builds_transition(
-                ArtifactBuildState.CANCELED.value, None,
-                filters={'state': ArtifactBuildState.BUILD.value})
-            db.session.commit()
-
-            data["action"] = self._freshmaker_manage_prefix + data["action"]
-            data["event_id"] = event.id
-            data["builds_id"] = builds_id
-            messaging.publish("manage.eventcancel", data)
-            # Return back the JSON representation of Event to client.
-            return jsonify(event.json()), 200
-        else:
+        if event.requester != g.user.username and not user_has_role("admin"):
             return json_error(
-                400, "Bad Request", "Unsupported action requested.")
+                403, "Forbidden", "You must be an admin to cancel someone else's event.")
+
+        msg = "Event id %s requested for canceling by user %s" % (event.id, g.user.username)
+        log.info(msg)
+
+        event.transition(EventState.CANCELED, msg)
+        event.builds_transition(
+            ArtifactBuildState.CANCELED.value,
+            "Build canceled before running on external build system.",
+            filters={'state': ArtifactBuildState.PLANNED.value})
+        builds_id = event.builds_transition(
+            ArtifactBuildState.CANCELED.value, None,
+            filters={'state': ArtifactBuildState.BUILD.value})
+        db.session.commit()
+
+        data["action"] = self._freshmaker_manage_prefix + data["action"]
+        data["event_id"] = event.id
+        data["builds_id"] = builds_id
+        messaging.publish("manage.eventcancel", data)
+        # Return back the JSON representation of Event to client.
+        return jsonify(event.json()), 200
 
 
 class BuildAPI(MethodView):
@@ -368,7 +370,7 @@ class BuildAPI(MethodView):
 
     @login_required
     @require_scopes('submit-build')
-    @requires_role('admins')
+    @requires_roles(['admin', 'manual_rebuilder'])
     def post(self):
         """
         Trigger manual Freshmaker rebuild. The request must be
