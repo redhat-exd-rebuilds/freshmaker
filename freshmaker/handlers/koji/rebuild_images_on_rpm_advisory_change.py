@@ -51,8 +51,8 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
         if not isinstance(event, ErrataAdvisoryRPMsSignedEvent):
             return False
 
-        if 'rpm' not in event.advisory.content_types:
-            self.log_info('Skip non-RPM advisory %s.', event.advisory.errata_id)
+        if not {'rpm', 'module'} & set(event.advisory.content_types):
+            self.log_info('Skip non-RPM and non-module advisory %s.', event.advisory.errata_id)
             return False
 
         return True
@@ -60,7 +60,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
     @fail_event_on_handler_exception
     def handle(self, event):
         """
-        Rebuilds all Docker images which contain packages from the Errata
+        Rebuilds all container images which contain packages from the Errata
         advisory.
         """
 
