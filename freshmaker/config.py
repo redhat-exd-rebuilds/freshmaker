@@ -359,6 +359,11 @@ class Config(object):
                     'the keys "groups" and "users" which have values that are lists. Any roles not '
                     'provided as keys, will contain defaut empty values.'
         },
+        'rebuilt_nvr_release_suffix': {
+            'type': str,
+            'default': '',
+            'desc': 'A suffix to add to the rebuilt_nvr release in addition to the timestamp.',
+        },
     }
 
     def __init__(self, conf_section_obj):

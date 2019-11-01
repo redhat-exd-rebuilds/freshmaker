@@ -106,10 +106,10 @@ def get_rebuilt_nvr(artifact_type, nvr):
     """
     rebuilt_nvr = None
     if artifact_type == ArtifactType.IMAGE.value:
-        # Set release from XX.YY to XX.$timestamp
+        # Set release from XX.YY to XX.$timestamp$release_suffix
         parsed_nvr = koji.parse_NVR(nvr)
         r_version = parsed_nvr["release"].split(".")[0]
-        release = str(r_version) + "." + str(int(time.time()))
+        release = f"{r_version}.{int(time.time())}{conf.rebuilt_nvr_release_suffix}"
         rebuilt_nvr = "%s-%s-%s" % (parsed_nvr["name"], parsed_nvr["version"],
                                     release)
 

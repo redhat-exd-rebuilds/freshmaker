@@ -31,3 +31,9 @@ The following is an example of this:
         },
     }
 
+
+Other
+=====
+
+* ``rebuilt_nvr_release_suffix`` - a suffix to add to the ``rebuilt_nvr``
+  release in addition to the timestamp. This defaults to an empty string.

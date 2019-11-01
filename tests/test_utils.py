@@ -20,8 +20,24 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
-from freshmaker.utils import sorted_by_nvr
+from unittest.mock import patch
+
+import pytest
+
+from freshmaker import conf
+from freshmaker.models import ArtifactType
+from freshmaker.utils import get_rebuilt_nvr, sorted_by_nvr
 from tests import helpers
+
+
+@pytest.mark.parametrize("rebuilt_nvr_release_suffix", ("", ".dev"))
+@patch("freshmaker.utils.time.time", return_value=1572631468.1807485)
+def test_get_rebuilt_nvr(mock_time, rebuilt_nvr_release_suffix):
+    nvr = "python-v3.6-201910221723"
+    expected = f"{nvr}.1572631468{rebuilt_nvr_release_suffix}"
+    with patch.object(conf, "rebuilt_nvr_release_suffix", new=rebuilt_nvr_release_suffix):
+        rebuilt_nvr = get_rebuilt_nvr(ArtifactType.IMAGE.value, nvr)
+    assert rebuilt_nvr == expected
 
 
 class TestSortedByNVR(helpers.FreshmakerTestCase):
