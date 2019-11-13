@@ -44,7 +44,7 @@ class ImageVerifier(object):
         Verifies the Lightblue ContainerRepository data.
         Raises ValueError in case of error.
         """
-        categories = set(["Generally Available", "Tech Preview", "Beta"])
+        categories = set(conf.lightblue_release_categories)
         if not set(repo["release_categories"]).intersection(categories):
             raise ValueError(
                 "Only repositories with one of %r release_categories can be "

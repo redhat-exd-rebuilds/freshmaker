@@ -364,6 +364,11 @@ class Config(object):
             'default': '',
             'desc': 'A suffix to add to the rebuilt_nvr release in addition to the timestamp.',
         },
+        'lightblue_release_categories': {
+            'type': tuple,
+            'default': ("Generally Available", "Tech Preview", "Beta",),
+            'desc': 'Release categories',
+        }
     }
 
     def __init__(self, conf_section_obj):
@@ -414,7 +419,7 @@ class Config(object):
         if key in self._defaults:
             # type conversion for configuration item
             convert = self._defaults[key]['type']
-            if convert in [bool, int, list, str, set, dict]:
+            if convert in [bool, int, list, str, set, dict, tuple]:
                 try:
                     # Do no try to convert None...
                     if value is not None:

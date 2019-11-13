@@ -36,6 +36,7 @@ from freshmaker.types import (
     ArtifactBuildState, ArtifactType, EventState, RebuildReason)
 from freshmaker.errata import ErrataAdvisory
 from freshmaker.config import any_
+from freshmaker import conf
 from tests import helpers
 
 
@@ -455,7 +456,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
         self.find_images_to_rebuild.assert_called_once_with(
             set(['httpd-2.4-11.el7']), ['content-set-1'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
-            published=True, release_categories=('Generally Available', 'Tech Preview', 'Beta'),
+            published=True, release_categories=conf.lightblue_release_categories,
             leaf_container_images=None)
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
@@ -472,7 +473,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
         self.find_images_to_rebuild.assert_called_once_with(
             set(['httpd-2.4-11.el7', 'httpd-2.2-11.el6']), ['content-set-1'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
-            published=True, release_categories=('Generally Available', 'Tech Preview', 'Beta'),
+            published=True, release_categories=conf.lightblue_release_categories,
             leaf_container_images=None)
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
@@ -508,7 +509,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
         self.find_images_to_rebuild.assert_called_once_with(
             set(['httpd-2.4-11.el7']), ['content-set-1'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
-            published=True, release_categories=('Generally Available', 'Tech Preview', 'Beta'),
+            published=True, release_categories=conf.lightblue_release_categories,
             leaf_container_images=None)
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
@@ -526,7 +527,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
         self.find_images_to_rebuild.assert_called_once_with(
             set(['httpd-2.4-11.el7']), ['content-set-1'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
-            published=True, release_categories=('Generally Available', 'Tech Preview', 'Beta'),
+            published=True, release_categories=conf.lightblue_release_categories,
             leaf_container_images=["foo", "bar"])
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
@@ -549,7 +550,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
         self.find_images_to_rebuild.assert_called_once_with(
             set(['httpd-2.4-11.el7']), ['content-set-1'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
-            published=True, release_categories=('Generally Available', 'Tech Preview', 'Beta'),
+            published=True, release_categories=conf.lightblue_release_categories,
             leaf_container_images=None)
 
 
