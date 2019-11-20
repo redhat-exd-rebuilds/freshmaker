@@ -43,18 +43,6 @@ class BaseConfiguration(object):
 
     MESSAGING_TOPIC_PREFIX = ['org.fedoraproject.prod']
 
-    # Parsers defined for parse specific messages
-    PARSERS = [
-        'freshmaker.parsers.internal:FreshmakerManualRebuildParser',
-        'freshmaker.parsers.odcs:ComposeStateChangeParser',
-    ]
-
-    # List of enabled composing handlers.
-    HANDLERS = [
-        'freshmaker.handlers.internal:UpdateDBOnODCSComposeFail',
-        'freshmaker.handlers.koji:RebuildImagesOnODCSComposeDone',
-    ]
-
     # Base URL of git repository with source artifacts.
     GIT_BASE_URL = "git://pkgs.fedoraproject.org"
 
