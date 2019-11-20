@@ -329,7 +329,7 @@ class BaseHandler(object):
             If "all" is used, this method returns True if *all* dicts in list
             after the operator name matches the criteria.
         :rtype: bool
-        :return: True if the crtieria matches the rule.
+        :return: True if the criteria matches the rule.
         """
         # If rule is list, check each item (which should be a dict) separately
         # and return True if any item matches. Support also tuples for
