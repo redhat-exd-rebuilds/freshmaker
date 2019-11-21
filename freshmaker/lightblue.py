@@ -825,9 +825,14 @@ class LightBlue(object):
     def find_images_with_included_srpms(
             self, content_sets, srpm_nvrs, repositories, published=True,
             include_rpms=True):
-        """Query lightblue and find containerImages in given
-        containerRepositories. By default limit only to images which have been
-        published to at least one repository and images which have latest tag.
+        """
+        Query lightblue and find the containerImages in the given containerRepositories.
+
+        By default, limit this only to images which have been published to at least one repository
+        and have an auto-rebuild tag.
+
+        If the same image is built for multiple arches, then only one of the arches will be
+        returned.
 
         :param list content_sets: List of content_sets the image includes RPMs
             from.
@@ -909,20 +914,34 @@ class LightBlue(object):
         # those images to be latest in one of the `repositories`. It is not
         # trivial to generate LB query like this, so filter this client-side
         # for now.
-        new_images = []
+        image_nvr_to_image = {}
         for image in images:
+            nvr = image["brew"]["build"]
+            if nvr in image_nvr_to_image:
+                # This image for another architecture has already been seen
+                continue
+
             for repository in image["repositories"]:
                 if repository["repository"] not in repositories:
                     continue
+
                 published_repo = repositories[repository["repository"]]
                 tag_names = [tag["name"] for tag in repository["tags"]]
 
                 for auto_rebuild_tag in published_repo["auto_rebuild_tags"]:
                     if auto_rebuild_tag in tag_names:
                         image["release_categories"] = published_repo["release_categories"]
-                        new_images.append(image)
+                        image_nvr_to_image[nvr] = image
                         break
-        images = new_images
+                else:
+                    # If no match is found, continue to the next repository
+                    continue
+
+                # If a match was found, continue to the next image
+                break
+
+        # Reassign the filtered values to `images`
+        images = list(image_nvr_to_image.values())
         images = self.filter_out_images_with_higher_srpm_nvr(images, srpm_name_to_nvrs)
         images = self.filter_out_non_modular_container_images(images, srpm_name_to_nvrs)
         return images
@@ -1304,17 +1323,16 @@ class LightBlue(object):
             # therefore set `published` to None.
             images = self.get_images_by_nvrs(
                 leaf_container_images, None, content_sets, srpm_nvrs)
-
-        # There can be multi-arch images which share the same
-        # image['brew']['build']. Freshmaker is not interested in the image
-        # architecture, it is only interested in NVR, so group the images
-        # by the same image['brew']['build'] and include just first one in the
-        # image list.
-        sorted_images = sorted_by_nvr(
-            images, get_nvr=lambda image: image['brew']['build'], reverse=True)
-        images = []
-        for k, v in groupby(sorted_images, key=lambda x: x['brew']['build']):
-            images.append(next(v))
+            # There can be multi-arch images which share the same
+            # image['brew']['build']. Freshmaker is not interested in the image
+            # architecture, it is only interested in NVR, so group the images
+            # by the same image['brew']['build'] and include just first one in the
+            # image list.
+            sorted_images = sorted_by_nvr(
+                images, get_nvr=lambda image: image['brew']['build'], reverse=True)
+            images = []
+            for k, v in groupby(sorted_images, key=lambda x: x['brew']['build']):
+                images.append(next(v))
 
         # In case we query for unpublished images, we need to return just
         # the latest NVR for given name-version, otherwise images would
