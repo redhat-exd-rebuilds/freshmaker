@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 from __future__ import print_function
 import os
 import sys
@@ -13,6 +13,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '..'))
 # Set the FRESHMAKER_DEVELOPER_ENV variable.
 os.environ["FRESHMAKER_DEVELOPER_ENV"] = "1"
 os.environ["FRESHMAKER_CONFIG_FILE"] = os.path.join(sys.path[0], "config.py")
+os.environ["REQUESTS_CA_BUNDLE"] = "/etc/ssl/certs/ca-bundle.crt"
 
 from freshmaker import db, app
 from freshmaker.errata import Errata, ErrataAdvisory
