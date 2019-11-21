@@ -782,10 +782,13 @@ class LightBlue(object):
                              image["brew"]["build"], srpm_name_to_nvrs.values()))
         return ret
 
-    def filter_out_non_modular_container_images(self, images, srpm_name_to_nvrs):
+    def filter_out_modularity_mismatch(self, images, srpm_name_to_nvrs):
         """
-        Filter out container images which contain a component from a module but
-        do not contain the module itself.
+        Filter out container images which have a modularity mismatch with ``srpm_name_to_nvrs``.
+
+        If an advisory has a modular RPM, then the container image's RPM of the same name should
+        also be modular. The opposite should also be true. If not, the container image is filtered
+        out from the ``images`` list.
 
         :param list images: List of ContainerImage instances.
         :param dict srpm_name_to_nvrs: Dict with SRPM name as a key and list
@@ -799,9 +802,8 @@ class LightBlue(object):
             if rpms is None:
                 ret.append(image)
             image_included = False
-            # Check whether the RPMs contained in the images are installed from module
-            # and if there are other images that does not install the RPM from module
-            # so that we can ignore these latter.
+            # Include the image if the SRPM from the advisory is modular, and the SRPM of the same
+            # name in the image is also modular. Also, include the image if the opposite is true.
             for rpm in rpms or []:
                 for srpm_nvr in srpm_name_to_nvrs.get(rpm.get("srpm_name"), []):
                     if (("module+" in srpm_nvr and "module+" in rpm["srpm_nevra"]) or
@@ -812,13 +814,9 @@ class LightBlue(object):
                 if image_included:
                     break
             else:
-                # Oh-no, the mighty for/else block!
-                # The else clause executes after the loop completes normally.
-                # This means that the loop did not encounter a break statement.
-                # In our case, this means that we filtered out the image.
                 log.info(
-                    "Will not rebuild %s, because it does not contain "
-                    "RPMs from modules: %r" % (
+                    "Will not rebuild %s because there is a modularity mismatch between the RPMs "
+                    "from the image and the advisory: %r" % (
                         image["brew"]["build"], srpm_name_to_nvrs.values()))
         return ret
 
@@ -924,7 +922,7 @@ class LightBlue(object):
                         break
         images = new_images
         images = self.filter_out_images_with_higher_srpm_nvr(images, srpm_name_to_nvrs)
-        images = self.filter_out_non_modular_container_images(images, srpm_name_to_nvrs)
+        images = self.filter_out_modularity_mismatch(images, srpm_name_to_nvrs)
         return images
 
     def get_images_by_nvrs(self, nvrs, published=True, content_sets=None,
