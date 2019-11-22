@@ -421,7 +421,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
         if affected_pkgs:
             tmp_srpm_nvrs = srpm_nvrs
             srpm_nvrs = set([srpm_nvr for srpm_nvr in srpm_nvrs if kobo.rpmlib.parse_nvr(srpm_nvr)["name"] in affected_pkgs])
-            self.log_info(("Not going to rebuild these container images,"
+            self.log_info(("Not going to rebuild container images with RPMS from these SRPMs "
                            "because they're not affected: %r"), tmp_srpm_nvrs.difference(srpm_nvrs))
 
         self.log_info(
