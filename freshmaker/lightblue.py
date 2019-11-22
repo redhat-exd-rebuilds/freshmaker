@@ -728,7 +728,7 @@ class LightBlue(object):
                 ]
         return projection
 
-    def filter_out_images_with_lower_srpm_nvr(self, images, srpm_name_to_nvrs):
+    def filter_out_images_with_higher_srpm_nvr(self, images, srpm_name_to_nvrs):
         """
         Checks whether the input NVRs defined in `srpm_name_to_nvrs` dict are
         newer than the matching SRPM NVRs in the container image.
@@ -923,7 +923,7 @@ class LightBlue(object):
                         new_images.append(image)
                         break
         images = new_images
-        images = self.filter_out_images_with_lower_srpm_nvr(images, srpm_name_to_nvrs)
+        images = self.filter_out_images_with_higher_srpm_nvr(images, srpm_name_to_nvrs)
         images = self.filter_out_non_modular_container_images(images, srpm_name_to_nvrs)
         return images
 
@@ -1003,7 +1003,7 @@ class LightBlue(object):
 
         images = self.find_container_images(image_request)
         if srpm_nvrs is not None:
-            images = self.filter_out_images_with_lower_srpm_nvr(images, srpm_name_to_nvrs)
+            images = self.filter_out_images_with_higher_srpm_nvr(images, srpm_name_to_nvrs)
         return images
 
     def find_unpublished_image_for_build(self, build):
