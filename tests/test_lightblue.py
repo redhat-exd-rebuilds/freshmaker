@@ -20,6 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import copy
 import json
 import io
 import http.client
@@ -1526,9 +1527,16 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             'repository': 'repo-1',
             'commit': 'leaf-image6-commit',
         })
+        leaf_image7 = ContainerImage.create({
+            'brew': {'build': 'leaf-image-7-1'},
+            'parsed_data': {'layers': ['fake layer']},
+            'repositories': [{'repository': 'foo/bar'}],
+            'repository': 'repo-1',
+            'commit': 'leaf-image7-commit',
+        })
         images = [
-            leaf_image1, leaf_image2, leaf_image3,
-            leaf_image4, leaf_image5, leaf_image6
+            leaf_image1, leaf_image2, leaf_image3, leaf_image4, leaf_image5, leaf_image6,
+            leaf_image7,
         ]
 
         for image in images:
@@ -1537,17 +1545,23 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                     {"srpm_name": "dummy"}
                 ]
             }]
+            image["directly_affected"] = True
 
         find_unpublished_image_for_build.side_effect = images
         find_images_with_packages_from_content_set.return_value = images
 
+        leaf_image6_as_parent = copy.deepcopy(leaf_image6)
+        leaf_image6_as_parent['parent'] = image_f
+        # When the image is a parent, directly_affected is not set
+        del leaf_image6_as_parent["directly_affected"]
         find_parent_images_with_package.side_effect = [
-            [image_b, image_a],                    # parents of leaf_image1
-            [image_c, image_b, image_a],           # parents of leaf_image2
-            [image_k, image_j, image_e, image_a],  # parents of leaf_image3
-            [image_d, image_e, image_a],           # parents of leaf_image4
-            [image_a],                             # parents of leaf_image5
-            [image_f, image_g]                     # parents of leaf_image6
+            [image_b, image_a],                        # parents of leaf_image1
+            [image_c, image_b, image_a],               # parents of leaf_image2
+            [image_k, image_j, image_e, image_a],      # parents of leaf_image3
+            [image_d, image_e, image_a],               # parents of leaf_image4
+            [image_a],                                 # parents of leaf_image5
+            [image_f, image_g],                        # parents of leaf_image6
+            [leaf_image6_as_parent, image_f, image_g]  # parents of leaf_image7
         ]
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
@@ -1559,13 +1573,28 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             [image_a, image_g],
             [image_b, image_e, image_f, leaf_image5],
             [image_c, image_d, image_j, leaf_image1, leaf_image6],
-            [image_k, leaf_image2, leaf_image4],
+            [image_k, leaf_image2, leaf_image4, leaf_image7],
             [leaf_image3]
         ]
+        expected_batches_nvrs = [
+            {image["brew"]["build"] for image in batch}
+            for batch in expected_batches
+        ]
 
-        returned_batches = [sorted(imgs, key=lambda image: image['brew']['build'])
-                            for imgs in batches]
-        self.assertEqual(expected_batches, returned_batches)
+        returned_batches_nvrs = [
+            {image["brew"]["build"] for image in batch}
+            for batch in batches
+        ]
+
+        self.assertEqual(expected_batches_nvrs, returned_batches_nvrs)
+        # This verifies that Freshmaker recognizes that the parent of leaf_image7 that gets put
+        # into one of the batches is directly affected because the same image was returned in
+        # find_images_with_packages_from_content_set.
+        for batch in batches:
+            for image in batch:
+                if image["brew"]["build"] == "leaf-image-6-1":
+                    self.assertTrue(leaf_image6_as_parent["directly_affected"])
+                    break
 
     @patch('freshmaker.lightblue.LightBlue.find_images_with_packages_from_content_set')
     @patch('freshmaker.lightblue.LightBlue.find_unpublished_image_for_build')
@@ -2073,7 +2102,7 @@ class TestDeduplicateImagesToRebuild(helpers.FreshmakerTestCase):
             "rhel-server-docker-7.4-150",
         ])
         to_rebuild = [httpd, perl]
-        batches = self.lb._images_to_rebuild_to_batches(to_rebuild)
+        batches = self.lb._images_to_rebuild_to_batches(to_rebuild, set())
         batches = [
             sorted_by_nvr(images, get_nvr=lambda image: image['brew']['build'])
             for images in batches]
@@ -2098,8 +2127,9 @@ class TestDeduplicateImagesToRebuild(helpers.FreshmakerTestCase):
         #   ...,
         #   [rhel-server-docker]
         # ]
+        httpd_nvr = "httpd-2.4-12"
         deps = self._create_imgs([
-            "httpd-2.4-12",
+            httpd_nvr,
             "s2i-base-1-10",
             "s2i-core-1-11",
             "rhel-server-docker-7.4-150",
@@ -2108,7 +2138,7 @@ class TestDeduplicateImagesToRebuild(helpers.FreshmakerTestCase):
         for i in range(len(deps)):
             to_rebuild.append(deps[i:])
 
-        batches = self.lb._images_to_rebuild_to_batches(to_rebuild)
+        batches = self.lb._images_to_rebuild_to_batches(to_rebuild, {httpd_nvr})
         batches = [
             sorted_by_nvr(images, get_nvr=lambda image: image['brew']['build'])
             for images in batches]
@@ -2116,6 +2146,12 @@ class TestDeduplicateImagesToRebuild(helpers.FreshmakerTestCase):
         # We expect each image to be rebuilt just once.
         expected = [[deps[3]], [deps[2]], [deps[1]], [deps[0]]]
         self.assertEqual(batches, expected)
+        for batch in batches:
+            for image in batch:
+                if image["brew"]["build"] == httpd_nvr:
+                    self.assertTrue(image['directly_affected'])
+                else:
+                    self.assertFalse(image.get('directly_affected'))
 
     def test_parent_changed_in_latest_release(self):
         httpd = self._create_imgs([

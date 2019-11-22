@@ -1537,7 +1537,7 @@ class LightBlue(object):
 
         return to_rebuild
 
-    def _images_to_rebuild_to_batches(self, to_rebuild):
+    def _images_to_rebuild_to_batches(self, to_rebuild, directly_affected_nvrs):
         """
         Creates batches with images as defined by `find_images_to_rebuild`
         output from the `to_rebuild` list in following format:
@@ -1546,6 +1546,12 @@ class LightBlue(object):
                 [child_image, parent_of_child_image, parent_of_parent, ...],
                 ...
             ]
+
+        :param list to_rebuild: the list of images to rebuild
+        :param set directly_affected_nvrs: the set of NVRs that were detected as directly affected
+            and that should have `directly_affected` value set.
+        :return: a list of batches with each batch having a list of images
+        :rtype: list
         """
         # At first get the max length of list in to_rebuild list.
         max_len = 0
@@ -1574,6 +1580,9 @@ class LightBlue(object):
         for image_rebuild_list in sorted(to_rebuild, key=lambda lst: len(lst), reverse=True):
             for image, batch in zip(reversed(image_rebuild_list), batches):
                 image_key = image["brew"]["build"]
+                # If one of the parents is directly affected but not marked, mark it explicitly
+                if image_key in directly_affected_nvrs and not image.get("directly_affected"):
+                    image["directly_affected"] = True
                 if image_key in seen:
                     continue
                 seen.add(image_key)
@@ -1677,5 +1686,12 @@ class LightBlue(object):
         # version, but different release.
         to_rebuild = self._deduplicate_images_to_rebuild(to_rebuild)
 
+        # Get all the directly affected images so that any parents that are not marked as
+        # directly affected can be set in _images_to_rebuild_to_batches
+        directly_affected_nvrs = {
+            image["brew"]["build"]
+            for image in images
+            if image.get("directly_affected")
+        }
         # Now generate batches from deduplicated list and return it.
-        return self._images_to_rebuild_to_batches(to_rebuild)
+        return self._images_to_rebuild_to_batches(to_rebuild, directly_affected_nvrs)
