@@ -343,17 +343,18 @@ class Errata(object):
         # Store NVRs of all builds in advisory to nvrs set.
         nvrs = set()
         for product_version, builds in builds_per_product.items():
-            rhel_release = Errata.product_region.get(product_version)
-            if not rhel_release:
-                rhel_release = self._rhel_release_from_product_version(
-                    errata_id, product_version)
-                Errata.product_region.set(product_version, rhel_release)
+            if rhel_release_prefix:
+                rhel_release = Errata.product_region.get(product_version)
+                if not rhel_release:
+                    rhel_release = self._rhel_release_from_product_version(
+                        errata_id, product_version)
+                    Errata.product_region.set(product_version, rhel_release)
 
-            if (rhel_release_prefix and
-                    not rhel_release.startswith(rhel_release_prefix)):
-                log.info("Skipping builds for %s - not based on RHEL %s",
-                         product_version, rhel_release_prefix)
-                continue
+                if not rhel_release.startswith(rhel_release_prefix):
+                    log.info("Skipping builds for %s - not based on RHEL %s",
+                             product_version, rhel_release_prefix)
+                    continue
+
             for build in builds:
                 # Add attached Koji build NVRs.
                 nvrs.update(set(build.keys()))
