@@ -157,11 +157,22 @@ class Config(object):
             'desc': 'Global network retry interval for read/write operations, in seconds.'},
         'parsers': {
             'type': list,
-            'default': [],
+            'default': [
+                'freshmaker.parsers.internal:FreshmakerManualRebuildParser',
+                'freshmaker.parsers.brew:BrewTaskStateChangeParser',
+                'freshmaker.parsers.errata:ErrataAdvisoryStateChangedParser',
+                'freshmaker.parsers.odcs:ComposeStateChangeParser',
+            ],
             'desc': 'Parsers defined for parse specific messages.'},
         'handlers': {
             'type': list,
-            'default': [],
+            'default': [
+                'freshmaker.handlers.koji:RebuildImagesOnParentImageBuild',
+                'freshmaker.handlers.koji:RebuildImagesOnRPMAdvisoryChange',
+                'freshmaker.handlers.internal:UpdateDBOnAdvisoryChange',
+                'freshmaker.handlers.koji:RebuildImagesOnODCSComposeDone',
+                'freshmaker.handlers.bob:RebuildImagesOnImageAdvisoryChange',
+            ],
             'desc': 'List of enabled handlers.'},
         'polling_interval': {
             'type': int,
