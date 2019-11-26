@@ -26,7 +26,7 @@ import uuid
 import unittest
 import koji
 
-from mock import patch, MagicMock
+from mock import patch, MagicMock, PropertyMock
 from functools import wraps
 
 import freshmaker.consumer
@@ -476,6 +476,32 @@ class PDCModuleInfo(PDCModuleInfoFactory):
 
 
 class ConsumerBaseTest(ModelsTestCase):
+
+    def setUp(self):
+        super(ConsumerBaseTest, self).setUp()
+        self.patched_parsers = patch(
+            "freshmaker.config.Config.parsers",
+            new_callable=PropertyMock,
+            return_value=[
+                "freshmaker.parsers.internal:FreshmakerManualRebuildParser",
+                "freshmaker.parsers.odcs:ComposeStateChangeParser",
+            ]
+        )
+        self.patched_parsers.start()
+        self.patched_handlers = patch(
+            "freshmaker.config.Config.handlers",
+            new_callable=PropertyMock,
+            return_value=[
+                "freshmaker.handlers.internal:UpdateDBOnODCSComposeFail",
+                "freshmaker.handlers.koji:RebuildImagesOnODCSComposeDone",
+            ]
+        )
+        self.patched_handlers.start()
+
+    def tearDown(self):
+        super(ConsumerBaseTest, self).setUp()
+        self.patched_parsers.stop()
+        self.patched_handlers.stop()
 
     def _compose_state_change_msg(self, state=None):
         msg = {'body': {

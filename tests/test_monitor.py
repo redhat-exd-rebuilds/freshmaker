@@ -60,7 +60,7 @@ class TestViews(helpers.ModelsTestCase):
                  if l.startswith('# TYPE')]), num_of_metrics)
 
 
-class ConsumerTest(helpers.ModelsTestCase):
+class ConsumerTest(helpers.ConsumerBaseTest):
     def setUp(self):
         super(ConsumerTest, self). setUp()
         self.client = app.test_client()
