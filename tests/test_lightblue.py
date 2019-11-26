@@ -1022,6 +1022,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         repositories = {
             repo["repository"]: repo for repo in
             self.fake_repositories_with_content_sets}
+        # Add a duplicate simulating a multi-arch image
+        self.fake_container_images.append(self.fake_container_images[1])
         cont_images.return_value = self.fake_container_images
         ret = lb.find_images_with_included_srpms(
             ["content-set-1", "content-set-2"], ["openssl-1.2.3-2"], repositories)
