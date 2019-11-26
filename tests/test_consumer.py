@@ -31,25 +31,7 @@ from freshmaker.handlers import fail_event_on_handler_exception
 from tests import helpers
 
 
-class ConsumerBaseTest(helpers.ModelsTestCase):
-
-    def _compose_state_change_msg(self, state=None):
-        msg = {'body': {
-            "msg_id": "2017-7afcb214-cf82-4130-92d2-22f45cf59cf7",
-            "topic": "org.fedoraproject.prod.odcs.state.change",
-            "signature": "qRZ6oXBpKD/q8BTjBNa4MREkAPxT+KzI8Oret+TSKazGq/6gk0uuprdFpkfBXLR5dd4XDoh3NQWp\nyC74VYTDVqJR7IsEaqHtrv01x1qoguU/IRWnzrkGwqXm+Es4W0QZjHisBIRRZ4ywYBG+DtWuskvy\n6/5Mc3dXaUBcm5TnT0c=\n",
-            "msg": {
-                "compose": {
-                    "id": 1,
-                    "state": 4,
-                }
-            }
-        }}
-
-        return msg
-
-
-class ConsumerTest(ConsumerBaseTest):
+class ConsumerTest(helpers.ConsumerBaseTest):
 
     @mock.patch("freshmaker.handlers.internal.UpdateDBOnODCSComposeFail.handle")
     @mock.patch("freshmaker.consumer.get_global_consumer")
@@ -165,7 +147,7 @@ class ConsumerTest(ConsumerBaseTest):
             self.assertTrue(build.state_reason, "Failed with traceback")
 
 
-class ParseBrewSignRPMEventTest(ConsumerBaseTest):
+class ParseBrewSignRPMEventTest(helpers.ModelsTestCase):
 
     @mock.patch('freshmaker.events.conf.parsers',
                 new=['freshmaker.parsers.brew.sign_rpm:BrewSignRpmParser'])

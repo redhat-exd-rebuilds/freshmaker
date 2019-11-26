@@ -473,3 +473,21 @@ class PDCModuleInfo(PDCModuleInfoFactory):
 
     def add_rpm(self, rpm):
         self.rpms.append(rpm)
+
+
+class ConsumerBaseTest(ModelsTestCase):
+
+    def _compose_state_change_msg(self, state=None):
+        msg = {'body': {
+            "msg_id": "2017-7afcb214-cf82-4130-92d2-22f45cf59cf7",
+            "topic": "org.fedoraproject.prod.odcs.state.change",
+            "signature": "qRZ6oXBpKD/q8BTjBNa4MREkAPxT+KzI8Oret+TSKazGq/6gk0uuprdFpkfBXLR5dd4XDoh3NQWp\nyC74VYTDVqJR7IsEaqHtrv01x1qoguU/IRWnzrkGwqXm+Es4W0QZjHisBIRRZ4ywYBG+DtWuskvy\n6/5Mc3dXaUBcm5TnT0c=\n",
+            "msg": {
+                "compose": {
+                    "id": 1,
+                    "state": 4,
+                }
+            }
+        }}
+
+        return msg
