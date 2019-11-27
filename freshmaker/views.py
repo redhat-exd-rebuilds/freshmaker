@@ -392,33 +392,57 @@ class BuildAPI(MethodView):
 
 
         :jsonparam string errata_id: The ID of Errata advisory to rebuild
-            artifacts for.
+            artifacts for. If this is not set, freshmaker_event_id must be set.
         :jsonparam list container_images: When set, defines list of NVRs
             of leaf container images which should be rebuild in the
             newly created Event.
         :jsonparam bool dry_run: When True, the Event will be handled in
             the DRY_RUN mode.
-        :jsonparam bool freshmaker_event_id: When set, defines the event
-            which will be used as dependant event. Successfull builds from
-            this Event will be reused in the newly created Event instead of
-            building all the artifacts from scratch.
-        :statuscode 200: New even generated.
-        :statuscode 400: Errata with this ID is not found.
+        :jsonparam bool freshmaker_event_id: When set, it defines the event
+            which will be used as the dependant event. Successfull builds from
+            this event will be reused in the newly created event instead of
+            building all the artifacts from scratch. If errata_id is not
+            provided, it will be inherited from this Freshmaker event.
+        :statuscode 200: A new event was created.
+        :statuscode 400: The provided input is invalid.
         """
         data = request.get_json(force=True)
-        if 'errata_id' not in data:
+        for key in ('errata_id', 'freshmaker_event_id'):
+            if data.get(key) and not isinstance(data[key], int):
+                return json_error(400, 'Bad Request', f'"{key}" must be an integer.')
+
+        if not data.get('errata_id') and not data.get('freshmaker_event_id'):
             return json_error(
-                400, 'Bad Request', 'Missing errata_id in request')
+                400,
+                'Bad Request',
+                'You must at least provide "errata_id" or "freshmaker_event_id" in the request.',
+            )
+
+        dependent_event = None
+        if data.get('freshmaker_event_id'):
+            dependent_event = models.Event.get_by_event_id(
+                db.session, data.get('freshmaker_event_id'),
+            )
+            if not dependent_event:
+                return json_error(
+                    400, 'Bad Request', 'The provided "freshmaker_event_id" is invalid.',
+                )
+
+            if not data.get('errata_id'):
+                data['errata_id'] = int(dependent_event.search_key)
+            elif int(dependent_event.search_key) != data['errata_id']:
+                return json_error(
+                    400,
+                    'Bad Request',
+                    'The provided "errata_id" doesn\'t match the Advisory ID associated with the '
+                    'input "freshmaker_event_id".',
+                )
 
         # Use the shared code to parse the POST data and generate right
         # event based on the data. Currently it generates just
         # ManualRebuildWithAdvisoryEvent.
         parser = FreshmakerManualRebuildParser()
         event = parser.parse_post_data(data)
-
-        dependent_event = None
-        if event.freshmaker_event_id:
-            dependent_event = models.Event.get_by_event_id(db.session, event.freshmaker_event_id)
 
         # Store the event into database, so it gets the ID which we can return
         # to client sending this POST request. The client can then use the ID

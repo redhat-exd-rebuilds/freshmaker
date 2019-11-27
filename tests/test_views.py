@@ -708,10 +708,10 @@ class TestManualTriggerRebuild(ViewBaseTest):
         db.session.commit()
         time.return_value = 123
         from_advisory_id.return_value = ErrataAdvisory(
-            123, 'name', 'REL_PREP', ['rpm'])
+            103, 'name', 'REL_PREP', ['rpm'])
 
         payload = {
-            'errata_id': 1,
+            'errata_id': 103,
             'container_images': ['foo-1-1'],
             'freshmaker_event_id': 1,
         }
@@ -725,8 +725,91 @@ class TestManualTriggerRebuild(ViewBaseTest):
         assert "103" == add_dependency.call_args[0][1].search_key
         publish.assert_called_once_with(
             'manual.rebuild',
-            {'msg_id': 'manual_rebuild_123', u'errata_id': 1,
+            {'msg_id': 'manual_rebuild_123', u'errata_id': 103,
              'container_images': ["foo-1-1"], 'freshmaker_event_id': 1})
+
+    @patch('freshmaker.messaging.publish')
+    @patch('freshmaker.parsers.internal.manual_rebuild.ErrataAdvisory.'
+           'from_advisory_id')
+    @patch('freshmaker.parsers.internal.manual_rebuild.time.time')
+    @patch('freshmaker.models.Event.add_event_dependency')
+    def test_dependent_manual_rebuild_on_existing_event_no_errata_id(
+        self, add_dependency, time, from_advisory_id, publish,
+    ):
+        models.Event.create(
+            db.session, '2017-00000000-0000-0000-0000-000000000003', '1', events.TestingEvent,
+        )
+        db.session.commit()
+        from_advisory_id.return_value = ErrataAdvisory(1, 'name', 'REL_PREP', ['rpm'])
+
+        payload = {
+            'container_images': ['foo-1-1'],
+            'freshmaker_event_id': 1,
+        }
+        with self.test_request_context(user='root'):
+            resp = self.client.post('/api/1/builds/', json=payload, content_type='application/json')
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json['search_key'], '1')
+
+    def test_dependent_manual_rebuild_on_existing_event_errata_id_mismatch(self):
+        models.Event.create(
+            db.session, '2017-00000000-0000-0000-0000-000000000003', '1', events.TestingEvent,
+        )
+        db.session.commit()
+
+        payload = {
+            'container_images': ['foo-1-1'],
+            'errata_id': 2,
+            'freshmaker_event_id': 1,
+        }
+        with self.test_request_context(user='root'):
+            resp = self.client.post('/api/1/builds/', json=payload, content_type='application/json')
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(
+            resp.json['message'],
+            'The provided "errata_id" doesn\'t match the Advisory ID associated with the input '
+            '"freshmaker_event_id".',
+        )
+
+    def test_dependent_manual_rebuild_on_existing_event_invalid_dependent(self):
+        payload = {
+            'container_images': ['foo-1-1'],
+            'freshmaker_event_id': 1,
+        }
+        with self.test_request_context(user='root'):
+            resp = self.client.post('/api/1/builds/', json=payload, content_type='application/json')
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json['message'], 'The provided "freshmaker_event_id" is invalid.')
+
+    def test_manual_rebuild_missing_errata_id(self):
+        payload = {'container_images': ['foo-1-1']}
+        with self.test_request_context(user='root'):
+            resp = self.client.post('/api/1/builds/', json=payload, content_type='application/json')
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(
+            resp.json['message'],
+            'You must at least provide "errata_id" or "freshmaker_event_id" in the request.',
+        )
+
+    def test_manual_rebuild_invalid_type_errata_id(self):
+        payload = {'errata_id': '123'}
+        with self.test_request_context(user='root'):
+            resp = self.client.post('/api/1/builds/', json=payload, content_type='application/json')
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json['message'], '"errata_id" must be an integer.')
+
+    def test_manual_rebuild_invalid_type_freshmaker_event_id(self):
+        payload = {'freshmaker_event_id': '123'}
+        with self.test_request_context(user='root'):
+            resp = self.client.post('/api/1/builds/', json=payload, content_type='application/json')
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json['message'], '"freshmaker_event_id" must be an integer.')
 
 
 class TestPatchAPI(ViewBaseTest):
