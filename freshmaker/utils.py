@@ -157,11 +157,17 @@ def retry(timeout=conf.net_timeout, interval=conf.net_retry_interval, wait_on=Ex
         def inner(*args, **kwargs):
             start = time.time()
             while True:
-                if (time.time() - start) >= timeout:
-                    raise  # This re-raises the last exception.
                 try:
                     return function(*args, **kwargs)
                 except wait_on as e:
+                    if time.time() - start >= timeout:
+                        if logger is not None:
+                            logger.exception(
+                                "The timeout of %d seconds was exceeded after one or more retry "
+                                "attempts",
+                                timeout,
+                            )
+                        raise
                     if logger is not None:
                         logger.warning("Exception %r raised from %r.  Retry in %rs",
                                        e, function, interval)
