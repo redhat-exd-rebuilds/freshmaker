@@ -411,6 +411,18 @@ class BuildAPI(MethodView):
             if data.get(key) and not isinstance(data[key], int):
                 return json_error(400, 'Bad Request', f'"{key}" must be an integer.')
 
+        container_images = data.get('container_images', [])
+        if (
+            not isinstance(container_images, list) or
+            any(not isinstance(image, str) for image in container_images)
+        ):
+            return json_error(
+                400, 'Bad Request', '"container_images" must be an array of strings.',
+            )
+
+        if not isinstance(data.get('dry_run', False), bool):
+            return json_error(400, 'Bad Request', '"dry_run" must be a boolean.')
+
         if not data.get('errata_id') and not data.get('freshmaker_event_id'):
             return json_error(
                 400,

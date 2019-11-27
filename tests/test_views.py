@@ -811,6 +811,22 @@ class TestManualTriggerRebuild(ViewBaseTest):
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(resp.json['message'], '"freshmaker_event_id" must be an integer.')
 
+    def test_manual_rebuild_invalid_type_container_images(self):
+        payload = {'container_images': '123'}
+        with self.test_request_context(user='root'):
+            resp = self.client.post('/api/1/builds/', json=payload, content_type='application/json')
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json['message'], '"container_images" must be an array of strings.')
+
+    def test_manual_rebuild_invalid_type_dry_run(self):
+        payload = {'dry_run': '123'}
+        with self.test_request_context(user='root'):
+            resp = self.client.post('/api/1/builds/', json=payload, content_type='application/json')
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json['message'], '"dry_run" must be a boolean.')
+
 
 class TestPatchAPI(ViewBaseTest):
     def test_patch_event_cancel(self):
