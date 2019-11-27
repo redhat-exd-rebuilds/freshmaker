@@ -115,12 +115,12 @@ class TestViews(helpers.ModelsTestCase):
         self.client = app.test_client()
 
     def _init_data(self):
-        event = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000001", "RHSA-2018-101", events.TestingEvent)
+        event = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000001", "101", events.TestingEvent)
         build = models.ArtifactBuild.create(db.session, event, "ed", "module", 1234)
         build.build_args = '{"key": "value"}'
         models.ArtifactBuild.create(db.session, event, "mksh", "module", 1235)
         models.ArtifactBuild.create(db.session, event, "bash", "module", 1236)
-        models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000002", "RHSA-2018-102", events.TestingEvent)
+        models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000002", "102", events.TestingEvent)
         db.session.commit()
         db.session.expire_all()
 
@@ -146,7 +146,7 @@ class TestViews(helpers.ModelsTestCase):
             self.assertIn(build_id, [b['build_id'] for b in builds])
 
     def test_query_builds_order_by_default(self):
-        event = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000003", "RHSA-2018-103", events.TestingEvent)
+        event = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000003", "103", events.TestingEvent)
         build9 = models.ArtifactBuild.create(db.session, event, "make", "module", 1237)
         build9.id = 9
         db.session.commit()
@@ -161,7 +161,7 @@ class TestViews(helpers.ModelsTestCase):
             self.assertEqual(id, build['id'])
 
     def test_query_builds_order_by_id_asc(self):
-        event = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000003", "RHSA-2018-103", events.TestingEvent)
+        event = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000003", "103", events.TestingEvent)
         build9 = models.ArtifactBuild.create(db.session, event, "make", "module", 1237)
         build9.id = 9
         db.session.commit()
@@ -176,7 +176,7 @@ class TestViews(helpers.ModelsTestCase):
             self.assertEqual(id, build['id'])
 
     def test_query_builds_order_by_build_id_desc(self):
-        event = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000003", "RHSA-2018-103", events.TestingEvent)
+        event = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000003", "103", events.TestingEvent)
         build9 = models.ArtifactBuild.create(db.session, event, "make", "module", 1237)
         build9.id = 9
         db.session.commit()
@@ -285,20 +285,20 @@ class TestViews(helpers.ModelsTestCase):
         self.assertEqual(len(builds), 0)
 
     def test_query_build_by_event_search_key(self):
-        resp = self.client.get('/api/1/builds/?event_search_key=RHSA-2018-101')
+        resp = self.client.get('/api/1/builds/?event_search_key=101')
         builds = json.loads(resp.get_data(as_text=True))['items']
         self.assertEqual(len(builds), 3)
 
-        resp = self.client.get('/api/1/builds/?event_search_key=RHSA-2018-102')
+        resp = self.client.get('/api/1/builds/?event_search_key=102')
         builds = json.loads(resp.get_data(as_text=True))['items']
         self.assertEqual(len(builds), 0)
 
     def test_query_build_by_event_type_id_and_search_key(self):
-        resp = self.client.get('/api/1/builds/?event_type_id=%s&event_search_key=RHSA-2018-101' % models.EVENT_TYPES[events.TestingEvent])
+        resp = self.client.get('/api/1/builds/?event_type_id=%s&event_search_key=101' % models.EVENT_TYPES[events.TestingEvent])
         builds = json.loads(resp.get_data(as_text=True))['items']
         self.assertEqual(len(builds), 3)
 
-        resp = self.client.get('/api/1/builds/?event_type_id=%s&event_search_key=RHSA-2018-102' % models.EVENT_TYPES[events.TestingEvent])
+        resp = self.client.get('/api/1/builds/?event_type_id=%s&event_search_key=102' % models.EVENT_TYPES[events.TestingEvent])
         builds = json.loads(resp.get_data(as_text=True))['items']
         self.assertEqual(len(builds), 0)
 
@@ -307,7 +307,7 @@ class TestViews(helpers.ModelsTestCase):
         data = json.loads(resp.get_data(as_text=True))
         self.assertEqual(data['id'], 1)
         self.assertEqual(data['message_id'], '2017-00000000-0000-0000-0000-000000000001')
-        self.assertEqual(data['search_key'], 'RHSA-2018-101')
+        self.assertEqual(data['search_key'], '101')
         self.assertEqual(data['event_type_id'], models.EVENT_TYPES[events.TestingEvent])
         self.assertEqual(len(data['builds']), 3)
 
@@ -356,10 +356,10 @@ class TestViews(helpers.ModelsTestCase):
         self.assertEqual(evs[0]['message_id'], '2017-00000000-0000-0000-0000-000000000001')
 
     def test_query_event_by_search_key(self):
-        resp = self.client.get('/api/1/events/?search_key=RHSA-2018-101')
+        resp = self.client.get('/api/1/events/?search_key=101')
         evs = json.loads(resp.get_data(as_text=True))['items']
         self.assertEqual(len(evs), 1)
-        self.assertEqual(evs[0]['search_key'], 'RHSA-2018-101')
+        self.assertEqual(evs[0]['search_key'], '101')
 
     def test_query_event_by_state_name(self):
         models.Event.create(db.session,
@@ -520,8 +520,8 @@ class TestViews(helpers.ModelsTestCase):
             'msg': 'Found 1 images which are handled by Freshmaker for defined content_sets.'})
 
     def test_dependencies(self):
-        event = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000003", "RHSA-2018-103", events.TestingEvent)
-        event1 = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000004", "RHSA-2018-104", events.TestingEvent)
+        event = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000003", "103", events.TestingEvent)
+        event1 = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000004", "104", events.TestingEvent)
         db.session.commit()
         event.add_event_dependency(db.session, event1)
         db.session.commit()
@@ -549,7 +549,7 @@ class TestViewsMultipleFilterValues(helpers.ModelsTestCase):
     def _init_data(self):
         event = models.Event.create(
             db.session, "2017-00000000-0000-0000-0000-000000000001",
-            "RHSA-2018-101", events.TestingEvent)
+            "101", events.TestingEvent)
         event.state = EventState.BUILDING.value
         build = models.ArtifactBuild.create(db.session, event, "ed", "module", 1234)
         build.build_args = '{"key": "value"}'
@@ -557,11 +557,11 @@ class TestViewsMultipleFilterValues(helpers.ModelsTestCase):
         models.ArtifactBuild.create(db.session, event, "bash", "module", 1236)
         event2 = models.Event.create(
             db.session, "2017-00000000-0000-0000-0000-000000000002",
-            "RHSA-2018-102", events.GitModuleMetadataChangeEvent)
+            "102", events.GitModuleMetadataChangeEvent)
         event2.state = EventState.SKIPPED.value
         event3 = models.Event.create(
             db.session, "2017-00000000-0000-0000-0000-000000000003",
-            "RHSA-2018-103", events.MBSModuleStateChangeEvent)
+            "103", events.MBSModuleStateChangeEvent)
         event3.state = EventState.FAILED.value
         db.session.commit()
         db.session.expire_all()
@@ -704,7 +704,7 @@ class TestManualTriggerRebuild(ViewBaseTest):
                                                         from_advisory_id, publish):
         models.Event.create(db.session,
                             "2017-00000000-0000-0000-0000-000000000003",
-                            "RHSA-2018-103", events.TestingEvent)
+                            "103", events.TestingEvent)
         db.session.commit()
         time.return_value = 123
         from_advisory_id.return_value = ErrataAdvisory(
@@ -722,7 +722,7 @@ class TestManualTriggerRebuild(ViewBaseTest):
         # Other fields are predictible.
         self.assertEqual(data['requested_rebuilds'], ["foo-1-1"])
         assert add_dependency.call_count == 1
-        assert "RHSA-2018-103" == add_dependency.call_args[0][1].search_key
+        assert "103" == add_dependency.call_args[0][1].search_key
         publish.assert_called_once_with(
             'manual.rebuild',
             {'msg_id': 'manual_rebuild_123', u'errata_id': 1,
@@ -734,7 +734,7 @@ class TestPatchAPI(ViewBaseTest):
         event = models.Event.create(
             db.session,
             '2017-00000000-0000-0000-0000-000000000003',
-            'RHSA-2018-103',
+            '103',
             events.TestingEvent,
             # Tests that admins can cancel any event, regardless of the requester
             requester='tom_hanks',
@@ -765,7 +765,7 @@ class TestPatchAPI(ViewBaseTest):
         event = models.Event.create(
             db.session,
             '2017-00000000-0000-0000-0000-000000000003',
-            'RHSA-2018-103',
+            '123',
             events.TestingEvent,
             requester='tom_hanks',
         )
@@ -779,7 +779,7 @@ class TestPatchAPI(ViewBaseTest):
         event = models.Event.create(
             db.session,
             '2017-00000000-0000-0000-0000-000000000003',
-            'RHSA-2018-103',
+            '103',
             events.TestingEvent,
             requester='han_solo',
         )
