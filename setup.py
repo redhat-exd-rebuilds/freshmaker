@@ -52,10 +52,12 @@ setup(name='freshmaker',
       entry_points={
           'moksha.consumer': 'freshmakerconsumer = freshmaker.consumer:FreshmakerConsumer',
           'moksha.producer': 'freshmakerproducer = freshmaker.producer:FreshmakerProducer',
-          'console_scripts': ['freshmaker-frontend = freshmaker.manage:runssl',
-                              'freshmaker-upgradedb = freshmaker.manage:upgradedb',
-                              'freshmaker-gencert = freshmaker.manage:generatelocalhostcert',
-                              'freshmaker-manager = freshmaker.manage:manager_wrapper']
+          'console_scripts': [
+              'freshmaker-frontend = freshmaker.manage:runssl',
+              'freshmaker-gencert = freshmaker.manage:generatelocalhostcert',
+              'freshmaker-manager = freshmaker.manage:cli',
+              'freshmaker-upgradedb = freshmaker.manage:upgradedb',
+          ],
       },
       data_files=[('/etc/freshmaker/', ['conf/config.py']),
                   ('/etc/fedmsg.d/', ['fedmsg.d/freshmaker-logging.py',

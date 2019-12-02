@@ -19,43 +19,28 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from flask_script import Manager
-from functools import wraps
-import flask_migrate
 import logging
 import os
 import ssl
+import click
+import flask_migrate
 
+from flask.cli import FlaskGroup
+from werkzeug.serving import run_simple
 from freshmaker import app, conf, db
 from freshmaker import models
 
-
-manager = Manager(app)
-help_args = ('-?', '--help')
-manager.help_args = help_args
 migrations_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)),
                               'migrations')
 migrate = flask_migrate.Migrate(app, db, directory=migrations_dir)
-manager.add_command('db', flask_migrate.MigrateCommand)
 
 
-def console_script_help(f):
-    @wraps(f)
-    def wrapped(*args, **kwargs):
-        import sys
-        if any([arg in help_args for arg in sys.argv[1:]]):
-            command = os.path.basename(sys.argv[0])
-            print("""{0}
+@click.group(cls=FlaskGroup, create_app=lambda *args, **kwargs: app)
+def cli():
+    """Manage freshmaker application"""
 
-Usage: {0} [{1}]
 
-See also:
-  freshmaker-manager(1)""".format(command,
-                                  '|'.join(help_args)))
-            sys.exit(2)
-        r = f(*args, **kwargs)
-        return r
-    return wrapped
+cli.command('db', flask_migrate.MigrateCommand)
 
 
 def _establish_ssl_context():
@@ -84,8 +69,7 @@ def _establish_ssl_context():
     return ssl_ctx
 
 
-@console_script_help
-@manager.command
+@cli.command('upgradedb')
 def upgradedb():
     """ Upgrades the database schema to the latest revision
     """
@@ -96,8 +80,7 @@ def upgradedb():
         flask_migrate.upgrade(directory=migrations_dir)
 
 
-@console_script_help
-@manager.command
+@cli.command('cleardb')
 def cleardb():
     """ Clears the database
     """
@@ -106,8 +89,7 @@ def cleardb():
     db.session.commit()
 
 
-@manager.command
-@console_script_help
+@cli.command('gencert')
 def generatelocalhostcert():
     """ Creates a public/private key pair for message signing and the frontend
     """
@@ -146,29 +128,19 @@ def generatelocalhostcert():
             crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
 
 
-@console_script_help
-@manager.command
-def runssl(host=conf.host, port=conf.port, debug=conf.debug):
+@cli.command('runssl')
+@click.option('-h', '--host', default=conf.host, help='Bind to this address')
+@click.option('-p', '--port', type=int, default=conf.port, help='Listen on this port')
+@click.option('-d', '--debug', is_flag=True, default=conf.debug, help='Debug mode')
+def runssl(host, port, debug):
     """ Runs the Flask app with the HTTPS settings configured in config.py
     """
     logging.info('Starting Freshmaker frontend')
 
     ssl_ctx = _establish_ssl_context()
-    app.run(
-        host=host,
-        port=port,
-        ssl_context=ssl_ctx,
-        debug=debug
-    )
 
-
-def manager_wrapper():
-    """
-    Runs the manager. We have separate method for this so we can use it in
-    `console_scripts` part of setup.py
-    """
-    manager.run()
+    run_simple(host, port, app, use_debugger=debug, ssl_context=ssl_ctx)
 
 
 if __name__ == "__main__":
-    manager.run()
+    cli()

@@ -12,7 +12,6 @@ sqlalchemy
 Flask
 Flask-Migrate
 Flask-SQLAlchemy
-Flask-Script
 Flask-Login
 requests
 odcs[client]
