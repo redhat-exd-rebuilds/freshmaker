@@ -141,7 +141,24 @@ class KojiService(object):
                         scratch=None, repo_urls=None, isolated=False,
                         release=None, koji_parent_build=None,
                         arch_override=None, compose_ids=None):
-        """Build container by buildContainer"""
+        """Build container by buildContainer
+
+        :param str source_url: the container repository URL.
+        :param str target: specify a specific build target.
+        :param str branch: a build option passed to ``buildContainer``.
+        :param bool scratch: a build option passed to ``buildContainer``.
+        :param list[str] repo_urls: a build option passed to ``buildContainer``.
+        :param bool isolated: a build option passed to ``buildContainer``.
+        :param str release: a build option passed to ``buildContainer``.
+        :param str koji_parent_build: a build option passed to ``buildContainer``.
+        :param str arch_override: a build option passed to ``buildContainer``.
+        :param list[str] compose_ids: a build option passed to ``buildContainer``.
+            For details of these build options, please refer to
+            ``PARAMS_SCHEMA`` defined inside ``BuildContainerTask`` in the
+            koji-containerbuild plugin.
+        :return: the container build task ID returned from ``buildContainer``.
+        :rtype: int
+        """
 
         build_target = target
         build_opts = {

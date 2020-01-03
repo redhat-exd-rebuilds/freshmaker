@@ -439,11 +439,15 @@ class ContainerBuildHandler(BaseHandler):
         """
         Build a container in Koji.
 
-        :param str name: container name.
-        :param str branch: container branch.
-        :param str rev: revision.
-        :param str namespace: namespace of container in dist-git. By default,
-            it is container.
+        :param str scm_url: refer to ``KojiService.build_container``.
+        :param str branch: refer to ``KojiService.build_container``.
+        :param str target: refer to ``KojiService.build_container``.
+        :param list[str] repo_urls: refer to ``KojiService.build_container``.
+        :param bool isolated: refer to ``KojiService.build_container``.
+        :param str release: refer to ``KojiService.build_container``.
+        :param str koji_parent_build: refer to ``KojiService.build_container``.
+        :param str arch_override: refer to ``KojiService.build_container``.
+        :param list[int] compose_ids: refer to ``KojiService.build_container``.
         :return: task id returned from Koji buildContainer API.
         :rtype: int
         """
@@ -472,8 +476,10 @@ class ContainerBuildHandler(BaseHandler):
         Submits ArtifactBuild of 'image' type to Koji.
 
         :param build: ArtifactBuild of 'image' type.
-        :rtype: number
+        :param list[str] repo_urls: list of YUM repository URLs that will be
+            passed to the ``buildContainer`` eventually as a build option.
         :return: Koji build id.
+        :rtype: int
         """
         if build.state != ArtifactBuildState.PLANNED.value:
             build.transition(
