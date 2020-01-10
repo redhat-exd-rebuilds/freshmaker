@@ -467,7 +467,7 @@ class ContainerBuildHandler(BaseHandler):
                                            compose_ids=compose_ids)
 
     @fail_artifact_build_on_handler_exception(whitelist=[ODCSComposeNotReady])
-    def build_image_artifact_build(self, build, repo_urls=[]):
+    def build_image_artifact_build(self, build, repo_urls=None):
         """
         Submits ArtifactBuild of 'image' type to Koji.
 
@@ -531,7 +531,7 @@ class ContainerBuildHandler(BaseHandler):
         # We use repo_urls only in special cases to build base images. In this
         # cases, we want to convert compose_ids to repository URLs. Otherwise,
         # just pass compose_ids to OSBS via Koji.
-        if repo_urls:
+        if repo_urls is not None:
             for compose_id in compose_ids:
                 odcs_compose = self.odcs_get_compose(compose_id)
                 if odcs_compose["state"] in [COMPOSE_STATES['wait'],
