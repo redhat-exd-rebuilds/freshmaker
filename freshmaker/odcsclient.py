@@ -99,7 +99,7 @@ class FreshmakerODCSClient(object):
         self.handler = handler
 
     def _fake_odcs_new_compose(
-            self, compose_source, tag, packages=None, results=[],
+            self, compose_source, tag, packages=None, results=None,
             builds=None):
         """
         Fake odcs.new_compose(...) method used in the dry run mode.
@@ -125,8 +125,10 @@ class FreshmakerODCSClient(object):
         new_compose['result_repofile'] = "http://localhost/%d.repo" % (
             new_compose['id'])
         new_compose['state'] = COMPOSE_STATES['done']
-        if results:
+        if results is None:
             new_compose['results'] = ['boot.iso']
+        else:
+            new_compose['results'] = results
         if builds:
             new_compose['builds'] = builds
 

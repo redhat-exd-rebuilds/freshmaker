@@ -195,7 +195,7 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
         build_container.assert_called_once_with(
             'git://pkgs.fedoraproject.org/repo#hash', 'branch', 'target',
             arch_override='x86_64', compose_ids=[5, 6, 7, 8], isolated=True,
-            koji_parent_build=None, release='2', repo_urls=[])
+            koji_parent_build=None, release='2', repo_urls=None)
 
     @patch("freshmaker.handlers.ContainerBuildHandler.build_container")
     def test_build_image_artifact_build_renewed_odcs_composes(
@@ -210,7 +210,7 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
         build_container.assert_called_once_with(
             'git://pkgs.fedoraproject.org/repo#hash', 'branch', 'target',
             arch_override='x86_64', compose_ids=[5, 6, 7, 8, 7300, 7301],
-            isolated=True, koji_parent_build=None, release='2', repo_urls=[])
+            isolated=True, koji_parent_build=None, release='2', repo_urls=None)
 
     @patch("freshmaker.handlers.ContainerBuildHandler.build_container")
     def test_build_image_artifact_build_repo_urls(
