@@ -218,13 +218,10 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
         handler = MyHandler()
         handler.build_image_artifact_build(self.build_1, ["http://localhost/x.repo"])
 
-        repo_urls = [
-            'http://localhost/x.repo', 'http://localhost/5.repo',
-            'http://localhost/6.repo', 'http://localhost/7.repo',
-            'http://localhost/8.repo']
+        repo_urls = ['http://localhost/x.repo']
         build_container.assert_called_once_with(
             'git://pkgs.fedoraproject.org/repo#hash', 'branch', 'target',
-            arch_override='x86_64', compose_ids=[], isolated=True,
+            arch_override='x86_64', compose_ids=[5, 6, 7, 8], isolated=True,
             koji_parent_build=None, release='2', repo_urls=repo_urls)
 
     @patch("freshmaker.handlers.ContainerBuildHandler.build_container")
