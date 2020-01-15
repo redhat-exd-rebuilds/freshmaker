@@ -156,7 +156,6 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
 
             idx = "%s: %s, %s" % (type(handler).__name__, type(msg).__name__, msg.msg_id)
             log.debug("Calling %s" % idx)
-            further_work = []
             try:
                 further_work = handler.handle(msg) or []
             except Exception:
