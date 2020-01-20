@@ -302,6 +302,30 @@ class TestViews(helpers.ModelsTestCase):
         builds = json.loads(resp.get_data(as_text=True))['items']
         self.assertEqual(len(builds), 0)
 
+    def test_query_builds_pagination_includes_query_params(self):
+        event = models.Event.create(db.session, '2018-00000000-0000-0000-0000-000000000001', '101', events.TestingEvent)
+        models.ArtifactBuild.create(db.session, event, 'ed', 'module', 20081234)
+        models.ArtifactBuild.create(db.session, event, 'ed', 'module', 20081235)
+        resp = self.client.get('/api/1/builds/?name=ed&per_page=1&page=2')
+        data = json.loads(resp.get_data(as_text=True))
+        builds = data['items']
+        self.assertEqual(len(builds), 1)
+        self.assertEqual(builds[0]['name'], 'ed')
+        meta = data['meta']
+        for page in ['first', 'last', 'prev', 'next']:
+            for query in ['name=ed', 'per_page=1']:
+                self.assertTrue(query in meta[page])
+
+    def test_query_builds_pagination_includes_prev_and_next_page(self):
+        resp = self.client.get('/api/1/builds/?name=ed')
+        data = json.loads(resp.get_data(as_text=True))
+        builds = data['items']
+        self.assertEqual(len(builds), 1)
+        self.assertEqual(builds[0]['name'], 'ed')
+        meta = data['meta']
+        self.assertTrue(meta['prev'] is None)
+        self.assertTrue(meta['next'] is None)
+
     def test_query_event(self):
         resp = self.client.get('/api/1/events/1')
         data = json.loads(resp.get_data(as_text=True))
@@ -419,6 +443,29 @@ class TestViews(helpers.ModelsTestCase):
         evs = json.loads(resp.get_data(as_text=True))['items']
         for id, build in zip([2, 1], evs):
             self.assertEqual(id, build['id'])
+
+    def test_query_event_pagination_includes_query_params(self):
+        models.Event.create(db.session, '2018-00000000-0000-0000-0000-000000000001', '101', events.TestingEvent)
+        models.Event.create(db.session, '2018-00000000-0000-0000-0000-000000000002', '101', events.TestingEvent)
+        resp = self.client.get('/api/1/events/?search_key=101&per_page=1&page=2')
+        data = json.loads(resp.get_data(as_text=True))
+        evs = data['items']
+        self.assertEqual(len(evs), 1)
+        self.assertEqual(evs[0]['search_key'], '101')
+        meta = data['meta']
+        for page in ['first', 'last', 'prev', 'next']:
+            for query in ['search_key=101', 'per_page=1']:
+                self.assertTrue(query in meta[page])
+
+    def test_query_event_pagination_includes_prev_and_next_page(self):
+        resp = self.client.get('/api/1/events/?search_key=101')
+        data = json.loads(resp.get_data(as_text=True))
+        evs = data['items']
+        self.assertEqual(len(evs), 1)
+        self.assertEqual(evs[0]['search_key'], '101')
+        meta = data['meta']
+        self.assertTrue(meta['prev'] is None)
+        self.assertTrue(meta['next'] is None)
 
     def test_patch_event_missing_action(self):
         resp = self.client.patch(

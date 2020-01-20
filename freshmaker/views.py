@@ -265,7 +265,7 @@ class EventAPI(MethodView):
             p_query = filter_events(request)
 
             json_data = {
-                'meta': pagination_metadata(p_query)
+                'meta': pagination_metadata(p_query, request.args)
             }
 
             if not show_full_json:
@@ -355,7 +355,7 @@ class BuildAPI(MethodView):
             p_query = filter_artifact_builds(request)
 
             json_data = {
-                'meta': pagination_metadata(p_query)
+                'meta': pagination_metadata(p_query, request.args)
             }
             json_data['items'] = [item.json() for item in p_query.items]
 
