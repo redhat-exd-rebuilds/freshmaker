@@ -126,7 +126,7 @@ class TestViews(helpers.ModelsTestCase):
 
     def test_query_build(self):
         resp = self.client.get('/api/1/builds/1')
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
         self.assertEqual(data['id'], 1)
         self.assertEqual(data['name'], 'ed')
         self.assertEqual(data['type'], ArtifactType.MODULE.value)
@@ -138,7 +138,7 @@ class TestViews(helpers.ModelsTestCase):
 
     def test_query_builds(self):
         resp = self.client.get('/api/1/builds/')
-        builds = json.loads(resp.get_data(as_text=True))['items']
+        builds = resp.json['items']
         self.assertEqual(len(builds), 3)
         for name in ['ed', 'mksh', 'bash']:
             self.assertIn(name, [b['name'] for b in builds])
@@ -155,7 +155,7 @@ class TestViews(helpers.ModelsTestCase):
         db.session.commit()
         db.session.expire_all()
         resp = self.client.get('/api/1/builds/')
-        builds = json.loads(resp.get_data(as_text=True))['items']
+        builds = resp.json['items']
         self.assertEqual(len(builds), 5)
         for id, build in zip([9, 8, 3, 2, 1], builds):
             self.assertEqual(id, build['id'])
@@ -170,7 +170,7 @@ class TestViews(helpers.ModelsTestCase):
         db.session.commit()
         db.session.expire_all()
         resp = self.client.get('/api/1/builds/?order_by=id')
-        builds = json.loads(resp.get_data(as_text=True))['items']
+        builds = resp.json['items']
         self.assertEqual(len(builds), 5)
         for id, build in zip([1, 2, 3, 8, 9], builds):
             self.assertEqual(id, build['id'])
@@ -185,14 +185,14 @@ class TestViews(helpers.ModelsTestCase):
         db.session.commit()
         db.session.expire_all()
         resp = self.client.get('/api/1/builds/?order_by=-build_id')
-        builds = json.loads(resp.get_data(as_text=True))['items']
+        builds = resp.json['items']
         self.assertEqual(len(builds), 5)
         for id, build in zip([8, 9, 3, 2, 1], builds):
             self.assertEqual(id, build['id'])
 
     def test_query_builds_order_by_unknown_key(self):
         resp = self.client.get('/api/1/builds/?order_by=-foo')
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
         self.assertEqual(data['status'], 400)
         self.assertEqual(data['error'], 'Bad Request')
         self.assertTrue(data['message'].startswith(
@@ -200,51 +200,51 @@ class TestViews(helpers.ModelsTestCase):
 
     def test_query_builds_by_name(self):
         resp = self.client.get('/api/1/builds/?name=ed')
-        builds = json.loads(resp.get_data(as_text=True))['items']
+        builds = resp.json['items']
         self.assertEqual(len(builds), 1)
         self.assertEqual(builds[0]['name'], 'ed')
 
         resp = self.client.get('/api/1/builds/?name=mksh')
-        builds = json.loads(resp.get_data(as_text=True))['items']
+        builds = resp.json['items']
         self.assertEqual(len(builds), 1)
         self.assertEqual(builds[0]['name'], 'mksh')
 
         resp = self.client.get('/api/1/builds/?name=nonexist')
-        builds = json.loads(resp.get_data(as_text=True))['items']
+        builds = resp.json['items']
         self.assertEqual(len(builds), 0)
 
     def test_query_builds_by_type(self):
         resp = self.client.get('/api/1/builds/?type=0')
-        builds = json.loads(resp.get_data(as_text=True))['items']
+        builds = resp.json['items']
         self.assertEqual(len(builds), 0)
 
         resp = self.client.get('/api/1/builds/?type=1')
-        builds = json.loads(resp.get_data(as_text=True))['items']
+        builds = resp.json['items']
         self.assertEqual(len(builds), 0)
 
         resp = self.client.get('/api/1/builds/?type=2')
-        builds = json.loads(resp.get_data(as_text=True))['items']
+        builds = resp.json['items']
         self.assertEqual(len(builds), 3)
 
         resp = self.client.get('/api/1/builds/?type=module')
-        builds = json.loads(resp.get_data(as_text=True))['items']
+        builds = resp.json['items']
         self.assertEqual(len(builds), 3)
 
     def test_query_builds_by_invalid_type(self):
         resp = self.client.get('/api/1/builds/?type=100')
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
         self.assertEqual(data["status"], 400)
         self.assertEqual(data["message"],
                          "An invalid artifact type was supplied")
 
     def test_query_builds_by_state(self):
         resp = self.client.get('/api/1/builds/?state=0')
-        builds = json.loads(resp.get_data(as_text=True))['items']
+        builds = resp.json['items']
         self.assertEqual(len(builds), 3)
 
     def test_query_builds_by_invalid_state(self):
         resp = self.client.get('/api/1/builds/?state=100')
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
         self.assertEqual(data["status"], 400)
         self.assertEqual(data["message"],
                          "An invalid state was supplied")
@@ -269,37 +269,37 @@ class TestViews(helpers.ModelsTestCase):
         db.session.commit()
 
         resp = self.client.get('/api/1/builds/?event_type_id=%s' % models.EVENT_TYPES[events.TestingEvent])
-        builds = json.loads(resp.get_data(as_text=True))['items']
+        builds = resp.json['items']
         self.assertEqual(len(builds), 3)
 
         resp = self.client.get('/api/1/builds/?event_type_id=%s' % models.EVENT_TYPES[events.GitModuleMetadataChangeEvent])
-        builds = json.loads(resp.get_data(as_text=True))['items']
+        builds = resp.json['items']
         self.assertEqual(len(builds), 2)
 
         resp = self.client.get('/api/1/builds/?event_type_id=%s' % models.EVENT_TYPES[events.MBSModuleStateChangeEvent])
-        builds = json.loads(resp.get_data(as_text=True))['items']
+        builds = resp.json['items']
         self.assertEqual(len(builds), 1)
 
         resp = self.client.get('/api/1/builds/?event_type_id=%s' % models.EVENT_TYPES[events.KojiTaskStateChangeEvent])
-        builds = json.loads(resp.get_data(as_text=True))['items']
+        builds = resp.json['items']
         self.assertEqual(len(builds), 0)
 
     def test_query_build_by_event_search_key(self):
         resp = self.client.get('/api/1/builds/?event_search_key=101')
-        builds = json.loads(resp.get_data(as_text=True))['items']
+        builds = resp.json['items']
         self.assertEqual(len(builds), 3)
 
         resp = self.client.get('/api/1/builds/?event_search_key=102')
-        builds = json.loads(resp.get_data(as_text=True))['items']
+        builds = resp.json['items']
         self.assertEqual(len(builds), 0)
 
     def test_query_build_by_event_type_id_and_search_key(self):
         resp = self.client.get('/api/1/builds/?event_type_id=%s&event_search_key=101' % models.EVENT_TYPES[events.TestingEvent])
-        builds = json.loads(resp.get_data(as_text=True))['items']
+        builds = resp.json['items']
         self.assertEqual(len(builds), 3)
 
         resp = self.client.get('/api/1/builds/?event_type_id=%s&event_search_key=102' % models.EVENT_TYPES[events.TestingEvent])
-        builds = json.loads(resp.get_data(as_text=True))['items']
+        builds = resp.json['items']
         self.assertEqual(len(builds), 0)
 
     def test_query_builds_pagination_includes_query_params(self):
@@ -307,7 +307,7 @@ class TestViews(helpers.ModelsTestCase):
         models.ArtifactBuild.create(db.session, event, 'ed', 'module', 20081234)
         models.ArtifactBuild.create(db.session, event, 'ed', 'module', 20081235)
         resp = self.client.get('/api/1/builds/?name=ed&per_page=1&page=2')
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
         builds = data['items']
         self.assertEqual(len(builds), 1)
         self.assertEqual(builds[0]['name'], 'ed')
@@ -318,7 +318,7 @@ class TestViews(helpers.ModelsTestCase):
 
     def test_query_builds_pagination_includes_prev_and_next_page(self):
         resp = self.client.get('/api/1/builds/?name=ed')
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
         builds = data['items']
         self.assertEqual(len(builds), 1)
         self.assertEqual(builds[0]['name'], 'ed')
@@ -328,7 +328,7 @@ class TestViews(helpers.ModelsTestCase):
 
     def test_query_event(self):
         resp = self.client.get('/api/1/events/1')
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
         self.assertEqual(data['id'], 1)
         self.assertEqual(data['message_id'], '2017-00000000-0000-0000-0000-000000000001')
         self.assertEqual(data['search_key'], '101')
@@ -337,31 +337,31 @@ class TestViews(helpers.ModelsTestCase):
 
     def test_query_event_without_builds(self):
         resp = self.client.get('/api/1/events/?show_full_json=False')
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
         self.assertEqual(data['items'][0]['id'], 2)
         self.assertRaises(KeyError, lambda: data['items'][0]['builds'])
 
     def test_query_event_id_without_builds(self):
         resp = self.client.get('/api/1/events/2?show_full_json=False')
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
         self.assertEqual(data['id'], 2)
         self.assertRaises(KeyError, lambda: data['builds'])
 
     def test_query_event_without_builds_v2(self):
         resp = self.client.get('/api/2/events/')
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
         self.assertEqual(data['items'][0]['id'], 2)
         self.assertRaises(KeyError, lambda: data['items'][0]['builds'])
 
     def test_query_event_id_without_builds_v2(self):
         resp = self.client.get('/api/2/events/2')
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
         self.assertEqual(data['id'], 2)
         self.assertRaises(KeyError, lambda: data['builds'])
 
     def test_query_events(self):
         resp = self.client.get('/api/1/events/')
-        evs = json.loads(resp.get_data(as_text=True))['items']
+        evs = resp.json['items']
         self.assertEqual(len(evs), 2)
 
     def test_query_event_complete(self):
@@ -370,18 +370,18 @@ class TestViews(helpers.ModelsTestCase):
             datetime_patch.utcnow.return_value = datetime.datetime(2099, 8, 21, 13, 42, 20)
             event.transition(models.EventState.COMPLETE.value)
         resp = self.client.get('/api/1/events/1')
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
         self.assertEqual(data['time_done'], '2099-08-21T13:42:20Z')
 
     def test_query_event_by_message_id(self):
         resp = self.client.get('/api/1/events/?message_id=2017-00000000-0000-0000-0000-000000000001')
-        evs = json.loads(resp.get_data(as_text=True))['items']
+        evs = resp.json['items']
         self.assertEqual(len(evs), 1)
         self.assertEqual(evs[0]['message_id'], '2017-00000000-0000-0000-0000-000000000001')
 
     def test_query_event_by_search_key(self):
         resp = self.client.get('/api/1/events/?search_key=101')
-        evs = json.loads(resp.get_data(as_text=True))['items']
+        evs = resp.json['items']
         self.assertEqual(len(evs), 1)
         self.assertEqual(evs[0]['search_key'], '101')
 
@@ -392,13 +392,13 @@ class TestViews(helpers.ModelsTestCase):
                             events.MBSModuleStateChangeEvent,
                             state=EventState['COMPLETE'].value)
         resp = self.client.get('/api/1/events/?state=complete')
-        evs = json.loads(resp.get_data(as_text=True))['items']
+        evs = resp.json['items']
         self.assertEqual(len(evs), 1)
         self.assertEqual(evs[0]['state'], EventState['COMPLETE'].value)
 
     def test_query_event_with_invalid_state_name(self):
         resp = self.client.get('/api/1/events/?state=invalid')
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
         self.assertEqual(data['status'], 400)
         self.assertEqual(data['message'], "Invalid state was supplied: invalid")
 
@@ -419,7 +419,7 @@ class TestViews(helpers.ModelsTestCase):
                             events.MBSModuleStateChangeEvent,
                             state=EventState['COMPLETE'].value)
         resp = self.client.get('/api/1/events/?state=building&state=complete')
-        evs = json.loads(resp.get_data(as_text=True))['items']
+        evs = resp.json['items']
         self.assertEqual(len(evs), 3)
         building_events = [e for e in evs if e['state'] == EventState['BUILDING'].value]
         complete_events = [e for e in evs if e['state'] == EventState['COMPLETE'].value]
@@ -428,19 +428,19 @@ class TestViews(helpers.ModelsTestCase):
 
     def test_query_event_order_by_default(self):
         resp = self.client.get('/api/1/events/')
-        evs = json.loads(resp.get_data(as_text=True))['items']
+        evs = resp.json['items']
         for id, build in zip([2, 1], evs):
             self.assertEqual(id, build['id'])
 
     def test_query_event_order_by_id_asc(self):
         resp = self.client.get('/api/1/events/?order_by=id')
-        evs = json.loads(resp.get_data(as_text=True))['items']
+        evs = resp.json['items']
         for id, build in zip([1, 2], evs):
             self.assertEqual(id, build['id'])
 
     def test_query_event_order_by_id_message_id_desc(self):
         resp = self.client.get('/api/1/events/?order_by=-message_id')
-        evs = json.loads(resp.get_data(as_text=True))['items']
+        evs = resp.json['items']
         for id, build in zip([2, 1], evs):
             self.assertEqual(id, build['id'])
 
@@ -448,7 +448,7 @@ class TestViews(helpers.ModelsTestCase):
         models.Event.create(db.session, '2018-00000000-0000-0000-0000-000000000001', '101', events.TestingEvent)
         models.Event.create(db.session, '2018-00000000-0000-0000-0000-000000000002', '101', events.TestingEvent)
         resp = self.client.get('/api/1/events/?search_key=101&per_page=1&page=2')
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
         evs = data['items']
         self.assertEqual(len(evs), 1)
         self.assertEqual(evs[0]['search_key'], '101')
@@ -459,7 +459,7 @@ class TestViews(helpers.ModelsTestCase):
 
     def test_query_event_pagination_includes_prev_and_next_page(self):
         resp = self.client.get('/api/1/events/?search_key=101')
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
         evs = data['items']
         self.assertEqual(len(evs), 1)
         self.assertEqual(evs[0]['search_key'], '101')
@@ -471,7 +471,7 @@ class TestViews(helpers.ModelsTestCase):
         resp = self.client.patch(
             '/api/1/events/1',
             data=json.dumps({}))
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
         self.assertEqual(data['error'], 'Bad Request')
         self.assertTrue(data['message'].startswith('Missing action in request.'))
 
@@ -479,63 +479,63 @@ class TestViews(helpers.ModelsTestCase):
         resp = self.client.patch(
             '/api/1/events/1',
             data=json.dumps({'action': 'unsupported'}))
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
         self.assertEqual(data['error'], 'Bad Request')
         self.assertTrue(data['message'].startswith('Unsupported action requested.'))
 
     def test_query_event_types(self):
         resp = self.client.get('/api/1/event-types/')
-        event_types = json.loads(resp.get_data(as_text=True))['items']
+        event_types = resp.json['items']
         self.assertEqual(len(event_types), len(models.EVENT_TYPES))
 
     def test_query_event_type(self):
         for cls, val in models.EVENT_TYPES.items():
             resp = self.client.get('/api/1/event-types/%s' % val)
-            event = json.loads(resp.get_data(as_text=True))
+            event = resp.json
             self.assertEqual(event['id'], val)
             self.assertEqual(event['name'], cls.__name__)
 
     def test_query_nonexist_event_type(self):
         resp = self.client.get('/api/1/event-types/99999')
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
         self.assertEqual(data['status'], 404)
         self.assertEqual(data['error'], 'Not Found')
         self.assertEqual(data['message'], 'No such event type found.')
 
     def test_query_build_types(self):
         resp = self.client.get('/api/1/build-types/')
-        build_types = json.loads(resp.get_data(as_text=True))['items']
+        build_types = resp.json['items']
         self.assertEqual(len(build_types), len(list(ArtifactType)))
 
     def test_query_build_type(self):
         for t in list(ArtifactType):
             resp = self.client.get('/api/1/build-types/%s' % t.value)
-            build_type = json.loads(resp.get_data(as_text=True))
+            build_type = resp.json
             self.assertEqual(build_type['id'], t.value)
             self.assertEqual(build_type['name'], t.name)
 
     def test_query_nonexist_build_type(self):
         resp = self.client.get('/api/1/build-types/99999')
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
         self.assertEqual(data['status'], 404)
         self.assertEqual(data['error'], 'Not Found')
         self.assertEqual(data['message'], 'No such build type found.')
 
     def test_query_build_states(self):
         resp = self.client.get('/api/1/build-states/')
-        build_types = json.loads(resp.get_data(as_text=True))['items']
+        build_types = resp.json['items']
         self.assertEqual(len(build_types), len(list(ArtifactBuildState)))
 
     def test_query_build_state(self):
         for t in list(ArtifactBuildState):
             resp = self.client.get('/api/1/build-states/%s' % t.value)
-            build_type = json.loads(resp.get_data(as_text=True))
+            build_type = resp.json
             self.assertEqual(build_type['id'], t.value)
             self.assertEqual(build_type['name'], t.name)
 
     def test_query_nonexist_build_state(self):
         resp = self.client.get('/api/1/build-states/99999')
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
         self.assertEqual(data['status'], 404)
         self.assertEqual(data['error'], 'Not Found')
         self.assertEqual(data['message'], 'No such build state found.')
@@ -544,14 +544,14 @@ class TestViews(helpers.ModelsTestCase):
         # Since the version is always changing, let's just mock it to be consistent
         with patch('freshmaker.views.version', '1.0.0'):
             resp = self.client.get('/api/1/about/')
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
         self.assertEqual(data['version'], '1.0.0')
 
     @patch("freshmaker.views.ImageVerifier")
     def test_verify_image(self, verifier):
         verifier.return_value.verify_image.return_value = {"foo-1-1": ["content-set"]}
         resp = self.client.get('/api/1/verify-image/foo-1-1')
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
         self.assertEqual(data, {
             'images': {'foo-1-1': ['content-set']},
             'msg': 'Found 1 images which are handled by Freshmaker for defined content_sets.'})
@@ -561,7 +561,7 @@ class TestViews(helpers.ModelsTestCase):
         verifier.return_value.verify_repository.return_value = {
             "foo-1-1": ["content-set"]}
         resp = self.client.get('/api/1/verify-image-repository/foo/bar')
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
         self.assertEqual(data, {
             'images': {'foo-1-1': ['content-set']},
             'msg': 'Found 1 images which are handled by Freshmaker for defined content_sets.'})
@@ -573,13 +573,13 @@ class TestViews(helpers.ModelsTestCase):
         event.add_event_dependency(db.session, event1)
         db.session.commit()
         resp = self.client.get('/api/1/events/4')
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
         self.assertEqual(data['id'], event1.id)
         self.assertEqual(data['depends_on_events'], [])
         self.assertEqual(data['depending_events'], [event.id])
 
         resp = self.client.get('/api/1/events/3')
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
         self.assertEqual(data['id'], event.id)
         self.assertEqual(data['depends_on_events'], [event1.id])
         self.assertEqual(data['depending_events'], [])
@@ -616,14 +616,14 @@ class TestViewsMultipleFilterValues(helpers.ModelsTestCase):
     def test_query_event_multiple_states(self):
         resp = self.client.get('/api/1/events/?state=%d&state=%d' % (
             EventState.SKIPPED.value, EventState.BUILDING.value))
-        evs = json.loads(resp.get_data(as_text=True))['items']
+        evs = resp.json['items']
         self.assertEqual(len(evs), 2)
 
     def test_query_event_multiple_event_type_ids(self):
         resp = self.client.get('/api/1/events/?event_type_id=%d&event_type_id=%d' % (
             models.EVENT_TYPES[events.TestingEvent],
             models.EVENT_TYPES[events.GitModuleMetadataChangeEvent]))
-        evs = json.loads(resp.get_data(as_text=True))['items']
+        evs = resp.json['items']
         self.assertEqual(len(evs), 2)
 
 
@@ -649,7 +649,7 @@ class TestManualTriggerRebuild(ViewBaseTest):
                     data=json.dumps({'errata_id': 1}),
                     content_type='application/json',
                 )
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
 
         # Other fields are predictible.
         self.assertEqual(data, {
@@ -686,7 +686,7 @@ class TestManualTriggerRebuild(ViewBaseTest):
         payload = {'errata_id': 1, 'dry_run': True}
         with self.test_request_context(user='root'):
             resp = self.client.post('/api/1/builds/', json=payload, content_type='application/json')
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
 
         # Other fields are predictible.
         self.assertEqual(data['dry_run'], True)
@@ -709,7 +709,7 @@ class TestManualTriggerRebuild(ViewBaseTest):
         }
         with self.test_request_context(user='root'):
             resp = self.client.post('/api/1/builds/', json=payload, content_type='application/json')
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
 
         # Other fields are predictible.
         self.assertEqual(data['requested_rebuilds'], ["foo-1-1", "bar-1-1"])
@@ -733,7 +733,7 @@ class TestManualTriggerRebuild(ViewBaseTest):
         }
         with self.test_request_context(user='root'):
             resp = self.client.post('/api/1/builds/', json=payload, content_type='application/json')
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
 
         # Other fields are predictible.
         self.assertEqual(data['requester_metadata'], {"foo": ["bar"]})
@@ -764,7 +764,7 @@ class TestManualTriggerRebuild(ViewBaseTest):
         }
         with self.test_request_context(user='root'):
             resp = self.client.post('/api/1/builds/', json=payload, content_type='application/json')
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
 
         # Other fields are predictible.
         self.assertEqual(data['requested_rebuilds'], ["foo-1-1"])
@@ -897,7 +897,7 @@ class TestPatchAPI(ViewBaseTest):
 
         with self.test_request_context(user='root'):
             resp = self.client.patch(f'/api/1/events/{event.id}', json={'action': 'cancel'})
-        data = json.loads(resp.get_data(as_text=True))
+        data = resp.json
 
         self.assertEqual(data['id'], event.id)
         self.assertEqual(len(data['builds']), 4)
