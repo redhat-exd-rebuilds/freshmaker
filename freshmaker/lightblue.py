@@ -821,6 +821,34 @@ class LightBlue(object):
                         image["brew"]["build"], srpm_name_to_nvrs.values()))
         return ret
 
+    def filter_out_images_based_on_content_set(self, images, content_sets):
+        """
+        Filter out container images based on the content_set.
+
+        Freshmaker queries Lightblue to get images containing affected RPMs installed from a
+        particular content_set. At the same time Freshmaker asks to Lightblue also all the images
+        with enabled the auto_rebuild_tags tag (when not enabled the rebuilds of images in this
+        repository are disabled).
+        This gets done only because the Lightblue query will be easier and cleaner this way.
+        But because of that some images returned by that query will not have the correct
+        content_sets, for this reason we need to filter out images based on the content_sets.
+
+        :param list images: List of ContainerImage instances.
+        :param set content_sets: List of content_sets the image includes RPMs
+            from.
+        :rtype: list
+        :return: List of ContainerImage instances without the filtered images.
+        """
+        ret = []
+        for image in images:
+            if not content_sets & set(image["content_sets"]):
+                log.info(f"Will not rebuild {image['brew']['build']} because its content_sets "
+                         "({image['content_sets']}) are not related to the requested content_sets"
+                         " ({content_sets})")
+            else:
+                ret.append(image)
+        return ret
+
     def find_images_with_included_srpms(
             self, content_sets, srpm_nvrs, repositories, published=True,
             include_rpms=True):
@@ -943,6 +971,8 @@ class LightBlue(object):
         images = list(image_nvr_to_image.values())
         images = self.filter_out_images_with_higher_srpm_nvr(images, srpm_name_to_nvrs)
         images = self.filter_out_modularity_mismatch(images, srpm_name_to_nvrs)
+        if content_sets:
+            images = self.filter_out_images_based_on_content_set(images, set(content_sets))
         return images
 
     def get_images_by_nvrs(self, nvrs, published=True, content_sets=None,
