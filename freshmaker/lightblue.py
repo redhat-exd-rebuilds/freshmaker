@@ -182,6 +182,7 @@ class ContainerImage(dict):
             "arches": None,
             "odcs_compose_ids": None,
             "published": None,
+            "parent_image_builds": None,
         }
 
     @region.cache_on_arguments()
@@ -214,12 +215,11 @@ class ContainerImage(dict):
                         "in the Koji build %r" % build)
 
             # Get the list of ODCS composes used to build the image.
-            if ("extra" in build and
-                    "image" in build["extra"] and
-                    "odcs" in build["extra"]["image"] and
-                    "compose_ids" in build["extra"]["image"]["odcs"]):
-                data["odcs_compose_ids"] = \
-                    build["extra"]["image"]["odcs"]["compose_ids"]
+            extra_image = build.get("extra", {}).get("image", {})
+            if extra_image.get("odcs", {}).get("compose_ids"):
+                data["odcs_compose_ids"] = extra_image["odcs"]["compose_ids"]
+
+            data["parent_image_builds"] = extra_image.get("parent_image_builds")
 
             brew_task = session.get_task_request(
                 build['task_id'])
@@ -710,6 +710,7 @@ class LightBlue(object):
             {"field": "repositories.*.repository", "include": True, "recursive": True},
             {"field": "repositories.*.tags.*.name", "include": True, "recursive": True},
             {"field": "content_sets", "include": True, "recursive": True},
+            {"field": "parent_brew_build", "include": True, "recursive": False},
         ]
         if include_rpms:
             if srpm_names:
@@ -945,7 +946,7 @@ class LightBlue(object):
         return images
 
     def get_images_by_nvrs(self, nvrs, published=True, content_sets=None,
-                           srpm_nvrs=None, include_rpms=True):
+                           srpm_nvrs=None, include_rpms=True, srpm_names=None):
         """Query lightblue and returns containerImages defined by list of
         `nvrs`.
 
@@ -956,6 +957,7 @@ class LightBlue(object):
         :param list srpm_nvrs: list of SRPM NVRs to look for
         :param bool include_rpms: When True, the rpm_manifest is included in
             the returned ContainerImages.
+        :param list srpm_names: list of SRPM names to look for.
         :return: List of containerImages.
         :rtype: list of ContainerImages.
         """
@@ -1018,6 +1020,17 @@ class LightBlue(object):
                     "rvalue": published
                 })
 
+        if srpm_names:
+            image_request["query"]["$and"].append(
+                {
+                    "$or": [{
+                        "field": "rpm_manifest.*.rpms.*.srpm_name",
+                        "op": "=",
+                        "rvalue": srpm_name
+                    } for srpm_name in srpm_names]
+                }
+            )
+
         images = self.find_container_images(image_request)
         if srpm_nvrs is not None:
             images = self.filter_out_images_with_higher_srpm_nvr(images, srpm_name_to_nvrs)
@@ -1064,6 +1077,8 @@ class LightBlue(object):
             return None
         return images[0]
 
+    # TODO: this should be removed in the future. There's a field in lightblue and koji
+    # that allows us to get the parent directly, without checking the layers.
     @region.cache_on_arguments()
     def get_image_by_layer(self, top_layer, build_layers_count,
                            srpm_name):
@@ -1202,82 +1217,68 @@ class LightBlue(object):
 
         return latest_parent
 
-    def find_parent_images_with_package(self, child_image, srpm_name, layers):
+    def find_parent_images_with_package(self, child_image, srpm_name, images=None):
         """
-        Returns the chain of all parent images of the image with
-        parsed_data.layers `layers` which contain the package `srpm_name`
-        in their RPM manifest.
+        Returns the chain of all parent images of the image which contain the
+        package `srpm_name` in their RPM manifest.
 
-        The first item in the list is direct parent of the image in question.
+        The first item in the list is the direct parent of the image in question.
         The last item in the list is the top level parent of the image in
         question.
 
-        Docker images are layered and those layers are identified by its
-        checksum in the ContainerImage["parsed_data"]["layers"] list.
-        The first layer defined there is the layer defining the image
-        itself, the second layer is the layer defining its parent, and so on.
-
-        To find the parent image P of image X, we therefore have to search for
-        an image which has P.parsed_data.layers[0] equal to
-        X.parsed_data.layers[1]. However, query like this is not possible, so
-        we search for any image containing the layer X.parsed_data.layers[1],
-        but further limit the query to return only image which have the count
-        of the layers equal to `build_layers_count`. For example, layers of an
-        image
-
-        [
-           "sha256:3341bdf...b8e36168", <- layer of this image
-           "sha256:5fc16d0...0e4e587e", <- probably the first parent image A
-           "sha256:5d181d2...e6ad6992",
-           "sha256:274f5cd...ff8fd6e7", <- parent image of parent image A
-           "sha256:3ca89ba...b0ecae0e",
-           "sha256:77ed333...a44a147a",
-           "sha256:e2ec004...4c1fc873"
-        ]
-
-        Parent images will be retrieved though these layers from top to bottom.
+        This method is recursive.
         """
-        images = []
+        if not images:
+            images = []
+        parent_image = None
 
-        for idx, parent_top_layer in enumerate(layers[1:]):
-            # `len(layers) - 1 - idx`. We decrement 1, because we skip the
-            # first layer in for loop.
-            parent_build_layers_count = len(layers) - 1 - idx
-            image = self.get_image_by_layer(parent_top_layer,
-                                            parent_build_layers_count,
-                                            srpm_name)
-            children = images if images else [child_image]
-            if image:
-                image.resolve(self, children)
+        children = images if images else [child_image]
+        # We first try to find the parent from the `parent_brew_build` field in Lightblue.
+        parent_brew_build = child_image.get("parent_brew_build")
+        # We need to resolve the image in here because "parent_image_builds" needs to be there
+        # and it gets populated when the image gets resolved.
+        child_image.resolve(self, children)
+        # If the parent is not in `parent_brew_build` we can try to look for the parent in Brew,
+        # using the field `parent_image_builds` (searching for the nvr), which should always be there.
+        # In case parent_brew_build is None and child_image["parent_image_builds"] == {},
+        # it means we found a base image, so we'll just continue and return the children.
+        if not parent_brew_build and child_image["parent_image_builds"]:
+            parent_brew_build = [
+                i["nvr"] for i in child_image["parent_image_builds"].values()
+                if i["id"] == child_image["parent_build_id"]][0]
+        # We've reached the base image, stop recursion
+        if not parent_brew_build:
+            return children
+        parent_image = self.get_images_by_nvrs([parent_brew_build], srpm_names=[srpm_name])
 
-            if images:
-                if image:
-                    images[-1]['parent'] = image
+        if parent_image:
+            parent_image = parent_image[0]
+            parent_image.resolve(self, children)
+
+        if images:
+            if parent_image:
+                images[-1]['parent'] = parent_image
+            else:
+                # If we did not find the parent image with the package,
+                # we still want to set the parent of the last image with
+                # the package so we know against which image it has been
+                # built.
+                # Let's try first with the "parent_brew_build" field.
+                parent = self.get_images_by_nvrs([parent_brew_build])
+                if parent:
+                    parent = parent[0]
+                    parent.resolve(self, images)
                 else:
-                    # If we did not find the parent image with the package,
-                    # We still want to set the parent of the last image with
-                    # the package so we know against which image it has been
-                    # built.
-                    parent = self.find_latest_parent_image(
-                        parent_top_layer, parent_build_layers_count)
+                    err = "Couldn't find parent image. Lightblue data is probably incomplete"
+                    log.error(err)
+                    if not images[-1]['error']:
+                        images[-1]['error'] = err
+                images[-1]['parent'] = parent
 
-                    children_image_layers_count = parent_build_layers_count + 1
-                    if parent is None and children_image_layers_count != 2:
-                        err = "Cannot find parent of image %s with layer %s " \
-                            "and layer count %d in Lightblue, Lightblue data " \
-                            "is probably incomplete" % (
-                                children[-1]['brew']['build'], parent_top_layer,
-                              parent_build_layers_count)
-                        log.error(err)
-                        if not images[-1]['error']:
-                            images[-1]['error'] = err
-
-                    if parent:
-                        parent.resolve(self, images)
-                    images[-1]['parent'] = parent
-            if not image:
-                return images
-            images.append(image)
+        if not parent_image:
+            return images
+        images.append(parent_image)
+        return self.find_parent_images_with_package(parent_image, srpm_name, images)
 
     def find_images_with_packages_from_content_set(
             self, srpm_nvrs, content_sets, filter_fnc=None, published=True,
