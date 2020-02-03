@@ -68,6 +68,7 @@ node('fedora-29') {
             python3-kobo \
             python3-kobo-rpmlib \
             python3-defusedxml \
+            python3-rpm \
             python3-tox'
         /* Needed to get the latest mock configs */
         sh 'sudo dnf -y update mock-core-configs'
