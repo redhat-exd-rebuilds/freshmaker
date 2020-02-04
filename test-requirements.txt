@@ -6,3 +6,8 @@ pytest
 pytest-cov
 vcrpy
 tox
+# It seems like Flask needs this itsdangerous package.
+# But there's a bug in a previous version:
+# https://github.com/pallets/itsdangerous/issues/102
+# Let's update this package to avoid this problem.
+itsdangerous>=1.1.0
