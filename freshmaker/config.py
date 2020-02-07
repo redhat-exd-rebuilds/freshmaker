@@ -79,8 +79,10 @@ def init_config(app):
         config_section = os.environ['FRESHMAKER_CONFIG_SECTION']
 
     # TestConfiguration shall only be used for running tests, otherwise...
+    test_env = os.environ.get('FRESHMAKER_TESTING_ENV', '').lower()
     test_executables = {'py.test', 'pytest', 'pytest.py'}
-    if os.path.basename(sys.argv[0]) in test_executables:
+    if (os.path.basename(sys.argv[0]) in test_executables or
+            test_env in ('1', 'on', 'true', 'y', 'yes')):
         config_section = 'TestConfiguration'
         from conf import config
         config_module = config
