@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2017  Red Hat, Inc.
+# Copyright (c) 2020  Red Hat, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -19,8 +19,27 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from .update_db_on_advisory_change import UpdateDBOnAdvisoryChange  # noqa
-from .generate_advisory_signed_event_on_rpm_sign import GenerateAdvisorySignedEventOnRPMSign  # noqa
-from .update_db_on_odcs_compose_fail import UpdateDBOnODCSComposeFail  # noqa
-from .cancel_event_on_freshmaker_manage_request import CancelEventOnFreshmakerManageRequest  # noqa
-from .rebuild_images_on_async_manual_build import RebuildOnAsyncManualBuild  # noqa
+from freshmaker.parsers import BaseParser
+from freshmaker.events import FreshmakerAsyncManualBuildEvent
+
+
+class FreshmakerAsyncManualbuildParser(BaseParser):
+    """Parser of event async.manual.build"""
+
+    name = 'FreshmakerAsyncManualbuildParser'
+    topic_suffixes = ['freshmaker.async.manual.build']
+
+    def can_parse(self, topic, msg):
+        return any([topic.endswith(s) for s in self.topic_suffixes])
+
+    def parse(self, topic, msg):
+        inner_msg = msg['msg']
+
+        return FreshmakerAsyncManualBuildEvent(
+            inner_msg['msg_id'],
+            inner_msg['dist_git_branch'],
+            inner_msg['container_images'],
+            freshmaker_event_id=inner_msg.get('freshmaker_event_id'),
+            brew_target=inner_msg.get('brew_target'),
+            dry_run=inner_msg.get('dry_run'),
+        )

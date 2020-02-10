@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2017  Red Hat, Inc.
+# Copyright (c) 2020  Red Hat, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -8,8 +8,8 @@
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -19,8 +19,16 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from .update_db_on_advisory_change import UpdateDBOnAdvisoryChange  # noqa
-from .generate_advisory_signed_event_on_rpm_sign import GenerateAdvisorySignedEventOnRPMSign  # noqa
-from .update_db_on_odcs_compose_fail import UpdateDBOnODCSComposeFail  # noqa
-from .cancel_event_on_freshmaker_manage_request import CancelEventOnFreshmakerManageRequest  # noqa
-from .rebuild_images_on_async_manual_build import RebuildOnAsyncManualBuild  # noqa
+from unittest import TestCase
+
+from freshmaker.handlers.internal import RebuildOnAsyncManualBuild
+from freshmaker.events import FreshmakerAsyncManualBuildEvent
+
+
+class TestRebuildOnAsyncManualBuild(TestCase):
+
+    def test_can_handle_event(self):
+        event = FreshmakerAsyncManualBuildEvent(
+            'msg-id-01', 'repo-branch', ['image1', 'image2'])
+        handler = RebuildOnAsyncManualBuild()
+        self.assertTrue(handler.can_handle(event))

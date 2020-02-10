@@ -410,3 +410,34 @@ class FreshmakerManageEvent(BaseEvent):
         if instance.try_count > FreshmakerManageEvent._max_tries:
             return None
         return instance
+
+
+class FreshmakerAsyncManualBuildEvent(BaseEvent):
+    """Event triggered via API endpoint /async-builds"""
+
+    def __init__(self, msg_id, dist_git_branch, container_images,
+                 freshmaker_event_id=None, brew_target=None, dry_run=False):
+        """Initialize this event
+
+        :param str msg_id: the message id.
+        :param str dist_git_branch: name of the branch in container dist-git
+            repository from which to rebuild images.
+        :param container_images: list of image names, for example,
+            ``['image1', 'image2']``. Please note that each of the element is
+            the N part of image's N-V-R.
+        :type container_images: list[str]
+        :param freshmaker_event_id: a Freshmaker event ID. If set, it will be
+            used as a dependent event. Successful builds from this Event will
+            be reused in the newly created Event instead of building all the
+            artifacts from scratch.
+        :type freshmaker_event_id: int or None
+        :param brew_target: the Brew target for the build. If not set, the
+            previous ``buildContainer`` task build target will be used.
+        :type brew_target: str or None
+        """
+        super(FreshmakerAsyncManualBuildEvent, self).__init__(
+            msg_id, manual=True, dry_run=dry_run)
+        self.dist_git_branch = dist_git_branch
+        self.container_images = container_images
+        self.freshmaker_event_id = freshmaker_event_id
+        self.brew_target = brew_target

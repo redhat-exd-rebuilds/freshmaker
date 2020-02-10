@@ -160,6 +160,7 @@ class Config(object):
         'parsers': {
             'type': list,
             'default': [
+                'freshmaker.parsers.internal:FreshmakerAsyncManualbuildParser',
                 'freshmaker.parsers.internal:FreshmakerManualRebuildParser',
                 'freshmaker.parsers.brew:BrewTaskStateChangeParser',
                 'freshmaker.parsers.errata:ErrataAdvisoryStateChangedParser',
@@ -174,6 +175,7 @@ class Config(object):
                 'freshmaker.handlers.internal:UpdateDBOnAdvisoryChange',
                 'freshmaker.handlers.koji:RebuildImagesOnODCSComposeDone',
                 'freshmaker.handlers.bob:RebuildImagesOnImageAdvisoryChange',
+                'freshmaker.handlers.internal:FreshmakerAsyncManualBuild',
             ],
             'desc': 'List of enabled handlers.'},
         'polling_interval': {
