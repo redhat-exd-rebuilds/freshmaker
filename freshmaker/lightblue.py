@@ -1649,21 +1649,10 @@ class LightBlue(object):
                     rebuild_list[srpm_name] = [image]
                     continue
 
-                layers = unpublished["parsed_data"]["layers"]
                 rebuild_list[srpm_name] = self.find_parent_images_with_package(
-                    image, srpm_name, layers)
+                    image, srpm_name, [])
                 if rebuild_list[srpm_name]:
                     image['parent'] = rebuild_list[srpm_name][0]
-                else:
-                    parent = self.find_latest_parent_image(layers[1], len(layers) - 1)
-                    if parent:
-                        parent.resolve(self, [image])
-                    elif len(layers) != 2:
-                        image.log_error(
-                            "Cannot find parent image with layer %s and layer "
-                            "count %d in Lightblue, Lightblue data is probably "
-                            "incomplete" % (layers[1], len(layers) - 1))
-                    image['parent'] = parent
                 rebuild_list[srpm_name].insert(0, image)
             return rebuild_list
 
