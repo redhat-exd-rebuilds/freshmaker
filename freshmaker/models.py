@@ -45,7 +45,8 @@ from freshmaker.events import (
     BodhiUpdateCompleteStableEvent, KojiTaskStateChangeEvent, BrewSignRPMEvent,
     ErrataAdvisoryRPMsSignedEvent, BrewContainerTaskStateChangeEvent,
     ErrataAdvisoryStateChangedEvent, FreshmakerManualRebuildEvent,
-    ODCSComposeStateChangeEvent, ManualRebuildWithAdvisoryEvent)
+    ODCSComposeStateChangeEvent, ManualRebuildWithAdvisoryEvent,
+    FreshmakerAsyncManualBuildEvent)
 
 EVENT_TYPES = {
     MBSModuleStateChangeEvent: 0,
@@ -62,6 +63,7 @@ EVENT_TYPES = {
     FreshmakerManualRebuildEvent: 11,
     ODCSComposeStateChangeEvent: 12,
     ManualRebuildWithAdvisoryEvent: 13,
+    FreshmakerAsyncManualBuildEvent: 14,
 }
 
 INVERSE_EVENT_TYPES = {v: k for k, v in EVENT_TYPES.items()}
