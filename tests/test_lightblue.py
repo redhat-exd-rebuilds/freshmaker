@@ -1619,7 +1619,9 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         self.assertEqual(ret[0]["brew"]["package"], "package-name-1")
         self.assertEqual(set(ret[0]["content_sets"]),
                          set(["dummy-content-set-1", "dummy-content-set-2"]))
-        self.assertEqual(ret[-1]['error'], "Couldn't find parent image. Lightblue data is probably incomplete")
+        self.assertEqual(ret[-1]['error'], (
+            "Couldn't find parent image some-original-nvr-7.6-252.1561619826. "
+            "Lightblue data is probably incomplete"))
 
     @patch("freshmaker.lightblue.ContainerImage.resolve_published")
     @patch("freshmaker.lightblue.LightBlue.get_images_by_nvrs")

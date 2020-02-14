@@ -1249,7 +1249,7 @@ class LightBlue(object):
         # We've reached the base image, stop recursion
         if not parent_brew_build:
             return children
-        parent_image = self.get_images_by_nvrs([parent_brew_build], srpm_names=[srpm_name])
+        parent_image = self.get_images_by_nvrs([parent_brew_build], srpm_names=[srpm_name], published=None)
 
         if parent_image:
             parent_image = parent_image[0]
@@ -1264,12 +1264,13 @@ class LightBlue(object):
                 # the package so we know against which image it has been
                 # built.
                 # Let's try first with the "parent_brew_build" field.
-                parent = self.get_images_by_nvrs([parent_brew_build])
+                parent = self.get_images_by_nvrs([parent_brew_build], published=None)
                 if parent:
                     parent = parent[0]
                     parent.resolve(self, images)
                 else:
-                    err = "Couldn't find parent image. Lightblue data is probably incomplete"
+                    err = "Couldn't find parent image %s. Lightblue data is probably incomplete" % (
+                        parent_brew_build)
                     log.error(err)
                     if not images[-1]['error']:
                         images[-1]['error'] = err
