@@ -89,7 +89,12 @@ class ViewBaseTest(helpers.ModelsTestCase):
                 else:
                     flask.g.groups = []
                 with self.client.session_transaction() as sess:
+                    # prior to version 0.5, flask_login gets user_id from
+                    # session['user_id'], and then in version 0.5, it's
+                    # changed to get from session['_user_id'], so we set
+                    # both here to make it work for both old and new versions
                     sess['user_id'] = user
+                    sess['_user_id'] = user
                     sess['_fresh'] = True
 
                 oidc_scopes = oidc_scopes if oidc_scopes else []
