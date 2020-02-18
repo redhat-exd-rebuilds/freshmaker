@@ -89,7 +89,12 @@ class ViewBaseTest(helpers.ModelsTestCase):
                 else:
                     flask.g.groups = []
                 with self.client.session_transaction() as sess:
+                    # prior to version 0.5, flask_login gets user_id from
+                    # session['user_id'], and then in version 0.5, it's
+                    # changed to get from session['_user_id'], so we set
+                    # both here to make it work for both old and new versions
                     sess['user_id'] = user
+                    sess['_user_id'] = user
                     sess['_fresh'] = True
 
                 oidc_scopes = oidc_scopes if oidc_scopes else []
@@ -870,6 +875,175 @@ class TestManualTriggerRebuild(ViewBaseTest):
         payload = {'dry_run': '123'}
         with self.test_request_context(user='root'):
             resp = self.client.post('/api/1/builds/', json=payload, content_type='application/json')
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json['message'], '"dry_run" must be a boolean.')
+
+    def test_manual_rebuild_with_async_event(self):
+        models.Event.create(
+            db.session, '2017-00000000-0000-0000-0000-000000000003', '123',
+            events.FreshmakerAsyncManualBuildEvent
+        )
+        db.session.commit()
+        with patch('freshmaker.models.datetime') as datetime_patch:
+            datetime_patch.utcnow.return_value = datetime.datetime(2017, 8, 21, 13, 42, 20)
+
+            payload = {
+                'container_images': ['foo-1-1', 'bar-1-1'],
+                'freshmaker_event_id': 1,
+            }
+            with self.test_request_context(user='root'):
+                resp = self.client.post(
+                    '/api/1/builds/',
+                    data=json.dumps(payload),
+                    content_type='application/json',
+                )
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(
+            resp.json['message'],
+            'The event (id=1) is an async build event, can not be used for this build.')
+
+
+class TestAsyncBuild(ViewBaseTest):
+    def setUp(self):
+        super(TestAsyncBuild, self).setUp()
+        self.client = app.test_client()
+
+    @patch('freshmaker.messaging.publish')
+    @patch('freshmaker.parsers.internal.async_manual_build.time.time')
+    def test_async_build(self, time, publish):
+        time.return_value = 123
+        with patch('freshmaker.models.datetime') as datetime_patch:
+            datetime_patch.utcnow.return_value = datetime.datetime(2017, 8, 21, 13, 42, 20)
+
+            payload = {
+                'dist_git_branch': 'master',
+                'container_images': ['foo-1-1', 'bar-1-1']
+            }
+            with self.test_request_context(user='root'):
+                resp = self.client.post(
+                    '/api/1/async-builds/',
+                    data=json.dumps(payload),
+                    content_type='application/json',
+                )
+        data = json.loads(resp.get_data(as_text=True))
+
+        self.assertEqual(data, {
+            u'builds': [],
+            u'depending_events': [],
+            u'depends_on_events': [],
+            u'dry_run': False,
+            u'event_type_id': 14,
+            u'id': 1,
+            u'message_id': 'async_build_123',
+            u'requested_rebuilds': ['foo-1-1', 'bar-1-1'],
+            u'requester': 'root',
+            u'requester_metadata': {},
+            u'search_key': 'async_build_123',
+            u'state': 0,
+            u'state_name': 'INITIALIZED',
+            u'state_reason': None,
+            u'time_created': '2017-08-21T13:42:20Z',
+            u'time_done': None,
+            u'url': '/api/1/events/1'})
+
+        publish.assert_called_once_with(
+            'async.manual.build',
+            {
+                'msg_id': 'async_build_123',
+                'dist_git_branch': 'master',
+                'container_images': ['foo-1-1', 'bar-1-1']
+            })
+
+    @patch('freshmaker.messaging.publish')
+    @patch('freshmaker.parsers.internal.async_manual_build.time.time')
+    def test_async_build_dry_run(self, time, publish):
+        time.return_value = 123
+
+        payload = {
+            'dist_git_branch': 'master',
+            'container_images': ['foo-1-1', 'bar-1-1'],
+            'dry_run': True
+        }
+        with self.test_request_context(user='root'):
+            resp = self.client.post(
+                '/api/1/async-builds/', json=payload, content_type='application/json')
+
+        data = json.loads(resp.get_data(as_text=True))
+
+        self.assertEqual(data['dry_run'], True)
+        publish.assert_called_once_with(
+            'async.manual.build',
+            {
+                'msg_id': 'async_build_123',
+                'dist_git_branch': 'master',
+                'container_images': ['foo-1-1', 'bar-1-1'],
+                'dry_run': True,
+            })
+
+    def test_async_build_with_non_async_event(self):
+        models.Event.create(
+            db.session, '2017-00000000-0000-0000-0000-000000000003', '123', events.TestingEvent,
+        )
+        db.session.commit()
+        with patch('freshmaker.models.datetime') as datetime_patch:
+            datetime_patch.utcnow.return_value = datetime.datetime(2017, 8, 21, 13, 42, 20)
+
+            payload = {
+                'dist_git_branch': 'master',
+                'container_images': ['foo-1-1', 'bar-1-1'],
+                'freshmaker_event_id': 1,
+            }
+            with self.test_request_context(user='root'):
+                resp = self.client.post(
+                    '/api/1/async-builds/',
+                    data=json.dumps(payload),
+                    content_type='application/json',
+                )
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json['message'], 'The event (id=1) is not an async build event.')
+
+    def test_async_build_invalid_dist_git_branch(self):
+        payload = {'dist_git_branch': 123}
+        with self.test_request_context(user='root'):
+            resp = self.client.post(
+                '/api/1/async-builds/', json=payload, content_type='application/json')
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json['message'], '"dist_git_branch" must be a string.')
+
+    def test_async_build_invalid_type_freshmaker_event_id(self):
+        payload = {'freshmaker_event_id': '123'}
+        with self.test_request_context(user='root'):
+            resp = self.client.post(
+                '/api/1/async-builds/', json=payload, content_type='application/json')
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json['message'], '"freshmaker_event_id" must be an integer.')
+
+    def test_async_build_invalid_type_container_images(self):
+        payload = {'container_images': '123'}
+        with self.test_request_context(user='root'):
+            resp = self.client.post(
+                '/api/1/async-builds/', json=payload, content_type='application/json')
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json['message'], '"container_images" must be an array of strings.')
+
+    def test_async_build_invalid_type_brew_target(self):
+        payload = {'brew_target': 123}
+        with self.test_request_context(user='root'):
+            resp = self.client.post(
+                '/api/1/async-builds/', json=payload, content_type='application/json')
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json['message'], '"brew_target" must be a string.')
+
+    def test_async_build_invalid_type_dry_run(self):
+        payload = {'dry_run': '123'}
+        with self.test_request_context(user='root'):
+            resp = self.client.post(
+                '/api/1/async-builds/', json=payload, content_type='application/json')
 
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(resp.json['message'], '"dry_run" must be a boolean.')

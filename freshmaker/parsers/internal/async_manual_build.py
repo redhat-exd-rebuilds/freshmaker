@@ -19,6 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import time
 from freshmaker.parsers import BaseParser
 from freshmaker.events import FreshmakerAsyncManualBuildEvent
 
@@ -32,14 +33,25 @@ class FreshmakerAsyncManualbuildParser(BaseParser):
     def can_parse(self, topic, msg):
         return any([topic.endswith(s) for s in self.topic_suffixes])
 
+    def parse_post_data(self, data):
+        """
+        Method shared between Frontend and Backend to parse the POST data
+        of async build JSON and generate the BaseEvent representation
+        of the rebuild request.
+
+        :param dict data: Dict generated from JSON from HTTP POST or parsed
+            from the UMB message sent from Frontend to Backend.
+        """
+        msg_id = data.get('msg_id', "async_build_%s" % (str(time.time())))
+
+        event = FreshmakerAsyncManualBuildEvent(
+            msg_id, data.get('dist_git_branch'), data.get('container_images', []),
+            freshmaker_event_id=data.get('freshmaker_event_id'),
+            brew_target=data.get('brew_target'),
+            dry_run=data.get('dry_run', False))
+
+        return event
+
     def parse(self, topic, msg):
         inner_msg = msg['msg']
-
-        return FreshmakerAsyncManualBuildEvent(
-            inner_msg['msg_id'],
-            inner_msg['dist_git_branch'],
-            inner_msg['container_images'],
-            freshmaker_event_id=inner_msg.get('freshmaker_event_id'),
-            brew_target=inner_msg.get('brew_target'),
-            dry_run=inner_msg.get('dry_run'),
-        )
+        return self.parse_post_data(inner_msg)

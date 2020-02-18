@@ -34,12 +34,14 @@ from freshmaker import db
 from freshmaker import conf
 from freshmaker import version
 from freshmaker import log
+from freshmaker import events
 from freshmaker.api_utils import filter_artifact_builds
 from freshmaker.api_utils import filter_events
 from freshmaker.api_utils import json_error
 from freshmaker.api_utils import pagination_metadata
 from freshmaker.auth import login_required, requires_roles, require_scopes, user_has_role
 from freshmaker.parsers.internal.manual_rebuild import FreshmakerManualRebuildParser
+from freshmaker.parsers.internal.async_manual_build import FreshmakerAsyncManualbuildParser
 from freshmaker.monitor import (
     monitor_api, freshmaker_build_api_latency, freshmaker_event_api_latency)
 from freshmaker.image_verifier import ImageVerifier
@@ -122,6 +124,14 @@ api_v1 = {
         },
         'manual_trigger': {
             'url': '/api/1/builds/',
+            'options': {
+                'methods': ['POST'],
+            }
+        },
+    },
+    'async_builds': {
+        'async_build': {
+            'url': '/api/1/async-builds/',
             'options': {
                 'methods': ['POST'],
             }
@@ -348,6 +358,79 @@ class EventAPI(MethodView):
         return jsonify(event.json()), 200
 
 
+def _validate_rebuild_request(request):
+    """
+    Perform basic data validation against the rebuild request
+
+    :param request: Flask request object.
+    :return: If validation fails, returns JSON serialized flask.Response with
+        error code and messages, otherwise returns None.
+    """
+    data = request.get_json(force=True)
+
+    for key in ('errata_id', 'freshmaker_event_id'):
+        if data.get(key) and not isinstance(data[key], int):
+            return json_error(400, 'Bad Request', f'"{key}" must be an integer.')
+
+    if data.get('freshmaker_event_id'):
+        event = models.Event.get_by_event_id(db.session, data.get('freshmaker_event_id'))
+        if not event:
+            return json_error(
+                400, 'Bad Request', 'The provided "freshmaker_event_id" is invalid.',
+            )
+
+    for key in ('dist_git_branch', 'brew_target'):
+        if data.get(key) and not isinstance(data[key], str):
+            return json_error(400, 'Bad Request', f'"{key}" must be a string.')
+
+    container_images = data.get('container_images', [])
+    if (
+        not isinstance(container_images, list) or
+        any(not isinstance(image, str) for image in container_images)
+    ):
+        return json_error(
+            400, 'Bad Request', '"container_images" must be an array of strings.',
+        )
+
+    if not isinstance(data.get('dry_run', False), bool):
+        return json_error(400, 'Bad Request', '"dry_run" must be a boolean.')
+
+    return None
+
+
+def _create_rebuild_event_from_request(db_session, parser, request):
+    """
+    Create a rebuild event by parsing the request data
+
+    :param db_session: SQLAlchemy database session object.
+    :param parser: Freshmaker parser object.
+    :param request: Flask request object.
+    :return: Event object.
+    """
+    data = request.get_json(force=True)
+    event = parser.parse_post_data(data)
+
+    # Store the event into database, so it gets the ID which we can return
+    # to client sending this POST request. The client can then use the ID
+    # to check for the event status.
+    db_event = models.Event.get_or_create_from_event(db_session, event)
+    db_event.requester = g.user.username
+    db_event.requested_rebuilds = " ".join(event.container_images)
+    if hasattr(event, 'requester_metadata_json') and event.requester_metadata_json:
+        db_event.requester_metadata = json.dumps(event.requester_metadata_json)
+    if data.get('freshmaker_event_id'):
+        dependent_event = models.Event.get_by_event_id(
+            db_session, data.get('freshmaker_event_id'),
+        )
+        if dependent_event:
+            dependency = db_event.add_event_dependency(db_session, dependent_event)
+            if not dependency:
+                log.warn('Dependency between {} and {} could not be added!'.format(
+                    event.freshmaker_event_id, dependent_event.id))
+    db_session.commit()
+    return db_event
+
+
 class BuildAPI(MethodView):
     @freshmaker_build_api_latency.time()
     def get(self, id):
@@ -406,23 +489,11 @@ class BuildAPI(MethodView):
         :statuscode 200: A new event was created.
         :statuscode 400: The provided input is invalid.
         """
+        error = _validate_rebuild_request(request)
+        if error is not None:
+            return error
+
         data = request.get_json(force=True)
-        for key in ('errata_id', 'freshmaker_event_id'):
-            if data.get(key) and not isinstance(data[key], int):
-                return json_error(400, 'Bad Request', f'"{key}" must be an integer.')
-
-        container_images = data.get('container_images', [])
-        if (
-            not isinstance(container_images, list) or
-            any(not isinstance(image, str) for image in container_images)
-        ):
-            return json_error(
-                400, 'Bad Request', '"container_images" must be an array of strings.',
-            )
-
-        if not isinstance(data.get('dry_run', False), bool):
-            return json_error(400, 'Bad Request', '"dry_run" must be a boolean.')
-
         if not data.get('errata_id') and not data.get('freshmaker_event_id'):
             return json_error(
                 400,
@@ -435,11 +506,14 @@ class BuildAPI(MethodView):
             dependent_event = models.Event.get_by_event_id(
                 db.session, data.get('freshmaker_event_id'),
             )
-            if not dependent_event:
+            # requesting a CVE rebuild, the event can not be an async build event which
+            # is for non-CVE only
+            async_build_event_type = models.EVENT_TYPES[events.FreshmakerAsyncManualBuildEvent]
+            if dependent_event.event_type_id == async_build_event_type:
                 return json_error(
-                    400, 'Bad Request', 'The provided "freshmaker_event_id" is invalid.',
+                    400, 'Bad Request', 'The event (id={}) is an async build event, '
+                    'can not be used for this build.'.format(data.get('freshmaker_event_id')),
                 )
-
             if not data.get('errata_id'):
                 data['errata_id'] = int(dependent_event.search_key)
             elif int(dependent_event.search_key) != data['errata_id']:
@@ -454,28 +528,99 @@ class BuildAPI(MethodView):
         # event based on the data. Currently it generates just
         # ManualRebuildWithAdvisoryEvent.
         parser = FreshmakerManualRebuildParser()
-        event = parser.parse_post_data(data)
-
-        # Store the event into database, so it gets the ID which we can return
-        # to client sending this POST request. The client can then use the ID
-        # to check for the event status.
-        db_event = models.Event.get_or_create_from_event(db.session, event)
-        db_event.requester = g.user.username
-        db_event.requested_rebuilds = " ".join(event.container_images)
-        if event.requester_metadata_json:
-            db_event.requester_metadata = json.dumps(event.requester_metadata_json)
-        if dependent_event:
-            dependency = db_event.add_event_dependency(db.session, dependent_event)
-            if not dependency:
-                log.warn('Dependency between {} and {} could not be added!'.format(
-                    event.freshmaker_event_id, dependent_event.id))
-        db.session.commit()
+        db_event = _create_rebuild_event_from_request(db.session, parser, request)
 
         # Forward the POST data (including the msg_id of the database event we
         # added to DB) to backend using UMB messaging. Backend will then
         # re-generate the event and start handling it.
-        data["msg_id"] = event.msg_id
+        data["msg_id"] = db_event.message_id
         messaging.publish("manual.rebuild", data)
+
+        # Return back the JSON representation of Event to client.
+        return jsonify(db_event.json()), 200
+
+
+class AsyncBuildAPI(MethodView):
+    @login_required
+    @require_scopes('submit-build')
+    @requires_roles(['admin', 'freshmaker_async_rebuilders'])
+    def post(self):
+        """
+        Trigger Freshmaker async rebuild (a.k.a non-CVE rebuild). The request
+        must be :mimetype:`application/json`.
+
+        Returns the newly created Freshmaker event as JSON.
+
+        **Sample request**:
+
+        .. sourcecode:: http
+
+            POST /api/1/async-builds HTTP/1.1
+            Accept: application/json
+            Content-Type: application/json
+
+            {
+                "dist_git_branch": "master",
+                "container_images": ["foo-1-1"]
+            }
+
+        :jsonparam string dist_git_branch: The name of the branch in dist-git
+            to build the container images from. This is a mandatory field.
+        :jsonparam list container_images: A list of images to rebuild. They
+            might be sharing a parent-child relationship which are then rebuilt
+            by Freshmaker in the right order. For example, if images A is parent
+            image of B, which is parent image of C, and container_images is
+            [A, B, C], Freshmaker will make sure to rebuild all three images,
+            in the correct order. It is however possible also to rebuild images
+            completely unrelated to each other. This is a mandatory field.
+        :jsonparam bool dry_run: When True, the Event will be handled in
+            the DRY_RUN mode.
+        :jsonparam bool freshmaker_event_id: When set, it defines the event
+            which will be used as the dependant event. Successfull builds from
+            this event will be reused in the newly created event instead of
+            building all the artifacts from scratch. The event should refer
+            to an async rebuild event.
+        :jsonparam string brew_target: The name of the Brew target. While
+            requesting an async rebuild, it should be the same for all the images
+            in the list of container_images. This parameter is optional, with
+            default value will be pulled from the previous buildContainer task.
+        :statuscode 200: A new event was created.
+        :statuscode 400: The provided input is invalid.
+        """
+        error = _validate_rebuild_request(request)
+        if error is not None:
+            return error
+
+        data = request.get_json(force=True)
+        if not all([data.get('dist_git_branch'), data.get('container_images')]):
+            return json_error(
+                400,
+                'Bad Request',
+                '"dist_git_branch" and "container_images" are required in the request '
+                'for async builds',
+            )
+
+        dependent_event = None
+        if data.get('freshmaker_event_id'):
+            dependent_event = models.Event.get_by_event_id(
+                db.session, data.get('freshmaker_event_id'),
+            )
+            async_build_event_type = models.EVENT_TYPES[events.FreshmakerAsyncManualBuildEvent]
+            if dependent_event.event_type_id != async_build_event_type:
+                return json_error(
+                    400, 'Bad Request', 'The event (id={}) is not an async build '
+                    'event.'.format(data.get('freshmaker_event_id')),
+                )
+
+        # parse the POST data and generate FreshmakerAsyncManualBuildEvent
+        parser = FreshmakerAsyncManualbuildParser()
+        db_event = _create_rebuild_event_from_request(db.session, parser, request)
+
+        # Forward the POST data (including the msg_id of the database event we
+        # added to DB) to backend using UMB messaging. Backend will then
+        # re-generate the event and start handling it.
+        data["msg_id"] = db_event.message_id
+        messaging.publish("async.manual.build", data)
 
         # Return back the JSON representation of Event to client.
         return jsonify(db_event.json()), 200
@@ -583,6 +728,7 @@ class VerifyImageRepositoryAPI(MethodView):
 API_V1_MAPPING = {
     'events': EventAPI,
     'builds': BuildAPI,
+    'async_builds': AsyncBuildAPI,
     'event_types': EventTypeAPI,
     'build_types': BuildTypeAPI,
     'build_states': BuildStateAPI,
