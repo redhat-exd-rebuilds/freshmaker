@@ -1070,7 +1070,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         self.fake_container_images.append(self.fake_container_images[1])
         cont_images.return_value = self.fake_container_images
         ret = lb.find_images_with_included_srpms(
-            ["content-set-1", "content-set-2"], ["openssl-1.2.3-2"], repositories)
+            ["dummy-content-set-1", "dummy-content-set-2"], ["openssl-1.2.3-2"], repositories)
 
         expected_image_request = {
             "objectType": "containerImage",
@@ -1105,12 +1105,12 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                             {
                                 "field": "content_sets.*",
                                 "op": "=",
-                                "rvalue": "content-set-1"
+                                "rvalue": "dummy-content-set-1"
                             },
                             {
                                 "field": "content_sets.*",
                                 "op": "=",
-                                "rvalue": "content-set-2"
+                                "rvalue": "dummy-content-set-2"
                             },
                         ],
                     },
@@ -1165,7 +1165,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             self.fake_container_images +
             self.fake_container_images_floating_tag)
         ret = lb.find_images_with_included_srpms(
-            ["content-set-1", "content-set-2"], ["openssl-1.2.3-2"], repositories)
+            ["dummy-content-set-1", "dummy-content-set-2"], ["openssl-1.2.3-2"], repositories)
 
         self.assertEqual(
             [image["brew"]["build"] for image in ret],
@@ -1206,7 +1206,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             self.fake_container_images +
             self.fake_container_images_floating_tag)
         ret = lb.find_images_with_included_srpms(
-            ["content-set-1", "content-set-2"],
+            ["dummy-content-set-1", "dummy-content-set-2"],
             ["openssl-1.2.3-1", "openssl-1.2.3-50"], repositories)
         self.assertEqual(
             [image["brew"]["build"] for image in ret],
@@ -1229,10 +1229,11 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         # "filtered_x-1-23" image will be filtered by filter_fnc.
         cont_images.return_value = self.fake_container_images + [
             ContainerImage.create(
-                {"brew": {"build": "filtered_x-1-23"},
-                 'repositories': [
-                     {'repository': 'product/repo1', 'published': True,
-                      'tags': [{"name": "latest"}]}]})]
+                {"content_sets": ["dummy-content-set-1"],
+                 "brew": {"build": "filtered_x-1-23"},
+                 "repositories": [
+                     {"repository": "product/repo1", "published": True,
+                      "tags": [{"name": "latest"}]}]})]
         # Include the images for second time to ensure that they will be
         # returned only once. This can happen when the image is multiarch.
         cont_images.return_value += self.fake_container_images
@@ -1799,15 +1800,47 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         cont_images.return_value = (
             self.fake_images_with_modules)
         ret = lb.find_images_with_included_srpms(
-            ["content-set-1", "content-set-2"], ["openssl-1.2.3-2.module+el8.0.0+3248+9d514f3b.src"], repositories)
+            ["dummy-content-set-1", "dummy-content-set-2"], ["openssl-1.2.3-2.module+el8.0.0+3248+9d514f3b.src"], repositories)
         self.assertEqual(
             [image["brew"]["build"] for image in ret],
             ["package-name-3-4-12.10"])
         ret = lb.find_images_with_included_srpms(
-            ["content-set-1", "content-set-2"], ["openssl-1.2.3-2.el8.0.0+3248+9d514f3b.src"], repositories)
+            ["dummy-content-set-1", "dummy-content-set-2"], ["openssl-1.2.3-2.el8.0.0+3248+9d514f3b.src"], repositories)
         self.assertEqual(
             [image["brew"]["build"] for image in ret],
             [])
+
+    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @patch('os.path.exists')
+    def test_filter_out_by_content_sets(
+            self, exists, cont_images):
+
+        repos = [{
+            "repository": "product/repo1", "published": True,
+            'tags': [{"name": "latest"}]}]
+        exists.return_value = True
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key)
+        repositories = {
+            repo["repository"]: repo for repo in
+            self.fake_repositories_with_content_sets}
+        parent = ContainerImage.create({
+            "brew": {"build": "parent-1-2"}, "repositories": repos,
+            "content_sets": ["dummy-content-set-1"]})
+        latest_parent = ContainerImage.create({
+            "brew": {"build": "parent-1-3"}, "repositories": repos,
+            "content_sets": ["dummy-content-set-1"]})
+        older_parent = ContainerImage.create({
+            "brew": {"build": "parent-1-1"}, "repositories": repos,
+            "content_sets": ["dummy-content-set-2"]})
+        cont_images.return_value = [parent, latest_parent, older_parent]
+
+        ret = lb.find_images_with_included_srpms(
+            ["dummy-content-set-1"], ["openssl-1.2.3-2.module+el8.0.0+3248+9d514f3b.src"], repositories)
+        self.assertEqual(
+            [image["brew"]["build"] for image in ret],
+            ["parent-1-2", "parent-1-3"])
 
 
 class TestEntityVersion(helpers.FreshmakerTestCase):
