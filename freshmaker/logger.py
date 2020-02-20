@@ -43,11 +43,12 @@ logging.warning("%s failed to build", task_id)
 
 import logging
 
-levels = {}
-levels["debug"] = logging.DEBUG
-levels["error"] = logging.ERROR
-levels["warning"] = logging.WARNING
-levels["info"] = logging.INFO
+levels = {
+    "debug": logging.DEBUG,
+    "error": logging.ERROR,
+    "warning": logging.WARNING,
+    "info": logging.INFO,
+}
 
 
 def str_to_log_level(level):

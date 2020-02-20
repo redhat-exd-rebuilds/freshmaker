@@ -282,15 +282,15 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
 
                 build.transition(state, state_reason)
 
-                build_args = {}
-                build_args["repository"] = image["repository"]
-                build_args["commit"] = image["commit"]
-                build_args["original_parent"] = parent_nvr
-                build_args["target"] = image["target"]
-                build_args["branch"] = image["git_branch"]
-                build_args["arches"] = image["arches"]
-                build_args["renewed_odcs_compose_ids"] = image["odcs_compose_ids"]
-                build.build_args = json.dumps(build_args)
+                build.build_args = json.dumps({
+                    "repository": image["repository"],
+                    "commit": image["commit"],
+                    "original_parent": parent_nvr,
+                    "target": image["target"],
+                    "branch": image["git_branch"],
+                    "arches": image["arches"],
+                    "renewed_odcs_compose_ids": image["odcs_compose_ids"],
+                })
 
                 db.session.commit()
 

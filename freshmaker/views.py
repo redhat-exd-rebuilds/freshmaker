@@ -171,10 +171,7 @@ class EventTypeAPI(MethodView):
             event_types.append({'name': cls.__name__, 'id': val})
 
         if id is None:
-            json_data = {}
-            json_data['items'] = event_types
-
-            return jsonify(json_data), 200
+            return jsonify({'items': event_types}), 200
 
         else:
             event_type = [x for x in event_types if x['id'] == id]
@@ -192,10 +189,7 @@ class BuildTypeAPI(MethodView):
             build_types.append({'name': x.name, 'id': x.value})
 
         if id is None:
-            json_data = {}
-            json_data['items'] = build_types
-
-            return jsonify(json_data), 200
+            return jsonify({'items': build_types}), 200
 
         else:
             build_type = [x for x in build_types if x['id'] == id]
@@ -213,10 +207,7 @@ class BuildStateAPI(MethodView):
             build_states.append({'name': x.name, 'id': x.value})
 
         if id is None:
-            json_data = {}
-            json_data['items'] = build_states
-
-            return jsonify(json_data), 200
+            return jsonify({'items': build_states}), 200
 
         else:
             build_state = [x for x in build_states if x['id'] == id]
@@ -675,10 +666,11 @@ class VerifyImageAPI(MethodView):
 
         verifier = ImageVerifier()
         images = verifier.verify_image(image)
-        ret = {}
-        ret["msg"] = ("Found %d images which are handled by Freshmaker for defined "
-                      "content_sets." % len(images))
-        ret["images"] = images
+        ret = {
+            "msg": "Found %d images which are handled by Freshmaker for "
+                   "defined content_sets." % len(images),
+            "images": images
+        }
         return jsonify(ret), 200
 
 
@@ -718,10 +710,11 @@ class VerifyImageRepositoryAPI(MethodView):
 
         verifier = ImageVerifier()
         images = verifier.verify_repository("%s/%s" % (project, repo))
-        ret = {}
-        ret["msg"] = ("Found %d images which are handled by Freshmaker for defined "
-                      "content_sets." % len(images))
-        ret["images"] = images
+        ret = {
+            "msg": "Found %d images which are handled by Freshmaker for "
+                   "defined content_sets." % len(images),
+            "images": images,
+        }
         return jsonify(ret), 200
 
 

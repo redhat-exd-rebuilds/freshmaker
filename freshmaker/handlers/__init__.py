@@ -558,12 +558,11 @@ class ContainerBuildHandler(BaseHandler):
         without contacting the ODCS server.
         """
         if self.dry_run:
-            compose = {}
-            compose['id'] = compose_id
-            compose['result_repofile'] = "http://localhost/%d.repo" % (
-                compose['id'])
-            compose['state'] = COMPOSE_STATES['done']
-            return compose
+            return {
+                'id': compose_id,
+                'result_repofile': "http://localhost/%d.repo" % compose_id,
+                'state': COMPOSE_STATES['done'],
+            }
 
         with krb_context():
             return create_odcs_client().get_compose(compose_id)

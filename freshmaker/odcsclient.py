@@ -120,15 +120,12 @@ class FreshmakerODCSClient(object):
         if fake_compose_id >= 0:
             fake_compose_id = -1
 
-        new_compose = {}
-        new_compose['id'] = fake_compose_id
-        new_compose['result_repofile'] = "http://localhost/%d.repo" % (
-            new_compose['id'])
-        new_compose['state'] = COMPOSE_STATES['done']
-        if results is None:
-            new_compose['results'] = ['boot.iso']
-        else:
-            new_compose['results'] = results
+        new_compose = {
+            'id': fake_compose_id,
+            'result_repofile': "http://localhost/{}.repo".format(fake_compose_id),
+            'state': COMPOSE_STATES['done'],
+            'results': results or ['boot.iso']
+        }
         if builds:
             new_compose['builds'] = builds
 
