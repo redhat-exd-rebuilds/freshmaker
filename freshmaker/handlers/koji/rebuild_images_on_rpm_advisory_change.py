@@ -369,7 +369,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
         advisory.
 
         Found images are yielded in proper rebuild order from base images to
-        leaf images through the docker build dependnecy chain.
+        leaf images through the docker build dependency chain.
 
         :param int errata_id: Errata ID.
         """

@@ -37,7 +37,7 @@ class BaseEvent(object):
         """
         A base class to abstract events from different fedmsg messages.
         :param msg_id: the id of the msg (e.g. 2016-SomeGUID)
-        :param manual: True if the event was trigerred manually by Freshmaker
+        :param manual: True if the event was triggered manually by Freshmaker
             REST API.
         :param dry_run: True if the event should be handled in DRY_RUN mode.
         """
@@ -205,7 +205,7 @@ class GitRPMSpecChangeEvent(BaseEvent):
 
 class TestingEvent(BaseEvent):
     """
-    Event useds in unit-tests.
+    Event used in unit-tests.
     """
     def __init__(self, msg_id, **kwargs):
         super(TestingEvent, self).__init__(msg_id, **kwargs)
