@@ -316,7 +316,6 @@ def push_repo(repo, logger=None):
 
 def get_commit_hash(repo, branch='master', revision='HEAD', logger=None):
     """Get commit hash from revision"""
-    commit_hash = None
     cmd = ['git', 'rev-parse', revision]
     if '://' in repo:
         # this is a remote repo url
@@ -331,7 +330,6 @@ def get_commit_hash(repo, branch='master', revision='HEAD', logger=None):
 
 
 def bump_distgit_repo(namespace, name, branch='master', user=None, commit_author=None, commit_msg=None, logger=None):
-    rev = None
     with temp_dir(prefix='freshmaker-%s-%s-' % (namespace, name)) as repodir:
         try:
             msg = commit_msg or "Bump"
