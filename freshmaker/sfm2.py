@@ -52,7 +52,7 @@ class SFM2API(object):
         It queries api/public/flaws?id=$cve&include_fields=affects,impact endpoint.
 
         :param str cve: CVE, for example "CVE-2017-10268".
-        :rtype: list
+        :rtype: dict
         :return: dict with two keys, "impact", and "affects". The first references
         the impact of the CVE, and the second is a list of dicts representing packages
         affected by the CVE.
@@ -79,7 +79,6 @@ class SFM2API(object):
         and "pkg_name" of the affected packages.
         """
         max_rating = -1
-        elements = []
         affected_pkgs = []
         severity = None
         for cve in cve_list:
