@@ -864,7 +864,7 @@ class LightBlue(object):
         :param list content_sets: List of content_sets the image includes RPMs
             from.
         :param list srpm_nvrs: list of SRPM NVRs to look for
-        :param list repositories: List of repository names to look for.
+        :param dict repositories: List of repository names to look for.
         :param bool published: whether to limit queries to published
             repositories
         :param bool include_rpms: whether to include the RPMs in the result.
