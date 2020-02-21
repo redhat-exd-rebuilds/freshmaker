@@ -173,18 +173,19 @@ def retry(timeout=conf.net_timeout, interval=conf.net_retry_interval, wait_on=Ex
     return wrapper
 
 
-def get_distgit_url(namespace, name, ssh, user):
+def get_distgit_url(namespace, name, ssh=True, user=None):
     """
     Returns the dist-git repository URL.
 
     :param str namespace: Namespace in which the repository is located, for
         example "rpms", "containers", "modules", ...
     :param str name: Name of the repository inside the namespace.
-    :param bool ssh: If True, SSH auth will be used when fetching the files.
+    :param bool ssh: indicate whether SSH auth will be used when fetching the
+        files. Default is True.
     :param str user: If set, overrides the default user for SSH auth.
-
-    :rtype: str
+        Otherwise, username specified in config ``git_user`` will be used.
     :return: The dist-git repository URL.
+    :rtype: str
     """
     if ssh:
         if user is None:
@@ -201,9 +202,7 @@ def get_distgit_url(namespace, name, ssh, user):
 
 
 @retry(logger=log)
-def get_distgit_files(
-        namespace, name, commit_or_branch, files, ssh=True, user=None,
-        logger=None):
+def get_distgit_files(repo_url, commit_or_branch, files, logger=None):
     """
     Fetches the `files` from dist-git repository defined by `namespace`,
     `name` and `commit_or_branch` and returns them.
@@ -212,21 +211,14 @@ def get_distgit_files(
     preferred method to get the files from dist-git in case the full clone
     of repository is not needed.
 
-    :param str namespace: Namespace in which the repository is located, for
-        example "rpms", "containers", "modules", ...
-    :param str name: Name of the repository inside the namespace.
+    :param str repo_url: the repository URL.
     :param str commit_or_branch: Commit hash or branch name.
-    :param list files: List of strings defining the files to fetch.
-    :param bool ssh: If True, SSH auth will be used when fetching the files.
-    :param str user: If set, overrides the default user for SSH auth.
+    :param list[str] files: List of files to fetch.
     :param freshmaker.log logger: Logger instance.
-
-    :rtype: dict
     :return: Dictionary with file name as key and file content as value.
         If the file does not exist in a dist-git repo, None is used as value.
+    :rtype: dict[str, str or None]
     """
-    repo_url = get_distgit_url(namespace, name, ssh, user)
-
     # Use the "git archive" to get the files in tarball and then extract
     # them and return in dict. We need to go file by file, because the
     # "git archive" would fail completely in case any file does not exist

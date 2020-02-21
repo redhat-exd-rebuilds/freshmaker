@@ -34,7 +34,7 @@ from freshmaker.lightblue import ContainerRepository
 from freshmaker.lightblue import LightBlue
 from freshmaker.lightblue import LightBlueRequestError
 from freshmaker.lightblue import LightBlueSystemError
-from freshmaker.utils import sorted_by_nvr
+from freshmaker.utils import sorted_by_nvr, get_distgit_url
 from freshmaker import log
 from tests import helpers
 
@@ -168,9 +168,10 @@ class TestGetAdditionalDataFromDistGit(helpers.FreshmakerTestCase):
             "rpms/foo-docker", "branch", "commit")
         self.assertEqual(ret["generate_pulp_repos"], False)
 
+        repo_url = get_distgit_url('rpms', 'foo-docker', ssh=False)
         self.get_distgit_files.assert_called_once_with(
-            'rpms', 'foo-docker', "commit",
-            ["content_sets.yml", "container.yaml"], logger=log, ssh=False)
+            repo_url, "commit",
+            ["content_sets.yml", "container.yaml"], logger=log)
 
     def test_generate_os_error(self):
         self.get_distgit_files.side_effect = OSError(
@@ -187,9 +188,10 @@ class TestGetAdditionalDataFromDistGit(helpers.FreshmakerTestCase):
             "Error while fetching dist-git repo files: Got an error (128) from git: "
             "fatal: reference is not a tree: 4d42e2009cec70d871c65de821396cd750d523f1")
 
+        repo_url = get_distgit_url('rpms', 'foo-docker', ssh=False)
         self.get_distgit_files.assert_called_once_with(
-            'rpms', 'foo-docker', 'commit',
-            ["content_sets.yml", "container.yaml"], logger=log, ssh=False)
+            repo_url, 'commit',
+            ["content_sets.yml", "container.yaml"], logger=log)
 
     def test_generate_no_namespace(self):
         self.get_distgit_files.return_value = {
@@ -202,9 +204,10 @@ class TestGetAdditionalDataFromDistGit(helpers.FreshmakerTestCase):
             "foo-docker", "branch", "commit")
         self.assertEqual(ret["generate_pulp_repos"], False)
 
+        repo_url = get_distgit_url('rpms', 'foo-docker', ssh=False)
         self.get_distgit_files.assert_called_once_with(
-            'rpms', 'foo-docker', "commit",
-            ["content_sets.yml", "container.yaml"], logger=log, ssh=False)
+            repo_url, "commit",
+            ["content_sets.yml", "container.yaml"], logger=log)
 
     def test_generate_no_pulp_repos(self):
         self.get_distgit_files.return_value = {

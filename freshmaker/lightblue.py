@@ -37,7 +37,7 @@ import http.client
 import concurrent.futures
 from freshmaker import log, conf
 from freshmaker.kojiservice import koji_service
-from freshmaker.utils import sorted_by_nvr, get_distgit_files
+from freshmaker.utils import sorted_by_nvr, get_distgit_files, get_distgit_url
 import koji
 
 
@@ -300,9 +300,10 @@ class ContainerImage(dict):
             name = repository
 
         try:
+            repo_url = get_distgit_url(namespace, name, ssh=False)
             files = get_distgit_files(
-                namespace, name, commit, ["content_sets.yml", "container.yaml"],
-                ssh=False, logger=log)
+                repo_url, commit, ["content_sets.yml", "container.yaml"],
+                logger=log)
         except OSError as e:
             self.log_error("Error while fetching dist-git repo files: %s" % e)
             return data
