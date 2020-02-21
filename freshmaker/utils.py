@@ -20,12 +20,9 @@
 # SOFTWARE.
 #
 
-import contextlib
-import errno
 import functools
 import getpass
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -176,44 +173,6 @@ def retry(timeout=conf.net_timeout, interval=conf.net_retry_interval, wait_on=Ex
     return wrapper
 
 
-def makedirs(path, mode=0o775):
-    try:
-        os.makedirs(path, mode=mode)
-    except OSError as ex:
-        if ex.errno != errno.EEXIST:
-            raise
-
-
-@contextlib.contextmanager
-def temp_dir(logger=None, *args, **kwargs):
-    """Create a temporary directory and ensure it's deleted."""
-    if kwargs.get('dir'):
-        # If we are supposed to create the temp dir in a particular location,
-        # ensure the location already exists.
-        makedirs(kwargs['dir'])
-    dir = tempfile.mkdtemp(*args, **kwargs)
-    try:
-        yield dir
-    finally:
-        try:
-            shutil.rmtree(dir)
-        except OSError as exc:
-            # Okay, we failed to delete temporary dir.
-            if logger:
-                logger.warning('Error removing %s: %s', dir, exc.strerror)
-
-
-def clone_repo(url, dest, branch='master', logger=None, commit=None):
-    cmd = ['git', 'clone', '-b', branch, url, dest]
-    _run_command(cmd, logger=logger)
-
-    if commit:
-        cmd = ['git', 'checkout', commit]
-        _run_command(cmd, logger=logger, rundir=dest)
-
-    return dest
-
-
 def get_distgit_url(namespace, name, ssh, user):
     """
     Returns the dist-git repository URL.
@@ -239,14 +198,6 @@ def get_distgit_url(namespace, name, ssh, user):
 
     repo_url = os.path.join(repo_url, namespace, name)
     return repo_url
-
-
-def clone_distgit_repo(namespace, name, dest, branch='master', ssh=True,
-                       user=None, logger=None, commit=None):
-    """clone a git repo"""
-    repo_url = get_distgit_url(namespace, name, ssh, user)
-    return clone_repo(repo_url, dest, branch=branch, logger=logger,
-                      commit=commit)
 
 
 @retry(logger=log)
@@ -297,50 +248,6 @@ def get_distgit_files(
                 raise
 
     return ret
-
-
-def add_empty_commit(repo, msg="bump", author=None, logger=None):
-    """Commit an empty commit to repo"""
-    if author is None:
-        author = conf.git_author
-    cmd = ['git', 'commit', '--allow-empty', '-m', msg, '--author={}'.format(author)]
-    _run_command(cmd, logger=logger, rundir=repo)
-    return get_commit_hash(repo)
-
-
-def push_repo(repo, logger=None):
-    """Push repo"""
-    cmd = ['git', 'push']
-    _run_command(cmd, logger=logger, rundir=repo)
-
-
-def get_commit_hash(repo, branch='master', revision='HEAD', logger=None):
-    """Get commit hash from revision"""
-    cmd = ['git', 'rev-parse', revision]
-    if '://' in repo:
-        # this is a remote repo url
-        with temp_dir(prefix='freshmaker-%s-' % repo.split('/').pop()) as repodir:
-            clone_repo(repo, repodir, branch=branch, logger=logger)
-            commit_hash = _run_command(cmd, rundir=repodir).strip()
-    else:
-        # repo is local dir
-        commit_hash = _run_command(cmd, rundir=repo).strip()
-
-    return commit_hash
-
-
-def bump_distgit_repo(namespace, name, branch='master', user=None, commit_author=None, commit_msg=None, logger=None):
-    with temp_dir(prefix='freshmaker-%s-%s-' % (namespace, name)) as repodir:
-        try:
-            msg = commit_msg or "Bump"
-            clone_distgit_repo(namespace, name, repodir, branch=branch, ssh=True, user=user, logger=logger)
-            rev = add_empty_commit(repodir, msg=msg, author=commit_author, logger=logger)
-            push_repo(repodir, logger=logger)
-        except Exception:
-            if logger:
-                logger.error("Failed to update repo of '%s/%s:%s'.", namespace, name, branch)
-            return None
-    return rev
 
 
 def _run_command(command, logger=None, rundir=None, output=subprocess.PIPE, error=subprocess.PIPE, env=None,
