@@ -20,11 +20,12 @@
 # SOFTWARE.
 
 import os
-import mock
 import pytest
 import freshmaker
 import requests
 import importlib
+
+from unittest import mock
 
 from freshmaker import app, db, events, models, login_manager
 from tests import helpers

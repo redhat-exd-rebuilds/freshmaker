@@ -26,7 +26,7 @@ import uuid
 import unittest
 import koji
 
-from mock import patch, MagicMock, PropertyMock
+from unittest.mock import patch, MagicMock, PropertyMock
 from functools import wraps
 
 import freshmaker.consumer

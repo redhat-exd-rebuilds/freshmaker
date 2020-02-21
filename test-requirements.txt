@@ -1,7 +1,6 @@
 -r requirements.txt
 
 copr
-mock
 pytest
 pytest-cov
 vcrpy

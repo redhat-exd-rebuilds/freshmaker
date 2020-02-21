@@ -21,7 +21,7 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
-from mock import patch, MagicMock, PropertyMock
+from unittest.mock import patch, MagicMock, PropertyMock
 
 from freshmaker.handlers.internal import GenerateAdvisorySignedEventOnRPMSign
 from freshmaker.errata import ErrataAdvisory

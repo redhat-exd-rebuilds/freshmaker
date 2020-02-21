@@ -20,7 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from mock import patch, MagicMock
+from unittest.mock import patch, MagicMock
 from requests_kerberos.exceptions import MutualAuthenticationError
 from requests.exceptions import HTTPError
 

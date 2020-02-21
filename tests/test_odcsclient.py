@@ -22,7 +22,7 @@
 # Written by Chenxiong Qi <cqi@redhat.com>
 #            Jan kaluza <jkaluza@redhat.com>
 
-from mock import patch, Mock
+from unittest.mock import patch, Mock
 from odcs.client.odcs import AuthMech
 
 from freshmaker import conf, db

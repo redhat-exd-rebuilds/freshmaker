@@ -21,7 +21,7 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
-from mock import patch, Mock
+from unittest.mock import patch, Mock
 
 from freshmaker import conf, db
 from freshmaker.errata import ErrataAdvisory

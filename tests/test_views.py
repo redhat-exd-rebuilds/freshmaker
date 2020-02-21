@@ -26,7 +26,7 @@ import datetime
 import contextlib
 import flask
 
-from mock import patch
+from unittest.mock import patch
 
 from freshmaker import app, db, events, models, login_manager
 from freshmaker.types import ArtifactType, ArtifactBuildState, EventState

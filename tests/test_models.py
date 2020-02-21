@@ -21,7 +21,7 @@
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
 import datetime
-from mock import patch
+from unittest.mock import patch
 
 from freshmaker import db, events
 from freshmaker.models import ArtifactBuild, ArtifactType

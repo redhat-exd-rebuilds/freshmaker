@@ -3,7 +3,7 @@ from __future__ import print_function
 import os
 import sys
 from pprint import pprint
-from mock import patch
+from unittest.mock import patch
 from logging.config import dictConfig
 import fedmsg.config
 

@@ -21,7 +21,7 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
-from mock import MagicMock
+from unittest.mock import MagicMock
 
 from freshmaker.image_verifier import ImageVerifier
 from tests import helpers
