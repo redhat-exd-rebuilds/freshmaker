@@ -232,7 +232,7 @@ def get_distgit_files(repo_url, commit_or_branch, files, logger=None):
             tar_bytes = io.BytesIO(tar_data.encode())
             tar = tarfile.open(fileobj=tar_bytes)
             for member in tar.getmembers():
-                ret[member.name] = tar.extractfile(member).read()
+                ret[member.name] = tar.extractfile(member).read().decode()
         except OSError as e:
             if "path not found" in str(e):
                 ret[os.path.basename(f)] = None

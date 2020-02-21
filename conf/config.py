@@ -243,7 +243,7 @@ class TestConfiguration(BaseConfiguration):
     MESSAGING_SENDER = 'in_memory'
 
     # Global network-related values, in seconds
-    NET_TIMEOUT = 3
+    NET_TIMEOUT = 1
     NET_RETRY_INTERVAL = 1
 
     KOJI_CONTAINER_SCRATCH_BUILD = True
