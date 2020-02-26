@@ -31,16 +31,15 @@ if len(sys.argv) != 2:
 app_context = app.app_context()
 app_context.__enter__()
 
-for i in range(10):
-    db.drop_all()
-    db.create_all()
-    db.session.commit()
+db.drop_all()
+db.create_all()
+db.session.commit()
 
-    errata = Errata()
-    event = ErrataAdvisoryStateChangedEvent(
-        "fake_message", ErrataAdvisory.from_advisory_id(errata, sys.argv[1]),
-        dry_run=True)
+errata = Errata()
+event = ErrataAdvisoryStateChangedEvent(
+    "fake_message", ErrataAdvisory.from_advisory_id(errata, sys.argv[1]),
+    dry_run=True)
 
-    handler = RebuildImagesOnRPMAdvisoryChange()
-    with patch("freshmaker.consumer.get_global_consumer"):
-        handler.handle(event)
+handler = RebuildImagesOnRPMAdvisoryChange()
+with patch("freshmaker.consumer.get_global_consumer"):
+    handler.handle(event)
