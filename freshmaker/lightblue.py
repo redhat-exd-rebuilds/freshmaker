@@ -1247,6 +1247,33 @@ class LightBlue(object):
 
         return latest_parent
 
+    def find_parent_image_from_child(self, child_image):
+        """
+        Returns the parent of the input image. If the parent is not found it returns None.
+
+        :param ContainerImage child_image: ContainerImage object, image for which we need to find the parent.
+
+        :return: parent of the input image.
+        :rtype: ContainerImage object
+
+        """
+        parent_brew_build = child_image.get("parent_brew_build")
+        if parent_brew_build:
+            return parent_brew_build
+        # We need to resolve the image in here because "parent_image_builds" needs to be there
+        # and it gets populated when the image gets resolved.
+        child_image.resolve_commit()
+        # If the parent is not in `parent_brew_build` we can try to look for the parent in Brew,
+        # using the field `parent_image_builds` (searching for the nvr), which should always be there.
+        # In case parent_brew_build is None and child_image["parent_image_builds"] == {},
+        # it means we found a base image and there's no parent image.
+        if child_image["parent_image_builds"]:
+            parent_brew_build = [
+                i["nvr"] for i in child_image["parent_image_builds"].values()
+                if i["id"] == child_image["parent_build_id"]][0]
+
+        return parent_brew_build
+
     def find_parent_images_with_package(self, child_image, srpm_name, images=None):
         """
         Returns the chain of all parent images of the image which contain the
@@ -1264,18 +1291,7 @@ class LightBlue(object):
 
         children = images if images else [child_image]
         # We first try to find the parent from the `parent_brew_build` field in Lightblue.
-        parent_brew_build = child_image.get("parent_brew_build")
-        # We need to resolve the image in here because "parent_image_builds" needs to be there
-        # and it gets populated when the image gets resolved.
-        child_image.resolve(self, children)
-        # If the parent is not in `parent_brew_build` we can try to look for the parent in Brew,
-        # using the field `parent_image_builds` (searching for the nvr), which should always be there.
-        # In case parent_brew_build is None and child_image["parent_image_builds"] == {},
-        # it means we found a base image, so we'll just continue and return the children.
-        if not parent_brew_build and child_image["parent_image_builds"]:
-            parent_brew_build = [
-                i["nvr"] for i in child_image["parent_image_builds"].values()
-                if i["id"] == child_image["parent_build_id"]][0]
+        parent_brew_build = self.find_parent_image_from_child(child_image)
         # We've reached the base image, stop recursion
         if not parent_brew_build:
             return children
@@ -1684,6 +1700,14 @@ class LightBlue(object):
                     image, srpm_name, [])
                 if rebuild_list[srpm_name]:
                     image['parent'] = rebuild_list[srpm_name][0]
+                else:
+                    parent_brew_build = self.find_parent_image_from_child(image)
+                    if parent_brew_build:
+                        parent = self.get_images_by_nvrs([parent_brew_build], published=None)
+                        if parent:
+                            parent = parent[0]
+                            parent.resolve(self, images)
+                            image['parent'] = parent
                 rebuild_list[srpm_name].insert(0, image)
             return rebuild_list
 
