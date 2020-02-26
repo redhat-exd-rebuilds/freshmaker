@@ -41,7 +41,7 @@ from freshmaker.api_utils import json_error
 from freshmaker.api_utils import pagination_metadata
 from freshmaker.auth import login_required, requires_roles, require_scopes, user_has_role
 from freshmaker.parsers.internal.manual_rebuild import FreshmakerManualRebuildParser
-from freshmaker.parsers.internal.async_manual_build import FreshmakerAsyncManualbuildParser
+from freshmaker.parsers.koji.async_manual_build import FreshmakerAsyncManualbuildParser
 from freshmaker.monitor import (
     monitor_api, freshmaker_build_api_latency, freshmaker_event_api_latency)
 from freshmaker.image_verifier import ImageVerifier
@@ -606,6 +606,12 @@ class AsyncBuildAPI(MethodView):
                     400, 'Bad Request', 'The event (id={}) is not an async build '
                     'event.'.format(data.get('freshmaker_event_id')),
                 )
+
+        # The '-container' string is optional, the user might have omitted it. But we need it to be
+        # there for our query. Let's check if it's there, and if it's not, let's add it.
+        for i, image in enumerate(data.get('container_images', [])):
+            if not image.endswith('-container'):
+                data.get('container_images')[i] = f"{image}-container"
 
         # parse the POST data and generate FreshmakerAsyncManualBuildEvent
         parser = FreshmakerAsyncManualbuildParser()

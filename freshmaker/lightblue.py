@@ -1034,6 +1034,36 @@ class LightBlue(object):
             images = self.filter_out_images_with_higher_srpm_nvr(images, srpm_name_to_nvrs)
         return images
 
+    def get_images_by_brew_package(self, names):
+        """
+        Query Lightblue to get all the images for a specific list of names.
+        :param names list: list of names we want to find images for.
+        :return: list of container images matching the requested names.
+        :rtype: list of ContainerImages
+        """
+
+        query = {
+            "objectType": "containerImage",
+            "query": {
+                "$and": [
+                    {
+                        "field": "repositories.*.published",
+                        "op": "=",
+                        "rvalue": True
+                    },
+                    {
+                        "$or": [{
+                            "field": "brew.package",
+                            "op": "=",
+                            "rvalue": name,
+                        } for name in names]
+                    }
+                ]
+            },
+            "projection": self._get_default_projection(include_rpm_manifest=False)
+        }
+        return self.find_container_images(query)
+
     def find_parent_brew_build_nvr_from_child(self, child_image):
         """
         Returns the parent brew build NVR of the input image. If the parent is not found it returns None.

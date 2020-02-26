@@ -44,15 +44,13 @@ class FreshmakerAsyncManualbuildParser(BaseParser):
         """
         msg_id = data.get('msg_id', "async_build_%s" % (str(time.time())))
 
-        event = FreshmakerAsyncManualBuildEvent(
+        return FreshmakerAsyncManualBuildEvent(
             msg_id, data.get('dist_git_branch'), data.get('container_images', []),
             freshmaker_event_id=data.get('freshmaker_event_id'),
             brew_target=data.get('brew_target'),
             dry_run=data.get('dry_run', False),
             requester=data.get('requester', None),
             requester_metadata_json=data.get("metadata", None))
-
-        return event
 
     def parse(self, topic, msg):
         inner_msg = msg['msg']

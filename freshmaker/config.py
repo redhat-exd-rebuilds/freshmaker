@@ -160,7 +160,7 @@ class Config(object):
         'parsers': {
             'type': list,
             'default': [
-                'freshmaker.parsers.internal:FreshmakerAsyncManualbuildParser',
+                'freshmaker.parsers.koji:FreshmakerAsyncManualbuildParser',
                 'freshmaker.parsers.internal:FreshmakerManualRebuildParser',
                 'freshmaker.parsers.brew:BrewTaskStateChangeParser',
                 'freshmaker.parsers.errata:ErrataAdvisoryStateChangedParser',

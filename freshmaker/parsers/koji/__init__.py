@@ -20,3 +20,4 @@
 # SOFTWARE.
 
 from .task_state_change import KojiTaskStateChangeParser  # noqa
+from .async_manual_build import FreshmakerAsyncManualbuildParser  # noqa

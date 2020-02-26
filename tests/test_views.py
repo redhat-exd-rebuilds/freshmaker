@@ -981,7 +981,7 @@ class TestAsyncBuild(ViewBaseTest):
         self.client = app.test_client()
 
     @patch('freshmaker.messaging.publish')
-    @patch('freshmaker.parsers.internal.async_manual_build.time.time')
+    @patch('freshmaker.parsers.koji.async_manual_build.time.time')
     def test_async_build(self, time, publish):
         time.return_value = 123
         with patch('freshmaker.models.datetime') as datetime_patch:
@@ -1007,7 +1007,7 @@ class TestAsyncBuild(ViewBaseTest):
             u'event_type_id': 14,
             u'id': 1,
             u'message_id': 'async_build_123',
-            u'requested_rebuilds': ['foo-1-1', 'bar-1-1'],
+            u'requested_rebuilds': ['foo-1-1-container', 'bar-1-1-container'],
             u'requester': 'root',
             u'requester_metadata': {},
             u'search_key': 'async_build_123',
@@ -1023,12 +1023,12 @@ class TestAsyncBuild(ViewBaseTest):
             {
                 'msg_id': 'async_build_123',
                 'dist_git_branch': 'master',
-                'container_images': ['foo-1-1', 'bar-1-1'],
-                'requester': 'root',
+                'container_images': ['foo-1-1-container', 'bar-1-1-container'],
+                'requester': 'root'
             })
 
     @patch('freshmaker.messaging.publish')
-    @patch('freshmaker.parsers.internal.async_manual_build.time.time')
+    @patch('freshmaker.parsers.koji.async_manual_build.time.time')
     def test_async_build_dry_run(self, time, publish):
         time.return_value = 123
 
@@ -1049,7 +1049,7 @@ class TestAsyncBuild(ViewBaseTest):
             {
                 'msg_id': 'async_build_123',
                 'dist_git_branch': 'master',
-                'container_images': ['foo-1-1', 'bar-1-1'],
+                'container_images': ['foo-1-1-container', 'bar-1-1-container'],
                 'dry_run': True,
                 'requester': 'root',
             })

@@ -524,7 +524,7 @@ class ContainerBuildHandler(BaseHandler):
         compose_ids = []
         for relation in build.composes:
             compose_ids.append(relation.compose.odcs_compose_id)
-        if args["renewed_odcs_compose_ids"]:
+        if args.get("renewed_odcs_compose_ids"):
             compose_ids += args["renewed_odcs_compose_ids"]
 
         for compose_id in compose_ids:
