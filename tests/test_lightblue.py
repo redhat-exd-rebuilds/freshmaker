@@ -1627,6 +1627,42 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             "Couldn't find parent image some-original-nvr-7.6-252.1561619826. "
             "Lightblue data is probably incomplete"))
 
+    @patch("freshmaker.lightblue.LightBlue.get_images_by_nvrs")
+    @patch('freshmaker.lightblue.LightBlue.find_images_with_packages_from_content_set')
+    @patch('freshmaker.lightblue.LightBlue.find_unpublished_image_for_build')
+    @patch('freshmaker.lightblue.LightBlue.find_parent_images_with_package')
+    @patch('os.path.exists')
+    def test_parent_images_with_package_using_field_parent_brew_build_parent_empty(
+            self, exists, find_parent_images_with_package, find_unpublished_image_for_build,
+            find_images_with_packages_from_content_set, cont_images):
+        exists.return_value = True
+
+        image_a = ContainerImage.create({
+            "brew": {"package": "image-a", "build": "image-a-v-r1"},
+            "parent_brew_build": "some-original-nvr-7.6-252.1561619826",
+            "repository": "repo-1",
+            "commit": "image-a-commit",
+            "repositories": [{"repository": "foo/bar"}],
+            "rpm_manifest": [{
+                "rpms": [
+                    {"srpm_name": "dummy"}
+                ]
+            }]
+        })
+
+        find_parent_images_with_package.return_value = []
+        find_unpublished_image_for_build.return_value = image_a
+        find_images_with_packages_from_content_set.return_value = [image_a]
+        cont_images.side_effect = [self.fake_container_images_with_parent_brew_build, [], []]
+
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key)
+        ret = lb.find_images_to_rebuild(["dummy-1-1"], ["dummy"])
+
+        self.assertEqual(len(ret), 1)
+        self.assertIsNotNone(ret[0][0].get("parent"))
+
     @patch("freshmaker.lightblue.ContainerImage.resolve_published")
     @patch("freshmaker.lightblue.LightBlue.get_images_by_nvrs")
     @patch("os.path.exists")
