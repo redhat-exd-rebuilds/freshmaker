@@ -145,7 +145,7 @@ class ImageVerifier(object):
         repo = self._get_repository_from_image(image_nvr)
         self._verify_repository_data(repo)
 
-        images = self.lb.get_images_by_nvrs([image_nvr], include_rpms=False)
+        images = self.lb.get_images_by_nvrs([image_nvr], include_rpm_manifest=False)
         if not images:
             raise ValueError(
                 "No published images tagged by %r found in repository" % (
@@ -172,7 +172,7 @@ class ImageVerifier(object):
 
         rebuildable_images = {}
         images = self.lb.find_images_with_included_srpms(
-            [], [], {repo["repository"]: repo}, include_rpms=False)
+            [], [], {repo["repository"]: repo}, include_rpm_manifest=False)
         for image in images:
             nvr = image["brew"]["build"]
             self._verify_image_data(image)

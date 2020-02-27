@@ -441,7 +441,7 @@ class ContainerImage(dict):
         # Get the published version of this image to find out if the image
         # was actually published.
         images = lb_instance.get_images_by_nvrs(
-            [self["brew"]["build"]], published=True, include_rpms=False)
+            [self["brew"]["build"]], published=True, include_rpm_manifest=False)
         if images:
             self["published"] = True
         else:
@@ -695,13 +695,14 @@ class LightBlue(object):
         repositories = self.find_container_repositories(repo_request)
         return {r["repository"]: r for r in repositories}
 
-    def _get_default_projection(self, srpm_names=None, include_rpms=True):
+    def _get_default_projection(self, srpm_names=None, include_rpm_manifest=True):
         """
         Returns the default projection list for containerImage objects.
 
         :param list srpm_names: When not None, defines the SRPM names which
             are returned in "rpm_manifest" field of containerImage.;
-        :param include_rpms: When False, "rpm_manifest" is not returned at all.
+        :param bool include_rpm_manifest: indicate whether to include
+            "rpm_manifest" in the query result. Default is True.
         """
         projection = [
             {"field": "brew", "include": True, "recursive": True},
@@ -713,7 +714,7 @@ class LightBlue(object):
             {"field": "content_sets", "include": True, "recursive": True},
             {"field": "parent_brew_build", "include": True, "recursive": False},
         ]
-        if include_rpms:
+        if include_rpm_manifest:
             if srpm_names:
                 projection += [
                     {"field": "rpm_manifest.*.rpms", "include": True, "recursive": True,
@@ -852,7 +853,7 @@ class LightBlue(object):
 
     def find_images_with_included_srpms(
             self, content_sets, srpm_nvrs, repositories, published=True,
-            include_rpms=True):
+            include_rpm_manifest=True):
         """
         Query lightblue and find the containerImages in the given containerRepositories.
 
@@ -868,7 +869,7 @@ class LightBlue(object):
         :param dict repositories: List of repository names to look for.
         :param bool published: whether to limit queries to published
             repositories
-        :param bool include_rpms: whether to include the RPMs in the result.
+        :param bool include_rpm_manifest: whether to include the RPMs in the result.
         """
         auto_rebuild_tags = set()
         for repo in repositories.values():
@@ -902,7 +903,7 @@ class LightBlue(object):
             },
             "projection": self._get_default_projection(
                 srpm_names=srpm_name_to_nvrs.keys(),
-                include_rpms=include_rpms)
+                include_rpm_manifest=include_rpm_manifest)
         }
 
         if content_sets:
@@ -977,7 +978,8 @@ class LightBlue(object):
         return images
 
     def get_images_by_nvrs(self, nvrs, published=True, content_sets=None,
-                           srpm_nvrs=None, include_rpms=True, srpm_names=None):
+                           srpm_nvrs=None, include_rpm_manifest=True,
+                           srpm_names=None):
         """Query lightblue and returns containerImages defined by list of
         `nvrs`.
 
@@ -986,8 +988,8 @@ class LightBlue(object):
         :param list content_sets: List of content_sets the image includes RPMs
             from.
         :param list srpm_nvrs: list of SRPM NVRs to look for
-        :param bool include_rpms: When True, the rpm_manifest is included in
-            the returned ContainerImages.
+        :param bool include_rpm_manifest: When True, the rpm_manifest is
+            included in the returned ContainerImages.
         :param list srpm_names: list of SRPM names to look for.
         :return: List of containerImages.
         :rtype: list of ContainerImages.
@@ -1011,7 +1013,7 @@ class LightBlue(object):
                 ]
             },
             "projection": self._get_default_projection(
-                include_rpms=include_rpms)
+                include_rpm_manifest=include_rpm_manifest)
         }
 
         if content_sets is not None:
@@ -1101,7 +1103,7 @@ class LightBlue(object):
                     }
                 ]
             },
-            "projection": self._get_default_projection(include_rpms=False)
+            "projection": self._get_default_projection(include_rpm_manifest=False)
         }
         images = self.find_container_images(image_request)
         if not images:
@@ -1144,7 +1146,7 @@ class LightBlue(object):
             },
             "projection": self._get_default_projection(
                 srpm_names=[srpm_name] if srpm_name else None,
-                include_rpms=srpm_name is not None)
+                include_rpm_manifest=srpm_name is not None)
         }
 
         images = self.find_container_images(query)
@@ -1230,7 +1232,7 @@ class LightBlue(object):
                 continue
 
             possible_latest_parents = self.find_images_with_included_srpms(
-                [], [], {repo["repository"]: repo_data}, include_rpms=False)
+                [], [], {repo["repository"]: repo_data}, include_rpm_manifest=False)
             for possible_latest_parent in possible_latest_parents:
                 # Treat the `possible_latest_parent` as `latest_parent` in case its
                 # Name and Version are the same and Release is higher.

@@ -45,7 +45,7 @@ def example_image_request(lb):
                 }
             ]
         },
-        "projection": lb._get_default_projection(include_rpms=False)
+        "projection": lb._get_default_projection(include_rpm_manifest=False)
     }
     images = lb.find_container_images(query)
     pprint(images)

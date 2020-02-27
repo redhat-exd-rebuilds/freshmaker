@@ -547,7 +547,7 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
         self.assertEqual(image["published"], True)
         lb.get_images_by_nvrs.assert_called_once_with(
             ["package-name-1-4-12.10"], published=True,
-            include_rpms=False)
+            include_rpm_manifest=False)
 
     def test_resolve_published_unpublished(self):
         image = ContainerImage.create({
@@ -562,7 +562,7 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
         image.resolve_published(lb)
         self.assertEqual(image["published"], False)
         lb.get_images_by_nvrs.asssert_has_calls([
-            call(["package-name-1-4-12.10"], published=True, include_rpms=False),
+            call(["package-name-1-4-12.10"], published=True, include_rpm_manifest=False),
             call(["package-name-1-4-12.10"])])
 
         self.assertEqual(image["rpm_manifest"], "x")
