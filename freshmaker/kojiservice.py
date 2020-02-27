@@ -272,6 +272,7 @@ class KojiService(object):
         buildinfo may be either a int ID, a string NVR, or a map containing
         'name', 'version' and 'release.
         """
+        cg_metadata_url = None
         try:
             cg_metadata_url = self.get_cg_metadata_url(buildinfo)
             resp = requests.get(cg_metadata_url)
