@@ -24,7 +24,7 @@
 
 import flask
 
-from mock import patch, Mock
+from unittest.mock import patch, Mock
 from werkzeug.exceptions import Unauthorized
 
 import freshmaker.auth

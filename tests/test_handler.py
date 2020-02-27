@@ -22,7 +22,7 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
-from mock import patch
+from unittest.mock import patch
 import json
 
 import freshmaker

@@ -22,7 +22,7 @@
 
 import unittest
 
-from mock import patch
+from unittest.mock import patch
 
 from freshmaker import events, models, db
 from freshmaker.handlers.internal import CancelEventOnFreshmakerManageRequest

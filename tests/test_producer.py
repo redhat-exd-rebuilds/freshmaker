@@ -24,7 +24,7 @@
 
 import koji
 
-from mock import patch, MagicMock
+from unittest.mock import patch, MagicMock
 import queue
 
 from freshmaker import db

@@ -21,7 +21,7 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
-from mock import patch, PropertyMock
+from unittest.mock import patch, PropertyMock
 
 from freshmaker import db
 from freshmaker.models import (

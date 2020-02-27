@@ -23,7 +23,7 @@
 
 import json
 
-from mock import patch
+from unittest.mock import patch
 
 from freshmaker.pulp import Pulp
 from tests import helpers

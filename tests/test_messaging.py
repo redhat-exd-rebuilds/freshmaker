@@ -23,7 +23,7 @@
 
 import unittest
 
-from mock import patch
+from unittest.mock import patch
 
 from freshmaker import conf
 from freshmaker import messaging

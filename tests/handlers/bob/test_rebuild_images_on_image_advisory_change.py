@@ -20,7 +20,7 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
-from mock import patch, MagicMock
+from unittest.mock import patch, MagicMock
 
 import freshmaker
 from freshmaker.errata import ErrataAdvisory

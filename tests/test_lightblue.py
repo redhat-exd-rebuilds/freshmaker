@@ -25,7 +25,7 @@ import json
 import io
 import http.client
 
-from mock import call, patch, Mock
+from unittest.mock import call, patch, Mock
 
 import freshmaker
 

@@ -20,7 +20,7 @@
 # SOFTWARE.
 
 import json
-from mock import patch, PropertyMock, Mock, call
+from unittest.mock import patch, PropertyMock, Mock, call
 
 import freshmaker
 
