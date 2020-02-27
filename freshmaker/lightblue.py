@@ -31,9 +31,9 @@ import requests
 import io
 import dogpile.cache
 import kobo.rpmlib
+from http import HTTPStatus
 from itertools import groupby
 
-import http.client
 import concurrent.futures
 from freshmaker import log, conf
 from freshmaker.kojiservice import koji_service
@@ -552,39 +552,41 @@ class LightBlue(object):
         return self.entity_versions.get(entity_name, '')
 
     def _make_request(self, entity, data):
-        """Make request to lightblue"""
+        """Make a request to query data from LightBlue
 
+        :param str entity: the entity part to construct a full URL sent to
+            LightBlue. Refer to callers of ``_make_request`` to learn what
+            entities this argument accepts.
+        :param dict data: LightBlue query metadata and criteria.
+        :return: a mapping containing result returned from LightBlue.
+        :rtype: dict
+        :raises LightBlueSystemError: if requested resource does not exist,
+            something wrong internally inside LightBlue to fail to response
+            the query, or the request is unauthorized.
+        :raises LightBlueRequestError: if LightBlue responses any other type
+            of errors.
+        """
         entity_url = '{}/{}'.format(self.api_root, entity)
         response = requests.post(entity_url,
                                  data=json.dumps(data),
                                  verify=self.verify_ssl,
                                  cert=(self.cert, self.private_key),
                                  headers={'Content-Type': 'application/json'})
-        self._raise_expcetion_if_errors_returned(response)
-        return response.json()
 
-    def _raise_expcetion_if_errors_returned(self, response):
-        """Raise exception when response contains errors
-
-        :param dict response: the response returned from LightBlue, which is
-            actually the requests response object.
-        :raises LightBlueSystemError or LightBlueRequestError: if response
-            status code is not 200. Otherwise, just keep silient.
-        """
         status_code = response.status_code
 
-        if status_code == http.client.OK:
-            return
+        if status_code == HTTPStatus.OK:
+            return response.json()
 
         # Warn early, in case there is an error in the error handling code below
-        log.warning("Request to %s gave %r" % (response.request.url, response))
+        log.warning("Request to %s gave %r", response.request.url, response)
 
-        if status_code in (http.client.NOT_FOUND,
-                           http.client.INTERNAL_SERVER_ERROR,
-                           http.client.UNAUTHORIZED):
+        if status_code in (HTTPStatus.NOT_FOUND,
+                           HTTPStatus.INTERNAL_SERVER_ERROR,
+                           HTTPStatus.UNAUTHORIZED):
             raise LightBlueSystemError(status_code, response.content)
-
-        raise LightBlueRequestError(status_code, response.json())
+        else:
+            raise LightBlueRequestError(status_code, response.json())
 
     def find_container_repositories(self, request):
         """Query via entity containerRepository
