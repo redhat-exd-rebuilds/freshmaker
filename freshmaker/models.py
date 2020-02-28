@@ -227,7 +227,7 @@ class Event(FreshmakerBase):
     def get_unreleased(cls, session, states=None):
         """
         Returns list of all unreleased events in given states. If no states
-        are provided, returns only events in INTIALIZED, BUILDING or COMPLETE
+        are provided, returns only events in INITIALIZED, BUILDING or COMPLETE
         state.
         :param session: db.session
         :param list states: List of states to filter events for. If None,
