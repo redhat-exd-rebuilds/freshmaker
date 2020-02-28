@@ -1250,14 +1250,14 @@ class LightBlue(object):
 
         return latest_parent
 
-    def find_parent_image_from_child(self, child_image):
+    def find_parent_brew_build_nvr_from_child(self, child_image):
         """
-        Returns the parent of the input image. If the parent is not found it returns None.
+        Returns the parent brew build NVR of the input image. If the parent is not found it returns None.
 
         :param ContainerImage child_image: ContainerImage object, image for which we need to find the parent.
 
-        :return: parent of the input image.
-        :rtype: ContainerImage object
+        :return: parent brew build NVR of the input image.
+        :rtype: str
 
         """
         parent_brew_build = child_image.get("parent_brew_build")
@@ -1294,7 +1294,7 @@ class LightBlue(object):
 
         children = images if images else [child_image]
         # We first try to find the parent from the `parent_brew_build` field in Lightblue.
-        parent_brew_build = self.find_parent_image_from_child(child_image)
+        parent_brew_build = self.find_parent_brew_build_nvr_from_child(child_image)
         # We've reached the base image, stop recursion
         if not parent_brew_build:
             return children
@@ -1704,7 +1704,7 @@ class LightBlue(object):
                 if rebuild_list[srpm_name]:
                     image['parent'] = rebuild_list[srpm_name][0]
                 else:
-                    parent_brew_build = self.find_parent_image_from_child(image)
+                    parent_brew_build = self.find_parent_brew_build_nvr_from_child(image)
                     if parent_brew_build:
                         parent = self.get_images_by_nvrs([parent_brew_build], published=None)
                         if parent:
