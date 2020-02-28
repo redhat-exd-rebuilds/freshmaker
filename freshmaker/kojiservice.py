@@ -23,7 +23,7 @@
 
 import koji
 
-# Unfortunatelly we want to use "parse_NVR" provided by koji
+# Unfortunately we want to use "parse_NVR" provided by koji
 # in freshmaker.handlers __init__.py. We cannot  "import koji" there, because
 # it would import freshmaker.handlers.koji, so instead, we import it here
 # and in freshmaker.handler do "from freshmaker.kojiservice import parse_NVR".

@@ -110,7 +110,7 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
             # flask.url_for, which needs app_context to generate the URL.
             # We also cannot generate Flask context on the fly each time in the
             # mentioned json() calls, because each generation of Flask context
-            # changes db.session and unfortunatelly does not give it to original
+            # changes db.session and unfortunately does not give it to original
             # state which might be Flask bug, so the only safe way on backend is
             # to have global app_context.
             with app.app_context():

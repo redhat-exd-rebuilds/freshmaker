@@ -47,7 +47,7 @@ class LightBlueError(Exception):
     def __init__(self, status_code, error_response):
         """Initialize
 
-        :param int status_code: repsonse status code
+        :param int status_code: response status code
         :param str or dict error_response: response content returned from
             LightBlue server that contains error content. There are two types of
             error. A piece of HTML when error happens in system-wide, for example,
@@ -1449,7 +1449,7 @@ class LightBlue(object):
 
         For example, if there are three images in a list - foo-1-2, foo-1-3
         and foo-2-2, the foo-1-3 will be used instead of foo-1-2 on every
-        occurence in a list, because the NVR is higher than NVR of foo-1-2.
+        occurrence in a list, because the NVR is higher than NVR of foo-1-2.
         The foo-2-2 will be kept unchanged in a list, because it is the
         single record for the foo image in version 2.
         """
@@ -1483,7 +1483,7 @@ class LightBlue(object):
             # Temporary dict mapping image_group to latest released NVR for that image_group.
             image_group_to_latest_released_nvr = {}
 
-            # Constructs the temporary dicts as desribed above.
+            # Constructs the temporary dicts as described above.
             for image_id, images in enumerate(to_rebuild):
                 for parent_id, image in enumerate(images):
                     nvr = image["brew"]["build"]
@@ -1515,7 +1515,7 @@ class LightBlue(object):
                 # content_sets set.
                 # In this case, we copy the content_sets from the released image.
                 # This might bring issue in case the content_sets changed
-                # dramaticaly between released and unreleased release of such
+                # dramatically between released and unreleased release of such
                 # image, but it's still the best guess we can do.
                 # This is also used only as fallback in case "content_sets.yml"
                 # does not exists in the dist-git repo, which should be rare
@@ -1576,7 +1576,7 @@ class LightBlue(object):
                 elif phase == "update_to_latest":
                     for nvr in nvrs[latest_released_nvr_index + 1:]:
                         for image_id, parent_id in nvr_to_coordinates[nvr]:
-                            # At first replace the image in to_rebuid based
+                            # At first replace the image in to_rebuild based
                             # on the coordinates from temp dict.
                             to_rebuild[image_id][parent_id] = nvr_to_image[latest_released_nvr]
 
