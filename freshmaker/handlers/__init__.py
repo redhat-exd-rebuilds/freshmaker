@@ -533,18 +533,34 @@ class ContainerBuildHandler(BaseHandler):
         if args["renewed_odcs_compose_ids"]:
             compose_ids += args["renewed_odcs_compose_ids"]
 
-        for compose_id in compose_ids:
-            odcs_compose = self.odcs_get_compose(compose_id)
-            if odcs_compose["state"] in [COMPOSE_STATES['wait'],
-                                         COMPOSE_STATES['generating']]:
-                # In case the ODCS compose is still generating, raise an
-                # exception.
-                msg = ("Compose %s has not been generated yet. Waiting with "
-                       "rebuild." % (str(compose_id)))
-                self.log_info(msg)
-                raise ODCSComposeNotReady(msg)
-            # OSBS can renew a compose if it needs to, so we can just pass
-            # it along without further verification for other states.
+        # OSBS cannot handle both repo_urls and compose_ids in the same time.
+        # We use repo_urls only in special cases to build base images. In this
+        # cases, we want to convert compose_ids to repository URLs. Otherwise,
+        # just pass compose_ids to OSBS via Koji.
+        if repo_urls is not None:
+            for compose_id in compose_ids:
+                odcs_compose = self.odcs_get_compose(compose_id)
+                if odcs_compose["state"] in [COMPOSE_STATES['wait'],
+                                             COMPOSE_STATES['generating']]:
+                    # In case the ODCS compose is still generating, raise an
+                    # exception.
+                    msg = ("Compose %s is not in done state. Waiting with "
+                           "rebuild." % (str(compose_id)))
+                    self.log_info(msg)
+                    raise ODCSComposeNotReady(msg)
+                elif odcs_compose["state"] != COMPOSE_STATES["done"]:
+                    # In case the compose is not in 'done' state, mark the
+                    # build as failed. We should never get expired here,
+                    # because the compose has been submitted just a minutes
+                    # ago. If we get "expired" here, it is sign of an issue,
+                    # because that means we are trying to build quite old
+                    # image.
+                    build.transition(
+                        ArtifactBuildState.FAILED.value,
+                        "Compose %s is not in 'done' state." % str(compose_id))
+                    return
+                repo_urls.append(odcs_compose["result_repofile"])
+            compose_ids = []
 
         return self.build_container(
             scm_url, branch, target, repo_urls=repo_urls,
