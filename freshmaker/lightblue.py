@@ -644,8 +644,9 @@ class LightBlue(object):
         based on the self.published, self.release_categories attributes.
         :param bool published: whether to limit queries to published
             repositories
-        :param tuple release_categories: filter only repositories with specific
+        :param release_categories: filter only repositories with specific
             release categories (options: Deprecated, Generally Available, Beta, Tech Preview)
+        :type release_categories: tuple[str] or list[str]
         """
         if published is not None:
             request["query"]["$and"].append({
@@ -674,9 +675,10 @@ class LightBlue(object):
 
         :param bool published: whether to limit queries to published
             repositories
-        :param tuple release_categories: filter only repositories with specific
+        :param release_categories: filter only repositories with specific
             release categories (options: Deprecated, Generally Available, Beta,
             Tech Preview)
+        :type release_categories: tuple[str] or list[str]
         :rtype: dict
         :return: Dict with repository name as key and ContainerRepository as
             value.
@@ -1350,8 +1352,9 @@ class LightBlue(object):
             Freshmaker configuration.
         :param bool published: whether to limit queries to published
             repositories
-        :param str release_categories: filter only repositories with specific
+        :param release_categories: filter only repositories with specific
             release categories (options: Deprecated, Generally Available, Beta, Tech Preview)
+        :type release_categories: tuple[str] or list[str]
         :param list leaf_container_images: List of NVRs of leaf images to
             consider for the rebuild. If not set, all images found in
             Lightblue will be considered for rebuild.
