@@ -39,6 +39,11 @@ class TestCheckUnfinishedKojiTasks(helpers.ModelsTestCase):
 
     def setUp(self):
         super(TestCheckUnfinishedKojiTasks, self).setUp()
+
+        self.koji_read_config_patcher = patch(
+            'koji.read_config', return_value={'server': 'http://localhost/'})
+        self.koji_read_config_patcher.start()
+
         db_event = Event.get_or_create(
             db.session, "msg1", "current_event", ErrataAdvisoryRPMsSignedEvent)
         db_event.state = EventState.BUILDING
@@ -47,6 +52,9 @@ class TestCheckUnfinishedKojiTasks(helpers.ModelsTestCase):
         self.build.state = ArtifactBuildState.BUILD
         self.build.build_id = 10
         db.session.commit()
+
+    def tearDown(self):
+        self.koji_read_config_patcher.stop()
 
     @patch('freshmaker.kojiservice.KojiService.get_task_info')
     @patch("freshmaker.consumer.get_global_consumer")
