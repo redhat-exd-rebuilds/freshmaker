@@ -144,6 +144,7 @@ node('docker') {
          * the rules in PEP440. But Docker does not let us have + in the tag
          * name, so let's munge it here. */
         appversion = appversion.replace('+', '-')
+        sh 'docker image prune -a -f'
         docker.withRegistry(
                 'https://docker-registry.upshift.redhat.com/',
                 'factory2-upshift-registry-token') {
