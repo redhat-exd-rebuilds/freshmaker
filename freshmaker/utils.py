@@ -59,6 +59,9 @@ def sorted_by_nvr(lst, get_nvr=None, reverse=False):
         if get_nvr:
             nvr1 = get_nvr(item1)
             nvr2 = get_nvr(item2)
+        elif hasattr(item1, 'nvr') and hasattr(item2, 'nvr'):
+            nvr1 = item1.nvr
+            nvr2 = item2.nvr
         else:
             nvr1 = item1
             nvr2 = item2

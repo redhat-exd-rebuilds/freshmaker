@@ -147,7 +147,11 @@ class ContainerImage(dict):
         return image
 
     def __hash__(self):
-        return hash((self['brew']['build']))
+        return hash((self.nvr))
+
+    @property
+    def nvr(self):
+        return self['brew']['build']
 
     def log_error(self, err):
         """
@@ -157,7 +161,7 @@ class ContainerImage(dict):
         """
         prefix = ""
         if 'brew' in self and 'build' in self['brew']:
-            prefix = self['brew']['build'] + ": "
+            prefix = self.nvr + ": "
         log.error("%s%s", prefix, err)
         if 'error' not in self or not self['error']:
             self['error'] = str(err)
@@ -191,8 +195,7 @@ class ContainerImage(dict):
         dockerfile = [file for file in self['parsed_data']['files']
                       if file['filename'] == 'Dockerfile']
         if not dockerfile:
-            log.warning('Image %s does not contain a Dockerfile.',
-                        self['brew']['build'])
+            log.warning('Image %s does not contain a Dockerfile.', self.nvr)
             return None
         return dockerfile[0]
 
@@ -885,7 +888,7 @@ class LightBlue(object):
         ret = []
         for image in images:
             if not content_sets & set(image["content_sets"]):
-                log.info(f"Will not rebuild {image['brew']['build']} because its content_sets "
+                log.info(f"Will not rebuild {image.nvr} because its content_sets "
                          "({image['content_sets']}) are not related to the requested content_sets"
                          " ({content_sets})")
             else:
@@ -1406,6 +1409,7 @@ class LightBlue(object):
             the given image - can be used for comparisons if needed
         :rtype: list
         """
+
         repos = self.find_all_container_repositories(published, release_categories)
         if not repos:
             return []
@@ -1422,30 +1426,26 @@ class LightBlue(object):
             # architecture, it is only interested in NVR, so group the images
             # by the same image['brew']['build'] and include just first one in the
             # image list.
-            sorted_images = sorted_by_nvr(
-                images, get_nvr=lambda image: image['brew']['build'], reverse=True)
+            sorted_images = sorted_by_nvr(images, reverse=True)
             images = []
-            for k, v in groupby(sorted_images, key=lambda x: x['brew']['build']):
+            for k, v in groupby(sorted_images, key=lambda item: item.nvr):
                 images.append(next(v))
 
         # In case we query for unpublished images, we need to return just
         # the latest NVR for given name-version, otherwise images would
         # contain all the versions which ever containing the srpm_name.
         if not published:
-            # Sort images by brew build NVR descending
-            sorted_images = sorted_by_nvr(
-                images, get_nvr=lambda image: image['brew']['build'], reverse=True)
 
-            # Iterate over all the images and only keep the very first one
-            # with the given name-version - this is the latest one.
-            images = []
-            seen_name_versions = []
-            for image in sorted_images:
-                parsed_build = koji.parse_NVR(image["brew"]["build"])
-                nv = "%s-%s" % (parsed_build["name"], parsed_build["version"])
-                if nv not in seen_name_versions:
-                    images.append(image)
-                    seen_name_versions.append(nv)
+            def _name_version_key(item):
+                nvr = koji.parse_NVR(item.nvr)
+                return f"{nvr['name']}-{nvr['version']}"
+
+            images = [
+                next(grouped_images) for _, grouped_images in groupby(
+                    sorted_by_nvr(images, reverse=True),
+                    key=_name_version_key
+                )
+            ]
 
         # Filter out images based on the filter_fnc.
         if filter_fnc:
@@ -1726,8 +1726,7 @@ class LightBlue(object):
                     # This `srpm_name` is not in image.
                     continue
 
-                unpublished = self.find_unpublished_image_for_build(
-                    image['brew']['build'])
+                unpublished = self.find_unpublished_image_for_build(image.nvr)
                 if not unpublished:
                     image.log_error(
                         "Cannot find unpublished version of image, Lightblue "

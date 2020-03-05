@@ -1446,6 +1446,111 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')
     @patch('os.path.exists')
+    def test_images_with_content_set_packages_unpublished(
+            self, exists, koji_task_request, koji_get_build, cont_images, cont_repos
+    ):
+        exists.return_value = True
+        cont_repos.return_value = self.fake_repositories_with_content_sets
+
+        # "filtered_x-1-23" image will be filtered by filter_fnc.
+        cont_images.return_value = self.fake_container_images + [
+            ContainerImage.create(
+                {
+                    "content_sets": ["dummy-content-set-1"],
+                    "brew": {"build": "filtered_x-1-23"},
+                    "repositories": [
+                        {
+                            "repository": "product/repo1",
+                            "published": True,
+                            "tags": [{"name": "latest"}]
+                        }
+                    ]
+                }
+            )]
+        # Include the images for second time to ensure that they will be
+        # returned only once. This can happen when the image is multiarch.
+        cont_images.return_value += self.fake_container_images
+
+        koji_task_request.side_effect = self.fake_koji_task_requests
+        koji_get_build.side_effect = self.fake_koji_builds
+
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key)
+
+        ret = lb.find_images_with_packages_from_content_set(
+            set(["openssl-1.2.3-3"]), ["dummy-content-set-1"],
+            filter_fnc=self._filter_fnc,
+            published=False
+        )
+
+        # Only the first image should be returned, because the first one
+        # is in repository "product1/repo1", but we have asked for images
+        # in repository "product/repo1".
+        self.assertEqual(1, len(ret))
+        self.assertEqual(ret,
+                         [
+                             {
+                                 "latest_released": True,
+                                 "generate_pulp_repos": True,
+                                 "repository": "rpms/repo-2",
+                                 "commit": "commit_hash2",
+                                 "target": "target2",
+                                 "git_branch": "mybranch",
+                                 "error": None,
+                                 "arches": None,
+                                 "odcs_compose_ids": None,
+                                 "parent_build_id": None,
+                                 "parent_image_builds": None,
+                                 "multi_arch_rpm_manifest": {},
+                                 "published": True,
+                                 "brew": {
+                                     "completion_date": u"20170421T04:27:51.000-0400",
+                                     "build": "package-name-2-4-12.10",
+                                     "package": "package-name-2"
+                                 },
+                                 'content_sets': ["dummy-content-set-1"],
+                                 'content_sets_source': 'lightblue_container_image',
+                                 'directly_affected': True,
+                                 "release_categories": ["Generally Available"],
+                                 'repositories': [
+                                     {'repository': 'product2/repo2', 'published': True,
+                                      'tags': [{"name": "latest"}]}
+                                 ],
+                                 'parsed_data': {
+                                     'files': [
+                                         {
+                                             'key': 'buildfile',
+                                             'content_url': 'http://git.repo.com/cgit/rpms/repo-2/plain/Dockerfile?id=commit_hash2',
+                                             'filename': 'Dockerfile'
+                                         },
+                                         {
+                                             'key': 'bogusfile',
+                                             'content_url': 'bogus_test_url',
+                                             'filename': 'bogus.file'
+                                         }
+                                     ]
+                                 },
+                                 'rpm_manifest': [{
+                                     'rpms': [
+                                         {
+                                             "srpm_name": "openssl",
+                                             "srpm_nevra": "openssl-1:1.2.3-1.src"
+                                         },
+                                         {
+                                             "srpm_name": "tespackage2",
+                                             "srpm_nevra": "testpackage2-10:1.2.3-1.src"
+                                         }
+                                     ]
+                                 }]
+                             },
+                         ])
+
+    @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
+    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @patch('freshmaker.kojiservice.KojiService.get_build')
+    @patch('freshmaker.kojiservice.KojiService.get_task_request')
+    @patch('os.path.exists')
     def test_images_with_content_set_packages_beta(
             self, exists, koji_task_request, koji_get_build, cont_images, cont_repos):
         exists.return_value = True
