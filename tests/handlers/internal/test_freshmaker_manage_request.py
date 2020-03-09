@@ -66,6 +66,10 @@ class CancelEventOnFreshmakerManageRequestTest(helpers.ModelsTestCase):
         super(CancelEventOnFreshmakerManageRequestTest, self).setUp()
         events.BaseEvent.register_parser(FreshmakerManageRequestParser)
 
+        self.koji_read_config_patcher = patch(
+            'koji.read_config', return_value={'server': 'http://localhost/'})
+        self.koji_read_config_patcher.start()
+
         self.db_event = models.Event.create(
             db.session, "2017-00000000-0000-0000-0000-000000000003", "RHSA-2018-103",
             events.TestingEvent)
@@ -75,6 +79,9 @@ class CancelEventOnFreshmakerManageRequestTest(helpers.ModelsTestCase):
         models.ArtifactBuild.create(
             db.session, self.db_event, "bash", "module", build_id=1238,
             state=ArtifactBuildState.CANCELED.value)
+
+    def tearDown(self):
+        self.koji_read_config_patcher.stop()
 
     @patch('freshmaker.kojiservice.KojiService.cancel_build')
     def test_cancel_event_on_freshmaker_manage_request(self, mocked_cancel_build):

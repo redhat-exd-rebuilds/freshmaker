@@ -281,6 +281,10 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
     def setUp(self):
         super(TestContainerImageObject, self).setUp()
 
+        self.koji_read_config_patcher = patch(
+            'koji.read_config', return_value={'server': 'http://localhost/'})
+        self.koji_read_config_patcher.start()
+
         self.patcher = helpers.Patcher(
             'freshmaker.lightblue.')
         self.get_distgit_files = self.patcher.patch("get_distgit_files")
@@ -313,6 +317,7 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
     def tearDown(self):
         super(TestContainerImageObject, self).tearDown()
         self.patcher.unpatch_all()
+        self.koji_read_config_patcher.stop()
 
     def test_create(self):
         image = ContainerImage.create({
@@ -603,6 +608,10 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         # Clear the ContainerImage Koji cache.
         ContainerImage.KOJI_BUILDS_CACHE = {}
 
+        self.koji_read_config_patcher = patch(
+            'koji.read_config', return_value={'server': 'http://locahost/'})
+        self.koji_read_config_patcher.start()
+
         self.patcher = helpers.Patcher(
             'freshmaker.lightblue.')
         self.get_distgit_files = self.patcher.patch("get_distgit_files")
@@ -844,6 +853,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
     def tearDown(self):
         super(TestQueryEntityFromLightBlue, self).tearDown()
         self.patcher.unpatch_all()
+        self.koji_read_config_patcher.stop()
 
     @patch('freshmaker.lightblue.requests.post')
     def test_find_container_images(self, post):
