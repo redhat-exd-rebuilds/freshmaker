@@ -219,6 +219,7 @@ class ContainerImage(dict):
             if extra_image.get("odcs", {}).get("compose_ids"):
                 data["odcs_compose_ids"] = extra_image["odcs"]["compose_ids"]
 
+            data["parent_build_id"] = extra_image.get("parent_build_id")
             data["parent_image_builds"] = extra_image.get("parent_image_builds")
 
             brew_task = session.get_task_request(

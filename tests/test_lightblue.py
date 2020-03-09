@@ -1275,6 +1275,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                  "error": None,
                                  "arches": None,
                                  "odcs_compose_ids": None,
+                                 "parent_build_id": None,
                                  "parent_image_builds": None,
                                  "published": True,
                                  "brew": {
@@ -1683,12 +1684,22 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             resolve_published):
         get_build.return_value = {
             "task_id": 123456,
-            "parent_build_id": 1074147,
-            "parent_image_builds": {
-                "rh-osbs/openshift-golang-builder:1.11": {
-                    "id": 969696, "nvr": "openshift-golang-builder-container-v1.11.13-3.1"},
-                "rh-osbs/openshift-ose-base:v4.1.34.20200131.033116": {
-                    "id": 1074147, "nvr": "openshift-enterprise-base-container-v4.1.34-202001310309"}}}
+            "extra": {
+                "image": {
+                    "parent_build_id": 1074147,
+                    "parent_image_builds": {
+                        "rh-osbs/openshift-golang-builder:1.11": {
+                            "id": 969696,
+                            "nvr": "openshift-golang-builder-container-v1.11.13-3.1"
+                        },
+                        "rh-osbs/openshift-ose-base:v4.1.34.20200131.033116": {
+                            "id": 1074147,
+                            "nvr": "openshift-enterprise-base-container-v4.1.34-202001310309"
+                        },
+                    }
+                }
+            }
+        }
         get_task_request.return_value = [
             "git://example.com/rpms/repo-1#commit_hash1", "target1", {}]
         exists.return_value = True
