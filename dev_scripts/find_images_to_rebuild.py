@@ -17,16 +17,19 @@ os.environ["REQUESTS_CA_BUNDLE"] = "/etc/ssl/certs/ca-bundle.crt"
 
 from freshmaker import db, app
 from freshmaker.errata import Errata, ErrataAdvisory
-from freshmaker.events import ErrataAdvisoryStateChangedEvent
+from freshmaker.events import (
+    ErrataAdvisoryStateChangedEvent, ManualRebuildWithAdvisoryEvent)
 from freshmaker.handlers.koji import RebuildImagesOnRPMAdvisoryChange
 
 fedmsg_config = fedmsg.config.load_config()
 dictConfig(fedmsg_config.get('logging', {'version': 1}))
 
-if len(sys.argv) != 2:
+if len(sys.argv) < 2:
     print("Queries Lightblue to find out all the images Freshmaker rebuilds.")
-    print("Usage: ./lightblue.py ERRATA_ID")
+    print("Usage: ./lightblue.py ERRATA_ID [[CONTAINER_IMAGE], ...]")
     sys.exit(1)
+
+container_images = sys.argv[2:]
 
 app_context = app.app_context()
 app_context.__enter__()
@@ -36,9 +39,13 @@ db.create_all()
 db.session.commit()
 
 errata = Errata()
-event = ErrataAdvisoryStateChangedEvent(
+if container_images:
+    EventClass = ManualRebuildWithAdvisoryEvent
+else:
+    EventClass = ErrataAdvisoryStateChangedEvent
+event = EventClass(
     "fake_message", ErrataAdvisory.from_advisory_id(errata, sys.argv[1]),
-    dry_run=True)
+    dry_run=True, container_images=container_images)
 
 handler = RebuildImagesOnRPMAdvisoryChange()
 with patch("freshmaker.consumer.get_global_consumer"):
