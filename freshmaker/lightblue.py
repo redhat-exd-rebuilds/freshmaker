@@ -1296,15 +1296,18 @@ class LightBlue(object):
             images = []
         parent_image = None
 
-        children = images if images else [child_image]
         # We first try to find the parent from the `parent_brew_build` field in Lightblue.
         parent_brew_build = self.find_parent_brew_build_nvr_from_child(child_image)
         # We've reached the base image, stop recursion
         if not parent_brew_build:
-            return children
+            return images
         parent_image = self.get_images_by_nvrs([parent_brew_build], srpm_names=[srpm_name], published=None)
 
         if parent_image:
+            # In some cases, an image may not have its content sets defined. To
+            # circumvent this gap, we use the list of child images when calling
+            # resolve so their content sets can be used.
+            children = images if images else [child_image]
             parent_image = parent_image[0]
             parent_image.resolve(self, children)
 
