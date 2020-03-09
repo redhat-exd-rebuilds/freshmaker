@@ -1269,7 +1269,7 @@ class LightBlue(object):
             return parent_brew_build
         # We need to resolve the image in here because "parent_image_builds" needs to be there
         # and it gets populated when the image gets resolved.
-        child_image.resolve_commit()
+        child_image.resolve(self)
         # If the parent is not in `parent_brew_build` we can try to look for the parent in Brew,
         # using the field `parent_image_builds` (searching for the nvr), which should always be there.
         # In case parent_brew_build is None and child_image["parent_image_builds"] == {},
