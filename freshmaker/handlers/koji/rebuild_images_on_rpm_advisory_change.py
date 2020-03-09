@@ -141,10 +141,15 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
         self.log_info('Found container images to rebuild in following order:')
         batch = 0
         printed = []
-        while (len(printed) != len(builds.values()) or
-               len(printed) != len(db_event.builds.all())):
+        printed_cnt = 0
+        builds_cnt = len(builds.values())
+        db_event_builds_cnt = len(db_event.builds.all())
+
+        while printed_cnt != builds_cnt or printed_cnt != db_event_builds_cnt:
             self.log_info('   Batch %d:', batch)
-            old_printed_count = len(printed)
+
+            old_printed_count = printed_cnt
+
             for build in builds.values():
                 # Print build only if:
                 # a) It depends on other build, but this dependency has not
@@ -167,10 +172,12 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                         (args["repository"], args["commit"], based_on))
                     printed.append(build.original_nvr)
 
+            printed_cnt = len(printed)
+
             # Nothing has been printed, that means the dependencies between
             # images are not OK and we would loop forever. Instead of that,
             # print error and stop the rebuild.
-            if old_printed_count == len(printed):
+            if old_printed_count == printed_cnt:
                 db_event.builds_transition(
                     ArtifactBuildState.FAILED.value,
                     "No image to be built in batch %d." % (batch))
