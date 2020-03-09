@@ -34,7 +34,6 @@ from freshmaker.handlers import (ContainerBuildHandler,
                                  fail_event_on_handler_exception)
 from freshmaker.kojiservice import koji_service
 from freshmaker.types import ArtifactType, ArtifactBuildState, EventState
-from freshmaker.utils import get_rebuilt_nvr
 
 
 class RebuildImagesOnParentImageBuild(ContainerBuildHandler):
@@ -100,11 +99,6 @@ class RebuildImagesOnParentImageBuild(ContainerBuildHandler):
             args["retry_count"] += 1
             found_build.build_args = json.dumps(args)
             if args["retry_count"] < 3:
-                # Change the rebuilt_nvr, because Koji/OSBS might be in weird
-                # state in which the build for old NVR already exists and rebuild
-                # would fail because of NVR conflict.
-                found_build.rebuilt_nvr = get_rebuilt_nvr(
-                    found_build.type, found_build.original_nvr)
                 found_build.transition(
                     ArtifactBuildState.PLANNED.value,
                     "Retrying failed build %s" % (str(found_build.build_id)))

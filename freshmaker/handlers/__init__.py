@@ -493,6 +493,12 @@ class ContainerBuildHandler(BaseHandler):
                 "Container image does not have 'build_args' filled in.")
             return
 
+        if not build.original_nvr:
+            build.transition(
+                ArtifactBuildState.FAILED.value,
+                "Container image does not have original_nvr set.")
+            return
+
         args = json.loads(build.build_args)
         scm_url = "%s/%s#%s" % (conf.git_base_url, args["repository"],
                                 args["commit"])
@@ -512,18 +518,6 @@ class ContainerBuildHandler(BaseHandler):
         # If set to None, then OSBS defaults to using the arches
         # of the build tag associated with the target.
         arches = args.get("arches")
-
-        if not build.rebuilt_nvr and build.original_nvr:
-            build.rebuilt_nvr = get_rebuilt_nvr(
-                build.type, build.original_nvr)
-
-        if not build.rebuilt_nvr:
-            build.transition(
-                ArtifactBuildState.FAILED.value,
-                "Container image does not have rebuilt_nvr set.")
-            return
-
-        release = parse_NVR(build.rebuilt_nvr)["release"]
 
         # Get the list of ODCS compose IDs which should be used to build
         # the image.
@@ -546,10 +540,24 @@ class ContainerBuildHandler(BaseHandler):
             # OSBS can renew a compose if it needs to, so we can just pass
             # it along without further verification for other states.
 
+        rebuilt_nvr = get_rebuilt_nvr(build.type, build.original_nvr)
+        if build.rebuilt_nvr is not None:
+            self.log_debug(
+                "Artifact build %s has rebuilt_nvr %s already. "
+                "It will be replaced with a new one %s to be rebuilt.",
+                build, build.rebuilt_nvr, rebuilt_nvr)
+
+        build.rebuilt_nvr = rebuilt_nvr
+        db.session.commit()
+
         return self.build_container(
-            scm_url, branch, target, repo_urls=repo_urls,
-            isolated=True, release=release, koji_parent_build=parent,
-            arch_override=arches, compose_ids=compose_ids)
+            scm_url, branch, target,
+            repo_urls=repo_urls,
+            isolated=True,
+            release=parse_NVR(build.rebuilt_nvr)["release"],
+            koji_parent_build=parent,
+            arch_override=arches,
+            compose_ids=compose_ids)
 
     def odcs_get_compose(self, compose_id):
         """

@@ -36,7 +36,6 @@ from freshmaker.errata import Errata
 from freshmaker.types import (
     ArtifactType, ArtifactBuildState, EventState, RebuildReason)
 from freshmaker.models import Event, Compose
-from freshmaker.utils import get_rebuilt_nvr
 
 
 class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
@@ -263,7 +262,6 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                     state_reason = ""
                     state = ArtifactBuildState.PLANNED.value
 
-                rebuilt_nvr = get_rebuilt_nvr(ArtifactType.IMAGE.value, nvr)
                 image_name = koji.parse_NVR(image["brew"]["build"])["name"]
 
                 # Only released images are considered as directly affected for
@@ -280,7 +278,6 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                     dep_on=dep_on,
                     state=ArtifactBuildState.PLANNED.value,
                     original_nvr=nvr,
-                    rebuilt_nvr=rebuilt_nvr,
                     rebuild_reason=rebuild_reason)
 
                 # Set context to particular build so logging shows this build
