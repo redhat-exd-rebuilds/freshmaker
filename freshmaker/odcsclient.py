@@ -100,7 +100,7 @@ class FreshmakerODCSClient(object):
 
     def _fake_odcs_new_compose(
             self, compose_source, tag, packages=None, results=None,
-            builds=None):
+            builds=None, arches=None):
         """
         Fake odcs.new_compose(...) method used in the dry run mode.
 
@@ -111,7 +111,7 @@ class FreshmakerODCSClient(object):
         """
         self.handler.log_info(
             "DRY RUN: Calling fake odcs.new_compose with args: %r",
-            (compose_source, tag, packages, results))
+            (compose_source, tag, packages, results, arches))
 
         # In case we run in DRY_RUN mode, we need to initialize
         # FAKE_COMPOSE_ID to the id of last ODCS compose to give the IDs
@@ -128,6 +128,8 @@ class FreshmakerODCSClient(object):
         }
         if builds:
             new_compose['builds'] = builds
+        if arches:
+            new_compose['arches'] = arches
 
         # Generate and inject the ODCSComposeStateChangeEvent event.
         event = ODCSComposeStateChangeEvent(
@@ -317,39 +319,46 @@ class FreshmakerODCSClient(object):
         :rtype: dict
         """
 
-        if not image.get('rpm_manifest'):
-            self.handler.log_warn('"rpm_manifest" not set in image.')
-            return
-
-        rpm_manifest = image["rpm_manifest"][0]
-        if not rpm_manifest.get('rpms'):
+        if not image.get('multi_arch_rpm_manifest'):
+            self.handler.log_warn('"multi_arch_rpm_manifest" not set in image.')
             return
 
         builds = set()
         packages = set()
-        for rpm in rpm_manifest["rpms"]:
-            parsed_nvr = kobo.rpmlib.parse_nvra(rpm["srpm_nevra"])
-            srpm_nvr = "%s-%s-%s" % (parsed_nvr["name"], parsed_nvr["version"],
-                                     parsed_nvr["release"])
-            builds.add(srpm_nvr)
-            parsed_nvr = kobo.rpmlib.parse_nvra(rpm["nvra"])
-            packages.add(parsed_nvr["name"])
 
-        # ODCS client expects list and not set for packages/builds, so convert
+        for rpm_manifest in image['multi_arch_rpm_manifest'].values():
+            # For some reason, the rpm manifest itself is always a wrapped in a list.
+            if not rpm_manifest:
+                continue
+            for rpm in rpm_manifest[0].get("rpms", []):
+                parsed_nvr = kobo.rpmlib.parse_nvra(rpm["srpm_nevra"])
+                srpm_nvr = "%s-%s-%s" % (parsed_nvr["name"], parsed_nvr["version"],
+                                         parsed_nvr["release"])
+                builds.add(srpm_nvr)
+                parsed_nvr = kobo.rpmlib.parse_nvra(rpm["nvra"])
+                packages.add(parsed_nvr["name"])
+
+        if not builds or not packages:
+            self.handler.log_warn('No builds or packages identified in image')
+            return
+
+        # ODCS client expects list and not set for packages/builds/arches, so convert
         # them to lists. Sorting the lists to make them easy to look up, e.g.
         # in logs, and easy to test.
         builds = sorted(builds)
         packages = sorted(packages)
+        arches = sorted(image['arches'].split())
 
         if not self.handler.dry_run:
             with krb_context():
                 new_compose = create_odcs_client().new_compose(
                     "", 'build', packages=packages, builds=builds,
-                    sigkeys=conf.odcs_sigkeys, flags=["no_deps"])
+                    arches=arches, sigkeys=conf.odcs_sigkeys,
+                    flags=["no_deps"])
         else:
             new_compose = self._fake_odcs_new_compose(
                 "", 'build', packages=packages,
-                builds=builds)
+                builds=builds, arches=arches)
 
         self.handler.log_info(
             "Started generating ODCS 'build' type compose %d." % (

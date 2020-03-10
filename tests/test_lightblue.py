@@ -332,6 +332,57 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
         self.assertEqual('1233829', image['_id'])
         self.assertEqual('20151210T10:09:35.000-0500', image['brew']['completion_date'])
 
+    def test_update_multi_arch(self):
+        rpm_manifest_x86_64 = [{'rpms': [{'name': 'spam'}]}]
+        image_x86_64 = ContainerImage.create({
+            '_id': '1233829',
+            'architecture': 'amd64',
+            'brew': {
+                'completion_date': '20151210T10:09:35.000-0500',
+                'build': 'jboss-webserver-3-webserver30-tomcat7-openshift-docker-1.1-6',
+                'package': 'jboss-webserver-3-webserver30-tomcat7-openshift-docker'
+            },
+            'rpm_manifest': rpm_manifest_x86_64,
+        })
+
+        rpm_manifest_s390x = [{'rpms': [{'name': 'maps'}]}]
+        image_s390x = ContainerImage.create({
+            '_id': '1233829',
+            'architecture': 's390x',
+            'brew': {
+                'completion_date': '20151210T10:09:35.000-0500',
+                'build': 'jboss-webserver-3-webserver30-tomcat7-openshift-docker-1.1-6',
+                'package': 'jboss-webserver-3-webserver30-tomcat7-openshift-docker'
+            },
+            'rpm_manifest': rpm_manifest_s390x,
+        })
+
+        self.assertEqual(image_x86_64['rpm_manifest'], rpm_manifest_x86_64)
+        self.assertEqual(image_x86_64['multi_arch_rpm_manifest'], {'amd64': rpm_manifest_x86_64})
+        self.assertEqual(image_s390x['rpm_manifest'], rpm_manifest_s390x)
+        self.assertEqual(image_s390x['multi_arch_rpm_manifest'], {'s390x': rpm_manifest_s390x})
+
+        image_x86_64.update_multi_arch(image_s390x)
+        self.assertEqual(image_x86_64['rpm_manifest'], rpm_manifest_x86_64)
+        self.assertEqual(image_x86_64['multi_arch_rpm_manifest'], {
+            'amd64': rpm_manifest_x86_64,
+            's390x': rpm_manifest_s390x
+        })
+        self.assertEqual(image_s390x['rpm_manifest'], rpm_manifest_s390x)
+        self.assertEqual(image_s390x['multi_arch_rpm_manifest'], {'s390x': rpm_manifest_s390x})
+
+        image_s390x.update_multi_arch(image_x86_64)
+        self.assertEqual(image_x86_64['rpm_manifest'], rpm_manifest_x86_64)
+        self.assertEqual(image_x86_64['multi_arch_rpm_manifest'], {
+            'amd64': rpm_manifest_x86_64,
+            's390x': rpm_manifest_s390x
+        })
+        self.assertEqual(image_s390x['rpm_manifest'], rpm_manifest_s390x)
+        self.assertEqual(image_s390x['multi_arch_rpm_manifest'], {
+            'amd64': rpm_manifest_x86_64,
+            's390x': rpm_manifest_s390x
+        })
+
     def test_log_error(self):
         image = ContainerImage.create({
             'brew': {
@@ -894,6 +945,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                 {"field": "_id", "include": True},
                 {"field": "image_id", "include": True},
                 {"field": "brew", "include": True, "recursive": True},
+                {"field": "architecture", "include": True, "recursive": False},
             ],
         }
 
@@ -916,6 +968,74 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         self.assertEqual('57ea8d1f9c624c035f96f4b0', image['_id'])
         self.assertEqual('jboss-webserver-3-webserver30-tomcat7-openshift-docker',
                          image['brew']['package'])
+
+    @patch('freshmaker.lightblue.ContainerImage.update_multi_arch')
+    @patch('freshmaker.lightblue.requests.post')
+    def test_find_container_images_with_multi_arch(self, post, update_multi_arch):
+        post.return_value.status_code = http.client.OK
+        post.return_value.json.return_value = {
+            'modifiedCount': 0,
+            'resultMetadata': [],
+            'entityVersion': '0.0.12',
+            'hostname': self.fake_server_url,
+            'matchCount': 2,
+            'processed': [
+                {
+                    '_id': '57ea8d1f9c624c035f96f4b0',
+                    'image_id': 'e0f97342ddf6a09972434f98837b5fd8b5bed9390f32f1d63e8a7e4893208af7',
+                    'architecture': 'amd64',
+                    'brew': {
+                        'completion_date': '20151210T10:09:35.000-0500',
+                        'build': 'sadc-container-1.1-6',
+                        'package': 'sadc-container',
+                    },
+                },
+                {
+                    '_id': '57ea8d289c624c035f96f4db',
+                    'image_id': 'c1ef3345f36b901b0bddc7ab01ea3f3c83c886faa243e02553f475124eb4b46c',
+                    'architecture': 's390x',
+                    'brew': {
+                        'completion_date': '20151203T00:35:30.000-0500',
+                        'build': 'sadc-container-1.1-6',
+                        'package': 'sadc-container',
+                    },
+                }
+            ],
+            'status': 'COMPLETE',
+            'entity': 'containerImage'
+        }
+
+        fake_request = {
+            "objectType": "containerImage",
+            "projection": [
+                {"field": "_id", "include": True},
+                {"field": "image_id", "include": True},
+                {"field": "brew", "include": True, "recursive": True},
+                {"field": "architecture", "include": True, "recursive": False},
+            ],
+        }
+
+        with patch('os.path.exists'):
+            lb = LightBlue(server_url=self.fake_server_url,
+                           cert=self.fake_cert_file,
+                           private_key=self.fake_private_key)
+            images = lb.find_container_images(request=fake_request)
+
+        post.assert_called_once_with(
+            '{}/{}/'.format(lb.api_root, 'find/containerImage'),
+            data=json.dumps(fake_request),
+            verify=lb.verify_ssl,
+            cert=(self.fake_cert_file, self.fake_private_key),
+            headers={'Content-Type': 'application/json'}
+        )
+        self.assertEqual(2, len(images))
+        # Verify update_multi_arch is first called with the second image,
+        # then with the first image. This is to ensure all ContainerImage
+        # objects for the same Brew build have the same multi arch data.
+        self.assertEqual(
+            ['c1ef3345f36b901b0bddc7ab01ea3f3c83c886faa243e02553f475124eb4b46c',
+             'e0f97342ddf6a09972434f98837b5fd8b5bed9390f32f1d63e8a7e4893208af7'],
+            [call_args[0][0]['image_id'] for call_args in update_multi_arch.call_args_list])
 
     @patch('freshmaker.lightblue.requests.post')
     def test_find_container_repositories(self, post):
@@ -1274,6 +1394,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                  "git_branch": "mybranch",
                                  "error": None,
                                  "arches": None,
+                                 "multi_arch_rpm_manifest": {},
                                  "odcs_compose_ids": None,
                                  "parent_build_id": None,
                                  "parent_image_builds": None,
@@ -1816,6 +1937,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                             {'field': 'repositories.*.tags.*.name', 'include': True, 'recursive': True},
                             {'field': 'content_sets', 'include': True, 'recursive': True},
                             {'field': 'parent_brew_build', 'include': True, 'recursive': False},
+                            {'field': 'architecture', 'include': True, 'recursive': False},
                             {'field': 'rpm_manifest.*.rpms', 'include': True, 'recursive': True},
                             {'field': 'rpm_manifest.*.rpms.*.srpm_name', 'include': True, 'recursive': True}],
              'objectType': 'containerImage'})

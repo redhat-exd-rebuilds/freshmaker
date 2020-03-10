@@ -26,6 +26,7 @@ from unittest.mock import patch, Mock
 from odcs.client.odcs import AuthMech
 
 from freshmaker import conf, db
+from freshmaker.lightblue import ContainerImage
 from freshmaker.models import Event, ArtifactBuild, Compose
 from freshmaker.odcsclient import create_odcs_client
 from freshmaker.types import ArtifactBuildState, EventState, ArtifactType
@@ -247,27 +248,33 @@ class TestPrepareYumRepo(helpers.ModelsTestCase):
             self.assertTrue(build.state_reason.endswith(
                 "of advisory 123 is the latest build in its candidate tag."))
 
-    def _get_fake_container_image(self):
-        return {
-            u'rpm_manifest': [
-                {u'rpms': [{u'architecture': u'noarch',
-                            u'gpg': u'199e2f91fd431d51',
-                            u'name': u'apache-commons-lang',
-                            u'nvra': u'apache-commons-lang-2.6-15.el7.noarch',
-                            u'release': u'15.el7',
-                            u'srpm_name': u'apache-commons-lang',
-                            u'srpm_nevra': u'apache-commons-lang-0:2.6-15.el7.src',
-                            u'summary': u'Provides a host of helper utilities for the java.lang API',
-                            u'version': u'2.6'},
-                           {u'architecture': u'noarch',
-                            u'gpg': u'199e2f91fd431d51',
-                            u'name': u'avalon-logkit',
-                            u'nvra': u'avalon-logkit-2.1-14.el7.noarch',
-                            u'release': u'14.el7',
-                            u'srpm_name': u'avalon-logkit',
-                            u'srpm_nevra': u'avalon-logkit-0:2.1-14.el7.src',
-                            u'summary': u'Java logging toolkit',
-                            u'version': u'2.1'}]}]}
+    def _get_fake_container_image(self, architecture='amd64', arches='x86_64'):
+        rpm_manifest = [{u'rpms': [{
+            u'architecture': architecture,
+            u'gpg': u'199e2f91fd431d51',
+            u'name': u'apache-commons-lang',
+            u'nvra': u'apache-commons-lang-2.6-15.el7.noarch',
+            u'release': u'15.el7',
+            u'srpm_name': u'apache-commons-lang',
+            u'srpm_nevra': u'apache-commons-lang-0:2.6-15.el7.src',
+            u'summary': u'Provides a host of helper utilities for the java.lang API',
+            u'version': u'2.6'
+        }, {
+            u'architecture': architecture,
+            u'gpg': u'199e2f91fd431d51',
+            u'name': u'avalon-logkit',
+            u'nvra': u'avalon-logkit-2.1-14.el7.noarch',
+            u'release': u'14.el7',
+            u'srpm_name': u'avalon-logkit',
+            u'srpm_nevra': u'avalon-logkit-0:2.1-14.el7.src',
+            u'summary': u'Java logging toolkit',
+            u'version': u'2.1'
+        }]}]
+        return ContainerImage.create({
+            u'arches': arches,  # Populated based on Brew build
+            u'architecture': architecture,  # Populated from Lightblue data
+            u'rpm_manifest': rpm_manifest,
+        })
 
     @patch('freshmaker.odcsclient.create_odcs_client')
     @patch('time.sleep')
@@ -295,7 +302,43 @@ class TestPrepareYumRepo(helpers.ModelsTestCase):
         # Ensure new_compose is called to request a new compose
         odcs.new_compose.assert_called_once_with(
             '', 'build', builds=['apache-commons-lang-2.6-15.el7', 'avalon-logkit-2.1-14.el7'],
-            flags=['no_deps'], packages=[u'apache-commons-lang', u'avalon-logkit'], sigkeys=[])
+            flags=['no_deps'], packages=[u'apache-commons-lang', u'avalon-logkit'], sigkeys=[],
+            arches=['x86_64'])
+
+    @patch('freshmaker.odcsclient.create_odcs_client')
+    @patch('time.sleep')
+    def test_prepare_odcs_compose_with_multi_arch_image_rpms(
+            self, sleep, create_odcs_client):
+        odcs = create_odcs_client.return_value
+        odcs.new_compose.return_value = {
+            "id": 3,
+            "result_repo": "http://localhost/composes/latest-odcs-3-1/compose/Temporary",
+            "result_repofile": "http://localhost/composes/latest-odcs-3-1/compose/Temporary/odcs-3.repo",
+            "source": "f26",
+            "source_type": 1,
+            "state": 0,
+            "state_name": "wait",
+        }
+
+        arches = 's390x x86_64'
+        image_x86_64 = self._get_fake_container_image(architecture='amd64', arches=arches)
+        image_s390x = self._get_fake_container_image(architecture='s390x', arches=arches)
+
+        for image in (image_x86_64, image_s390x):
+            handler = MyHandler()
+            compose = handler.odcs.prepare_odcs_compose_with_image_rpms(image)
+
+            db.session.refresh(self.ev)
+            self.assertEqual(3, compose['id'])
+
+            # Ensure new_compose is called to request a new multi-arch
+            # compose regardless of which image is used.
+            odcs.new_compose.assert_called_once_with(
+                '', 'build', builds=['apache-commons-lang-2.6-15.el7', 'avalon-logkit-2.1-14.el7'],
+                flags=['no_deps'], packages=[u'apache-commons-lang', u'avalon-logkit'], sigkeys=[],
+                arches=['s390x', 'x86_64'])
+
+            odcs.reset_mock()
 
     @patch("freshmaker.consumer.get_global_consumer")
     def test_prepare_odcs_compose_with_image_rpms_dry_run(self, global_consumer):
@@ -324,11 +367,19 @@ class TestPrepareYumRepo(helpers.ModelsTestCase):
         self.assertEqual(compose, None)
 
         compose = handler.odcs.prepare_odcs_compose_with_image_rpms(
-            {"rpm_manifest": []})
+            {"multi_arch_rpm_manifest": {}})
         self.assertEqual(compose, None)
 
         compose = handler.odcs.prepare_odcs_compose_with_image_rpms(
-            {"rpm_manifest": [{"rpms": []}]})
+            {"multi_arch_rpm_manifest": {
+                "amd64": [],
+            }})
+        self.assertEqual(compose, None)
+
+        compose = handler.odcs.prepare_odcs_compose_with_image_rpms(
+            {"multi_arch_rpm_manifest": {
+                "amd64": [{"rpms": []}],
+            }})
         self.assertEqual(compose, None)
 
 

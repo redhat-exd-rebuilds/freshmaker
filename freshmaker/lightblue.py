@@ -137,6 +137,13 @@ class ContainerImage(dict):
     def create(cls, data):
         image = cls()
         image.update(data)
+
+        arch = data.get('architecture')
+        image['multi_arch_rpm_manifest'] = {}
+        rpm_manifest = data.get('rpm_manifest')
+        if arch and rpm_manifest:
+            image['multi_arch_rpm_manifest'][arch] = rpm_manifest
+
         return image
 
     def __hash__(self):
@@ -156,6 +163,23 @@ class ContainerImage(dict):
             self['error'] = str(err)
         else:
             self['error'] += "; " + str(err)
+
+    def update_multi_arch(self, image):
+        """
+        Update multi-arch attributes for this image from another image.
+
+        :param ContainerImage image: the container image object to copy multi
+            arch attributes from
+        :rtype: None
+        """
+        image_arch = image.get('architecture')
+        if not image_arch:
+            return
+
+        image_rpm_manifest = image.get('rpm_manifest')
+        if not image_rpm_manifest:
+            return
+        self['multi_arch_rpm_manifest'][image_arch] = image_rpm_manifest
 
     @property
     def is_base_image(self):
@@ -631,10 +655,21 @@ class LightBlue(object):
         response = self._make_request(url, request)
 
         images = []
+        nvr_to_arches = {}
         for image_data in response['processed']:
-            image = ContainerImage()
-            image.update(image_data)
+            image = ContainerImage.create(image_data)
             images.append(image)
+
+            # TODO: In the future, we may want to combine different ContainerImage
+            # objects into a single object. For now, ensure that whichever object
+            # is used by caller contains multi-arch information.
+            nvr = image['brew']['build']
+            nvr_to_arches.setdefault(nvr, [])
+            nvr_to_arches[nvr].append(image)
+            for arch_image in nvr_to_arches[nvr][:-1]:
+                arch_image.update_multi_arch(image)
+                image.update_multi_arch(arch_image)
+
         return images
 
     def _set_container_repository_filters(
@@ -718,6 +753,7 @@ class LightBlue(object):
             {"field": "repositories.*.tags.*.name", "include": True, "recursive": True},
             {"field": "content_sets", "include": True, "recursive": True},
             {"field": "parent_brew_build", "include": True, "recursive": False},
+            {"field": "architecture", "include": True, "recursive": False},
         ]
         if include_rpm_manifest:
             if srpm_names:
