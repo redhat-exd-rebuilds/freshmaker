@@ -419,6 +419,29 @@ class ContainerImage(dict):
             return
         return rpm_manifest["rpms"]
 
+    def get_registry_repositories(self, lb_instance):
+        if self['repositories']:
+            return self['repositories']
+
+        parsed_nvr = kobo.rpmlib.parse_nvr(self.nvr)
+
+        if '.' not in parsed_nvr['release']:
+            log.debug('There are no repositories for %s', self.nvr)
+            return []
+
+        original_release = parsed_nvr['release'].rsplit('.', 1)[0]
+        parsed_nvr['release'] = original_release
+        original_nvr = '{name}-{version}-{release}'.format(**parsed_nvr)
+        log.debug('Finding repositories for %s through %s', self.nvr, original_nvr)
+
+        previous_images = lb_instance.get_images_by_nvrs(
+            [original_nvr], published=None, include_rpm_manifest=False)
+        if not previous_images:
+            log.warning('original_nvr %s not found in Lightblue', original_nvr)
+            return []
+
+        return previous_images[0].get_registry_repositories(lb_instance)
+
 
 class LightBlue(object):
     """Interface to query lightblue"""
@@ -1248,12 +1271,7 @@ class LightBlue(object):
             for image_id, images in enumerate(to_rebuild):
                 for parent_id, image in enumerate(images):
                     nvr = image.nvr
-                    # Also include the sorted names of repositories in the image group
-                    # to handle the case when different releases of single name-version are
-                    # included in different container repositories.
-                    repository_key = "-".join(sorted([r["repository"] for r in image["repositories"]]))
-                    parsed_nvr = koji.parse_NVR(nvr)
-                    image_group = "%s-%s-%s" % (parsed_nvr["name"], parsed_nvr["version"], repository_key)
+                    image_group = self.describe_image_group(image)
                     if image_group not in image_group_to_nvrs:
                         image_group_to_nvrs[image_group] = []
                     if nvr not in image_group_to_nvrs[image_group]:
@@ -1348,6 +1366,17 @@ class LightBlue(object):
                                 to_rebuild[image_id][parent_id - 1]["parent"] = nvr_to_image[latest_released_nvr]
 
         return to_rebuild
+
+    # Cache to avoid multiple calls. We want one call per nvr, not one per arch
+    @region.cache_on_arguments(to_str=lambda image: image.nvr)
+    def describe_image_group(self, image):
+        # Also include the sorted names of repositories in the image group
+        # to handle the case when different releases of single name-version are
+        # included in different container repositories.
+        repositories = image.get_registry_repositories(self)
+        repository_key = sorted([r["repository"] for r in repositories])
+        parsed_nvr = koji.parse_NVR(image.nvr)
+        return "%s-%s-%s" % (parsed_nvr["name"], parsed_nvr["version"], repository_key)
 
     def _images_to_rebuild_to_batches(self, to_rebuild, directly_affected_nvrs):
         """

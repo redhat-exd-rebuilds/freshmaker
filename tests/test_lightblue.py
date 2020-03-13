@@ -1749,6 +1749,107 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         self.assertEqual(len(ret), 1)
         self.assertIsNotNone(ret[0][0].get("parent"))
 
+    @patch("freshmaker.lightblue.LightBlue.get_images_by_nvrs")
+    @patch('freshmaker.lightblue.LightBlue.find_images_with_packages_from_content_set')
+    @patch('freshmaker.lightblue.LightBlue.find_parent_images_with_package')
+    @patch('os.path.exists')
+    def test_dedupe_dependency_images_with_all_repositories(
+            self, exists, find_parent_images_with_package,
+            find_images_with_packages_from_content_set, get_images_by_nvrs):
+        exists.return_value = True
+
+        vulnerable_srpm_name = 'oh-noes'
+        vulnerable_srpm_nvr = '{}-1.0-1'.format(vulnerable_srpm_name)
+
+        ubi_image_template = {
+            "brew": {"package": "ubi8-container", "build": "ubi8-container-8.1-100"},
+            "parent_image_builds": {},
+            "repository": "containers/ubi8",
+            "commit": "2b868f757977782367bf624373a5fe3d8e6bacd6",
+            "repositories": [{"repository": "ubi8"}],
+            "rpm_manifest": [{
+                "rpms": [
+                    {"srpm_name": vulnerable_srpm_name}
+                ]
+            }]
+        }
+
+        directly_affected_ubi_image = ContainerImage.create(copy.deepcopy(ubi_image_template))
+
+        dependency_ubi_image_data = copy.deepcopy(ubi_image_template)
+        dependency_ubi_image_nvr = directly_affected_ubi_image.nvr + ".12345678"
+        dependency_ubi_image_data["brew"]["build"] = dependency_ubi_image_nvr
+        # A dependecy image is not directly published
+        dependency_ubi_image_data["repositories"] = []
+        dependency_ubi_image = ContainerImage.create(dependency_ubi_image_data)
+
+        python_image = ContainerImage.create({
+            "brew": {"package": "python-36-container", "build": "python-36-container-1-10"},
+            "parent_brew_build": directly_affected_ubi_image.nvr,
+            "parent_image_builds": {},
+            "repository": "containers/python-36",
+            "commit": "3a740231deab2abf335d5cad9a80d466c783be7d",
+            "repositories": [{"repository": "ubi8/python-36"}],
+            "rpm_manifest": [{
+                "rpms": [
+                    {"srpm_name": vulnerable_srpm_name}
+                ]
+            }]
+        })
+
+        nodejs_image = ContainerImage.create({
+            "brew": {"package": "nodejs-12-container", "build": "nodejs-12-container-1-20.45678"},
+            "parent_brew_build": dependency_ubi_image.nvr,
+            "repository": "containers/nodejs-12",
+            "commit": "97d57a9db975b58b43113e15d29e35de6c1a3f0b",
+            "repositories": [{"repository": "ubi8/nodejs-12"}],
+            "rpm_manifest": [{
+                "rpms": [
+                    {"srpm_name": vulnerable_srpm_name}
+                ]
+            }]
+        })
+
+        def fake_find_parent_images_with_package(image, *args, **kwargs):
+            parents = {
+                directly_affected_ubi_image.nvr: directly_affected_ubi_image,
+                dependency_ubi_image.nvr: dependency_ubi_image,
+            }
+            parent = parents.get(image.get("parent_brew_build"))
+            if parent:
+                return [parent]
+            return []
+
+        find_parent_images_with_package.side_effect = fake_find_parent_images_with_package
+
+        find_images_with_packages_from_content_set.return_value = [
+            directly_affected_ubi_image, python_image, nodejs_image,
+        ]
+
+        def fake_get_images_by_nvrs(nvrs, **kwargs):
+            if nvrs == [dependency_ubi_image.nvr]:
+                return [dependency_ubi_image]
+            elif nvrs == [directly_affected_ubi_image.nvr]:
+                return [directly_affected_ubi_image]
+            raise ValueError("Unexpected test data, {}".format(nvrs))
+
+        get_images_by_nvrs.side_effect = fake_get_images_by_nvrs
+
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key)
+        batches = lb.find_images_to_rebuild([vulnerable_srpm_nvr], [vulnerable_srpm_name])
+        expected_batches = [
+            # The dependency ubi image has a higher NVR and it should be used as
+            # the parent for both images.
+            {dependency_ubi_image.nvr},
+            {python_image.nvr, nodejs_image.nvr},
+        ]
+        for batch, expected_batch_nvrs in zip(batches, expected_batches):
+            batch_nvrs = set(image.nvr for image in batch)
+            self.assertEqual(batch_nvrs, expected_batch_nvrs)
+        self.assertEqual(len(batches), len(expected_batches))
+
     @patch("freshmaker.lightblue.ContainerImage.resolve_published")
     @patch("freshmaker.lightblue.LightBlue.get_images_by_nvrs")
     @patch("os.path.exists")
