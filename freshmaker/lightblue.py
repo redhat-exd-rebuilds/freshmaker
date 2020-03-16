@@ -31,10 +31,10 @@ import requests
 import io
 import dogpile.cache
 import kobo.rpmlib
+from concurrent.futures import ThreadPoolExecutor
 from http import HTTPStatus
 from itertools import groupby
 
-import concurrent.futures
 from freshmaker import log, conf
 from freshmaker.kojiservice import koji_service
 from freshmaker.utils import sorted_by_nvr, get_distgit_files, get_distgit_url
@@ -1466,17 +1466,8 @@ class LightBlue(object):
             image["directly_affected"] = True
             return image
 
-        resolved_images = []
-        with concurrent.futures.ThreadPoolExecutor(
-                max_workers=conf.max_thread_workers) as executor:
-            futures = {executor.submit(_resolve_image, i): i
-                       for i in images}
-            concurrent.futures.wait(futures)
-            for future in futures:
-                image = future.result()
-                resolved_images.append(image)
-
-        return resolved_images
+        with ThreadPoolExecutor(max_workers=conf.max_thread_workers) as executor:
+            return list(executor.map(_resolve_image, images))
 
     def _deduplicate_images_to_rebuild(self, to_rebuild):
         """
@@ -1762,15 +1753,9 @@ class LightBlue(object):
         # For every image, find out all its parent images which contain the
         # srpm_name package and store these lists to to_rebuild.
         to_rebuild = []
-        with concurrent.futures.ThreadPoolExecutor(
-                max_workers=conf.max_thread_workers) as executor:
-            futures = {executor.submit(_get_images_to_rebuild, i): i
-                       for i in images}
-            concurrent.futures.wait(futures)
-            for future in futures:
-                rebuild_lists = future.result()
-                for rebuild_list in rebuild_lists.values():
-                    to_rebuild.append(rebuild_list)
+        with ThreadPoolExecutor(max_workers=conf.max_thread_workers) as executor:
+            for result in executor.map(_get_images_to_rebuild, images):
+                to_rebuild.extend(result.values())
 
         # The to_rebuild list now contains all the images which need to be
         # rebuilt, but there are lot of duplicates there.
