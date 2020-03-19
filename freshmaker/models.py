@@ -393,8 +393,6 @@ class Event(FreshmakerBase):
     def json(self):
         data = self._common_json()
         data['builds'] = [b.json() for b in self.builds]
-        data['depends_on_events'] = [event.id for event in self.event_dependencies]
-        data['depending_events'] = [event.id for event in self.depending_events]
         return data
 
     def json_min(self):
@@ -427,6 +425,8 @@ class Event(FreshmakerBase):
             "requested_rebuilds": (self.requested_rebuilds.split(" ")
                                    if self.requested_rebuilds else []),
             "requester_metadata": self.requester_metadata_json,
+            "depends_on_events": [event.id for event in self.event_dependencies],
+            "depending_events": [event.id for event in self.depending_events],
         }
 
     def find_dependent_events(self):

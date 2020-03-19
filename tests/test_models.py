@@ -205,6 +205,8 @@ class TestModels(helpers.ModelsTestCase):
             'url': 'http://localhost:5001/api/1/events/1',
             'requested_rebuilds': [],
             'requester_metadata': {},
+            'depending_events': [],
+            'depends_on_events': [],
         })
 
 
