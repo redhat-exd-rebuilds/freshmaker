@@ -9,7 +9,7 @@ pdc-client
 pyOpenSSL
 python-fedora
 sqlalchemy
-Flask
+Flask>=1.0.3
 Flask-Migrate
 Flask-SQLAlchemy
 Flask-Login
