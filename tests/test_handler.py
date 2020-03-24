@@ -124,13 +124,14 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
 
         self.build_1 = ArtifactBuild.create(
             db.session, self.event, 'build-1', ArtifactType.IMAGE,
-            state=ArtifactBuildState.PLANNED)
-        self.build_1.rebuilt_nvr = "foo-1-2"
+            state=ArtifactBuildState.PLANNED,
+            original_nvr="foo-1-2")
         self.build_1.build_args = json.dumps(build_args)
+
         self.build_2 = ArtifactBuild.create(
             db.session, self.event, 'build-2', ArtifactType.IMAGE,
-            state=ArtifactBuildState.PLANNED)
-        self.build_2.rebuilt_nvr = "foo-2-2"
+            state=ArtifactBuildState.PLANNED,
+            original_nvr="foo-2-2")
         self.build_2.build_args = json.dumps(build_args)
 
         db.session.commit()
@@ -187,19 +188,23 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
         repos = handler.get_repo_urls(build_3)
         self.assertEqual(repos, ["http://localhost/test.repo"])
 
+    @patch("time.time")
     @patch("freshmaker.handlers.ContainerBuildHandler.build_container")
     def test_build_image_artifact_build_only_odcs_composes(
-            self, build_container):
+            self, build_container, time):
+        time.return_value = 1234567.1234
         handler = MyHandler()
         handler.build_image_artifact_build(self.build_1)
         build_container.assert_called_once_with(
             'git://pkgs.fedoraproject.org/repo#hash', 'branch', 'target',
             arch_override='x86_64', compose_ids=[5, 6, 7, 8], isolated=True,
-            koji_parent_build=None, release='2', repo_urls=None)
+            koji_parent_build=None, release='2.1234567', repo_urls=None)
 
+    @patch("time.time")
     @patch("freshmaker.handlers.ContainerBuildHandler.build_container")
     def test_build_image_artifact_build_renewed_odcs_composes(
-            self, build_container):
+            self, build_container, time):
+        time.return_value = 1234567.1234
         build_args = json.loads(self.build_1.build_args)
         build_args["renewed_odcs_compose_ids"] = [7300, 7301]
         self.build_1.build_args = json.dumps(build_args)
@@ -210,11 +215,13 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
         build_container.assert_called_once_with(
             'git://pkgs.fedoraproject.org/repo#hash', 'branch', 'target',
             arch_override='x86_64', compose_ids=[5, 6, 7, 8, 7300, 7301],
-            isolated=True, koji_parent_build=None, release='2', repo_urls=None)
+            isolated=True, koji_parent_build=None, release='2.1234567', repo_urls=None)
 
+    @patch("time.time")
     @patch("freshmaker.handlers.ContainerBuildHandler.build_container")
     def test_build_image_artifact_build_repo_urls(
-            self, build_container):
+            self, build_container, time):
+        time.return_value = 1234567.1234
         handler = MyHandler()
         handler.build_image_artifact_build(self.build_1, ["http://localhost/x.repo"])
 
@@ -222,7 +229,7 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
         build_container.assert_called_once_with(
             'git://pkgs.fedoraproject.org/repo#hash', 'branch', 'target',
             arch_override='x86_64', compose_ids=[5, 6, 7, 8], isolated=True,
-            koji_parent_build=None, release='2', repo_urls=repo_urls)
+            koji_parent_build=None, release='2.1234567', repo_urls=repo_urls)
 
     @patch("freshmaker.handlers.ContainerBuildHandler.build_container")
     def test_build_image_artifact_build_repo_urls_compose_not_ready(
