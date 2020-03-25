@@ -1301,7 +1301,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             ["dummy-content-set-1", "dummy-content-set-2"], ["openssl-1.2.3-2"], repositories)
 
         self.assertEqual(
-            [image["brew"]["build"] for image in ret],
+            [image.nvr for image in ret],
             ['package-name-2-4-12.10', 'package-name-3-4-12.10'])
 
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
@@ -1342,11 +1342,11 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             ["dummy-content-set-1", "dummy-content-set-2"],
             ["openssl-1.2.3-1", "openssl-1.2.3-50"], repositories)
         self.assertEqual(
-            [image["brew"]["build"] for image in ret],
+            [image.nvr for image in ret],
             ['package-name-2-4-12.10', 'package-name-3-4-12.10'])
 
     def _filter_fnc(self, image):
-        return image["brew"]["build"].startswith("filtered_")
+        return image.nvr.startswith("filtered_")
 
     @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
@@ -1816,12 +1816,12 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             [leaf_image3]
         ]
         expected_batches_nvrs = [
-            {image["brew"]["build"] for image in batch}
+            {image.nvr for image in batch}
             for batch in expected_batches
         ]
 
         returned_batches_nvrs = [
-            {image["brew"]["build"] for image in batch}
+            {image.nvr for image in batch}
             for batch in batches
         ]
 
@@ -1831,7 +1831,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         # find_images_with_packages_from_content_set.
         for batch in batches:
             for image in batch:
-                if image["brew"]["build"] == "leaf-image-6-1":
+                if image.nvr == "leaf-image-6-1":
                     self.assertTrue(leaf_image6_as_parent["directly_affected"])
                     break
 
@@ -2070,7 +2070,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                        cert=self.fake_cert_file,
                        private_key=self.fake_private_key)
         image = lb.find_latest_parent_image("foo", 1)
-        self.assertEqual(image["brew"]["build"], "parent-1-3")
+        self.assertEqual(image.nvr, "parent-1-3")
 
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('os.path.exists')
@@ -2089,12 +2089,12 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         ret = lb.find_images_with_included_srpms(
             ["dummy-content-set-1", "dummy-content-set-2"], ["openssl-1.2.3-2.module+el8.0.0+3248+9d514f3b.src"], repositories)
         self.assertEqual(
-            [image["brew"]["build"] for image in ret],
+            [image.nvr for image in ret],
             ["package-name-3-4-12.10"])
         ret = lb.find_images_with_included_srpms(
             ["dummy-content-set-1", "dummy-content-set-2"], ["openssl-1.2.3-2.el8.0.0+3248+9d514f3b.src"], repositories)
         self.assertEqual(
-            [image["brew"]["build"] for image in ret],
+            [image.nvr for image in ret],
             [])
 
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
@@ -2126,7 +2126,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         ret = lb.find_images_with_included_srpms(
             ["dummy-content-set-1"], ["openssl-1.2.3-2.module+el8.0.0+3248+9d514f3b.src"], repositories)
         self.assertEqual(
-            [image["brew"]["build"] for image in ret],
+            [image.nvr for image in ret],
             ["parent-1-2", "parent-1-3"])
 
 
@@ -2485,9 +2485,7 @@ class TestDeduplicateImagesToRebuild(helpers.FreshmakerTestCase):
         ])
         to_rebuild = [httpd, perl]
         batches = self.lb._images_to_rebuild_to_batches(to_rebuild, set())
-        batches = [
-            sorted_by_nvr(images, get_nvr=lambda image: image['brew']['build'])
-            for images in batches]
+        batches = [sorted_by_nvr(images) for images in batches]
 
         # Both perl and httpd share the same parent images, so include
         # just httpd's one in expected batches - they are the same as
@@ -2521,16 +2519,14 @@ class TestDeduplicateImagesToRebuild(helpers.FreshmakerTestCase):
             to_rebuild.append(deps[i:])
 
         batches = self.lb._images_to_rebuild_to_batches(to_rebuild, {httpd_nvr})
-        batches = [
-            sorted_by_nvr(images, get_nvr=lambda image: image['brew']['build'])
-            for images in batches]
+        batches = [sorted_by_nvr(images) for images in batches]
 
         # We expect each image to be rebuilt just once.
         expected = [[deps[3]], [deps[2]], [deps[1]], [deps[0]]]
         self.assertEqual(batches, expected)
         for batch in batches:
             for image in batch:
-                if image["brew"]["build"] == httpd_nvr:
+                if image.nvr == httpd_nvr:
                     self.assertTrue(image['directly_affected'])
                 else:
                     self.assertFalse(image.get('directly_affected'))

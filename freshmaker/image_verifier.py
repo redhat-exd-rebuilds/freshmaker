@@ -72,7 +72,7 @@ class ImageVerifier(object):
         if not image["content_sets"]:
             raise ValueError(
                 "Found image \"%s\" in this repository, but it cannot be rebuilt, because "
-                "the \"content_sets\" are not set for this image." % image["brew"]["build"])
+                "the \"content_sets\" are not set for this image." % image.nvr)
 
     def _get_repository_from_name(self, repo_name):
         """
@@ -155,7 +155,7 @@ class ImageVerifier(object):
         self._verify_image_data(image)
 
         return {
-            image["brew"]["build"]: image["content_sets"]
+            image.nvr: image["content_sets"]
         }
 
     def verify_repository(self, repo_name):
@@ -174,9 +174,8 @@ class ImageVerifier(object):
         images = self.lb.find_images_with_included_srpms(
             [], [], {repo["repository"]: repo}, include_rpm_manifest=False)
         for image in images:
-            nvr = image["brew"]["build"]
             self._verify_image_data(image)
-            rebuildable_images[nvr] = image["content_sets"]
+            rebuildable_images[image.nvr] = image["content_sets"]
 
         if not rebuildable_images:
             raise ValueError(

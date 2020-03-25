@@ -314,7 +314,7 @@ class ContainerImage(dict):
             non-x86_64 image, OSBS will generate the Pulp repos and therefore
             we don't need content_sets in Freshmaker.
         """
-        nvr = self["brew"]["build"]
+        nvr = self.nvr
         data = {"generate_pulp_repos": False,
                 "content_sets": []}
 
@@ -391,11 +391,10 @@ class ContainerImage(dict):
         Sets the "repository and "commit" keys/values if available.
         """
         # Find the additional data for Container build in Koji.
-        nvr = self["brew"]["build"]
         try:
-            data = self._get_additional_data_from_koji(nvr)
+            data = self._get_additional_data_from_koji(self.nvr)
         except KojiLookupError as e:
-            err = "Cannot get data from Koji for build %s: %s." % (nvr, e)
+            err = "Cannot get data from Koji for build %s: %s." % (self.nvr, e)
             log.error(err)
             data = self._get_default_additional_data()
             data["error"] = err
@@ -409,9 +408,9 @@ class ContainerImage(dict):
 
         :param LightBlue lb_instance: LightBlue instance to use for additional
             queries.
-        :param list children: List of children to take the content_sets from in
-            case this container image is unpublished and therefore without
-            "content_sets" set.
+        :param list[ContainerImage] children: List of children to take the
+            content_sets from in case this container image is unpublished and
+            therefore without "content_sets" set.
         """
         data = self._get_additional_data_from_distgit(
             self["repository"], self["git_branch"], self["commit"])
@@ -423,13 +422,13 @@ class ContainerImage(dict):
             self["content_sets"] = data["content_sets"]
             self["content_sets_source"] = "distgit"
             log.info("Container image %s uses following content sets: %r",
-                     self["brew"]["build"], data["content_sets"])
+                     self.nvr, data["content_sets"])
             return
 
         # ContainerImage now has content_sets field, so use it if available.
         if "content_sets" in self and self["content_sets"]:
             log.info("Container image %s uses following content sets: %r",
-                     self["brew"]["build"], self["content_sets"])
+                     self.nvr, self["content_sets"])
             if "content_sets_source" not in self:
                 self["content_sets_source"] = "lightblue_container_image"
             return
@@ -441,7 +440,7 @@ class ContainerImage(dict):
         if not children:
             log.warning("Container image %s does not have 'content_sets' set "
                         "in Lightblue and also does not have any children, "
-                        "this is suspicious.", self["brew"]["build"])
+                        "this is suspicious.", self.nvr)
             self.update({"content_sets": []})
             return
 
@@ -455,21 +454,21 @@ class ContainerImage(dict):
 
             log.info("Container image %s does not have 'content-sets' set "
                      "in Lightblue. Using child image %s content_sets: %r",
-                     self["brew"]["build"], child["brew"]["build"],
+                     self.nvr, child.nvr,
                      child["content_sets"])
             self.update({"content_sets": child["content_sets"]})
             return
 
         log.warning("Container image %s does not have 'content_sets' set "
                     "in Lightblue as well as its children, this "
-                    "is suspicious.", self["brew"]["build"])
+                    "is suspicious.", self.nvr)
         self.update({"content_sets": []})
 
     def resolve_published(self, lb_instance):
         # Get the published version of this image to find out if the image
         # was actually published.
         images = lb_instance.get_images_by_nvrs(
-            [self["brew"]["build"]], published=True, include_rpm_manifest=False)
+            [self.nvr], published=True, include_rpm_manifest=False)
         if images:
             self["published"] = True
         else:
@@ -480,13 +479,11 @@ class ContainerImage(dict):
             # to check for possible unpublished RPMs.
             # We do not want to get the complete manifest for every container
             # image, because it is relatively big, so fetch it only when needed.
-            images = lb_instance.get_images_by_nvrs(
-                [self["brew"]["build"]])
+            images = lb_instance.get_images_by_nvrs([self.nvr])
             if images:
                 self["rpm_manifest"] = images[0]["rpm_manifest"]
             else:
-                log.warning("No image %s found in Lightblue.",
-                            self["brew"]["build"])
+                log.warning("No image %s found in Lightblue.", self.nvr)
 
     def resolve(self, lb_instance, children=None):
         """
@@ -666,7 +663,7 @@ class LightBlue(object):
             # TODO: In the future, we may want to combine different ContainerImage
             # objects into a single object. For now, ensure that whichever object
             # is used by caller contains multi-arch information.
-            nvr = image['brew']['build']
+            nvr = image.nvr
             nvr_to_arches.setdefault(nvr, [])
             nvr_to_arches[nvr].append(image)
             for arch_image in nvr_to_arches[nvr][:-1]:
@@ -826,7 +823,7 @@ class LightBlue(object):
                 # In our case, this means that we filtered out the image.
                 log.info("Will not rebuild %s, because it does not contain "
                          "older version of any input package: %r" % (
-                             image["brew"]["build"], srpm_name_to_nvrs.values()))
+                             image.nvr, srpm_name_to_nvrs.values()))
         return ret
 
     def filter_out_modularity_mismatch(self, images, srpm_name_to_nvrs):
@@ -864,7 +861,7 @@ class LightBlue(object):
                 log.info(
                     "Will not rebuild %s because there is a modularity mismatch between the RPMs "
                     "from the image and the advisory: %r" % (
-                        image["brew"]["build"], srpm_name_to_nvrs.values()))
+                        image.nvr, srpm_name_to_nvrs.values()))
         return ret
 
     def filter_out_images_based_on_content_set(self, images, content_sets):
@@ -989,7 +986,7 @@ class LightBlue(object):
         # for now.
         image_nvr_to_image = {}
         for image in images:
-            nvr = image["brew"]["build"]
+            nvr = image.nvr
             if nvr in image_nvr_to_image:
                 # This image for another architecture has already been seen
                 continue
@@ -1268,7 +1265,7 @@ class LightBlue(object):
         if not latest_parent or "repositories" not in latest_parent:
             return latest_parent
 
-        latest_parent_nvr = kobo.rpmlib.parse_nvr(latest_parent["brew"]["build"])
+        latest_parent_nvr = kobo.rpmlib.parse_nvr(latest_parent.nvr)
 
         for repo in latest_parent["repositories"]:
             repo_data = self.get_repository_from_name(repo["repository"])
@@ -1284,13 +1281,13 @@ class LightBlue(object):
                 #   - nvr1 newer than nvr2: 1
                 #   - same nvrs: 0
                 #   - nvr1 older: -1
-                parsed_nvr = kobo.rpmlib.parse_nvr(possible_latest_parent["brew"]["build"])
+                parsed_nvr = kobo.rpmlib.parse_nvr(possible_latest_parent.nvr)
                 if (parsed_nvr["name"] == latest_parent_nvr["name"] and
                         parsed_nvr["version"] == latest_parent_nvr["version"] and
                         kobo.rpmlib.compare_nvr(
                             latest_parent_nvr, parsed_nvr, ignore_epoch=True) == -1):
                     latest_parent = possible_latest_parent
-                    latest_parent_nvr = kobo.rpmlib.parse_nvr(latest_parent["brew"]["build"])
+                    latest_parent_nvr = kobo.rpmlib.parse_nvr(latest_parent.nvr)
 
         return latest_parent
 
@@ -1522,7 +1519,7 @@ class LightBlue(object):
             # Constructs the temporary dicts as described above.
             for image_id, images in enumerate(to_rebuild):
                 for parent_id, image in enumerate(images):
-                    nvr = image["brew"]["build"]
+                    nvr = image.nvr
                     # Also include the sorted names of repositories in the image group
                     # to handle the case when different releases of single name-version are
                     # included in different container repositories.
@@ -1596,7 +1593,7 @@ class LightBlue(object):
                     if "parent" not in latest_image or not latest_image["parent"]:
                         continue
                     latest_parent_name = koji.parse_NVR(
-                        latest_image["parent"]["brew"]["build"])["name"]
+                        latest_image["parent"].nvr)["name"]
 
                     # Go through the older images and in case the parent image differs,
                     # update its parents according to latest image parents.
@@ -1604,7 +1601,7 @@ class LightBlue(object):
                         image = nvr_to_image[nvr]
                         if "parent" not in image or not image["parent"]:
                             continue
-                        parent_name = koji.parse_NVR(image["parent"]["brew"]["build"])["name"]
+                        parent_name = koji.parse_NVR(image["parent"].nvr)["name"]
                         if parent_name != latest_parent_name:
                             for image_id, parent_id in nvr_to_coordinates[nvr]:
                                 latest_image_id, latest_parent_id = nvr_to_coordinates[latest_released_nvr][0]
@@ -1666,7 +1663,7 @@ class LightBlue(object):
         seen = set()
         for image_rebuild_list in sorted(to_rebuild, key=lambda lst: len(lst), reverse=True):
             for image, batch in zip(reversed(image_rebuild_list), batches):
-                image_key = image["brew"]["build"]
+                image_key = image.nvr
                 # If one of the parents is directly affected but not marked, mark it explicitly
                 if image_key in directly_affected_nvrs and not image.get("directly_affected"):
                     image["directly_affected"] = True
@@ -1766,9 +1763,7 @@ class LightBlue(object):
         # Get all the directly affected images so that any parents that are not marked as
         # directly affected can be set in _images_to_rebuild_to_batches
         directly_affected_nvrs = {
-            image["brew"]["build"]
-            for image in images
-            if image.get("directly_affected")
+            image.nvr for image in images if image.get("directly_affected")
         }
         # Now generate batches from deduplicated list and return it.
         return self._images_to_rebuild_to_batches(to_rebuild, directly_affected_nvrs)

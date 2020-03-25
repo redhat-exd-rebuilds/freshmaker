@@ -24,6 +24,7 @@
 from unittest.mock import MagicMock
 
 from freshmaker.image_verifier import ImageVerifier
+from freshmaker.lightblue import ContainerRepository, ContainerImage
 from tests import helpers
 
 
@@ -85,39 +86,57 @@ class TestImageVerifier(helpers.FreshmakerTestCase):
             self.verifier.verify_repository, "foo/bar")
 
     def test_verify_repository_no_content_sets(self):
-        self.lb.find_container_repositories.return_value = [{
-            "repository": "foo/bar",
-            "release_categories": ["Generally Available"],
-            "published": True,
-            "auto_rebuild_tags": ["latest"]}]
-        self.lb.find_images_with_included_srpms.return_value = [{
-            "brew": {"build": "foo-1-1"},
-            "content_sets": []}]
+        self.lb.find_container_repositories.return_value = [
+            ContainerRepository({
+                "repository": "foo/bar",
+                "release_categories": ["Generally Available"],
+                "published": True,
+                "auto_rebuild_tags": ["latest"]
+            })
+        ]
+        self.lb.find_images_with_included_srpms.return_value = [
+            ContainerImage({
+                "brew": {"build": "foo-1-1"},
+                "content_sets": []
+            })
+        ]
         self.assertRaisesRegex(
             ValueError, r'.*are not set for this image.',
             self.verifier.verify_repository, "foo/bar")
 
     def test_verify_repository(self):
-        self.lb.find_container_repositories.return_value = [{
-            "repository": "foo/bar",
-            "release_categories": ["Generally Available"],
-            "published": True,
-            "auto_rebuild_tags": ["latest"]}]
-        self.lb.find_images_with_included_srpms.return_value = [{
-            "brew": {"build": "foo-1-1"},
-            "content_sets": ["content-set"]}]
+        self.lb.find_container_repositories.return_value = [
+            ContainerRepository({
+                "repository": "foo/bar",
+                "release_categories": ["Generally Available"],
+                "published": True,
+                "auto_rebuild_tags": ["latest"]
+            })
+        ]
+        self.lb.find_images_with_included_srpms.return_value = [
+            ContainerImage({
+                "brew": {"build": "foo-1-1"},
+                "content_sets": ["content-set"]
+            })
+        ]
         ret = self.verifier.verify_repository("foo/bar")
         self.assertEqual(ret, {"foo-1-1": ["content-set"]})
 
     def test_get_verify_image(self):
-        self.lb.find_container_repositories.return_value = [{
-            "repository": "foo/bar",
-            "release_categories": ["Generally Available"],
-            "published": True,
-            "auto_rebuild_tags": ["latest"]}]
-        self.lb.get_images_by_nvrs.return_value = [{
-            "brew": {"build": "foo-1-1"},
-            "content_sets": ["content-set"]}]
+        self.lb.find_container_repositories.return_value = [
+            ContainerRepository({
+                "repository": "foo/bar",
+                "release_categories": ["Generally Available"],
+                "published": True,
+                "auto_rebuild_tags": ["latest"]
+            })
+        ]
+        self.lb.get_images_by_nvrs.return_value = [
+            ContainerImage({
+                "brew": {"build": "foo-1-1"},
+                "content_sets": ["content-set"]
+            })
+        ]
         ret = self.verifier.verify_image("foo-1-1")
         self.assertEqual(ret, {"foo-1-1": ["content-set"]})
 

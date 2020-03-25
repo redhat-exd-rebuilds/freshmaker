@@ -225,7 +225,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                 # the ArtifactBuild is created.
                 self.set_context(db_event)
 
-                nvr = image["brew"]["build"]
+                nvr = image.nvr
                 if nvr in builds:
                     self.log_debug("Skipping recording build %s, "
                                    "it is already in db", nvr)
@@ -239,7 +239,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                     continue
 
                 self.log_debug("Recording %s", nvr)
-                parent_nvr = image["parent"]["brew"]["build"] \
+                parent_nvr = image["parent"].nvr \
                     if "parent" in image and image["parent"] else None
                 dep_on = builds[parent_nvr] if parent_nvr in builds else None
 
@@ -262,7 +262,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                     state_reason = ""
                     state = ArtifactBuildState.PLANNED.value
 
-                image_name = koji.parse_NVR(image["brew"]["build"])["name"]
+                image_name = koji.parse_NVR(image.nvr)["name"]
 
                 # Only released images are considered as directly affected for
                 # rebuild. If some image is not in the latest released version and
@@ -356,14 +356,15 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
         :return: True when image should be filtered out.
         """
 
-        parsed_nvr = koji.parse_NVR(image["brew"]["build"])
+        parsed_nvr = koji.parse_NVR(image.nvr)
 
         if not self.event.is_allowed(
                 self, image_name=parsed_nvr["name"],
                 image_version=parsed_nvr["version"],
                 image_release=parsed_nvr["release"]):
-            self.log_info("Skipping rebuild of image %s, not allowed by "
-                          "configuration", image["brew"]["build"])
+            self.log_info(
+                "Skipping rebuild of image %s, not allowed by configuration",
+                image.nvr)
             return True
         return False
 

@@ -681,19 +681,19 @@ class TestAllowBuild(helpers.ModelsTestCase):
                            security_impact="None",
                            product_short_name="product"))
 
-        image = {"brew": {"build": "foo-1-2.3"}}
+        image = ContainerImage({"brew": {"build": "foo-1-2.3"}})
         ret = handler._filter_out_not_allowed_builds(image)
         self.assertEqual(ret, False)
 
-        image = {"brew": {"build": "foo2-1-2.3"}}
+        image = ContainerImage({"brew": {"build": "foo2-1-2.3"}})
         ret = handler._filter_out_not_allowed_builds(image)
         self.assertEqual(ret, False)
 
-        image = {"brew": {"build": "bar-1-2.3"}}
+        image = ContainerImage({"brew": {"build": "bar-1-2.3"}})
         ret = handler._filter_out_not_allowed_builds(image)
         self.assertEqual(ret, False)
 
-        image = {"brew": {"build": "unknown-1-2.3"}}
+        image = ContainerImage({"brew": {"build": "unknown-1-2.3"}})
         ret = handler._filter_out_not_allowed_builds(image)
         self.assertEqual(ret, True)
 
@@ -721,11 +721,11 @@ class TestAllowBuild(helpers.ModelsTestCase):
                            security_impact="None",
                            product_short_name="product"))
 
-        image = {"brew": {"build": "foo-1-2.3"}}
+        image = ContainerImage({"brew": {"build": "foo-1-2.3"}})
         ret = handler._filter_out_not_allowed_builds(image)
         self.assertEqual(ret, False)
 
-        image = {"brew": {"build": "unknown-1-2.3"}}
+        image = ContainerImage({"brew": {"build": "unknown-1-2.3"}})
         ret = handler._filter_out_not_allowed_builds(image)
         self.assertEqual(ret, True)
 
@@ -761,19 +761,19 @@ class TestAllowBuild(helpers.ModelsTestCase):
                            security_impact="None",
                            product_short_name="product"))
 
-        image = {"brew": {"build": "foo-1-2.3"}}
+        image = ContainerImage({"brew": {"build": "foo-1-2.3"}})
         ret = handler._filter_out_not_allowed_builds(image)
         self.assertEqual(ret, False)
 
-        image = {"brew": {"build": "foo-1-7.3"}}
+        image = ContainerImage({"brew": {"build": "foo-1-7.3"}})
         ret = handler._filter_out_not_allowed_builds(image)
         self.assertEqual(ret, False)
 
-        image = {"brew": {"build": "foo-7.3-2.3"}}
+        image = ContainerImage({"brew": {"build": "foo-7.3-2.3"}})
         ret = handler._filter_out_not_allowed_builds(image)
         self.assertEqual(ret, True)
 
-        image = {"brew": {"build": "unknown-1-2.3"}}
+        image = ContainerImage({"brew": {"build": "unknown-1-2.3"}})
         ret = handler._filter_out_not_allowed_builds(image)
         self.assertEqual(ret, True)
 
@@ -793,7 +793,7 @@ class TestBatches(helpers.ModelsTestCase):
     def _mock_build(
             self, build, parent=None, error=None, **kwargs):
         if parent:
-            parent = {"brew": {"build": parent + "-1-1.25"}}
+            parent = ContainerImage({"brew": {"build": parent + "-1-1.25"}})
         d = {
             'brew': {'build': build + "-1-1.25"},
             'repository': build + '_repo',
@@ -856,7 +856,7 @@ class TestBatches(helpers.ModelsTestCase):
         images = {}
         for batch in batches:
             for image in batch:
-                images[image['brew']['build']] = image
+                images[image.nvr] = image
 
         # Record the batches.
         event = events.BrewSignRPMEvent("123", "openssl-1.1.0-1")
