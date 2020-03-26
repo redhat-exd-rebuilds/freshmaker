@@ -24,6 +24,7 @@
 import json
 
 from unittest.mock import patch
+from requests import exceptions
 
 from freshmaker.pulp import Pulp
 from tests import helpers
@@ -180,3 +181,20 @@ class TestPulp(helpers.FreshmakerTestCase):
             auth=(self.username, self.password))
 
         self.assertEqual(repo_name, "scl/foo-526")
+
+    @patch('freshmaker.pulp.requests.post')
+    @patch('freshmaker.pulp.requests.get')
+    def test_retrying_calls(self, get, post):
+        get.side_effect = exceptions.HTTPError("Connection error: get")
+        post.side_effect = exceptions.HTTPError("Connection error: post")
+
+        pulp = Pulp(self.server_url, username=self.username,
+                    password=self.password)
+
+        with self.assertRaises(exceptions.HTTPError):
+            pulp.get_docker_repository_name("test")
+        self.assertGreater(get.call_count, 1)
+
+        with self.assertRaises(exceptions.HTTPError):
+            pulp.get_content_set_by_repo_ids(['test1', 'test2'])
+        self.assertGreater(post.call_count, 1)
