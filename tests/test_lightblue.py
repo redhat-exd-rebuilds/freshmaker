@@ -2047,31 +2047,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                             {'field': 'rpm_manifest.*.rpms.*.srpm_name', 'include': True, 'recursive': True}],
              'objectType': 'containerImage'})
 
-    @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
-    @patch('freshmaker.lightblue.LightBlue.find_container_images')
-    @patch('os.path.exists')
-    def test_find_latest_parent_image(self, exists, cont_images, cont_repos):
-        repos = [{
-            "repository": "product/repo1", "published": True,
-            'tags': [{"name": "latest"}]}]
-
-        parent = ContainerImage.create({
-            "brew": {"build": "parent-1-2"}, "repositories": repos})
-        latest_parent = ContainerImage.create({
-            "brew": {"build": "parent-1-3"}, "repositories": repos})
-        older_parent = ContainerImage.create({
-            "brew": {"build": "parent-1-1"}, "repositories": repos})
-        too_new_parent = ContainerImage.create({
-            "brew": {"build": "parent-50-2"}, "repositories": repos})
-        cont_images.return_value = [parent, latest_parent, older_parent, too_new_parent]
-        cont_repos.return_value = [self.fake_repositories_with_content_sets[0]]
-
-        lb = LightBlue(server_url=self.fake_server_url,
-                       cert=self.fake_cert_file,
-                       private_key=self.fake_private_key)
-        image = lb.find_latest_parent_image("foo", 1)
-        self.assertEqual(image.nvr, "parent-1-3")
-
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('os.path.exists')
     def test_images_with_modular_container_image(
