@@ -203,7 +203,6 @@ class ContainerImage(dict):
             "error": None,
             "arches": None,
             "odcs_compose_ids": None,
-            "published": None,
             "parent_image_builds": None,
         }
 
