@@ -5,6 +5,8 @@ import groovy.json.*
 
 // 'global' var to store git info
 def scmVars
+// 'global' var to store application version
+def appversion
 
 try { // massive try{} catch{} around the entire build for failure notifications
 
@@ -45,33 +47,20 @@ node('master'){
 node('fedora-29') {
     stage('Prepare') {
         checkout scm
-        sh 'sudo rm -f rpmbuild-output/*.src.rpm'
-        sh 'mkdir -p rpmbuild-output'
-        sh 'make -f .copr/Makefile srpm outdir=./rpmbuild-output/'
-        sh 'sudo dnf -y builddep ./rpmbuild-output/freshmaker-*.src.rpm'
-        // TODO: some of the deps here should probably be in BuildRequires
-        sh 'sudo dnf -y install \
-            gcc \
-            krb5-devel \
-            openldap-devel \
-            python3-sphinxcontrib-httpdomain python3-pytest-cov \
-            python3-flake8 python3-pylint python3-sphinx \
-            python3-dogpile-cache \
-            python3-fedmsg \
-            python3-flask \
-            python3-prometheus_client \
-            python3-PyYAML \
-            python3-requests \
-            python3-flask-login \
-            python3-flask-sqlalchemy \
-            python3-ldap \
-            python3-kobo \
-            python3-kobo-rpmlib \
-            python3-defusedxml \
-            python3-rpm \
-            python3-tox'
-        /* Needed to get the latest mock configs */
-        sh 'sudo dnf -y update mock-core-configs'
+        // Install requirements for testing harness
+        sh 'sudo dnf -y install python3-tox python3-flake8 `cat yum-packages.txt`'
+        // The fedora-29 node has an older version of setuptools that causes
+        // tox to fail processing the dependencies
+        sh 'sudo dnf update -y python3-setuptools'
+    }
+    stage('Determine Version') {
+        // TODO: Set appversion as a label on the image?
+        appversion = sh(returnStdout: true, script: """
+            printf `python setup.py -V`-`git log -1 --pretty=format:%ct`
+        """).trim()
+    }
+    stage('Run unit tests') {
+        sh 'tox'
     }
     stage('Build Docs') {
         sh '''
@@ -80,7 +69,7 @@ node('fedora-29') {
             python3-sphinxcontrib-httpdomain \
             python3-sphinxcontrib-issuetracker
         '''
-        sh 'FRESHMAKER_DEVELOPER_ENV=1 make -C docs html'
+        sh 'tox -e docs'
         archiveArtifacts artifacts: 'docs/_build/html/**'
     }
     if (scmVars.GIT_BRANCH == 'origin/master') {
@@ -108,50 +97,21 @@ node('fedora-29') {
             }
         }
     }
-    stage('Run unit tests') {
-        sh 'tox'
-    }
-    /* We take a flock on the mock configs, to avoid multiple unrelated jobs on
-     * the same Jenkins slave trying to use the same mock root at the same
-     * time, which will error out. */
-    stage('Build RPM') {
-        parallel (
-            'F29': {
-                sh """
-                mkdir -p mock-result/f29
-                flock /etc/mock/fedora-29-x86_64.cfg \
-                /usr/bin/mock -v --enable-network --resultdir=mock-result/f29 -r fedora-29-x86_64 --clean --rebuild rpmbuild-output/*.src.rpm
-                """
-                archiveArtifacts artifacts: 'mock-result/f29/**'
-            },
-        )
-    }
 }
 if ("${env.JOB_NAME}" != 'freshmaker-prs') {
 node('docker') {
     stage('Build Docker container') {
         checkout scm
-        // Remember to reflect the version change in the Dockerfile in the future.
-        sh 'grep -q "FROM fedora:29" Dockerfile'
-        unarchive mapping: ['mock-result/f29/': '.']
-        def f29_rpm = findFiles(glob: 'mock-result/f29/**/*.noarch.rpm')[0]
-        def appversion = sh(returnStdout: true, script: """
-            rpm2cpio ${f29_rpm} | \
-            cpio --quiet --extract --to-stdout ./usr/lib/python\\*/site-packages/freshmaker\\*.egg-info/PKG-INFO | \
-            awk '/^Version: / {print \$2}'
-        """).trim()
-        /* Git builds will have a version like 0.3.2.dev1+git.3abbb08 following
-         * the rules in PEP440. But Docker does not let us have + in the tag
-         * name, so let's munge it here. */
-        appversion = appversion.replace('+', '-')
         sh 'docker image prune -a -f'
+        // Remove non source files so they don't end up in the image
+        sh 'git clean -fdx && rm -rf .git'
         docker.withRegistry(
                 'https://docker-registry.upshift.redhat.com/',
                 'factory2-upshift-registry-token') {
             /* Note that the docker.build step has some magic to guess the
              * Dockerfile used, which will break if the build directory (here ".")
              * is not the final argument in the string. */
-            def image = docker.build "factory2/freshmaker:internal-${appversion}", "--build-arg freshmaker_rpm=$f29_rpm --build-arg cacert_url=https://password.corp.redhat.com/RH-IT-Root-CA.crt ."
+            def image = docker.build "factory2/freshmaker:internal-${appversion}", "--build-arg cacert_url=https://password.corp.redhat.com/RH-IT-Root-CA.crt --build-arg appversion=${appversion} ."
             /* Pushes to the internal registry can sometimes randomly fail
              * with "unknown blob" due to a known issue with the registry
              * storage configuration. So we retry up to 3 times. */
@@ -163,20 +123,15 @@ node('docker') {
         docker.withRegistry(
                 'https://quay.io/',
                 'quay-io-factory2-builder-sa-credentials') {
-            def image = docker.build "factory2/freshmaker:${appversion}", "--build-arg freshmaker_rpm=$f29_rpm ."
+            def image = docker.build "factory2/freshmaker:${appversion}", " --build-arg appversion=${appversion} ."
             image.push()
         }
-        /* Save container version for later steps (this is ugly but I can't find anything better...) */
-        writeFile file: 'appversion', text: appversion
-        archiveArtifacts artifacts: 'appversion'
     }
 }
 node('docker') {
     if (scmVars.GIT_BRANCH == 'origin/master') {
         stage('Tag "latest".') {
             checkout scm
-            unarchive mapping: ['appversion': 'appversion']
-            def appversion = readFile('appversion').trim()
             docker.withRegistry(
                     'https://docker-registry.upshift.redhat.com/',
                     'factory2-upshift-registry-token') {
