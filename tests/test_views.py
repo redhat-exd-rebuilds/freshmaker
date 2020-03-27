@@ -589,6 +589,13 @@ class TestViews(helpers.ModelsTestCase):
         self.assertEqual(data['depends_on_events'], [event1.id])
         self.assertEqual(data['depending_events'], [])
 
+    def test_trailing_slash(self):
+        urls = ('/api/2/builds', '/api/2/builds/',
+                '/api/2/events', '/api/2/events/')
+        for url in urls:
+            response = self.client.get(url, follow_redirects=True)
+            self.assertEqual(response.status_code, 200)
+
 
 class TestViewsMultipleFilterValues(helpers.ModelsTestCase):
     def setUp(self):
