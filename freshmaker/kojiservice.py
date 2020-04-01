@@ -335,8 +335,7 @@ def koji_service(profile=None, logger=None, login=True, dry_run=False):
             log.debug('Logging into %s with Kerberos authentication.',
                       service.server)
 
-            with freshmaker.utils.krb_context():
-                service.krb_login()
+            service.krb_login()
 
             # We are not logged in in dry run mode...
             if not dry_run and not service.logged_in:

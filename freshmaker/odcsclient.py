@@ -44,7 +44,6 @@ from freshmaker.errata import Errata
 from freshmaker.kojiservice import koji_service
 from freshmaker.consumer import work_queue_put
 from freshmaker.types import ArtifactBuildState
-from freshmaker.utils import krb_context
 from freshmaker.events import ODCSComposeStateChangeEvent
 
 
@@ -268,10 +267,9 @@ class FreshmakerODCSClient(object):
             compose_source, 'tag', packages)
 
         if not self.handler.dry_run:
-            with krb_context():
-                new_compose = create_odcs_client().new_compose(
-                    compose_source, 'tag', packages=packages,
-                    sigkeys=conf.odcs_sigkeys, flags=["no_deps"])
+            new_compose = create_odcs_client().new_compose(
+                compose_source, 'tag', packages=packages,
+                sigkeys=conf.odcs_sigkeys, flags=["no_deps"])
         else:
             new_compose = self._fake_odcs_new_compose(
                 compose_source, 'tag', packages=packages)
@@ -296,9 +294,8 @@ class FreshmakerODCSClient(object):
 
         odcs = create_odcs_client()
         if not self.handler.dry_run:
-            with krb_context():
-                new_compose = odcs.new_compose(
-                    ' '.join(content_sets), 'pulp')
+            new_compose = odcs.new_compose(
+                ' '.join(content_sets), 'pulp')
         else:
             new_compose = self._fake_odcs_new_compose(
                 content_sets, 'pulp')
@@ -350,11 +347,10 @@ class FreshmakerODCSClient(object):
         arches = sorted(image['arches'].split())
 
         if not self.handler.dry_run:
-            with krb_context():
-                new_compose = create_odcs_client().new_compose(
-                    "", 'build', packages=packages, builds=builds,
-                    arches=arches, sigkeys=conf.odcs_sigkeys,
-                    flags=["no_deps"])
+            new_compose = create_odcs_client().new_compose(
+                "", 'build', packages=packages, builds=builds,
+                arches=arches, sigkeys=conf.odcs_sigkeys,
+                flags=["no_deps"])
         else:
             new_compose = self._fake_odcs_new_compose(
                 "", 'build', packages=packages,

@@ -116,18 +116,6 @@ def get_rebuilt_nvr(artifact_type, nvr):
     return rebuilt_nvr
 
 
-class krbContext(object):
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        pass
-
-
-def krb_context():
-    return krbContext()
-
-
 def load_class(location):
     """ Take a string of the form 'fedmsg.consumers.ircbot:IRCBotConsumer'
     and return the IRCBotConsumer class.
