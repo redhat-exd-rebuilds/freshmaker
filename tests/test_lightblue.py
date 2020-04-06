@@ -34,7 +34,7 @@ from freshmaker.lightblue import ContainerRepository
 from freshmaker.lightblue import LightBlue
 from freshmaker.lightblue import LightBlueRequestError
 from freshmaker.lightblue import LightBlueSystemError
-from freshmaker.utils import sorted_by_nvr, get_distgit_url
+from freshmaker.utils import sorted_by_nvr
 from freshmaker import log
 from tests import helpers
 
@@ -140,142 +140,6 @@ description</b> <u>JBWEB000121: This request requires HTTP authentication.</u>
                          repr(self.e))
 
 
-class TestGetAdditionalDataFromDistGit(helpers.FreshmakerTestCase):
-
-    def setUp(self):
-        super(TestGetAdditionalDataFromDistGit, self).setUp()
-
-        self.patcher = helpers.Patcher(
-            "freshmaker.lightblue.")
-        self.get_distgit_files = self.patcher.patch("get_distgit_files")
-        self.get_distgit_files.return_value = {
-            "content_sets.yml": None,
-            "container.yaml": None,
-        }
-
-    def tearDown(self):
-        super(TestGetAdditionalDataFromDistGit, self).tearDown()
-        self.patcher.unpatch_all()
-
-    def test_generate(self):
-        self.get_distgit_files.return_value = {
-            "content_sets.yml": "x86_64:\n  - content_set",
-            "container.yaml": "compose:\n  pulp_repos: True",
-        }
-
-        image = ContainerImage.create({"brew": {"build": "nvr"}})
-        ret = image._get_additional_data_from_distgit(
-            "rpms/foo-docker", "branch", "commit")
-        self.assertEqual(ret["generate_pulp_repos"], False)
-
-        repo_url = get_distgit_url('rpms', 'foo-docker', ssh=False)
-        self.get_distgit_files.assert_called_once_with(
-            repo_url, "commit",
-            ["content_sets.yml", "container.yaml"], logger=log)
-
-    def test_generate_os_error(self):
-        self.get_distgit_files.side_effect = OSError(
-            "Got an error (128) from git: fatal: reference is not a tree: "
-            "4d42e2009cec70d871c65de821396cd750d523f1")
-
-        image = ContainerImage.create({"brew": {"build": "nvr"}})
-        ret = image._get_additional_data_from_distgit(
-            "rpms/foo-docker", "branch", "commit")
-        self.assertEqual(ret["generate_pulp_repos"], False)
-
-        self.assertEqual(
-            image["error"],
-            "Error while fetching dist-git repo files: Got an error (128) from git: "
-            "fatal: reference is not a tree: 4d42e2009cec70d871c65de821396cd750d523f1")
-
-        repo_url = get_distgit_url('rpms', 'foo-docker', ssh=False)
-        self.get_distgit_files.assert_called_once_with(
-            repo_url, 'commit',
-            ["content_sets.yml", "container.yaml"], logger=log)
-
-    def test_generate_no_namespace(self):
-        self.get_distgit_files.return_value = {
-            "content_sets.yml": "x86_64:\n  - content_set",
-            "container.yaml": "compose:\n  pulp_repos: True",
-        }
-
-        image = ContainerImage.create({"brew": {"build": "nvr"}})
-        ret = image._get_additional_data_from_distgit(
-            "foo-docker", "branch", "commit")
-        self.assertEqual(ret["generate_pulp_repos"], False)
-
-        repo_url = get_distgit_url('rpms', 'foo-docker', ssh=False)
-        self.get_distgit_files.assert_called_once_with(
-            repo_url, "commit",
-            ["content_sets.yml", "container.yaml"], logger=log)
-
-    def test_generate_no_pulp_repos(self):
-        self.get_distgit_files.return_value = {
-            "content_sets.yml": "x86_64:\n  - content_set",
-            "container.yaml": "compose:\n  pulp_repos_x: True",
-        }
-
-        image = ContainerImage.create({"brew": {"build": "nvr"}})
-        ret = image._get_additional_data_from_distgit(
-            "rpms/foo-docker", "branch", "commit")
-        self.assertEqual(ret["generate_pulp_repos"], True)
-
-    def test_generate_pulp_repos_false(self):
-        self.get_distgit_files.return_value = {
-            "content_sets.yml": "x86_64:\n  - content_set",
-            "container.yaml": "compose:\n  pulp_repos: False",
-        }
-
-        image = ContainerImage.create({"brew": {"build": "nvr"}})
-        ret = image._get_additional_data_from_distgit(
-            "rpms/foo-docker", "branch", "commit")
-        self.assertEqual(ret["generate_pulp_repos"], True)
-
-    def test_generate_no_content_sets_yml(self):
-        self.get_distgit_files.return_value = {
-            "content_sets.yml": None,
-            "container.yaml": "compose:\n  pulp_repos: False",
-        }
-
-        image = ContainerImage.create({"brew": {"build": "nvr"}})
-        ret = image._get_additional_data_from_distgit(
-            "rpms/foo-docker", "branch", "commit")
-        self.assertEqual(ret["generate_pulp_repos"], True)
-
-    def test_generate_no_container_yaml(self):
-        self.get_distgit_files.return_value = {
-            "content_sets.yml": "x86_64:\n  - content_set",
-            "container.yaml": None,
-        }
-
-        image = ContainerImage.create({"brew": {"build": "nvr"}})
-        ret = image._get_additional_data_from_distgit(
-            "rpms/foo-docker", "branch", "commit")
-        self.assertEqual(ret["generate_pulp_repos"], True)
-
-    def test_generate_content_sets_yml_empty(self):
-        self.get_distgit_files.return_value = {
-            "content_sets.yml": "",
-            "container.yaml": "compose:\n  pulp_repos: False",
-        }
-
-        image = ContainerImage.create({"brew": {"build": "nvr"}})
-        ret = image._get_additional_data_from_distgit(
-            "rpms/foo-docker", "branch", "commit")
-        self.assertEqual(ret["generate_pulp_repos"], True)
-
-    def test_generate_container_yaml_empty(self):
-        self.get_distgit_files.return_value = {
-            "content_sets.yml": "x86_64:\n  - content_set",
-            "container.yaml": "",
-        }
-
-        image = ContainerImage.create({"brew": {"build": "nvr"}})
-        ret = image._get_additional_data_from_distgit(
-            "rpms/foo-docker", "branch", "commit")
-        self.assertEqual(ret["generate_pulp_repos"], True)
-
-
 class TestContainerImageObject(helpers.FreshmakerTestCase):
 
     def setUp(self):
@@ -287,11 +151,6 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
 
         self.patcher = helpers.Patcher(
             'freshmaker.lightblue.')
-        self.get_distgit_files = self.patcher.patch("get_distgit_files")
-        self.get_distgit_files.return_value = {
-            "content_sets.yml": None,
-            "container.yaml": None,
-        }
 
         self.dummy_image = ContainerImage.create({
             '_id': '1233829',
@@ -420,6 +279,7 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
         self.assertEqual(self.dummy_image["commit"], "commit_hash1")
         self.assertEqual(self.dummy_image["target"], "target1")
         self.assertEqual(self.dummy_image["odcs_compose_ids"], [7300, 7301])
+        self.assertTrue(self.dummy_image["generate_pulp_repos"])
 
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')
@@ -665,11 +525,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
 
         self.patcher = helpers.Patcher(
             'freshmaker.lightblue.')
-        self.get_distgit_files = self.patcher.patch("get_distgit_files")
-        self.get_distgit_files.return_value = {
-            "content_sets.yml": None,
-            "container.yaml": None,
-        }
 
         self.fake_server_url = 'lightblue.localhost'
         self.fake_cert_file = 'path/to/cert'
@@ -2046,6 +1901,77 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                             {'field': 'rpm_manifest.*.rpms', 'include': True, 'recursive': True},
                             {'field': 'rpm_manifest.*.rpms.*.srpm_name', 'include': True, 'recursive': True}],
              'objectType': 'containerImage'})
+
+    @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
+    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    def test_content_sets_of_multiarch_images_to_rebuild(
+            self, find_images, find_repos):
+        new_images = [
+            {
+                'brew': {
+                    'completion_date': u'20170421T04:27:51.000-0400',
+                    'build': 'build1-name-1.1',
+                    'package': 'package-name-3'
+                },
+                "content_sets": ["content-set-1",
+                                 "content-set-2"],
+                'parent_brew_build': 'some-original-nvr-7.6-252.1561619826',
+                'repositories': [
+                    {'repository': 'product1/repo1', 'published': True,
+                     'tags': [{"name": "latest"}]}
+                ],
+                'rpm_manifest': [{
+                    'rpms': [
+                        {
+                            "srpm_name": "openssl",
+                            "srpm_nevra": "openssl-0:1.2.3-1.src"
+                        }
+                    ]
+                }],
+                'architecture': 'amd64'
+            },
+            {
+                'brew': {
+                    'completion_date': u'20170421T04:27:51.000-0400',
+                    'build': 'build1-name-1.1',
+                    'package': 'package-name-4'
+                },
+                "content_sets": ["content-set-2",
+                                 "content-set-3"],
+                'parent_brew_build': 'some-original-nvr-7.6-252.1561619826',
+                'repositories': [
+                    {'repository': 'product1/repo1', 'published': True,
+                     'tags': [{"name": "latest"}]}
+                ],
+                'rpm_manifest': [{
+                    'rpms': [
+                        {
+                            "srpm_name": "openssl",
+                            "srpm_nevra": "openssl-0:1.2.3-1.src"
+                        }
+                    ]
+                }],
+                'architecture': 's390x'
+            }
+        ]
+        new_images = [ContainerImage.create(i) for i in new_images]
+        find_repos.return_value = self.fake_repositories_with_content_sets
+        find_images.return_value = self.fake_container_images + new_images
+        right_content_sets = [["dummy-content-set-1"],
+                              ["dummy-content-set-1", "dummy-content-set-2"],
+                              ["content-set-1", "content-set-2", "content-set-3"]]
+        with patch('os.path.exists'):
+            lb = LightBlue(server_url=self.fake_server_url,
+                           cert=self.fake_cert_file,
+                           private_key=self.fake_private_key)
+            ret = lb.find_images_with_packages_from_content_set(
+                set(["openssl-1.2.3-3"]),
+                ["content-set-1", "content-set-2", "content-set-3"],
+                leaf_container_images=['placeholder'])
+
+        self.assertEqual(3, len(ret))
+        images_content_sets = [sorted(i.get('content_sets', ['!'])) for i in ret]
+        self.assertEqual(images_content_sets, right_content_sets)
 
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('os.path.exists')

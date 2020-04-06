@@ -23,7 +23,6 @@
 #            Jan Kaluza <jkaluza@redhat.com>
 #            Ralph Bean <rbean@redhat.com>
 
-import yaml
 import json
 import os
 import re
@@ -37,7 +36,7 @@ from itertools import groupby
 
 from freshmaker import log, conf
 from freshmaker.kojiservice import koji_service
-from freshmaker.utils import sorted_by_nvr, get_distgit_files, get_distgit_url
+from freshmaker.utils import sorted_by_nvr
 import koji
 
 
@@ -204,6 +203,7 @@ class ContainerImage(dict):
             "arches": None,
             "odcs_compose_ids": None,
             "parent_image_builds": None,
+            "generate_pulp_repos": True,
         }
 
     @region.cache_on_arguments()
@@ -295,87 +295,6 @@ class ContainerImage(dict):
             for archive in archives if archive['btype'] == 'image']
         return ' '.join(sorted(arches))
 
-    @region.cache_on_arguments()
-    def _get_additional_data_from_distgit(self, repository, branch, commit):
-        """
-        Finds out information about this image in distgit and returns a dict
-        with following keys:
-
-        - "generate_pulp_repos" - True when Freshmaker needs to generate Pulp
-            repos using ODCS itself (it means it is not done by OSBS).
-        - "content_sets" - List of x86_64 content_sets as defined in
-            content_sets.yml. We care only about x86_64, because to build
-            non-x86_64 image, OSBS will generate the Pulp repos and therefore
-            we don't need content_sets in Freshmaker.
-        """
-        nvr = self.nvr
-        data = {"generate_pulp_repos": False,
-                "content_sets": []}
-
-        if not repository or not branch or not commit:
-            log.warning("%s: Cannot get additional data from distgit.", nvr)
-            return data
-        if "/" in repository:
-            namespace, name = repository.split("/")
-        else:
-            namespace = "rpms"
-            name = repository
-
-        try:
-            repo_url = get_distgit_url(namespace, name, ssh=False)
-            files = get_distgit_files(
-                repo_url, commit, ["content_sets.yml", "container.yaml"],
-                logger=log)
-        except OSError as e:
-            self.log_error("Error while fetching dist-git repo files: %s" % e)
-            return data
-
-        content_sets_data = files["content_sets.yml"]
-        container_data = files["container.yaml"]
-
-        if content_sets_data is None:
-            log.debug("%s: Should generate Pulp repo, content_sets.yml does "
-                      "not exist.", nvr)
-            data["generate_pulp_repos"] = True
-            return data
-
-        try:
-            content_sets_yaml = yaml.safe_load(content_sets_data)
-        except Exception as err:
-            log.exception(err)
-            data["generate_pulp_repos"] = True
-            return data
-
-        if not content_sets_yaml:
-            log.warning("%s: Should generate Pulp repo, content_sets.yml is "
-                        "empty" % nvr)
-            data["generate_pulp_repos"] = True
-            return data
-
-        for content_sets in content_sets_yaml.values():
-            data["content_sets"] += content_sets
-
-        if container_data is None:
-            log.debug("%s: Should generate Pulp repo, container.yaml does not "
-                      "exist.", nvr)
-            data["generate_pulp_repos"] = True
-            return data
-
-        container_yaml = yaml.safe_load(container_data)
-
-        if (not container_yaml or "compose" not in container_yaml or
-                "pulp_repos" not in container_yaml["compose"] or
-                not container_yaml["compose"]["pulp_repos"]):
-            log.debug("%s: Should generate Pulp repo, pulp_repos not "
-                      "enabled in containery.yaml.", nvr)
-            data["generate_pulp_repos"] = True
-            return data
-
-        # This is workaround until OSBS-5919 is fixed.
-        if "arches" in self and self["arches"] == "x86_64":
-            data["generate_pulp_repos"] = True
-
-        return data
 
     def resolve_commit(self):
         """
@@ -406,18 +325,6 @@ class ContainerImage(dict):
             content_sets from in case this container image is unpublished and
             therefore without "content_sets" set.
         """
-        data = self._get_additional_data_from_distgit(
-            self["repository"], self["git_branch"], self["commit"])
-        self["generate_pulp_repos"] = data["generate_pulp_repos"]
-
-        # Prefer content_sets from content_sets.yml, because it contains
-        # content_sets for all architectures.
-        if data["content_sets"]:
-            self["content_sets"] = data["content_sets"]
-            self["content_sets_source"] = "distgit"
-            log.info("Container image %s uses following content sets: %r",
-                     self.nvr, data["content_sets"])
-            return
 
         # ContainerImage now has content_sets field, so use it if available.
         if "content_sets" in self and self["content_sets"]:
@@ -427,9 +334,8 @@ class ContainerImage(dict):
                 self["content_sets_source"] = "lightblue_container_image"
             return
 
-        # In case content_sets cannot be get from content_sets.yml and also
-        # are not set directly in this ContainerImage, try to get them from
-        # children image.
+        # In case content_sets are not set directly in this ContainerImage,
+        # try to get them from children image.
         self["content_sets_source"] = "child_image"
         if not children:
             log.warning("Container image %s does not have 'content_sets' set "
@@ -1279,8 +1185,20 @@ class LightBlue(object):
             # image list.
             sorted_images = sorted_by_nvr(images, reverse=True)
             images = []
-            for k, v in groupby(sorted_images, key=lambda item: item.nvr):
-                images.append(next(v))
+
+            # We must combine content_sets with same image NVR
+            # but different architectures into one content_sets field
+            for k, temp_images in groupby(sorted_images, key=lambda item: item.nvr):
+                temp_images = list(temp_images)
+                img = temp_images[0]
+                if 'content_sets' in img and len(temp_images) > 1:
+                    new_content_sets = set(img.get('content_sets'))
+                    for i in temp_images[1:]:
+                        new_content_sets.update(i.get('content_sets', []))
+                    img["content_sets"] = list(new_content_sets)
+                images.append(img)
+
+
 
         # In case we query for unpublished images, we need to return just
         # the latest NVR for given name-version, otherwise images would
