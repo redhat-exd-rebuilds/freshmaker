@@ -29,7 +29,7 @@ import pytest
 
 from freshmaker import conf
 from freshmaker.models import ArtifactType
-from freshmaker.utils import get_rebuilt_nvr, sorted_by_nvr, get_distgit_files
+from freshmaker.utils import get_rebuilt_nvr, sorted_by_nvr
 from tests import helpers
 
 
@@ -74,53 +74,3 @@ class TestSortedByNVR(helpers.FreshmakerTestCase):
         expected = ["bar-1-2", "foo-1-1", "foo-1-10"]
         ret = sorted_by_nvr(lst, reverse=True)
         self.assertEqual(ret, list(reversed(expected)))
-
-
-class TestGetDistGitFiles(object):
-    """Test get_distgit_files"""
-
-    @classmethod
-    def setup_class(cls):
-        import os
-        import subprocess
-        cls.repo_dir = tempfile.mkdtemp()
-        with open(os.path.join(cls.repo_dir, 'a.txt'), 'w') as f:
-            f.write('hello')
-        with open(os.path.join(cls.repo_dir, 'b.txt'), 'w') as f:
-            f.write('world')
-        git_cmds = [
-            ['git', 'init'],
-            ['git', 'add', 'a.txt', 'b.txt'],
-            ['git', 'config', 'user.name', 'tester'],
-            ['git', 'config', 'user.email', 'tester@localhost'],
-            ['git', 'commit', '-m', 'initial commit for test'],
-        ]
-        for cmd in git_cmds:
-            subprocess.check_call(cmd, cwd=cls.repo_dir)
-
-        cls.repo_url = 'file://' + cls.repo_dir
-
-    @classmethod
-    def teardown_class(cls):
-        shutil.rmtree(cls.repo_dir)
-
-    @pytest.mark.parametrize('files,expected', [
-        [['a.txt'], {'a.txt': 'hello'}],
-        [['a.txt', 'b.txt'], {'a.txt': 'hello', 'b.txt': 'world'}],
-    ])
-    def test_get_files(self, files, expected):
-        result = get_distgit_files(self.repo_url, 'master', files)
-        assert expected == result
-
-    @patch('freshmaker.utils._run_command')
-    def test_error_path_not_found(self, run_command):
-        run_command.side_effect = OSError('path not found')
-        result = get_distgit_files(self.repo_url, 'master', ['a.txt'])
-        assert {'a.txt': None} == result
-
-    @patch('freshmaker.utils._run_command')
-    @patch('time.sleep')
-    def test_unhandled_error_occurs(self, sleep, run_command):
-        run_command.side_effect = ValueError
-        with pytest.raises(ValueError):
-            get_distgit_files(self.repo_url, 'master', ['a.txt'])
