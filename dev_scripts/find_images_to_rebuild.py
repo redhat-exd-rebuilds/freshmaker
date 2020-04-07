@@ -39,13 +39,15 @@ db.create_all()
 db.session.commit()
 
 errata = Errata()
+kwargs = {}
 if container_images:
     EventClass = ManualRebuildWithAdvisoryEvent
+    kwargs['container_images'] = container_images
 else:
     EventClass = ErrataAdvisoryStateChangedEvent
 event = EventClass(
     "fake_message", ErrataAdvisory.from_advisory_id(errata, sys.argv[1]),
-    dry_run=True, container_images=container_images)
+    dry_run=True, **kwargs)
 
 handler = RebuildImagesOnRPMAdvisoryChange()
 with patch("freshmaker.consumer.get_global_consumer"):
