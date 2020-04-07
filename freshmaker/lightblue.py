@@ -295,7 +295,6 @@ class ContainerImage(dict):
             for archive in archives if archive['btype'] == 'image']
         return ' '.join(sorted(arches))
 
-
     def resolve_commit(self):
         """
         Uses the ContainerImage data to resolve the information about
@@ -1197,8 +1196,6 @@ class LightBlue(object):
                         new_content_sets.update(i.get('content_sets', []))
                     img["content_sets"] = list(new_content_sets)
                 images.append(img)
-
-
 
         # In case we query for unpublished images, we need to return just
         # the latest NVR for given name-version, otherwise images would

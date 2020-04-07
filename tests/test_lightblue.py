@@ -35,7 +35,6 @@ from freshmaker.lightblue import LightBlue
 from freshmaker.lightblue import LightBlueRequestError
 from freshmaker.lightblue import LightBlueSystemError
 from freshmaker.utils import sorted_by_nvr
-from freshmaker import log
 from tests import helpers
 
 

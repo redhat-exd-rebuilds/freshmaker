@@ -21,16 +21,12 @@
 #
 
 import functools
-import getpass
-import os
 import subprocess
 import sys
 import tempfile
 import time
 import koji
 import kobo.rpmlib
-import tarfile
-import io
 
 from freshmaker import conf, app, log
 from freshmaker.types import ArtifactType
@@ -162,6 +158,7 @@ def retry(timeout=conf.net_timeout, interval=conf.net_retry_interval, wait_on=Ex
                     time.sleep(interval)
         return inner
     return wrapper
+
 
 def _run_command(command, logger=None, rundir=None, output=subprocess.PIPE, error=subprocess.PIPE, env=None,
                  log_output=True):
