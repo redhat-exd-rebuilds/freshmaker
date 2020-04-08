@@ -24,6 +24,8 @@
 import json
 import requests
 
+from freshmaker.utils import retry
+
 
 class Pulp(object):
     """Interface to Pulp"""
@@ -50,6 +52,7 @@ class Pulp(object):
         r.raise_for_status()
         return r.json()
 
+    @retry(wait_on=requests.exceptions.RequestException)
     def get_content_set_by_repo_ids(self, repo_ids):
         """Get content_sets by repository IDs
 
@@ -69,6 +72,7 @@ class Pulp(object):
         return [repo['notes']['content_set'] for repo in repos
                 if 'content_set' in repo['notes']]
 
+    @retry(wait_on=requests.exceptions.RequestException)
     def get_docker_repository_name(self, cdn_repo):
         """
         Getting docker repository name from pulp using cdn repo name.
