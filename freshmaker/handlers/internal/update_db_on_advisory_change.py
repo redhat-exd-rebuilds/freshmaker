@@ -46,7 +46,7 @@ class UpdateDBOnAdvisoryChange(BaseHandler):
         if not isinstance(event, ErrataAdvisoryStateChangedEvent):
             return False
 
-        if 'rpm' not in event.advisory.content_types:
+        if not {'rpm', 'module'} & set(event.advisory.content_types):
             log.info('Skip non-RPM advisory %s.', event.advisory.errata_id)
             return False
 

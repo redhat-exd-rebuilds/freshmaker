@@ -231,12 +231,13 @@ class TestUpdateDBOnAdvisoryChange(helpers.ModelsTestCase):
 
 class TestSkipNonRPMAdvisory(helpers.FreshmakerTestCase):
 
-    def test_ensure_to_handle_rpm_adivsory(self):
-        event = ErrataAdvisoryStateChangedEvent(
-            'msg-id-1',
-            ErrataAdvisory(123, 'name', 'REL_PREP', ['rpm', 'jar', 'pom']))
-        handler = UpdateDBOnAdvisoryChange()
-        self.assertTrue(handler.can_handle(event))
+    def test_ensure_to_handle_rpm_and_module_adivsory(self):
+        for content_type in ['rpm', 'module']:
+            event = ErrataAdvisoryStateChangedEvent(
+                'msg-id-1',
+                ErrataAdvisory(123, 'name', 'REL_PREP', [content_type, 'jar', 'pom']))
+            handler = UpdateDBOnAdvisoryChange()
+            self.assertTrue(handler.can_handle(event))
 
     def test_not_handle_non_rpm_advisory(self):
         event = ErrataAdvisoryStateChangedEvent(
