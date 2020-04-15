@@ -1,27 +1,52 @@
+# TODO: Upgrade to a more recent fedora version
 FROM fedora:29
+
+# The caller should build a Freshmaker RPM package and then pass it in this arg.
+ARG cacert_url=undefined
+ARG appversion=undefined
+
 LABEL \
     name="Freshmaker application" \
     vendor="Freshmaker developers" \
     license="GPLv2+" \
-    build-date=""
-# The caller should build a Freshmaker RPM package and then pass it in this arg.
-ARG freshmaker_rpm
-ARG cacert_url=undefined
-COPY $freshmaker_rpm /tmp
+    build-date="" \
+    version="$appversion"
 
-RUN cd /etc/yum.repos.d/ \
-    && dnf -v -y install 'dnf-command(config-manager)' \
-    && dnf config-manager --add-repo http://download-ipv4.eng.brq.redhat.com/rel-eng/RCMTOOLS/latest-RCMTOOLS-2-F-29/compose/Everything/x86_64/os/ \
-    && dnf -y clean all \
-    && dnf -v --nogpg -y install \
-    httpd python3-mod_wsgi mod_auth_gssapi python3-rhmsg mod_ssl python3-odcs-client \
-    /tmp/$(basename $freshmaker_rpm) \
-    && dnf -y -v downgrade https://kojipkgs.fedoraproject.org//packages/qpid-proton/0.26.0/1.fc29/x86_64/qpid-proton-c-0.26.0-1.fc29.x86_64.rpm \
-    https://kojipkgs.fedoraproject.org//packages/qpid-proton/0.26.0/1.fc29/x86_64/python3-qpid-proton-0.26.0-1.fc29.x86_64.rpm \
-    && dnf -y -v upgrade https://kojipkgs.fedoraproject.org/packages/kobo/0.10.0/1.fc31/noarch/python3-kobo-0.10.0-1.fc31.noarch.rpm \
-    https://kojipkgs.fedoraproject.org/packages/kobo/0.10.0/1.fc31/noarch/python3-kobo-rpmlib-0.10.0-1.fc31.noarch.rpm \
-    && dnf -y clean all \
-    && rm -f /tmp/*
+
+# An internal yum repo is needed for rhmsg
+ADD http://download.devel.redhat.com/rel-eng/RCMTOOLS/rcm-tools-fedora.repo /etc/yum.repos.d/
+# ...but the image doesn't have the required root CA installed
+RUN sed -i 's_https://_http://_' /etc/yum.repos.d/rcm-tools-fedora.repo
+
+COPY yum-packages.txt /tmp/yum-packages.txt
+
+RUN \
+    dnf -y install $(cat /tmp/yum-packages.txt) python3-rhmsg && \
+    dnf -y downgrade \
+        https://kojipkgs.fedoraproject.org//packages/qpid-proton/0.26.0/1.fc29/x86_64/qpid-proton-c-0.26.0-1.fc29.x86_64.rpm \
+        https://kojipkgs.fedoraproject.org//packages/qpid-proton/0.26.0/1.fc29/x86_64/python3-qpid-proton-0.26.0-1.fc29.x86_64.rpm \
+        && \
+    dnf -y upgrade https://kojipkgs.fedoraproject.org/packages/kobo/0.10.0/1.fc31/noarch/python3-kobo-0.10.0-1.fc31.noarch.rpm \
+        https://kojipkgs.fedoraproject.org/packages/kobo/0.10.0/1.fc31/noarch/python3-kobo-rpmlib-0.10.0-1.fc31.noarch.rpm \
+        && \
+    dnf clean all
+
+WORKDIR /src
+
+COPY . .
+
+RUN \
+    # All dependencies should've been installed from RPMs
+    echo '' > requirements.txt && \
+    pip3 install . --no-deps
+
+RUN mkdir -p /usr/share/freshmaker && cp contrib/freshmaker.wsgi /usr/share/freshmaker/
+
+RUN \
+    FRESHMAKER_CONFIG_FILE=/etc/freshmaker/config.py FRESHMAKER_CONFIG_SECTION=DevConfiguration freshmaker-manager --help &&\
+    FRESHMAKER_CONFIG_FILE=/etc/freshmaker/config.py FRESHMAKER_CONFIG_SECTION=DevConfiguration freshmaker-frontend --help &&\
+    FRESHMAKER_CONFIG_FILE=/etc/freshmaker/config.py FRESHMAKER_CONFIG_SECTION=DevConfiguration freshmaker-gencert --help &&\
+    FRESHMAKER_CONFIG_FILE=/etc/freshmaker/config.py FRESHMAKER_CONFIG_SECTION=DevConfiguration freshmaker-upgradedb --help
 
 RUN if [ "$cacert_url" != "undefined" ]; then \
         cd /etc/pki/ca-trust/source/anchors \
