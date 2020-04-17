@@ -172,7 +172,8 @@ class Event(FreshmakerBase):
 
     @classmethod
     def create(cls, session, message_id, search_key, event_type, released=True,
-               state=None, manual=False, dry_run=False, requester=None):
+               state=None, manual=False, dry_run=False, requester=None,
+               requested_rebuilds=None, requester_metadata=None):
         if event_type in EVENT_TYPES:
             event_type = EVENT_TYPES[event_type]
         now = datetime.utcnow()
@@ -186,6 +187,8 @@ class Event(FreshmakerBase):
             manual_triggered=manual,
             dry_run=dry_run,
             requester=requester,
+            requested_rebuilds=requested_rebuilds,
+            requester_metadata=requester_metadata,
         )
         session.add(event)
         return event
@@ -206,22 +209,47 @@ class Event(FreshmakerBase):
 
     @classmethod
     def get_or_create(cls, session, message_id, search_key, event_type,
-                      released=True, manual=False, dry_run=False):
+                      released=True, manual=False, dry_run=False,
+                      requester=None, requested_rebuilds=None,
+                      requester_metadata=None):
         instance = cls.get(session, message_id)
         if instance:
             return instance
         instance = cls.create(
             session, message_id, search_key, event_type,
-            released=released, manual=manual, dry_run=dry_run)
+            released=released, manual=manual, dry_run=dry_run,
+            requester=requester, requested_rebuilds=requested_rebuilds,
+            requester_metadata=requester_metadata)
         session.commit()
         return instance
 
     @classmethod
     def get_or_create_from_event(cls, session, event, released=True):
+        # we must extract all needed arguments,
+        # because event might not have some of them so we will use defaults
+        requester = getattr(event, "requester", None)
+        requested_rebuilds_list = getattr(event, "container_images", None)
+        requested_rebuilds = None
+        # make sure 'container_images' field is a list and convert it to str
+        if requested_rebuilds_list is not None and \
+                isinstance(requested_rebuilds_list, list):
+            requested_rebuilds = " ".join(requested_rebuilds_list)
+        requester_metadata = getattr(event, "requester_metadata_json", None)
+        if requester_metadata is not None:
+            # try to convert JSON into str, if it's invalid use None
+            try:
+                requester_metadata = json.dumps(requester_metadata)
+            except TypeError:
+                log.warning("requester_metadata_json field is ill-formatted: %s",
+                            requester_metadata)
+                requester_metadata = None
+
         return cls.get_or_create(session, event.msg_id,
                                  event.search_key, event.__class__,
                                  released=released, manual=event.manual,
-                                 dry_run=event.dry_run)
+                                 dry_run=event.dry_run, requester=requester,
+                                 requested_rebuilds=requested_rebuilds,
+                                 requester_metadata=requester_metadata)
 
     @classmethod
     def get_unreleased(cls, session, states=None):

@@ -48,7 +48,9 @@ class FreshmakerAsyncManualbuildParser(BaseParser):
             msg_id, data.get('dist_git_branch'), data.get('container_images', []),
             freshmaker_event_id=data.get('freshmaker_event_id'),
             brew_target=data.get('brew_target'),
-            dry_run=data.get('dry_run', False))
+            dry_run=data.get('dry_run', False),
+            requester=data.get('requester', None),
+            requester_metadata_json=data.get("metadata", None))
 
         return event
 

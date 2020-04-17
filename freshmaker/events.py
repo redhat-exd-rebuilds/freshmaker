@@ -314,7 +314,8 @@ class ManualRebuildWithAdvisoryEvent(ErrataAdvisoryRPMsSignedEvent):
     """
 
     def __init__(self, msg_id, advisory, container_images,
-                 requester_metadata_json=None, freshmaker_event_id=None, **kwargs):
+                 requester_metadata_json=None, freshmaker_event_id=None,
+                 requester=None, **kwargs):
         """
         Creates new ManualRebuildWithAdvisoryEvent.
 
@@ -322,14 +323,17 @@ class ManualRebuildWithAdvisoryEvent(ErrataAdvisoryRPMsSignedEvent):
         :param ErrataAdvisory advisory: Errata advisory associated with event.
         :param list container_images: List of NVRs of images to rebuild or
             empty list to rebuild all images affected by the advisory.
+        :param requester_metadata_json: JSON of additional information about rebuild
         :param freshmaker_event_id: Freshmaker event id on which this manual rebuild
             is based off on.
+        :param requester: name of requester of rebuild
         """
         super(ManualRebuildWithAdvisoryEvent, self).__init__(
             msg_id, advisory, **kwargs)
         self.container_images = container_images
         self.requester_metadata_json = requester_metadata_json
         self.freshmaker_event_id = freshmaker_event_id
+        self.requester = requester
 
 
 class BrewSignRPMEvent(BaseEvent):
@@ -416,7 +420,8 @@ class FreshmakerAsyncManualBuildEvent(BaseEvent):
     """Event triggered via API endpoint /async-builds"""
 
     def __init__(self, msg_id, dist_git_branch, container_images,
-                 freshmaker_event_id=None, brew_target=None, dry_run=False):
+                 freshmaker_event_id=None, brew_target=None, dry_run=False,
+                 requester=None, requester_metadata_json=None):
         """Initialize this event
 
         :param str msg_id: the message id.
@@ -434,6 +439,9 @@ class FreshmakerAsyncManualBuildEvent(BaseEvent):
         :param brew_target: the Brew target for the build. If not set, the
             previous ``buildContainer`` task build target will be used.
         :type brew_target: str or None
+        :param dry_run: True if the event should be handled in DRY_RUN mode.
+        :param requester: name of requester of rebuild
+        :param requester_metadata_json: JSON of additional information about rebuild
         """
         super(FreshmakerAsyncManualBuildEvent, self).__init__(
             msg_id, manual=True, dry_run=dry_run)
@@ -441,3 +449,5 @@ class FreshmakerAsyncManualBuildEvent(BaseEvent):
         self.container_images = container_images
         self.freshmaker_event_id = freshmaker_event_id
         self.brew_target = brew_target
+        self.requester = requester
+        self.requester_metadata_json = requester_metadata_json

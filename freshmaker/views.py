@@ -525,6 +525,10 @@ class BuildAPI(MethodView):
         # added to DB) to backend using UMB messaging. Backend will then
         # re-generate the event and start handling it.
         data["msg_id"] = db_event.message_id
+
+        # add information about requester
+        data["requester"] = db_event.requester
+
         messaging.publish("manual.rebuild", data)
 
         # Return back the JSON representation of Event to client.
@@ -611,6 +615,10 @@ class AsyncBuildAPI(MethodView):
         # added to DB) to backend using UMB messaging. Backend will then
         # re-generate the event and start handling it.
         data["msg_id"] = db_event.message_id
+
+        # add information about requester
+        data["requester"] = db_event.requester
+
         messaging.publish("async.manual.build", data)
 
         # Return back the JSON representation of Event to client.

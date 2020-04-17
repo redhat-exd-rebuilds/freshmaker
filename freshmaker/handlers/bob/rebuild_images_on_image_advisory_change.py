@@ -27,8 +27,8 @@ from freshmaker import conf, db
 from freshmaker.models import Event
 from freshmaker.errata import Errata
 from freshmaker.pulp import Pulp
-from freshmaker.events import (ErrataAdvisoryStateChangedEvent,
-                               ManualRebuildWithAdvisoryEvent)
+from freshmaker.events import (
+    ErrataAdvisoryStateChangedEvent, ManualRebuildWithAdvisoryEvent)
 from freshmaker.handlers import ContainerBuildHandler, fail_event_on_handler_exception
 from freshmaker.types import EventState, ArtifactType, ArtifactBuildState
 
@@ -53,6 +53,7 @@ class RebuildImagesOnImageAdvisoryChange(ContainerBuildHandler):
             self.force_dry_run()
 
         db_event = Event.get_or_create_from_event(db.session, event)
+
         self.set_context(db_event)
 
         # Check if we are allowed to build this advisory.

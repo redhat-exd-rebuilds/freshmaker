@@ -28,7 +28,8 @@ from freshmaker.config import all_
 from freshmaker import db, events
 from freshmaker.events import (
     ErrataAdvisoryRPMsSignedEvent,
-    ManualRebuildWithAdvisoryEvent)
+    ManualRebuildWithAdvisoryEvent,
+    BaseEvent)
 from freshmaker.handlers.koji import RebuildImagesOnRPMAdvisoryChange
 from freshmaker.lightblue import ContainerImage
 from freshmaker.models import Event, Compose, ArtifactBuild, EVENT_TYPES
@@ -248,6 +249,23 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
             handler = RebuildImagesOnRPMAdvisoryChange()
             ret = handler.can_handle(event)
             self.assertFalse(ret)
+
+    @patch.object(freshmaker.conf, 'dry_run', new=True)
+    def test_requester_on_manual_rebuild(self):
+        event = ManualRebuildWithAdvisoryEvent(
+            "123",
+            ErrataAdvisory(123, "RHBA-2017", "REL_PREP", ["rpm"],
+                           security_impact="",
+                           product_short_name="product"),
+            ["foo-container", "bar-container"],
+            requester="requester1")
+        handler = RebuildImagesOnRPMAdvisoryChange()
+        ret = handler.can_handle(event)
+        self.assertTrue(ret)
+        handler.handle(event)
+
+        db_event = Event.get(db.session, message_id='123')
+        self.assertEqual(db_event.requester, 'requester1')
 
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'RebuildImagesOnRPMAdvisoryChange': {
@@ -998,7 +1016,8 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
     def setUp(self):
         super(TestRecordBatchesImages, self).setUp()
 
-        self.mock_event = Mock(msg_id='msg-id', search_key=12345)
+        self.mock_event = Mock(spec=BaseEvent, msg_id='msg-id', search_key=12345,
+                               manual=False, dry_run=False)
 
         self.patcher = helpers.Patcher(
             'freshmaker.handlers.koji.RebuildImagesOnRPMAdvisoryChange.')

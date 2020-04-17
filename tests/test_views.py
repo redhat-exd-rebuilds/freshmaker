@@ -677,7 +677,8 @@ class TestManualTriggerRebuild(ViewBaseTest):
             u'requester_metadata': {}})
         publish.assert_called_once_with(
             'manual.rebuild',
-            {'msg_id': 'manual_rebuild_123', u'errata_id': 1})
+            {'msg_id': 'manual_rebuild_123', u'errata_id': 1,
+             'requester': 'root'})
 
     @patch('freshmaker.messaging.publish')
     @patch('freshmaker.parsers.internal.manual_rebuild.ErrataAdvisory.'
@@ -697,7 +698,8 @@ class TestManualTriggerRebuild(ViewBaseTest):
         self.assertEqual(data['dry_run'], True)
         publish.assert_called_once_with(
             'manual.rebuild',
-            {'msg_id': 'manual_rebuild_123', u'errata_id': 1, 'dry_run': True})
+            {'msg_id': 'manual_rebuild_123', u'errata_id': 1, 'dry_run': True,
+             'requester': 'root'})
 
     @patch('freshmaker.messaging.publish')
     @patch('freshmaker.parsers.internal.manual_rebuild.ErrataAdvisory.'
@@ -721,7 +723,7 @@ class TestManualTriggerRebuild(ViewBaseTest):
         publish.assert_called_once_with(
             'manual.rebuild',
             {'msg_id': 'manual_rebuild_123', u'errata_id': 1,
-             'container_images': ["foo-1-1", "bar-1-1"]})
+             'container_images': ["foo-1-1", "bar-1-1"], 'requester': 'root'})
 
     @patch('freshmaker.messaging.publish')
     @patch('freshmaker.parsers.internal.manual_rebuild.ErrataAdvisory.'
@@ -745,7 +747,30 @@ class TestManualTriggerRebuild(ViewBaseTest):
         publish.assert_called_once_with(
             'manual.rebuild',
             {'msg_id': 'manual_rebuild_123', u'errata_id': 1,
-             'metadata': {"foo": ["bar"]}})
+             'metadata': {"foo": ["bar"]}, 'requester': 'root'})
+
+    @patch('freshmaker.messaging.publish')
+    @patch('freshmaker.parsers.internal.manual_rebuild.ErrataAdvisory.'
+           'from_advisory_id')
+    @patch('freshmaker.parsers.internal.manual_rebuild.time.time')
+    def test_manual_rebuild_requester(self, time, from_advisory_id, publish):
+        time.return_value = 123
+        from_advisory_id.return_value = ErrataAdvisory(
+            123, 'name', 'REL_PREP', ['rpm'])
+
+        payload = {
+            'errata_id': 1,
+        }
+        with self.test_request_context(user='root'):
+            resp = self.client.post('/api/1/builds/', json=payload, content_type='application/json')
+        data = resp.json
+
+        # Other fields are predictible.
+        self.assertEqual(data['requester'], "root")
+        publish.assert_called_once_with(
+            'manual.rebuild',
+            {'msg_id': 'manual_rebuild_123', u'errata_id': 1,
+             'requester': 'root'})
 
     @patch('freshmaker.messaging.publish')
     @patch('freshmaker.parsers.internal.manual_rebuild.ErrataAdvisory.'
@@ -778,7 +803,8 @@ class TestManualTriggerRebuild(ViewBaseTest):
         publish.assert_called_once_with(
             'manual.rebuild',
             {'msg_id': 'manual_rebuild_123', u'errata_id': 103,
-             'container_images': ["foo-1-1"], 'freshmaker_event_id': 1})
+             'container_images': ["foo-1-1"], 'freshmaker_event_id': 1,
+             'requester': 'root'})
 
     @patch('freshmaker.messaging.publish')
     @patch('freshmaker.parsers.internal.manual_rebuild.ErrataAdvisory.'
@@ -952,7 +978,8 @@ class TestAsyncBuild(ViewBaseTest):
             {
                 'msg_id': 'async_build_123',
                 'dist_git_branch': 'master',
-                'container_images': ['foo-1-1', 'bar-1-1']
+                'container_images': ['foo-1-1', 'bar-1-1'],
+                'requester': 'root',
             })
 
     @patch('freshmaker.messaging.publish')
@@ -979,6 +1006,7 @@ class TestAsyncBuild(ViewBaseTest):
                 'dist_git_branch': 'master',
                 'container_images': ['foo-1-1', 'bar-1-1'],
                 'dry_run': True,
+                'requester': 'root',
             })
 
     def test_async_build_with_non_async_event(self):

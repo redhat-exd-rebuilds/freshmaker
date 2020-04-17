@@ -27,8 +27,8 @@ import koji
 import kobo
 
 from freshmaker import conf, db
-from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
-from freshmaker.events import ManualRebuildWithAdvisoryEvent
+from freshmaker.events import (
+    ErrataAdvisoryRPMsSignedEvent, ManualRebuildWithAdvisoryEvent)
 from freshmaker.handlers import ContainerBuildHandler, fail_event_on_handler_exception
 from freshmaker.lightblue import LightBlue
 from freshmaker.pulp import Pulp
@@ -72,9 +72,8 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
         # Generate the Database representation of `event`, it can be
         # triggered by user, we want to track what happened
 
-        db_event = Event.get_or_create(
-            db.session, event.msg_id, event.search_key, event.__class__,
-            released=False, manual=event.manual)
+        db_event = Event.get_or_create_from_event(db.session, event)
+
         db.session.commit()
         self.set_context(db_event)
 
@@ -210,8 +209,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
             stored into database.
         :rtype: dict
         """
-        db_event = Event.get_or_create(
-            db.session, event.msg_id, event.search_key, event.__class__)
+        db_event = Event.get_or_create_from_event(db.session, event)
 
         # Used as tmp dict with {brew_build_nvr: ArtifactBuild, ...} mapping.
         builds = builds or {}
