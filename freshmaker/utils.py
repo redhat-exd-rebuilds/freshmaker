@@ -184,3 +184,8 @@ def _run_command(command, logger=None, rundir=None, output=subprocess.PIPE, erro
         raise OSError("Got an error (%d) from %s: %s" % (p1.returncode, command[0], err))
 
     return out
+
+
+def is_pkg_modular(nvr):
+    """ Returns True if the package is modular, False otherwise. """
+    return "module+" in nvr

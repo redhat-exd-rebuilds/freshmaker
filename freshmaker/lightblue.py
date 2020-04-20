@@ -36,7 +36,7 @@ from itertools import groupby
 
 from freshmaker import log, conf
 from freshmaker.kojiservice import koji_service
-from freshmaker.utils import sorted_by_nvr
+from freshmaker.utils import sorted_by_nvr, is_pkg_modular
 import koji
 
 
@@ -749,8 +749,8 @@ class LightBlue(object):
             # name in the image is also modular. Also, include the image if the opposite is true.
             for rpm in rpms or []:
                 for srpm_nvr in srpm_name_to_nvrs.get(rpm.get("srpm_name"), []):
-                    if (("module+" in srpm_nvr and "module+" in rpm["srpm_nevra"]) or
-                            ("module+" not in srpm_nvr and "module+" not in rpm["srpm_nevra"])):
+                    if ((is_pkg_modular(srpm_nvr) and is_pkg_modular(rpm["srpm_nevra"])) or
+                            (not is_pkg_modular(srpm_nvr) and not is_pkg_modular(rpm["srpm_nevra"]))):
                         ret.append(image)
                         image_included = True
                         break

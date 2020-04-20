@@ -36,6 +36,7 @@ from freshmaker.errata import Errata
 from freshmaker.types import (
     ArtifactType, ArtifactBuildState, EventState, RebuildReason)
 from freshmaker.models import Event, Compose
+from freshmaker.utils import is_pkg_modular
 
 
 class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
@@ -424,8 +425,19 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
         # change was made, and rebuild everything.
         affected_pkgs = set([pkg['pkg_name'] for pkg in self.event.advisory.affected_pkgs])
         if affected_pkgs:
-            tmp_srpm_nvrs = srpm_nvrs
-            srpm_nvrs = set([srpm_nvr for srpm_nvr in srpm_nvrs if kobo.rpmlib.parse_nvr(srpm_nvr)["name"] in affected_pkgs])
+            tmp_srpm_nvrs = set(srpm_nvrs)
+            srpm_nvrs = set()
+            for srpm_nvr in tmp_srpm_nvrs:
+                srpm_name = kobo.rpmlib.parse_nvr(srpm_nvr)["name"]
+                # In case the SRPM NVR is modular, the `affected_pkgs` might contain
+                # modules which are in the "module_name:module_stream/pkg_name" format.
+                # We need to respect this format and only try to match the package name, it
+                # means only the "/pkg_name" part of affected_pkg.
+                if is_pkg_modular(srpm_nvr):
+                    if any(affected_pkg.endswith(f"/{srpm_name}") for affected_pkg in affected_pkgs):
+                        srpm_nvrs.add(srpm_nvr)
+                elif srpm_name in affected_pkgs:
+                    srpm_nvrs.add(srpm_nvr)
             self.log_info(("Not going to rebuild container images with RPMS from these SRPMs "
                            "because they're not affected: %r"), tmp_srpm_nvrs.difference(srpm_nvrs))
 

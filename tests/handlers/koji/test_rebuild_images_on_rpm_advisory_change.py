@@ -553,6 +553,23 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             published=True, release_categories=conf.lightblue_release_categories,
             leaf_container_images=None)
 
+    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+        'RebuildImagesOnRPMAdvisoryChange': {
+            'image': {'advisory_name': 'RHBA-*'}
+        }
+    })
+    @patch('os.path.exists', return_value=True)
+    def test_affected_packages_with_modules(self, exists):
+        self.event.advisory.affected_pkgs = [{'product': 'rhel-8', 'pkg_name': 'nodejs:10/nodejs'}]
+        self.get_builds.return_value = ["nodejs-10.19.0-1.module+el8.1.0+5726+6ed65f8c.x86_64"]
+        self.handler._find_images_to_rebuild(123456)
+
+        self.find_images_to_rebuild.assert_called_once_with(
+            set(['nodejs-10.19.0-1.module+el8.1.0+5726+6ed65f8c.x86_64']), ['content-set-1'],
+            filter_fnc=self.handler._filter_out_not_allowed_builds,
+            published=True, release_categories=conf.lightblue_release_categories,
+            leaf_container_images=None)
+
 
 class TestAllowBuild(helpers.ModelsTestCase):
     """Test RebuildImagesOnRPMAdvisoryChange.allow_build"""
