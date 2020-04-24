@@ -431,6 +431,51 @@ class TestViews(helpers.ModelsTestCase):
         self.assertEqual(len(building_events), 1)
         self.assertEqual(len(complete_events), 2)
 
+    def test_query_event_by_requester(self):
+        ev1 = models.Event.create(
+            db.session,
+            "2018-00000000-0000-0000-0123-000000000001",
+            "0123001",
+            events.ManualRebuildWithAdvisoryEvent,
+            state=EventState['COMPLETE'].value,
+            requester="bob",
+            requested_rebuilds="foo-1-1 bar-1-1"
+        )
+        resp = self.client.get('/api/1/events/?requester=bob')
+        evs = resp.json['items']
+        self.assertEqual(len(evs), 1)
+        self.assertEqual(evs[0]['requester'], ev1.requester)
+        self.assertEqual(evs[0]['search_key'], ev1.search_key)
+
+        resp = self.client.get('/api/1/events/?requester=alice')
+        evs = resp.json['items']
+        self.assertEqual(len(evs), 0)
+
+    def test_query_event_by_multiple_requesters(self):
+        models.Event.create(
+            db.session,
+            "2018-00000000-0000-0000-0123-000000000001",
+            "0123001",
+            events.ManualRebuildWithAdvisoryEvent,
+            state=EventState['COMPLETE'].value,
+            requester="bob",
+            requested_rebuilds="foo-1-1 bar-1-1"
+        ),
+        models.Event.create(
+            db.session,
+            "2018-00000000-0000-0000-0123-000000000002",
+            "0123002",
+            events.ManualRebuildWithAdvisoryEvent,
+            state=EventState['COMPLETE'].value,
+            requester="alice",
+            requested_rebuilds="foo-1-2 bar-1-2"
+        ),
+        resp = self.client.get('/api/1/events/?requester=alice&requester=bob')
+        evs = resp.json['items']
+        self.assertEqual(len(evs), 2)
+        self.assertTrue(('bob', '0123001') in [(e['requester'], e['search_key']) for e in evs])
+        self.assertTrue(('alice', '0123002') in [(e['requester'], e['search_key']) for e in evs])
+
     def test_query_event_order_by_default(self):
         resp = self.client.get('/api/1/events/')
         evs = resp.json['items']

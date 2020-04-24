@@ -192,7 +192,7 @@ def filter_events(flask_request):
 
     query = Event.query
 
-    for key in ['message_id', 'search_key', 'event_type_id']:
+    for key in ['message_id', 'search_key', 'event_type_id', 'requester']:
         values = flask_request.args.getlist(key)
         if not values:
             continue
