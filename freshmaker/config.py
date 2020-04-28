@@ -29,7 +29,7 @@ import imp
 import os
 import threading
 
-from os import sys
+from os import sys  # type: ignore
 from freshmaker import logger
 
 

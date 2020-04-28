@@ -2,6 +2,7 @@
 
 import os
 import tempfile
+from typing import Optional, Tuple, Union
 
 from freshmaker.config import all_, any_  # noqa
 
@@ -148,9 +149,9 @@ class BaseConfiguration(object):
     # Path to credential cache file. This optional could be None when not using
     # a client keytab to acquire credential.
     KRB_AUTH_CCACHE_FILE = tempfile.mkstemp(
-        suffix=str(os.getpid()), prefix="freshmaker_cc_")
+        suffix=str(os.getpid()), prefix="freshmaker_cc_")  # type: Union[Tuple[int, str], Optional[str]]
 
-    # Select which authentication backend to work with. There are 3 choices
+    # Select which authentication backend to work with. There are 3 choices Tuple[int, str]
     # noauth: no authentication is enabled. Useful for development particularly.
     # kerberos: Kerberos authentication is enabled.
     # openidc: OpenIDC authentication is enabled.
