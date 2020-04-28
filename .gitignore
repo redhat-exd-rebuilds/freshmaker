@@ -9,3 +9,7 @@
 tests/test_freshmaker.db
 freshmaker.db
 .pytest_cache
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
