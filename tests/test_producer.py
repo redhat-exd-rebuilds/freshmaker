@@ -57,7 +57,7 @@ class TestCheckUnfinishedKojiTasks(helpers.ModelsTestCase):
         self.koji_read_config_patcher.stop()
 
     @patch('freshmaker.kojiservice.KojiService.get_task_info')
-    @patch("freshmaker.consumer.get_global_consumer")
+    @patch('freshmaker.consumer.get_global_consumer')
     def test_koji_task_failed(self, global_consumer, get_task_info):
         consumer = self.create_consumer()
         global_consumer.return_value = consumer
@@ -72,7 +72,7 @@ class TestCheckUnfinishedKojiTasks(helpers.ModelsTestCase):
         self.assertEqual(event.new_state, "FAILED")
 
     @patch('freshmaker.kojiservice.KojiService.get_task_info')
-    @patch("freshmaker.consumer.get_global_consumer")
+    @patch('freshmaker.consumer.get_global_consumer')
     def test_koji_task_closed(self, global_consumer, get_task_info):
         consumer = self.create_consumer()
         global_consumer.return_value = consumer
@@ -87,7 +87,7 @@ class TestCheckUnfinishedKojiTasks(helpers.ModelsTestCase):
         self.assertEqual(event.new_state, "CLOSED")
 
     @patch('freshmaker.kojiservice.KojiService.get_task_info')
-    @patch("freshmaker.consumer.get_global_consumer")
+    @patch('freshmaker.consumer.get_global_consumer')
     def test_koji_task_dry_run(self, global_consumer, get_task_info):
         self.build.build_id = -10
         consumer = self.create_consumer()
@@ -101,7 +101,7 @@ class TestCheckUnfinishedKojiTasks(helpers.ModelsTestCase):
         self.assertRaises(queue.Empty, consumer.incoming.get, block=False)
 
     @patch('freshmaker.kojiservice.KojiService.get_task_info')
-    @patch("freshmaker.consumer.get_global_consumer")
+    @patch('freshmaker.consumer.get_global_consumer')
     def test_koji_task_open(self, global_consumer, get_task_info):
         self.build.build_id = -10
         consumer = self.create_consumer()
@@ -113,3 +113,39 @@ class TestCheckUnfinishedKojiTasks(helpers.ModelsTestCase):
         producer = FreshmakerProducer(hub)
         producer.check_unfinished_koji_tasks(db.session)
         self.assertRaises(queue.Empty, consumer.incoming.get, block=False)
+
+    @patch('freshmaker.kojiservice.KojiService.get_task_info')
+    @patch('freshmaker.consumer.get_global_consumer')
+    def test_koji_invalid_request(self, global_consumer, get_task_info):
+        from sqlalchemy.exc import StatementError, InvalidRequestError
+        from sqlalchemy import select
+        self.build.build_id = -10
+        consumer = self.create_consumer()
+        global_consumer.return_value = consumer
+
+        get_task_info.return_value = {'state': koji.TASK_STATES['OPEN']}
+
+        hub = MagicMock()
+        producer = FreshmakerProducer(hub)
+        # make new session to hold new connection and transaction
+        my_session = db.session()
+        # create connection and begin new transaction
+        my_connection = my_session.connection()
+        my_connection.begin()
+        # invalidate one connection to simulate disconnect from DB
+        my_connection.invalidate()
+
+        # check if it will raise Statement Error
+        with self.assertRaises(StatementError) as cm:
+            producer.check_unfinished_koji_tasks(my_session)
+        # check if Statement Error is caused by InvalidRequestError
+        self.assertIsInstance(cm.exception.orig, InvalidRequestError)
+
+        # rollback session, and rollback invalid transaction inside it
+        my_session.rollback()
+
+        # check that new connection is created in our session
+        self.assertIsNot(my_connection, my_session.connection())
+        # Check if connection to db is established again
+        my_session.connection().scalar(select([1]))
+        self.assertFalse(my_session.connection().invalidated)

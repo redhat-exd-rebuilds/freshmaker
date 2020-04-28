@@ -31,6 +31,8 @@ from freshmaker.kojiservice import koji_service
 from freshmaker.events import BrewContainerTaskStateChangeEvent
 from freshmaker.consumer import work_queue_put
 
+from sqlalchemy.exc import StatementError
+
 
 class FreshmakerProducer(PollingProducer):
     frequency = timedelta(seconds=conf.polling_interval)
@@ -38,6 +40,9 @@ class FreshmakerProducer(PollingProducer):
     def poll(self):
         try:
             self.check_unfinished_koji_tasks(db.session)
+        except StatementError as ex:
+            db.session.rollback()
+            log.error("Invalid request, session is rolled back: %s", ex.orig)
         except Exception:
             msg = 'Error in poller execution:'
             log.exception(msg)
