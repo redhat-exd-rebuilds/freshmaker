@@ -29,12 +29,14 @@ from unittest.mock import call, patch, Mock
 
 import freshmaker
 
+from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
 from freshmaker.lightblue import ContainerImage
 from freshmaker.lightblue import ContainerRepository
 from freshmaker.lightblue import LightBlue
 from freshmaker.lightblue import LightBlueRequestError
 from freshmaker.lightblue import LightBlueSystemError
 from freshmaker.utils import sorted_by_nvr
+from freshmaker.errata import ErrataAdvisory
 from tests import helpers
 
 
@@ -754,11 +756,24 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
              "target2", {"git_branch": "mybranch"}],
             ["git://pkgs.devel.redhat.com/rpms/repo-1#commit_hash1",
              "target1", {"git_branch": "mybranch"}]]
+        self.event = ErrataAdvisoryRPMsSignedEvent(
+            "123",
+            ErrataAdvisory(123, "RHBA-2017", "REL_PREP", [],
+                           security_impact="",
+                           product_short_name="product"))
 
     def tearDown(self):
         super(TestQueryEntityFromLightBlue, self).tearDown()
         self.patcher.unpatch_all()
         self.koji_read_config_patcher.stop()
+
+    @patch('os.path.exists', return_value=True)
+    def test_LightBlue_returns_event(self, exists):
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key,
+                       event_id=self.event.msg_id)
+        assert lb.event_id == self.event.msg_id
 
     @patch('freshmaker.lightblue.requests.post')
     def test_find_container_images(self, post):
