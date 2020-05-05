@@ -1506,11 +1506,9 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
 
     @patch('freshmaker.lightblue.LightBlue.find_images_with_packages_from_content_set')
     @patch('freshmaker.lightblue.LightBlue.find_parent_images_with_package')
-    @patch('freshmaker.lightblue.LightBlue.find_unpublished_image_for_build')
     @patch('os.path.exists')
     def test_images_to_rebuild(self,
                                exists,
-                               find_unpublished_image_for_build,
                                find_parent_images_with_package,
                                find_images_with_packages_from_content_set):
         exists.return_value = True
@@ -1640,7 +1638,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             }]
             image["directly_affected"] = True
 
-        find_unpublished_image_for_build.side_effect = images
         find_images_with_packages_from_content_set.return_value = images
 
         leaf_image6_as_parent = copy.deepcopy(leaf_image6)
@@ -1720,11 +1717,10 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
 
     @patch("freshmaker.lightblue.LightBlue.get_images_by_nvrs")
     @patch('freshmaker.lightblue.LightBlue.find_images_with_packages_from_content_set')
-    @patch('freshmaker.lightblue.LightBlue.find_unpublished_image_for_build')
     @patch('freshmaker.lightblue.LightBlue.find_parent_images_with_package')
     @patch('os.path.exists')
     def test_parent_images_with_package_using_field_parent_brew_build_parent_empty(
-            self, exists, find_parent_images_with_package, find_unpublished_image_for_build,
+            self, exists, find_parent_images_with_package,
             find_images_with_packages_from_content_set, cont_images):
         exists.return_value = True
 
@@ -1742,7 +1738,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         })
 
         find_parent_images_with_package.return_value = []
-        find_unpublished_image_for_build.return_value = image_a
         find_images_with_packages_from_content_set.return_value = [image_a]
         cont_images.side_effect = [self.fake_container_images_with_parent_brew_build, [], []]
 
@@ -1797,41 +1792,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         self.assertEqual(ret[0]["brew"]["package"], "package-name-1")
         self.assertEqual(set(ret[0]["content_sets"]),
                          set(["dummy-content-set-1", "dummy-content-set-2"]))
-
-    @patch('freshmaker.lightblue.LightBlue.find_images_with_packages_from_content_set')
-    @patch('freshmaker.lightblue.LightBlue.find_unpublished_image_for_build')
-    @patch('os.path.exists')
-    def test_images_to_rebuild_cannot_find_unpublished(
-            self, exists, find_unpublished_image_for_build,
-            find_images_with_packages_from_content_set):
-        exists.return_value = True
-
-        image_a = ContainerImage.create({
-            'brew': {'package': 'image-a', 'build': 'image-a-v-r1'},
-            'repository': 'repo-1',
-            'commit': 'image-a-commit',
-            'repositories': [{"repository": "foo/bar"}],
-            'rpm_manifest': [{
-                "rpms": [
-                    {"srpm_name": "dummy"}
-                ]
-            }]
-        })
-
-        find_unpublished_image_for_build.return_value = None
-        find_images_with_packages_from_content_set.return_value = [image_a]
-
-        lb = LightBlue(server_url=self.fake_server_url,
-                       cert=self.fake_cert_file,
-                       private_key=self.fake_private_key)
-        batches = lb.find_images_to_rebuild(["dummy-1-1"], ["dummy"])
-
-        self.assertEqual(len(batches), 1)
-        self.assertEqual(len(batches[0]), 1)
-        self.assertEqual(
-            list(batches[0])[0]["error"],
-            "Cannot find unpublished version of image, "
-            "Lightblue data is probably incomplete")
 
     @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
     @patch('freshmaker.lightblue.LightBlue.find_container_images')

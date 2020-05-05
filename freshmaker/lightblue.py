@@ -1009,47 +1009,6 @@ class LightBlue(object):
             images = self.filter_out_images_with_higher_srpm_nvr(images, srpm_name_to_nvrs)
         return images
 
-    def find_unpublished_image_for_build(self, build):
-        """
-        Returns the unpublished variant of Docker image specified by `build`
-        Brew build N-V-R.
-
-        :param str build: Brew build N-V-R.
-        :return: Unpublished container image.
-        :rtype: ContainerImage.
-        """
-        image_request = {
-            "objectType": "containerImage",
-            "query": {
-                "$and": [
-                    {
-                        "field": "brew.build",
-                        "op": "=",
-                        "rvalue": build
-                    },
-                    {
-                        "$or": [
-                            {
-                                "field": "repositories.*.published",
-                                "op": "=",
-                                "rvalue": False
-                            },
-                            {
-                                "field": "repositories#",
-                                "op": "=",
-                                "rvalue": 0
-                            }
-                        ]
-                    }
-                ]
-            },
-            "projection": self._get_default_projection(include_rpm_manifest=False)
-        }
-        images = self.find_container_images(image_request)
-        if not images:
-            return None
-        return images[0]
-
     def find_parent_brew_build_nvr_from_child(self, child_image):
         """
         Returns the parent brew build NVR of the input image. If the parent is not found it returns None.
@@ -1490,14 +1449,6 @@ class LightBlue(object):
                         break
                 else:
                     # This `srpm_name` is not in image.
-                    continue
-
-                unpublished = self.find_unpublished_image_for_build(image.nvr)
-                if not unpublished:
-                    image.log_error(
-                        "Cannot find unpublished version of image, Lightblue "
-                        "data is probably incomplete")
-                    rebuild_list[srpm_name] = [image]
                     continue
 
                 rebuild_list[srpm_name] = self.find_parent_images_with_package(
