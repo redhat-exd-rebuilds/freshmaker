@@ -22,6 +22,7 @@
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
 import abc
+from typing import List
 
 
 class BaseParser(object):
@@ -30,7 +31,7 @@ class BaseParser(object):
     """
     __metaclass__ = abc.ABCMeta
     name = "abstract_parser"
-    topic_suffixes = []
+    topic_suffixes = []  # type: List[str]
 
     @abc.abstractmethod
     def can_parse(self, topic, msg):

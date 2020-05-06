@@ -26,6 +26,7 @@
 import pkg_resources
 
 from logging import getLogger
+from typing import Any
 
 from flask import Flask
 from flask_login import LoginManager
@@ -40,12 +41,12 @@ try:
 except pkg_resources.DistributionNotFound:
     version = 'unknown'
 
-app = Flask(__name__)
+app = Flask(__name__)  # type: Any
 app.wsgi_app = ReverseProxy(app.wsgi_app)
 
 conf = init_config(app)
 
-db = SQLAlchemy(app)
+db = SQLAlchemy(app)  # type: Any
 
 init_logging(conf)
 log = getLogger(__name__)
