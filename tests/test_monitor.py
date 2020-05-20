@@ -57,8 +57,8 @@ class TestViews(helpers.ModelsTestCase):
     def test_monitor_api_structure(self):
         resp = self.client.get('/api/1/monitor/metrics')
         self.assertEqual(
-            len([l for l in resp.get_data(as_text=True).splitlines()
-                 if l.startswith('# TYPE')]), num_of_metrics)
+            len([line for line in resp.get_data(as_text=True).splitlines()
+                 if line.startswith('# TYPE')]), num_of_metrics)
 
 
 class ConsumerTest(helpers.ConsumerBaseTest):
@@ -127,5 +127,5 @@ def test_standalone_metrics_server():
 
     r = requests.get('http://127.0.0.1:10040/metrics')
 
-    assert len([l for l in r.text.splitlines()
-                if l.startswith('# TYPE')]) == num_of_metrics
+    assert len([line for line in r.text.splitlines()
+                if line.startswith('# TYPE')]) == num_of_metrics

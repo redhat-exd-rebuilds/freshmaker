@@ -1185,7 +1185,7 @@ class TestPatchAPI(ViewBaseTest):
 
     def test_patch_event_not_allowed(self):
         with self.test_request_context(user='john_smith'):
-            resp = self.client.patch(f'/api/1/events/1', json={'action': 'cancel'})
+            resp = self.client.patch('/api/1/events/1', json={'action': 'cancel'})
         assert resp.status_code == 403
         assert resp.json['message'] == (
             'User john_smith does not have any of the following roles: admin, manual_rebuilder'
