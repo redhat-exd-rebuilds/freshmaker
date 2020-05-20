@@ -26,7 +26,7 @@
 import pkg_resources
 
 from logging import getLogger
-from typing import Any
+from typing import Any  # noqa
 
 from flask import Flask
 from flask_login import LoginManager

@@ -2,7 +2,7 @@
 
 import os
 import tempfile
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple, Union  # noqa
 
 from freshmaker.config import all_, any_  # noqa
 

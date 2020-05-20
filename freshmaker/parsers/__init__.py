@@ -22,7 +22,7 @@
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
 import abc
-from typing import List
+from typing import List  # noqa
 
 
 class BaseParser(object):

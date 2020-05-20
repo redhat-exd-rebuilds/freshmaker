@@ -22,7 +22,7 @@
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
 import itertools
-from typing import Dict, Any
+from typing import Dict, Any  # noqa
 
 from freshmaker import conf
 from freshmaker.types import ArtifactType
