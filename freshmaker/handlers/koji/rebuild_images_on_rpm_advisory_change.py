@@ -397,8 +397,8 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
         # content sets
         lb = LightBlue(server_url=conf.lightblue_server_url,
                        cert=conf.lightblue_certificate,
-                       private_key=conf.lightblue_private_key)
-
+                       private_key=conf.lightblue_private_key,
+                       event_id=self.event.msg_id)
         # Check if we are allowed to rebuild unpublished images and clear
         # published and release_categories if so.
         if self.event.is_allowed(self, published=True):

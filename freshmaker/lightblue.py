@@ -451,7 +451,8 @@ class LightBlue(object):
 
     def __init__(self, server_url, cert, private_key,
                  verify_ssl=None,
-                 entity_versions=None):
+                 entity_versions=None,
+                 event_id=None):
         """Initialize LightBlue instance
 
         :param str server_url: URL used to call LightBlue APIs. It is
@@ -469,6 +470,7 @@ class LightBlue(object):
         """
         self.server_url = server_url.rstrip('/')
         self.api_root = '{}/rest/data'.format(self.server_url)
+        self.event_id = event_id
         if verify_ssl is None:
             self.verify_ssl = True
         else:
