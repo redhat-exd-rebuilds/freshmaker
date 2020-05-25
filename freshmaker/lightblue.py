@@ -1531,17 +1531,22 @@ class LightBlue(object):
         # For every image, find out all its parent images which contain the
         # srpm_name package and store these lists to to_rebuild.
         to_rebuild = []
+        optimization_base = 50
         with ThreadPoolExecutor(max_workers=conf.max_thread_workers) as executor:
             for result in executor.map(_get_images_to_rebuild, images):
                 to_rebuild.extend(result.values())
-
+                # Memory consumption of fully constructed to_rebuild list could
+                # be large. To prevent this we will periodically use
+                # deduplication on the list to reduce it size.
+                if len(to_rebuild) > optimization_base:
+                    self._deduplicate_images_to_rebuild(to_rebuild)
+                    optimization_base += 50
         # The to_rebuild list now contains all the images which need to be
         # rebuilt, but there are lot of duplicates there.
 
         # At first remove duplicated images which share the same name and
         # version, but different release.
         to_rebuild = self._deduplicate_images_to_rebuild(to_rebuild)
-
         # Get all the directly affected images so that any parents that are not marked as
         # directly affected can be set in _images_to_rebuild_to_batches
         directly_affected_nvrs = {
