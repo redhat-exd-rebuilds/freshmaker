@@ -1979,7 +1979,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                             {'field': 'content_sets', 'include': True, 'recursive': True},
                             {'field': 'parent_brew_build', 'include': True, 'recursive': False},
                             {'field': 'architecture', 'include': True, 'recursive': False},
-                            {'field': 'rpm_manifest.*.rpms', 'include': True, 'recursive': True},
+                            {'field': 'rpm_manifest.*.rpms.*.srpm_nevra', 'include': True, 'recursive': True},
+                            {'field': 'rpm_manifest.*.rpms.*.nvra', 'include': True, 'recursive': True},
                             {'field': 'rpm_manifest.*.rpms.*.srpm_name', 'include': True, 'recursive': True}],
              'objectType': 'containerImage'})
 

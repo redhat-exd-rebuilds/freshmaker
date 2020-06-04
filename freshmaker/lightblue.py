@@ -708,11 +708,22 @@ class LightBlue(object):
                              "field": "srpm_name",
                              "op": "=",
                              "rvalue": srpm_name
-                         } for srpm_name in srpm_names]}}]
+                         } for srpm_name in srpm_names]},
+                     "project": [
+                         {"field": "srpm_nevra", "include": True},
+                         {"field": "nvra", "include": True},
+                         {"field": "srpm_name", "include": True},
+                     ]
+                     }
+                ]
             else:
                 projection += [
-                    {"field": "rpm_manifest.*.rpms", "include": True, "recursive": True},
-                    {"field": "rpm_manifest.*.rpms.*.srpm_name", "include": True, "recursive": True},
+                    {"field": "rpm_manifest.*.rpms.*.srpm_nevra",
+                     "include": True, "recursive": True},
+                    {"field": "rpm_manifest.*.rpms.*.nvra",
+                     "include": True, "recursive": True},
+                    {"field": "rpm_manifest.*.rpms.*.srpm_name",
+                     "include": True, "recursive": True},
                 ]
         return projection
 
