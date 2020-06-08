@@ -594,6 +594,26 @@ class LightBlue(object):
                 arch_image.update_multi_arch(image)
                 image.update_multi_arch(arch_image)
 
+        # There can be multi-arch images which share the same
+        # image['brew']['build']. Freshmaker is not interested in the image
+        # architecture, it is only interested in NVR, so group the images
+        # by the same image['brew']['build'] and include just first one in the
+        # image list.
+        sorted_images = sorted_by_nvr(images, reverse=True)
+        images = []
+
+        # We must combine content_sets with same image NVR
+        # but different architectures into one content_sets field
+        for k, temp_images in groupby(sorted_images, key=lambda item: item.nvr):
+            temp_images = list(temp_images)
+            img = temp_images[0]
+            if 'content_sets' in img and len(temp_images) > 1:
+                new_content_sets = set(img.get('content_sets'))
+                for i in temp_images[1:]:
+                    new_content_sets.update(i.get('content_sets', []))
+                img["content_sets"] = list(new_content_sets)
+            images.append(img)
+
         return images
 
     def _set_container_repository_filters(
@@ -1161,25 +1181,6 @@ class LightBlue(object):
             # therefore set `published` to None.
             images = self.get_images_by_nvrs(
                 leaf_container_images, None, content_sets, srpm_nvrs)
-            # There can be multi-arch images which share the same
-            # image['brew']['build']. Freshmaker is not interested in the image
-            # architecture, it is only interested in NVR, so group the images
-            # by the same image['brew']['build'] and include just first one in the
-            # image list.
-            sorted_images = sorted_by_nvr(images, reverse=True)
-            images = []
-
-            # We must combine content_sets with same image NVR
-            # but different architectures into one content_sets field
-            for k, temp_images in groupby(sorted_images, key=lambda item: item.nvr):
-                temp_images = list(temp_images)
-                img = temp_images[0]
-                if 'content_sets' in img and len(temp_images) > 1:
-                    new_content_sets = set(img.get('content_sets'))
-                    for i in temp_images[1:]:
-                        new_content_sets.update(i.get('content_sets', []))
-                    img["content_sets"] = list(new_content_sets)
-                images.append(img)
 
         # In case we query for unpublished images, we need to return just
         # the latest NVR for given name-version, otherwise images would
