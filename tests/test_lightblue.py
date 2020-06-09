@@ -834,6 +834,10 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         self.assertEqual(2, len(images))
 
         image = images[0]
+        self.assertEqual('57ea8d289c624c035f96f4db', image['_id'])
+        self.assertEqual('sadc-docker',
+                         image['brew']['package'])
+        image = images[1]
         self.assertEqual('57ea8d1f9c624c035f96f4b0', image['_id'])
         self.assertEqual('jboss-webserver-3-webserver30-tomcat7-openshift-docker',
                          image['brew']['package'])
@@ -858,6 +862,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                         'build': 'sadc-container-1.1-6',
                         'package': 'sadc-container',
                     },
+                    'content_sets': ['dummy-content-set-1'],
                 },
                 {
                     '_id': '57ea8d289c624c035f96f4db',
@@ -868,6 +873,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                         'build': 'sadc-container-1.1-6',
                         'package': 'sadc-container',
                     },
+                    'content_sets': ['dummy-content-set-2'],
                 }
             ],
             'status': 'COMPLETE',
@@ -897,7 +903,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             cert=(self.fake_cert_file, self.fake_private_key),
             headers={'Content-Type': 'application/json'}
         )
-        self.assertEqual(2, len(images))
+        self.assertEqual(1, len(images))
         # Verify update_multi_arch is first called with the second image,
         # then with the first image. This is to ensure all ContainerImage
         # objects for the same Brew build have the same multi arch data.
@@ -2032,9 +2038,10 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         new_images = [ContainerImage.create(i) for i in new_images]
         find_repos.return_value = self.fake_repositories_with_content_sets
         find_images.return_value = self.fake_container_images + new_images
-        right_content_sets = [["dummy-content-set-1"],
-                              ["dummy-content-set-1", "dummy-content-set-2"],
-                              ["content-set-1", "content-set-2", "content-set-3"]]
+        right_content_sets = [["dummy-content-set-1", "dummy-content-set-2"],
+                              ["dummy-content-set-1"],
+                              ["content-set-1", "content-set-2"],
+                              ["content-set-2", "content-set-3"]]
         with patch('os.path.exists'):
             lb = LightBlue(server_url=self.fake_server_url,
                            cert=self.fake_cert_file,
@@ -2044,7 +2051,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                 ["content-set-1", "content-set-2", "content-set-3"],
                 leaf_container_images=['placeholder'])
 
-        self.assertEqual(3, len(ret))
+        self.assertEqual(4, len(ret))
         images_content_sets = [sorted(i.get('content_sets', ['!'])) for i in ret]
         self.assertEqual(images_content_sets, right_content_sets)
 
