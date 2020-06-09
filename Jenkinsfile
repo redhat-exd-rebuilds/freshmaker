@@ -48,7 +48,11 @@ node('fedora-29') {
     stage('Prepare') {
         checkout scm
         // Install requirements for testing harness
-        sh 'sudo dnf -y install python3-tox python3-flake8 `cat yum-packages.txt`'
+        sh '''
+        sudo dnf -y install python3-tox python3-flake8 \
+        rpm-libs gcc rpm-devel krb5-devel openldap-devel koji \
+        `cat yum-packages.txt`
+        '''
         // The fedora-29 node has an older version of setuptools that causes
         // tox to fail processing the dependencies
         sh 'sudo dnf update -y python3-setuptools'
