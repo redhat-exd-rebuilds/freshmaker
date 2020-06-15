@@ -22,12 +22,4 @@ available that address those CVEs.
    messaging_api
    dev_scripts
 
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
-
-
-.. _Freshmaker: https://pagure.io/freshmaker
+.. _Freshmaker: https://github.com/redhat-exd-rebuilds/freshmaker
