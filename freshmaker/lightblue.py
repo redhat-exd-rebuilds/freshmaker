@@ -501,7 +501,7 @@ class LightBlue(object):
         return self.entity_versions.get(entity_name, '')
 
     def _make_request(self, entity, data):
-        """Make a request to query data from LightBlue
+        """Make a request to query data from LightBlue and save it if vcrpy is configured
 
         :param str entity: the entity part to construct a full URL sent to
             LightBlue. Refer to callers of ``_make_request`` to learn what
@@ -516,11 +516,23 @@ class LightBlue(object):
             of errors.
         """
         entity_url = '{}/{}'.format(self.api_root, entity)
-        response = requests.post(entity_url,
-                                 data=json.dumps(data),
-                                 verify=self.verify_ssl,
-                                 cert=(self.cert, self.private_key),
-                                 headers={'Content-Type': 'application/json'})
+        # Record the Freshmaker lightblue queries
+        request_kwargs = {
+            "data": json.dumps(data),
+            "verify": self.verify_ssl,
+            "cert": (self.cert, self.private_key),
+            "headers": {'Content-Type': 'application/json'}
+        }
+        if self.event_id and conf.vcrpy_path:
+            import vcr
+            my_vcr = vcr.VCR(
+                cassette_library_dir=conf.vcrpy_path,
+                record_mode=conf.vcrpy_mode,
+            )
+            with my_vcr.use_cassette(f'{self.event_id}.yml'):
+                response = requests.post(entity_url, **request_kwargs)
+        else:
+            response = requests.post(entity_url, **request_kwargs)
 
         status_code = response.status_code
 
