@@ -78,6 +78,6 @@ HTTP REST API
 
 .. autoflask:: freshmaker:app
     :undoc-static:
-    :endpoints: event_types_list_v2, event_type_v2, build_types_list_v2, build_type_v2, build_states_list_v2, build_state_v2, events_list_v2, event_v2, builds_list_v2, build_v2, manual_trigger_v2, about_v2, verify_image_v2, verify_image_repository_v2, async_builds_v2
+    :endpoints: event_types_list_v2, event_type_v2, build_types_list_v2, build_type_v2, build_states_list_v2, build_state_v2, events_list_v2, event_v2, builds_list_v2, build_v2, manual_trigger_v2, about_v2, verify_image_v2, verify_image_repository_v2, async_build_v2
     :modules: freshmaker.views
     :order: path
