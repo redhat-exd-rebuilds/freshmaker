@@ -4,7 +4,7 @@ Development scripts
 
 The dev_scripts_ directory contains few useful scripts which can be used to debug Freshmaker locally.
 
-.. _dev_scripts: https://pagure.io/freshmaker/blob/master/f/dev_scripts
+.. _dev_scripts: https://github.com/redhat-exd-rebuilds/freshmaker/tree/master/dev_scripts
 
 
 General configuration

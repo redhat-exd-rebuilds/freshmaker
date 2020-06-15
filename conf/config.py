@@ -87,7 +87,7 @@ class BaseConfiguration(object):
     #       matches.
     #     - The all_(rule_1, rule_2, ...) matches when all the rules matches.
     #
-    # For more information see <http://pagure.io/freshmaker>.
+    # For more information see <https://github.com/redhat-exd-rebuilds/freshmaker>.
     #
     # Here is an example of allowing container images to be build as soon as
     # an RHSA advisory with critical/important severity or with hightouch bug

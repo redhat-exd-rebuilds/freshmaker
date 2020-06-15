@@ -41,7 +41,7 @@ setup(name='freshmaker',
       # TODO: Not sure which name would be used for mail alias,
       # but let's set this proactively to the new name.
       author_email='freshmaker-owner@fedoraproject.org',
-      url='https://pagure.io/freshmaker/',
+      url='https://github.com/redhat-exd-rebuilds/freshmaker',
       license='MIT',
       packages=find_packages(exclude=['tests', 'tests.*']),
       include_package_data=True,
