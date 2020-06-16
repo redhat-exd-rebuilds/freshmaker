@@ -54,8 +54,8 @@ class RebuildImagesOnGitRPMSpecChange(BaseHandler):
         # Get the list of modules with this package from this branch using PDC.
         pdc = PDC(conf)
         modules = pdc.get_latest_modules(component_name=event.rpm,
-                                        component_branch=event.branch,
-                                        active='true')
+                                         component_branch=event.branch,
+                                         active='true')
 
         for module in modules:
             name = module['variant_name']
