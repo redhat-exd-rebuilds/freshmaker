@@ -3,14 +3,14 @@ FROM fedora:29
 
 # The caller should build a Freshmaker RPM package and then pass it in this arg.
 ARG cacert_url=undefined
-ARG appversion=undefined
+ARG commitid=undefined
 
 LABEL \
     name="Freshmaker application" \
     vendor="Freshmaker developers" \
     license="GPLv2+" \
     build-date="" \
-    version="$appversion"
+    version="$commitid"
 
 
 # An internal yum repo is needed for rhmsg
