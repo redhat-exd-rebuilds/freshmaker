@@ -1,5 +1,5 @@
 # TODO: Upgrade to a more recent fedora version
-FROM fedora:29
+FROM fedora:32
 
 # The caller should build a Freshmaker RPM package and then pass it in this arg.
 ARG cacert_url=undefined
@@ -22,13 +22,6 @@ COPY yum-packages.txt /tmp/yum-packages.txt
 
 RUN \
     dnf -y install $(cat /tmp/yum-packages.txt) python3-rhmsg && \
-    dnf -y downgrade \
-        https://kojipkgs.fedoraproject.org//packages/qpid-proton/0.26.0/1.fc29/x86_64/qpid-proton-c-0.26.0-1.fc29.x86_64.rpm \
-        https://kojipkgs.fedoraproject.org//packages/qpid-proton/0.26.0/1.fc29/x86_64/python3-qpid-proton-0.26.0-1.fc29.x86_64.rpm \
-        && \
-    dnf -y upgrade https://kojipkgs.fedoraproject.org/packages/kobo/0.10.0/1.fc31/noarch/python3-kobo-0.10.0-1.fc31.noarch.rpm \
-        https://kojipkgs.fedoraproject.org/packages/kobo/0.10.0/1.fc31/noarch/python3-kobo-rpmlib-0.10.0-1.fc31.noarch.rpm \
-        && \
     dnf clean all
 
 WORKDIR /src
