@@ -21,5 +21,6 @@ available that address those CVEs.
    configuration
    messaging_api
    dev_scripts
+   db
 
 .. _Freshmaker: https://github.com/redhat-exd-rebuilds/freshmaker
