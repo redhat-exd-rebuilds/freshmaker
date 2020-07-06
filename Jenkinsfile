@@ -35,7 +35,7 @@ try { // massive try{} catch{} around the entire build for failure notifications
                     /* Note that the docker.build step has some magic to guess the
                      * Dockerfile used, which will break if the build directory (here ".")
                      * is not the final argument in the string. */
-                    def image = docker.build "factory2/freshmaker:${commitid}", "--build-arg cacert_url=https://password.corp.redhat.com/RH-IT-Root-CA.crt --build-arg commitid=${commitid} ."
+                    def image = docker.build "factory2/freshmaker:internal-${commitid}", "--build-arg cacert_url=https://password.corp.redhat.com/RH-IT-Root-CA.crt --build-arg commitid=${commitid} ."
                     /* Pushes to the internal registry can sometimes randomly fail
                      * with "unknown blob" due to a known issue with the registry
                      * storage configuration. So we retry up to 3 times. */
@@ -59,7 +59,7 @@ try { // massive try{} catch{} around the entire build for failure notifications
                     docker.withRegistry(
                             'https://docker-registry.upshift.redhat.com/',
                             'factory2-upshift-registry-token') {
-                        def image = docker.image("factory2/freshmaker:${commitid}")
+                        def image = docker.image("factory2/freshmaker:internal-${commitid}")
                         /* Pushes to the internal registry can sometimes randomly fail
                          * with "unknown blob" due to a known issue with the registry
                          * storage configuration. So we retry up to 3 times. */
