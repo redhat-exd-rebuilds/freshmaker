@@ -1432,7 +1432,7 @@ class LightBlue(object):
         repositories = image.get_registry_repositories(self)
         repository_key = sorted([r["repository"] for r in repositories])
         parsed_nvr = koji.parse_NVR(image.nvr)
-        return "%s-%s-%s" % (parsed_nvr["name"], parsed_nvr["version"], repository_key)
+        return "%s-%s" % (parsed_nvr["name"], repository_key)
 
     def _images_to_rebuild_to_batches(self, to_rebuild, directly_affected_nvrs):
         """

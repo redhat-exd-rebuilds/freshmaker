@@ -2295,6 +2295,54 @@ class TestDeduplicateImagesToRebuild(helpers.FreshmakerTestCase):
         ret = self.lb._deduplicate_images_to_rebuild([httpd, perl, foo])
         self.assertEqual(ret, expected_images)
 
+    def test_use_highest_latest_released_nvr_different_vers(self):
+        httpd = self._create_imgs([
+            "httpd-2.4-12",
+            "s2i-base-1-10",
+            "s2i-core-1-11",
+            "ubi8-container-8.2-299.1594067922",
+        ])
+
+        perl = self._create_imgs([
+            "perl-5.7-1",
+            ["s2i-base-1-2", {"latest_released": True}],
+            "s2i-core-1-2",
+            "ubi8-container-8.0-208.1593108770",
+        ])
+
+        foo = self._create_imgs([
+            "foo-5.7-1",
+            "s2i-base-1-1",
+            "s2i-core-1-2",
+            "ubi8-container-8.2-299.1594117625",
+        ])
+
+        expected_images = [
+            self._create_imgs([
+                "httpd-2.4-12",
+                "s2i-base-1-10",
+                "s2i-core-1-11",
+                "ubi8-container-8.2-299.1594117625",
+            ]),
+            self._create_imgs([
+                "perl-5.7-1",
+                ["s2i-base-1-2", {"latest_released": True}],
+                "s2i-core-1-11",
+                "ubi8-container-8.2-299.1594117625",
+            ]),
+            self._create_imgs([
+                "foo-5.7-1",
+                ["s2i-base-1-2", {"latest_released": True}],
+                "s2i-core-1-11",
+                "ubi8-container-8.2-299.1594117625",
+            ])
+        ]
+
+        self.maxDiff = None
+        ret = self.lb._deduplicate_images_to_rebuild([httpd, perl, foo])
+        self.assertEqual(ret[1][3]['brew']['build'], expected_images[1][3]['brew']['build'])
+        self.assertEqual(ret, expected_images)
+
     @patch.object(freshmaker.conf, 'lightblue_released_dependencies_only',
                   new=True)
     def test_use_highest_latest_released_nvr_include_released_only(self):
@@ -2395,8 +2443,8 @@ class TestDeduplicateImagesToRebuild(helpers.FreshmakerTestCase):
         expected_images = [
             self._create_imgs([
                 "httpd-2.4-12",
-                "s2i-base-1-10",
-                "s2i-core-1-11",
+                "s2i-base-2-2",
+                "s2i-core-2-2",
                 "rhel-server-docker-7.4-150",
             ]),
             self._create_imgs([
@@ -2434,7 +2482,7 @@ class TestDeduplicateImagesToRebuild(helpers.FreshmakerTestCase):
             self._create_imgs([
                 "httpd-2.4-12",
                 "s2i-base-1-2",
-                "s2i-core-1-11",
+                "s2i-core-2-12",
                 "rhel-server-docker-7.4-150",
             ]),
             self._create_imgs([
