@@ -269,15 +269,17 @@ class KojiTaskStateChangeEvent(BaseEvent):
 
 
 class ErrataBaseEvent(BaseEvent):
-    def __init__(self, msg_id, advisory, **kwargs):
+    def __init__(self, msg_id, advisory, freshmaker_event_id=None, **kwargs):
         """
         Creates new ErrataBaseEvent.
 
         :param str msg_id: Message id.
         :param ErrataAdvisory advisory: Errata advisory associated with event.
+        :param freshmaker_event_id: Freshmaker event id on which this event is based on.
         """
         super(ErrataBaseEvent, self).__init__(msg_id, **kwargs)
         self.advisory = advisory
+        self.freshmaker_event_id = freshmaker_event_id
 
     @property
     def search_key(self):
@@ -333,7 +335,6 @@ class ManualRebuildWithAdvisoryEvent(ErrataAdvisoryRPMsSignedEvent):
             msg_id, advisory, **kwargs)
         self.container_images = container_images
         self.requester_metadata_json = requester_metadata_json
-        self.freshmaker_event_id = freshmaker_event_id
         self.requester = requester
 
 
