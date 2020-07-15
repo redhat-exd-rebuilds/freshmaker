@@ -2443,8 +2443,8 @@ class TestDeduplicateImagesToRebuild(helpers.FreshmakerTestCase):
         expected_images = [
             self._create_imgs([
                 "httpd-2.4-12",
-                "s2i-base-2-2",
-                "s2i-core-2-2",
+                "s2i-base-1-10",
+                "s2i-core-1-11",
                 "rhel-server-docker-7.4-150",
             ]),
             self._create_imgs([
@@ -2482,7 +2482,7 @@ class TestDeduplicateImagesToRebuild(helpers.FreshmakerTestCase):
             self._create_imgs([
                 "httpd-2.4-12",
                 "s2i-base-1-2",
-                "s2i-core-2-12",
+                "s2i-core-1-11",
                 "rhel-server-docker-7.4-150",
             ]),
             self._create_imgs([
