@@ -2344,6 +2344,46 @@ class TestDeduplicateImagesToRebuild(helpers.FreshmakerTestCase):
         ret = self.lb._deduplicate_images_to_rebuild([httpd, perl, foo])
         self.assertEqual(ret, expected_images)
 
+    @patch.object(freshmaker.conf, 'lightblue_released_dependencies_only',
+                  new=True)
+    def test_update_parent_to_newer_version_parent(self):
+        """
+        When an image is replaced by a newer release, update its parent by
+        the parent of newer release, even the parent has a different version.
+        """
+        rust_toolset = self._create_imgs([
+            "rust-toolset-container-1.41.1-27",
+            "s2i-base-container-1-173",
+            "s2i-core-container-1-147",
+            "ubi8-container-8.2-299",
+        ])
+
+        nodejs_10 = self._create_imgs([
+            "nodejs-10-container-1-66.1584015429",
+            "s2i-base-container-1-142.1584015404",
+            "s2i-core-container-1-119.1584015378",
+            "ubi8-container-8.0-208.1584015373",
+        ])
+
+        expected_images = [
+            self._create_imgs([
+                "rust-toolset-container-1.41.1-27",
+                "s2i-base-container-1-173",
+                "s2i-core-container-1-147",
+                "ubi8-container-8.2-299",
+            ]),
+            self._create_imgs([
+                "nodejs-10-container-1-66.1584015429",
+                "s2i-base-container-1-173",
+                "s2i-core-container-1-147",
+                "ubi8-container-8.2-299",
+            ]),
+        ]
+
+        self.maxDiff = None
+        ret = self.lb._deduplicate_images_to_rebuild([rust_toolset, nodejs_10])
+        self.assertEqual(ret, expected_images)
+
     def test_use_highest_nvr(self):
         httpd = self._create_imgs([
             "httpd-2.4-12",

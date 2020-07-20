@@ -1394,8 +1394,9 @@ class LightBlue(object):
                     latest_image = nvr_to_image[latest_released_nvr]
                     if "parent" not in latest_image or not latest_image["parent"]:
                         continue
-                    latest_parent_name = koji.parse_NVR(
-                        latest_image["parent"].nvr)["name"]
+                    latest_parent_nvr_dict = koji.parse_NVR(latest_image["parent"].nvr)
+                    latest_parent_name = latest_parent_nvr_dict["name"]
+                    latest_parent_version = latest_parent_nvr_dict["version"]
 
                     # Go through the older images and in case the parent image differs,
                     # update its parents according to latest image parents.
@@ -1403,8 +1404,10 @@ class LightBlue(object):
                         image = nvr_to_image[nvr]
                         if "parent" not in image or not image["parent"]:
                             continue
-                        parent_name = koji.parse_NVR(image["parent"].nvr)["name"]
-                        if parent_name != latest_parent_name:
+                        parent_nvr_dict = koji.parse_NVR(image["parent"].nvr)
+                        parent_name = parent_nvr_dict["name"]
+                        parent_version = parent_nvr_dict["version"]
+                        if (parent_name, parent_version) != (latest_parent_name, latest_parent_version):
                             for image_id, parent_id in nvr_to_coordinates[nvr]:
                                 latest_image_id, latest_parent_id = nvr_to_coordinates[latest_released_nvr][0]
                                 to_rebuild[image_id][parent_id:] = to_rebuild[latest_image_id][latest_parent_id:]
