@@ -45,10 +45,10 @@ class BaseConfiguration(object):
     MESSAGING_TOPIC_PREFIX = ['org.fedoraproject.prod']
 
     # Base URL of git repository with source artifacts.
-    GIT_BASE_URL = "git://pkgs.fedoraproject.org"
+    GIT_BASE_URL = "git://pkgs.devel.redhat.com"
 
     # SSH base URL of git repository
-    GIT_SSH_BASE_URL = "ssh://%s@pkgs.fedoraproject.org/"
+    GIT_SSH_BASE_URL = "ssh://%s@pkgs.devel.redhat.com/"
 
     # GIT user for cloning and pushing repo
     GIT_USER = ""
@@ -165,12 +165,11 @@ class BaseConfiguration(object):
     # The base to query for users in LDAP. For example, ou=users,dc=example,dc=com.
     AUTH_LDAP_USER_BASE = ''
 
+    # OIDC provider
     AUTH_OPENIDC_USERINFO_URI = 'https://id.fedoraproject.org/openidc/UserInfo'
 
     # OIDC base namespace
-    # See also section pagure.io/odcs in
-    # https://fedoraproject.org/wiki/Infrastructure/Authentication
-    OIDC_BASE_NAMESPACE = 'https://pagure.io/freshmaker/'
+    OIDC_BASE_NAMESPACE = ''
 
     # Scope requested from Fedora Infra for permission of submitting request to
     # run a new compose.

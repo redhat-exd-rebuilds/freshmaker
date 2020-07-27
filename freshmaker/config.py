@@ -184,11 +184,11 @@ class Config(object):
             'desc': 'Polling interval, in seconds.'},
         'git_base_url': {
             'type': str,
-            'default': "git://pkgs.fedoraproject.org",
+            'default': "git://pkgs.devel.redhat.com",
             'desc': 'Dist-git base URL.'},
         'git_ssh_base_url': {
             'type': str,
-            'default': "ssh://%s@pkgs.fedoraproject.org/",
+            'default': "ssh://%s@pkgs.devel.redhat.com/",
             'desc': 'Dist-git ssh base URL.'},
         'git_user': {
             'type': str,
@@ -196,7 +196,7 @@ class Config(object):
             'desc': 'User for git operations.'},
         'git_author': {
             'type': str,
-            'default': 'Freshmaker <freshmaker-owner@fedoraproject.org>',
+            'default': 'Freshmaker <freshmaker-owner@github.com>',
             'desc': 'Author for git commit.'},
         'koji_profile': {
             'type': str,
@@ -353,7 +353,7 @@ class Config(object):
                     'The "$tid" is replaced by thread ID'},
         'oidc_base_namespace': {
             'type': str,
-            'default': 'https://pagure.io/freshmaker/',
+            'default': '',
             'desc': 'Base namespace of OIDC scopes.'},
         'dogpile_cache_backend': {
             'type': str,
