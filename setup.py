@@ -40,7 +40,7 @@ setup(name='freshmaker',
       author='The Factory 2.0 Team',
       # TODO: Not sure which name would be used for mail alias,
       # but let's set this proactively to the new name.
-      author_email='freshmaker-owner@fedoraproject.org',
+      author_email='freshmaker-owner@github.com',
       url='https://github.com/redhat-exd-rebuilds/freshmaker',
       license='MIT',
       packages=find_packages(exclude=['tests', 'tests.*']),

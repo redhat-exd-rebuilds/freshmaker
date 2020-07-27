@@ -196,7 +196,7 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
         handler = MyHandler()
         handler.build_image_artifact_build(self.build_1)
         build_container.assert_called_once_with(
-            'git://pkgs.fedoraproject.org/repo#hash', 'branch', 'target',
+            'git://pkgs.devel.redhat.com/repo#hash', 'branch', 'target',
             arch_override='x86_64', compose_ids=[5, 6, 7, 8], isolated=True,
             koji_parent_build=None, release='2.1234567', repo_urls=None)
 
@@ -213,7 +213,7 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
         handler = MyHandler()
         handler.build_image_artifact_build(self.build_1)
         build_container.assert_called_once_with(
-            'git://pkgs.fedoraproject.org/repo#hash', 'branch', 'target',
+            'git://pkgs.devel.redhat.com/repo#hash', 'branch', 'target',
             arch_override='x86_64', compose_ids=[5, 6, 7, 8, 7300, 7301],
             isolated=True, koji_parent_build=None, release='2.1234567', repo_urls=None)
 
@@ -227,7 +227,7 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
 
         repo_urls = ['http://localhost/x.repo']
         build_container.assert_called_once_with(
-            'git://pkgs.fedoraproject.org/repo#hash', 'branch', 'target',
+            'git://pkgs.devel.redhat.com/repo#hash', 'branch', 'target',
             arch_override='x86_64', compose_ids=[5, 6, 7, 8], isolated=True,
             koji_parent_build=None, release='2.1234567', repo_urls=repo_urls)
 
