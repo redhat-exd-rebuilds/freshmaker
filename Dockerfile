@@ -21,7 +21,7 @@ RUN sed -i 's_https://_http://_' /etc/yum.repos.d/rcm-tools-fedora.repo
 COPY yum-packages.txt /tmp/yum-packages.txt
 
 RUN \
-    dnf -y install $(cat /tmp/yum-packages.txt) python3-rhmsg && \
+    dnf -y install $(cat /tmp/yum-packages.txt) python3-rhmsg findutils && \
     dnf clean all
 
 WORKDIR /src
