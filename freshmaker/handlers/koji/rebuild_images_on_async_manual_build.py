@@ -367,7 +367,7 @@ class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
                 build_args["target"] = (
                     self.event.brew_target if self.event.brew_target else image["target"])
                 build_args["branch"] = image["git_branch"]
-                build_args["original_parent"] = parent_nvr,
+                build_args["original_parent"] = parent_nvr
                 build_args["arches"] = image["arches"]
                 build.build_args = json.dumps(build_args)
 
