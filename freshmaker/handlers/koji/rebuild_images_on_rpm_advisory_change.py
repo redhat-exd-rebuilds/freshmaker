@@ -24,7 +24,6 @@
 
 import json
 import koji
-import kobo
 
 from freshmaker import conf, db
 from freshmaker.events import (
@@ -36,7 +35,6 @@ from freshmaker.errata import Errata
 from freshmaker.types import (
     ArtifactType, ArtifactBuildState, EventState, RebuildReason)
 from freshmaker.models import Event, Compose
-from freshmaker.utils import is_pkg_modular
 
 
 class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
@@ -413,31 +411,8 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
         if isinstance(self.event, ManualRebuildWithAdvisoryEvent):
             leaf_container_images = self.event.container_images
 
-        # For each SRPM NVR, find out all the containers which include
-        # this SRPM NVR.
-        srpm_nvrs = set(errata.get_builds(errata_id))
-        # affected_pkgs contains the list of actually affected pkgs from the CVE.
-        # We don't need to build images that really don't affect the CVE, even if they are
-        # listed in the RHSA. So let's just remove the ones that are not listed in here.
-        # In case this is empty we are just going to use the "old" behavior before this
-        # change was made, and rebuild everything.
-        affected_pkgs = set([pkg['pkg_name'] for pkg in self.event.advisory.affected_pkgs])
-        if affected_pkgs:
-            tmp_srpm_nvrs = set(srpm_nvrs)
-            srpm_nvrs = set()
-            for srpm_nvr in tmp_srpm_nvrs:
-                srpm_name = kobo.rpmlib.parse_nvr(srpm_nvr)["name"]
-                # In case the SRPM NVR is modular, the `affected_pkgs` might contain
-                # modules which are in the "module_name:module_stream/pkg_name" format.
-                # We need to respect this format and only try to match the package name, it
-                # means only the "/pkg_name" part of affected_pkg.
-                if is_pkg_modular(srpm_nvr):
-                    if any(affected_pkg.endswith(f"/{srpm_name}") for affected_pkg in affected_pkgs):
-                        srpm_nvrs.add(srpm_nvr)
-                elif srpm_name in affected_pkgs:
-                    srpm_nvrs.add(srpm_nvr)
-            self.log_info(("Not going to rebuild container images with RPMS from these SRPMs "
-                           "because they're not affected: %r"), tmp_srpm_nvrs.difference(srpm_nvrs))
+        # Get srpm nvrs which are affected by the CVEs in this advisory
+        srpm_nvrs = self.event.advisory.affected_srpm_nvrs
 
         self.log_info(
             "Going to find all the container images to rebuild as "

@@ -131,10 +131,59 @@ class MockedErrataAPI(object):
         self.product_versions[3] = {"rhel_release": {"name": "RHEL-6-foobar"}}
         self.product_versions[4] = {"rhel_release": {"name": "RHEL-7-foobar"}}
 
+        self.builds_by_cve = {
+            "CVE-2020-12345": {
+                "PRODUCT1": {
+                    "name": "PRODUCT1",
+                    "description": "PRODUCT Version 1",
+                    "builds": [
+                        {
+                            "libntirpc-1.4.3-4.el6rhs": {
+                                "nvr": "libntirpc-1.4.3-4.el6rhs",
+                                "nevr": "libntirpc-0:1.4.3-4.el6rhs",
+                                "id": 1220279,
+                                "is_module": False,
+                                "variant_arch": {
+                                    "PRODUCT1": {
+                                        "x86_64": [
+                                            "libntirpc-1.4.3-4.el6rhs.x86_64.rpm"
+                                        ],
+                                        "ppc64le": [
+                                            "libntirpc-1.4.3-4.el6rhs.ppc64le.rpm"
+                                        ],
+                                        "s390x": ["libntirpc-1.4.3-4.el6rhs.s390x.rpm"],
+                                        "aarch64": [
+                                            "libntirpc-1.4.3-4.el6rhs.aarch64.rpm"
+                                        ],
+                                        "SRPMS": ["libntirpc-1.4.3-4.el6rhs.src.rpm"],
+                                    },
+                                    "PRODUCT2": {
+                                        "x86_64": [
+                                            "libntirpc-1.4.3-4.el6rhs.x86_64.rpm"
+                                        ],
+                                        "ppc64le": [
+                                            "libntirpc-1.4.3-4.el6rhs.ppc64le.rpm"
+                                        ],
+                                        "s390x": ["libntirpc-1.4.3-4.el6rhs.s390x.rpm"],
+                                        "aarch64": [
+                                            "libntirpc-1.4.3-4.el6rhs.aarch64.rpm"
+                                        ],
+                                        "SRPMS": ["libntirpc-1.4.3-4.el6rhs.src.rpm"],
+                                    },
+                                },
+                            }
+                        }
+                    ],
+                }
+            }
+        }
+
     def errata_rest_get(self, endpoint):
         if endpoint.find("build/") != -1:
             nvr = endpoint.split("/")[-1]
             return self.builds[nvr]
+        elif endpoint.find("builds_by_cve") != -1:
+            return self.builds_by_cve
         elif endpoint.find("erratum/") != -1:
             return self.advisory_rest_json
 
@@ -161,14 +210,8 @@ class TestErrata(helpers.FreshmakerTestCase):
         super(TestErrata, self).setUp()
         self.errata = Errata("https://localhost/")
 
-        self.patcher = helpers.Patcher(
-            'freshmaker.errata.SFM2API.')
-        self.patcher.patch("fetch_cve_metadata",
-                           return_value=["moderate", {}])
-
     def tearDown(self):
         super(TestErrata, self).tearDown()
-        self.patcher.unpatch_all()
 
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
@@ -181,11 +224,10 @@ class TestErrata(helpers.FreshmakerTestCase):
         self.assertEqual(advisories[0].name, "RHSA-2017:28484")
         self.assertEqual(advisories[0].state, "QE")
         self.assertEqual(advisories[0].content_types, ["rpm"])
-        self.assertEqual(advisories[0].security_impact, "Important")
+        self.assertEqual(advisories[0].security_impact, "important")
         self.assertEqual(advisories[0].product_short_name, "product")
         self.assertEqual(advisories[0].cve_list,
                          ["CVE-2015-3253", "CVE-2016-6814"])
-        self.assertEqual(advisories[0].highest_cve_severity, "moderate")
         self.assertEqual(advisories[0].has_hightouch_bug, True)
 
     @patch.object(Errata, "_errata_rest_get")
@@ -342,6 +384,13 @@ class TestErrata(helpers.FreshmakerTestCase):
         }
         ret = self.errata.get_builds(28484, "")
         self.assertEqual(ret, set(['libntirpc-1.4.3-4.el7rhgs']))
+
+    @patch.object(Errata, "_errata_rest_get")
+    @patch.object(Errata, "_errata_http_get")
+    def test_errata_get_cve_affected_srpm_nvrs(self, errata_http_get, errata_rest_get):
+        MockedErrataAPI(errata_rest_get, errata_http_get)
+        ret = self.errata.get_cve_affected_srpm_nvrs(28484)
+        self.assertEqual(ret, ['libntirpc-1.4.3-4.el6rhs'])
 
     def test_get_docker_repo_tags(self):
         with patch.object(self.errata, "xmlrpc") as xmlrpc:
