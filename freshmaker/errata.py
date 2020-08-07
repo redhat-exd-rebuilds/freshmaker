@@ -32,7 +32,6 @@ from freshmaker.events import (
     BrewSignRPMEvent, ErrataBaseEvent,
     FreshmakerManualRebuildEvent)
 from freshmaker import conf, log
-from freshmaker.sfm2 import SFM2API
 from freshmaker.utils import retry
 
 
@@ -56,9 +55,16 @@ class ErrataAdvisory(object):
         self.cve_list = cve_list or []
         self.has_hightouch_bug = has_hightouch_bug
 
-        sfm2 = SFM2API()
+        self._affected_srpm_nvrs = None
 
-        self.highest_cve_severity, self.affected_pkgs = sfm2.fetch_cve_metadata(self.cve_list)
+    @property
+    def affected_srpm_nvrs(self):
+        if self._affected_srpm_nvrs is not None:
+            return self._affected_srpm_nvrs
+
+        errata = Errata()
+        self._affected_srpm_nvrs = errata.get_cve_affected_srpm_nvrs(self.errata_id)
+        return self._affected_srpm_nvrs
 
     @classmethod
     def from_advisory_id(cls, errata, errata_id):
@@ -78,6 +84,12 @@ class ErrataAdvisory(object):
         else:
             cve_list = []
 
+        # security_impact in errata is capitalized string, making it lowercase
+        # for backwards compatibility with SFM2's security impact (we used to
+        # get the severity from SFM2). It's used in our config to allow or block
+        # rebuilds for artifacts.
+        security_impact = erratum_data["security_impact"].lower()
+
         has_hightouch_bug = False
         bugs = errata._get_bugs(erratum_data["id"]) or []
         for bug in bugs:
@@ -87,7 +99,7 @@ class ErrataAdvisory(object):
 
         return ErrataAdvisory(
             erratum_data["id"], erratum_data["fulladvisory"], erratum_data["status"],
-            erratum_data['content_types'], erratum_data["security_impact"],
+            erratum_data['content_types'], security_impact,
             product_data["product"]["short_name"], cve_list,
             has_hightouch_bug)
 
@@ -379,3 +391,26 @@ class Errata(object):
         data = self._errata_http_get(
             '/errata/get_pulp_packages/{}.json'.format(errata_id))
         return data.keys()
+
+    def get_cve_affected_srpm_nvrs(self, errata_id):
+        """ Get SRPM nvrs which are affected by the CVEs in errata
+
+        :param errata_id: Errata advisory ID, e.g. 25713.
+        :type errata_id: str or int
+        :return: a list of strings each of them is a source rpm nvr
+        :rtype: list
+        """
+        data = self._errata_rest_get(f"/erratum/{errata_id}/builds_by_cve")
+        srpms = set()
+        for cve, data_by_product in data.items():
+            for product, product_data in data_by_product.items():
+                for build in product_data.get("builds", []):
+                    for build_nvr, build_info in build.items():
+                        # for rpm advisories, build_nvr equal to srpm nvr, but this is
+                        # not true for module advisories, so we need to get the srpms
+                        # from variants data
+                        for variant, variant_data in build_info.get("variant_arch", {}).items():
+                            for srpm in variant_data.get("SRPMS", []):
+                                srpms.add(srpm.split(".src.rpm")[0])
+
+        return list(srpms)

@@ -288,18 +288,18 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
     @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
         'RebuildImagesOnRPMAdvisoryChange': {
             'image': {
-                'advisory_highest_cve_severity': ['critical', 'important']
+                'advisory_security_impact': ['critical', 'important']
             }
         }
     })
     @patch.object(freshmaker.conf, 'dry_run', new=True)
-    def test_allow_build_by_highest_cve_severity(self):
+    def test_allow_build_by_security_impact(self):
         compose_4 = Compose(odcs_compose_id=4)
         db.session.add(compose_4)
         db.session.commit()
 
         for severity in ["moderate", "critical", "important"]:
-            self.rhba_event.advisory.highest_cve_severity = severity
+            self.rhba_event.advisory.security_impact = severity
             self.mock_find_images_to_rebuild.return_value = [[]]
             handler = RebuildImagesOnRPMAdvisoryChange()
             handler.handle(self.rhba_event)
@@ -435,8 +435,8 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             'freshmaker.errata.Errata.get_pulp_repository_ids',
             return_value=["pulp_repo_x86_64"])
 
-        self.get_builds = self.patcher.patch(
-            'freshmaker.errata.Errata.get_builds',
+        self.get_affected_srpm_nvrs = self.patcher.patch(
+            'freshmaker.errata.Errata.get_cve_affected_srpm_nvrs',
             return_value=["httpd-2.4-11.el7"])
 
         self.find_images_to_rebuild = self.patcher.patch(
@@ -472,7 +472,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             pass
 
         self.find_images_to_rebuild.assert_called_once_with(
-            set(['httpd-2.4-11.el7']), ['content-set-1'],
+            ['httpd-2.4-11.el7'], ['content-set-1'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
             published=True, release_categories=conf.lightblue_release_categories,
             leaf_container_images=None)
@@ -484,12 +484,12 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
     })
     @patch('os.path.exists', return_value=True)
     def test_multiple_srpms(self, exists):
-        self.get_builds.return_value = ["httpd-2.4-11.el7", "httpd-2.2-11.el6"]
+        self.get_affected_srpm_nvrs.return_value = ["httpd-2.4-11.el7", "httpd-2.2-11.el6"]
         for x in self.handler._find_images_to_rebuild(123456):
             pass
 
         self.find_images_to_rebuild.assert_called_once_with(
-            set(['httpd-2.4-11.el7', 'httpd-2.2-11.el6']), ['content-set-1'],
+            ['httpd-2.4-11.el7', 'httpd-2.2-11.el6'], ['content-set-1'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
             published=True, release_categories=conf.lightblue_release_categories,
             leaf_container_images=None)
@@ -508,7 +508,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             pass
 
         self.find_images_to_rebuild.assert_called_once_with(
-            set(['httpd-2.4-11.el7']), ['content-set-1'],
+            ['httpd-2.4-11.el7'], ['content-set-1'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
             published=None, release_categories=None,
             leaf_container_images=None)
@@ -525,7 +525,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             pass
 
         self.find_images_to_rebuild.assert_called_once_with(
-            set(['httpd-2.4-11.el7']), ['content-set-1'],
+            ['httpd-2.4-11.el7'], ['content-set-1'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
             published=True, release_categories=conf.lightblue_release_categories,
             leaf_container_images=None)
@@ -543,7 +543,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             pass
 
         self.find_images_to_rebuild.assert_called_once_with(
-            set(['httpd-2.4-11.el7']), ['content-set-1'],
+            ['httpd-2.4-11.el7'], ['content-set-1'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
             published=True, release_categories=conf.lightblue_release_categories,
             leaf_container_images=["foo", "bar"])
@@ -553,37 +553,15 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             'image': {'advisory_name': 'RHBA-*'}
         }
     })
+    @patch("freshmaker.errata.ErrataAdvisory.affected_srpm_nvrs",
+           new_callable=PropertyMock,
+           return_value=["nodejs-10.19.0-1.module+el8.1.0+5726+6ed65f8c.x86_64"])
     @patch('os.path.exists', return_value=True)
-    def test_whitelist_affected_packages(self, exists):
-        """
-        In case there are more pkgs in a RHSA, but not all of them are actually affected from the CVE,
-        the images that will have to be rebuild will be only the ones affected.
-        This test is checking this process.
-        """
-        self.event.advisory.affected_pkgs = [{'product': 'whatever', 'pkg_name': 'httpd'}]
-        self.get_builds.return_value = ["httpd-2.4-11.el7", "foo-1-1"]
-        for x in self.handler._find_images_to_rebuild(123456):
-            pass
-
-        self.find_images_to_rebuild.assert_called_once_with(
-            set(['httpd-2.4-11.el7']), ['content-set-1'],
-            filter_fnc=self.handler._filter_out_not_allowed_builds,
-            published=True, release_categories=conf.lightblue_release_categories,
-            leaf_container_images=None)
-
-    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
-        'RebuildImagesOnRPMAdvisoryChange': {
-            'image': {'advisory_name': 'RHBA-*'}
-        }
-    })
-    @patch('os.path.exists', return_value=True)
-    def test_affected_packages_with_modules(self, exists):
-        self.event.advisory.affected_pkgs = [{'product': 'rhel-8', 'pkg_name': 'nodejs:10/nodejs'}]
-        self.get_builds.return_value = ["nodejs-10.19.0-1.module+el8.1.0+5726+6ed65f8c.x86_64"]
+    def test_affected_packages_with_modules(self, exists, affected_srpm_nvrs):
         self.handler._find_images_to_rebuild(123456)
 
         self.find_images_to_rebuild.assert_called_once_with(
-            set(['nodejs-10.19.0-1.module+el8.1.0+5726+6ed65f8c.x86_64']), ['content-set-1'],
+            ['nodejs-10.19.0-1.module+el8.1.0+5726+6ed65f8c.x86_64'], ['content-set-1'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
             published=True, release_categories=conf.lightblue_release_categories,
             leaf_container_images=None)

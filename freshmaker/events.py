@@ -291,7 +291,6 @@ class ErrataBaseEvent(BaseEvent):
             advisory_state=self.advisory.state,
             advisory_name=self.advisory.name,
             advisory_security_impact=self.advisory.security_impact,
-            advisory_highest_cve_severity=self.advisory.highest_cve_severity,
             advisory_product_short_name=self.advisory.product_short_name,
             advisory_has_hightouch_bug=self.advisory.has_hightouch_bug,
             advisory_content_types=' '.join(self.advisory.content_types),

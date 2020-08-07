@@ -76,7 +76,6 @@ class GenerateAdvisorySignedEventOnRPMSign(BaseHandler):
                 ArtifactType.IMAGE,
                 advisory_name=advisory.name,
                 advisory_security_impact=advisory.security_impact,
-                advisory_highest_cve_severity=advisory.highest_cve_severity,
                 advisory_state=advisory.state)]
 
         # Filter out advisories which are already in Freshmaker DB.
