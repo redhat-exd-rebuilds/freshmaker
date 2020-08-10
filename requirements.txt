@@ -5,7 +5,6 @@ httplib2
 kobo
 mock
 munch
-pdc-client
 pyOpenSSL
 python-fedora
 sqlalchemy

@@ -20,7 +20,6 @@
 
 import queue
 import random
-import string
 import time
 import uuid
 import unittest
@@ -428,42 +427,6 @@ class KojiTaskStateChangeMessage(FedMsgFactory):
             'old': self.old_state,
             'owner': self.owner,
         }
-
-
-class PDCModuleInfoFactory(object):
-    def __init__(self, name, stream, version, active=True):
-        self.name = name
-        self.stream = stream
-        self.version = version
-        self.active = active
-        self.uid = "%s-%s-%s" % (name, stream, version)
-        self.modulemd = ''
-        self.build_deps = []
-        self.runtime_deps = []
-        self.koji_tag = 'module-%s' % ''.join([random.choice(string.ascii_letters[:6] + string.digits) for n in range(16)])
-        self.rpms = []
-
-    def produce(self):
-        module = {
-            'active': self.active,
-            'name': self.name,
-            'stream': self.stream,
-            'version': self.version,
-            'modulemd': self.modulemd,
-            'koji_tag': self.koji_tag,
-            'build_deps': self.build_deps,
-            'runtime_deps': self.runtime_deps,
-            'rpms': self.rpms,
-        }
-        return module
-
-
-class PDCModuleInfo(PDCModuleInfoFactory):
-    def add_build_dep(self, name, stream):
-        self.build_deps.append({'dependency': name, 'stream': stream})
-
-    def add_rpm(self, rpm):
-        self.rpms.append(rpm)
 
 
 class ConsumerBaseTest(ModelsTestCase):
