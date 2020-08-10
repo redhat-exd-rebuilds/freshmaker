@@ -28,7 +28,7 @@ in the `handlers` directory.
 The handlers typically do following:
 
 * Find out the list of artifacts like RPMs, Container images, ... which must be rebuilt as result of Event.
-  * There are built-in classes to find these information in PDC or Lightblue.
+  * There are built-in classes to find these information in Lightblue.
 * Plan the rebuild of artifacts and store them in Freshmaker database in tree-like structure.
   * Artifacts can depend on each other and Freshmaker ensures they are built in the right order.
 * Prepare the prerequisites for a rebuild.
@@ -38,41 +38,42 @@ The handlers typically do following:
 Most of the common tasks for handlers are already implemented in Freshmaker including:
 
 * Database and methods to store artifacts, their dependencies and all the information to build them there.
-* Classes to get the information about artifacts from Koji, Lightblue, PDC, MBS, ...
-* Classes to start the builds in Koji, ODCS, MBS, ...
+* Classes to get the information about artifacts from Koji, Lightblue, ...
+* Classes to start the builds in Koji, ODCS, ...
 
-The handler which rebuilds all the modules after the `.spec` file of RPM including in a module is updated can look like this:
+The handler which rebuilds all the images that contain packages affected by CVEs in advisory when the advisory is shipped can look like this (only sample code for demonstration):
 
 ```python
-class RebuildImagesOnGitRPMSpecChange(BaseHandler):
-    name = "RebuildImagesOnGitRPMSpecChange"
+class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
+
+    name = 'RebuildImagesOnRPMAdvisoryChange'
 
     def can_handle(self, event):
-        return isinstance(event, GitRPMSpecChangeEvent)
+        if not isinstance(event, ErrataAdvisoryRPMsSignedEvent):
+            return False
+        return True
 
     def handle(self, event):
-        # Get the list of modules with this package from this branch using PDC.
-        pdc = PDC(conf)
-        modules = pdc.get_latest_modules(component_name=event.rpm,
-                                         component_branch=event.branch,
-                                         active='true')
+        self.event = event
 
-        for module in modules:
-            name = module['variant_name']
-            version = module['variant_version']
+        db_event = Event.get_or_create_from_event(db.session, event)
+        db.session.commit()
 
-            # Check if Freshmaker is configured to rebuild this module.
-            if not self.allow_build(ArtifactType.MODULE, name=name, version=version):
-                continue
+        # Check if we are allowed to build this advisory.
+        if not self.event.is_allowed(self):
+            db_event.transition(
+                EventState.SKIPPED, f"Advisory {event.advisory.errata_id} is not allowed")
+            db.session.commit()
+            return []
 
-            # To rebuild a module, we need to bump its release in dist-git repo.
-            commit_msg = "Bump to rebuild because of %s rpm spec update (%s)." % (event.rpm, event.rev)
-            rev = utils.bump_distgit_repo('modules', name, branch=version, commit_msg=commit_msg, logger=log)
+        # Get and record all images to rebuild
+        batches = self._find_images_to_rebuild(db_event.search_key)
+        builds = self._record_batches(batches, event)
 
-            # We start the rebuild of a module and store it in Freshmkaer DB.
-            build_id = self.build_module(name, version, rev)
-            if build_id is not None:
-                self.record_build(event, name, ArtifactType.MODULE, build_id)
+        self.start_to_build_images(db_event.get_image_builds_in_first_batch(db.session))
+        db_event.transition(EventState.BUILDING, msg)
+
+        return []
 ```
 
 # Initial development setup

@@ -23,7 +23,6 @@ python3-mod_wsgi
 python3-munch
 python3-odcs-client
 python3-openidc-client
-python3-pdc-client
 python3-pip
 python3-prometheus_client
 python3-psutil

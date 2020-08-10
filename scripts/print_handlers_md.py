@@ -67,7 +67,7 @@ for name in os.listdir(handlers_path):
         for cls in dir(submod):
             if cls.endswith("Handler"):
                 key = "freshmaker.handlers." + name + ":" + cls
-            elif cls in ["PDC", "MBS", "Pulp", "Errata", "LightBlue"]:
+            elif cls in ["Pulp", "Errata", "LightBlue"]:
                 deps.append(cls)
             elif cls == "koji_service":
                 deps.append("Koji")
