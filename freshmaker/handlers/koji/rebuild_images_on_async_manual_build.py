@@ -332,8 +332,6 @@ class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
                 nvr = image["brew"]["build"]
 
                 self.log_debug("Recording %s", nvr)
-                parent_nvr = image["parent"].nvr \
-                    if "parent" in image and image["parent"] else None
 
                 if "error" in image and image["error"]:
                     state_reason = image["error"]
@@ -343,8 +341,16 @@ class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
                     state = ArtifactBuildState.PLANNED.value
 
                 image_name = koji.parse_NVR(image["brew"]["build"])["name"]
-                parent_nvr = image["parent"].nvr \
-                    if "parent" in image and image["parent"] else None
+                # Check for parent in image, if it's present use it,
+                # even if it's None(it means there is no parent image)
+                if "parent" in image:
+                    if image["parent"]:
+                        parent_nvr = image["parent"].nvr
+                    else:
+                        parent_nvr = None
+                else:
+                    parent_nvr = lb.find_parent_brew_build_nvr_from_child(image)
+
                 dep_on = builds[parent_nvr] if parent_nvr in builds else None
 
                 # We don't need to rebuild the nvr this time. The release value
@@ -370,7 +376,6 @@ class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
                 build_args["original_parent"] = parent_nvr
                 build_args["arches"] = image["arches"]
                 build.build_args = json.dumps(build_args)
-
                 db.session.commit()
 
                 builds[nvr] = build

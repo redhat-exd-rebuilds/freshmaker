@@ -19,6 +19,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from unittest.mock import MagicMock
+
 from freshmaker import db
 from freshmaker.handlers.koji import RebuildImagesOnAsyncManualBuild
 from freshmaker.events import FreshmakerAsyncManualBuildEvent
@@ -80,7 +82,7 @@ class TestRebuildImagesOnAsyncManualBuild(helpers.ModelsTestCase):
         #              +
         #            image_e
 
-        # image_c is unrelated.
+        # image_c and image_f are unrelated.
 
         # image_0 is a base image, with no parent
         self.image_0 = ContainerImage({
@@ -213,6 +215,31 @@ class TestRebuildImagesOnAsyncManualBuild(helpers.ModelsTestCase):
                 ]
             },
             'published': False,
+        })
+
+        self.image_f = ContainerImage({
+            'architecture': 'arm64',
+            'brew': {'build': 's2i-core-container-1-147',
+                     'completion_date': '20200603T12:00:24.000-0400',
+                     'nvra': 's2i-core-container-1-147.arm64',
+                     'package': 's2i-core-container'},
+            'content_sets': ['rhel-8-for-x86_64-appstream-rpms',
+                             'rhel-8-for-aarch64-baseos-rpms',
+                             'rhel-8-for-x86_64-baseos-rpms',
+                             'rhel-8-for-s390x-baseos-rpms',
+                             'rhel-8-for-aarch64-appstream-rpms',
+                             'rhel-8-for-ppc64le-appstream-rpms',
+                             'rhel-8-for-ppc64le-baseos-rpms',
+                             'rhel-8-for-s390x-appstream-rpms'],
+            'multi_arch_rpm_manifest': {},
+            'parent_brew_build': 'ubi8-container-8.2-299',
+            'parsed_data': {},
+            'repositories': [{'published': True,
+                              'repository': 'rhel8/s2i-core',
+                              'tags': [{'name': '1-147'}]},
+                             {'published': True,
+                              'repository': 'ubi8/s2i-core',
+                              'tags': [{'name': '1-147'}]}]
         })
 
     def test_can_handle_event(self):
@@ -387,3 +414,49 @@ class TestRebuildImagesOnAsyncManualBuild(helpers.ModelsTestCase):
         self.mock_get_image_builds_in_first_batch.assert_called_once_with(db.session)
         self.assertEqual(len(db_event.builds.all()), 3)
         self.mock_start_to_build_images.assert_called_once()
+
+    def test_parent_if_image_without_parent(self):
+        """
+        This tests if we get parent as brew build of single image to rebuild
+        when image doesn't have "parent" key
+        """
+        self.mock_find_images_to_rebuild.return_value = [self.image_f]
+        event = FreshmakerAsyncManualBuildEvent(
+            'msg-id-123', 'test_branch', ['image-a-container'])
+        find_parent_mock = MagicMock()
+        find_parent_mock.find_parent_brew_build_nvr_from_child.return_value = 'ubi8-container-8.2-299'
+        self.mock_lightblue.return_value = find_parent_mock
+        RebuildImagesOnAsyncManualBuild().handle(event)
+
+        db_event = Event.get(db.session, 'msg-id-123')
+
+        # Check if build in DB corresponds to parent of the image
+        build = db_event.builds.first().json()
+        self.assertEqual(build['build_args'].get('original_parent', 0),
+                         'ubi8-container-8.2-299')
+        # check if we are calling Lightblue to get proper parent of image
+        find_parent_mock.find_parent_brew_build_nvr_from_child.assert_called_once_with(self.image_f)
+
+    def test_parent_if_image_with_parent(self):
+        """
+        This tests if we get parent of single image to rebuild, when image
+        has "parent" key as None OR as some image
+        """
+        for index, image in enumerate([self.image_0, self.image_a], 1):
+            self.mock_find_images_to_rebuild.return_value = [image]
+            event_id = f'msg-id-{index}'
+            event = FreshmakerAsyncManualBuildEvent(
+                event_id, 'test_branch', ['image-a-container'])
+            RebuildImagesOnAsyncManualBuild().handle(event)
+
+            db_event = Event.get(db.session, event_id)
+
+            if image['parent'] is not None:
+                original_parent = image['parent']['brew']['build']
+            else:
+                original_parent = None
+
+            # Check if build in DB corresponds to parent of the image
+            build = db_event.builds.first().json()
+            self.assertEqual(build['build_args'].get('original_parent', 0),
+                             original_parent)
