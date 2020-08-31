@@ -164,11 +164,15 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
                 'rpms': [
                     {
                         "srpm_name": "openssl",
-                        "srpm_nevra": "openssl-0:1.2.3-1.src"
+                        "srpm_nevra": "openssl-0:1.2.3-1.src",
+                        "name": "openssl",
+                        "nvra": "openssl-1.2.3-1.amd64"
                     },
                     {
                         "srpm_name": "tespackage",
-                        "srpm_nevra": "testpackage-10:1.2.3-1.src"
+                        "srpm_nevra": "testpackage-10:1.2.3-1.src",
+                        "name": "tespackage",
+                        "nvra": "testpackage-1.2.3-1.amd64"
                     }
                 ]
             }]
@@ -574,11 +578,15 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                     'rpms': [
                         {
                             "srpm_name": "openssl",
-                            "srpm_nevra": "openssl-0:1.2.3-1.src"
+                            "srpm_nevra": "openssl-0:1.2.3-1.src",
+                            "name": "openssl",
+                            "nvra": "openssl-1.2.3-1.amd64"
                         },
                         {
                             "srpm_name": "tespackage",
-                            "srpm_nevra": "testpackage-10:1.2.3-1.src"
+                            "srpm_nevra": "testpackage-10:1.2.3-1.src",
+                            "name": "tespackage",
+                            "nvra": "testpackage-1.2.3-1.amd64"
                         }
                     ]
                 }]
@@ -613,11 +621,15 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                     'rpms': [
                         {
                             "srpm_name": "openssl",
-                            "srpm_nevra": "openssl-1:1.2.3-1.src"
+                            "srpm_nevra": "openssl-1:1.2.3-1.src",
+                            "name": "openssl",
+                            "nvra": "openssl-1.2.3-1.amd64"
                         },
                         {
                             "srpm_name": "tespackage2",
-                            "srpm_nevra": "testpackage2-10:1.2.3-1.src"
+                            "srpm_nevra": "testpackage2-10:1.2.3-1.src",
+                            "name": "tespackage2",
+                            "nvra": "testpackage2-1.2.3-1.amd64"
                         }
                     ]
                 }]
@@ -651,11 +663,15 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                     'rpms': [
                         {
                             "srpm_name": "openssl",
-                            "srpm_nevra": "openssl-0:1.2.3-1.src"
+                            "srpm_nevra": "openssl-0:1.2.3-1.src",
+                            "name": "openssl",
+                            "nvra": "openssl-1.2.3-1.amd64"
                         },
                         {
                             "srpm_name": "tespackage",
-                            "srpm_nevra": "testpackage-10:1.2.3-1.src"
+                            "srpm_nevra": "testpackage-10:1.2.3-1.src",
+                            "name": "tespackage",
+                            "nvra": "testpackage-1.2.3-1.amd64"
                         }
                     ]
                 }]
@@ -689,11 +705,15 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                     'rpms': [
                         {
                             "srpm_name": "openssl",
-                            "srpm_nevra": "openssl-1.2.1-2.module+el8.0.0+3248+9d514f3b.src"
+                            "srpm_nevra": "openssl-1.2.1-2.module+el8.0.0+3248+9d514f3b.src",
+                            "name": "openssl",
+                            "nvra": "openssl-1.2.1-2.module+el8.0.0+3248+9d514f3b.amd64"
                         },
                         {
                             "srpm_name": "tespackage",
-                            "srpm_nevra": "testpackage-10:1.2.3-1.src"
+                            "srpm_nevra": "testpackage-10:1.2.3-1.src",
+                            "name": "tespackage",
+                            "nvra": "testpackage-1.2.3-1.amd64"
                         }
                     ]
                 }]
@@ -727,12 +747,16 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                 'rpm_manifest': [{
                     'rpms': [
                         {
-                            'srpm_name': 'openssl',
-                            'srpm_nevra': 'openssl-0:1.2.3-1.src'
+                            "srpm_name": "openssl",
+                            "srpm_nevra": "openssl-0:1.2.3-1.src",
+                            "name": "openssl",
+                            "nvra": "openssl-1.2.3-1.amd64"
                         },
                         {
-                            'srpm_name': 'tespackage',
-                            'srpm_nevra': 'testpackage-10:1.2.3-1.src'
+                            "srpm_name": "tespackage",
+                            "srpm_nevra": "testpackage-10:1.2.3-1.src",
+                            "name": "tespackage",
+                            "nvra": "testpackage-1.2.3-1.amd64"
                         }
                     ]
                 }]
@@ -1082,7 +1106,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         # Add a duplicate simulating a multi-arch image
         self.fake_container_images.append(self.fake_container_images[1])
         cont_images.return_value = self.fake_container_images
-        ret = lb.find_images_with_included_srpms(
+        ret = lb.find_images_with_included_rpms(
             ["dummy-content-set-1", "dummy-content-set-2"], ["openssl-1.2.3-2"], repositories)
 
         expected_image_request = {
@@ -1130,7 +1154,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                     {
                         "$or": [
                             {
-                                "field": "rpm_manifest.*.rpms.*.srpm_name",
+                                "field": "rpm_manifest.*.rpms.*.name",
                                 "op": "=",
                                 "rvalue": "openssl"
                             },
@@ -1143,7 +1167,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                     },
                 ]
             },
-            "projection": lb._get_default_projection(srpm_names=["openssl"])
+            "projection": lb._get_default_projection(rpm_names=["openssl"])
         }
 
         # auto_rebuild_tags is a set in the source code. When generate
@@ -1177,7 +1201,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         cont_images.return_value = (
             self.fake_container_images +
             self.fake_container_images_floating_tag)
-        ret = lb.find_images_with_included_srpms(
+        ret = lb.find_images_with_included_rpms(
             ["dummy-content-set-1", "dummy-content-set-2"], ["openssl-1.2.3-2"], repositories)
 
         self.assertEqual(
@@ -1199,7 +1223,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         cont_images.return_value = (
             self.fake_container_images +
             self.fake_container_images_floating_tag)
-        ret = lb.find_images_with_included_srpms(
+        ret = lb.find_images_with_included_rpms(
             ["content-set-1", "content-set-2"], ["openssl-1.2.3-1"], repositories)
         self.assertEqual(ret, [])
 
@@ -1218,7 +1242,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         cont_images.return_value = (
             self.fake_container_images +
             self.fake_container_images_floating_tag)
-        ret = lb.find_images_with_included_srpms(
+        ret = lb.find_images_with_included_rpms(
             ["dummy-content-set-1", "dummy-content-set-2"],
             ["openssl-1.2.3-1", "openssl-1.2.3-50"], repositories)
         self.assertEqual(
@@ -1312,11 +1336,15 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                      'rpms': [
                                          {
                                              "srpm_name": "openssl",
-                                             "srpm_nevra": "openssl-1:1.2.3-1.src"
+                                             "srpm_nevra": "openssl-1:1.2.3-1.src",
+                                             "name": "openssl",
+                                             "nvra": "openssl-1.2.3-1.amd64"
                                          },
                                          {
                                              "srpm_name": "tespackage2",
-                                             "srpm_nevra": "testpackage2-10:1.2.3-1.src"
+                                             "srpm_nevra": "testpackage2-10:1.2.3-1.src",
+                                             "name": "tespackage2",
+                                             "nvra": "testpackage2-1.2.3-1.amd64"
                                          }
                                      ]
                                  }]
@@ -1419,11 +1447,15 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                      'rpms': [
                                          {
                                              "srpm_name": "openssl",
-                                             "srpm_nevra": "openssl-1:1.2.3-1.src"
+                                             "srpm_nevra": "openssl-1:1.2.3-1.src",
+                                             "name": "openssl",
+                                             "nvra": "openssl-1.2.3-1.amd64"
                                          },
                                          {
                                              "srpm_name": "tespackage2",
-                                             "srpm_nevra": "testpackage2-10:1.2.3-1.src"
+                                             "srpm_nevra": "testpackage2-10:1.2.3-1.src",
+                                             "name": "tespackage2",
+                                             "nvra": "testpackage2-1.2.3-1.amd64"
                                          }
                                      ]
                                  }]
@@ -1663,7 +1695,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         for image in images:
             image["rpm_manifest"] = [{
                 "rpms": [
-                    {"srpm_name": "dummy"}
+                    {"name": "dummy"}
                 ]
             }]
             image["directly_affected"] = True
@@ -1762,7 +1794,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             "repositories": [{"repository": "foo/bar"}],
             "rpm_manifest": [{
                 "rpms": [
-                    {"srpm_name": "dummy"}
+                    {"name": "dummy"}
                 ]
             }]
         })
@@ -1788,8 +1820,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             find_images_with_packages_from_content_set, get_images_by_nvrs):
         exists.return_value = True
 
-        vulnerable_srpm_name = 'oh-noes'
-        vulnerable_srpm_nvr = '{}-1.0-1'.format(vulnerable_srpm_name)
+        vulnerable_rpm_name = 'oh-noes'
+        vulnerable_rpm_nvr = '{}-1.0-1'.format(vulnerable_rpm_name)
 
         ubi_image_template = {
             "brew": {"package": "ubi8-container", "build": "ubi8-container-8.1-100"},
@@ -1799,7 +1831,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             "repositories": [{"repository": "ubi8"}],
             "rpm_manifest": [{
                 "rpms": [
-                    {"srpm_name": vulnerable_srpm_name}
+                    {"name": vulnerable_rpm_name}
                 ]
             }]
         }
@@ -1822,7 +1854,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             "repositories": [{"repository": "ubi8/python-36"}],
             "rpm_manifest": [{
                 "rpms": [
-                    {"srpm_name": vulnerable_srpm_name}
+                    {"name": vulnerable_rpm_name}
                 ]
             }]
         })
@@ -1835,7 +1867,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             "repositories": [{"repository": "ubi8/nodejs-12"}],
             "rpm_manifest": [{
                 "rpms": [
-                    {"srpm_name": vulnerable_srpm_name}
+                    {"name": vulnerable_rpm_name}
                 ]
             }]
         })
@@ -1868,7 +1900,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
                        private_key=self.fake_private_key)
-        batches = lb.find_images_to_rebuild([vulnerable_srpm_nvr], [vulnerable_srpm_name])
+        batches = lb.find_images_to_rebuild([vulnerable_rpm_nvr], [vulnerable_rpm_name])
         expected_batches = [
             # The dependency ubi image has a higher NVR and it should be used as
             # the parent for both images.
@@ -1978,7 +2010,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                         {'field': 'brew.build', 'rvalue': 'bar', 'op': '='}]},
                     {'field': 'parsed_data.files.*.key', 'rvalue': 'buildfile', 'op': '='},
                     {'$or': [{'field': 'content_sets.*', 'rvalue': 'dummy-content-set', 'op': '='}]},
-                    {'$or': [{'field': 'rpm_manifest.*.rpms.*.srpm_name', 'rvalue': 'openssl', 'op': '='}]}]},
+                    {'$or': [{'field': 'rpm_manifest.*.rpms.*.name', 'rvalue': 'openssl', 'op': '='}]}]},
              'projection': [{'field': 'brew', 'include': True, 'recursive': True},
                             {'field': 'parsed_data.files', 'include': True, 'recursive': True},
                             {'field': 'parsed_data.layers.*', 'include': True, 'recursive': True},
@@ -1991,6 +2023,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                             {'field': 'architecture', 'include': True, 'recursive': False},
                             {'field': 'rpm_manifest.*.rpms.*.srpm_nevra', 'include': True, 'recursive': True},
                             {'field': 'rpm_manifest.*.rpms.*.nvra', 'include': True, 'recursive': True},
+                            {'field': 'rpm_manifest.*.rpms.*.name', 'include': True, 'recursive': True},
                             {'field': 'rpm_manifest.*.rpms.*.srpm_name', 'include': True, 'recursive': True}],
              'objectType': 'containerImage'})
 
@@ -2016,7 +2049,9 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                     'rpms': [
                         {
                             "srpm_name": "openssl",
-                            "srpm_nevra": "openssl-0:1.2.3-1.src"
+                            "srpm_nevra": "openssl-0:1.2.3-1.src",
+                            "name": "openssl",
+                            "nvra": "openssl-1.2.3-1.amd64"
                         }
                     ]
                 }],
@@ -2039,7 +2074,9 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                     'rpms': [
                         {
                             "srpm_name": "openssl",
-                            "srpm_nevra": "openssl-0:1.2.3-1.src"
+                            "srpm_nevra": "openssl-0:1.2.3-1.src",
+                            "name": "openssl",
+                            "nvra": "openssl-1.2.3-1.s390x"
                         }
                     ]
                 }],
@@ -2080,12 +2117,12 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             self.fake_repositories_with_content_sets}
         cont_images.return_value = (
             self.fake_images_with_modules)
-        ret = lb.find_images_with_included_srpms(
+        ret = lb.find_images_with_included_rpms(
             ["dummy-content-set-1", "dummy-content-set-2"], ["openssl-1.2.3-2.module+el8.0.0+3248+9d514f3b.src"], repositories)
         self.assertEqual(
             [image.nvr for image in ret],
             ["package-name-3-4-12.10"])
-        ret = lb.find_images_with_included_srpms(
+        ret = lb.find_images_with_included_rpms(
             ["dummy-content-set-1", "dummy-content-set-2"], ["openssl-1.2.3-2.el8.0.0+3248+9d514f3b.src"], repositories)
         self.assertEqual(
             [image.nvr for image in ret],
@@ -2118,8 +2155,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             "content_sets": ["dummy-content-set-2"]})
         cont_images.return_value = [parent, latest_parent, older_parent]
 
-        ret = lb.find_images_with_included_srpms(
-            ["dummy-content-set-1"], ["openssl-1.2.3-2.module+el8.0.0+3248+9d514f3b.src"], repositories)
+        ret = lb.find_images_with_included_rpms(
+            ["dummy-content-set-1"], ["openssl-1.2.3-2.module+el8.0.0+3248+9d514f3b"], repositories)
         self.assertEqual(
             [image.nvr for image in ret],
             ["parent-1-2", "parent-1-3"])
@@ -2152,7 +2189,9 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                 'rpms': [
                     {
                         "srpm_name": "openssl",
-                        "srpm_nevra": "openssl-0:1.2.3-1.src"
+                        "srpm_nevra": "openssl-0:1.2.3-1.src",
+                        "name": "openssl",
+                        "nvra": "openssl-1.2.3-1.amd64"
                     }
                 ]
             }],
@@ -2162,7 +2201,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         self.fake_container_images.append(build_repo_image)
         find_images.return_value = self.fake_container_images
 
-        ret = lb.find_images_with_included_srpms(
+        ret = lb.find_images_with_included_rpms(
             ["dummy-content-set-1", "dummy-content-set-2"], ["openssl-1.2.3-2"], repositories)
 
         self.assertEqual(ret, [find_images.return_value[1], find_images.return_value[-1]])
@@ -2172,7 +2211,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         with patch.object(
             freshmaker.conf, "image_build_repository_registries", new=build_registries
         ):
-            ret = lb.find_images_with_included_srpms(
+            ret = lb.find_images_with_included_rpms(
                 ["dummy-content-set-1", "dummy-content-set-2"], ["openssl-1.2.3-2"], repositories)
 
         self.assertEqual(ret, [find_images.return_value[1]])

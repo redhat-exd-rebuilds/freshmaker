@@ -436,7 +436,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             return_value=["pulp_repo_x86_64"])
 
         self.get_affected_srpm_nvrs = self.patcher.patch(
-            'freshmaker.errata.Errata.get_cve_affected_srpm_nvrs',
+            'freshmaker.errata.Errata.get_cve_affected_rpm_nvrs',
             return_value=["httpd-2.4-11.el7"])
 
         self.find_images_to_rebuild = self.patcher.patch(
@@ -553,11 +553,11 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             'image': {'advisory_name': 'RHBA-*'}
         }
     })
-    @patch("freshmaker.errata.ErrataAdvisory.affected_srpm_nvrs",
+    @patch("freshmaker.errata.ErrataAdvisory.affected_rpm_nvrs",
            new_callable=PropertyMock,
            return_value=["nodejs-10.19.0-1.module+el8.1.0+5726+6ed65f8c.x86_64"])
     @patch('os.path.exists', return_value=True)
-    def test_affected_packages_with_modules(self, exists, affected_srpm_nvrs):
+    def test_affected_packages_with_modules(self, exists, affected_rpm_nvrs):
         self.handler._find_images_to_rebuild(123456)
 
         self.find_images_to_rebuild.assert_called_once_with(

@@ -411,19 +411,19 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
         if isinstance(self.event, ManualRebuildWithAdvisoryEvent):
             leaf_container_images = self.event.container_images
 
-        # Get srpm nvrs which are affected by the CVEs in this advisory
-        srpm_nvrs = self.event.advisory.affected_srpm_nvrs
+        # Get binary rpm nvrs which are affected by the CVEs in this advisory
+        affected_nvrs = self.event.advisory.affected_rpm_nvrs
 
-        # If there is no CVE affected srpms, this can be non-RHSA advisory,
+        # If there is no CVE affected binary rpms, this can be non-RHSA advisory,
         # just rebuild images that have the builds in this advisory installed
-        if not srpm_nvrs:
-            srpm_nvrs = list(errata.get_builds(errata_id))
+        if not affected_nvrs:
+            affected_nvrs = errata.get_binary_rpm_nvrs(errata_id)
 
         self.log_info(
             "Going to find all the container images to rebuild as "
-            "result of %r update.", srpm_nvrs)
+            "result of %r update.", affected_nvrs)
         batches = lb.find_images_to_rebuild(
-            srpm_nvrs, content_sets,
+            affected_nvrs, content_sets,
             filter_fnc=self._filter_out_not_allowed_builds,
             published=published, release_categories=release_categories,
             leaf_container_images=leaf_container_images)

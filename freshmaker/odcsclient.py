@@ -239,7 +239,7 @@ class FreshmakerODCSClient(object):
 
         packages = []
         errata = Errata()
-        builds = errata.get_builds(errata_id)
+        builds = errata.get_srpm_nvrs(errata_id)
         compose_source = None
         for nvr in builds:
             packages += self._get_packages_for_compose(nvr)

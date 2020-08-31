@@ -351,24 +351,27 @@ class TestErrata(helpers.FreshmakerTestCase):
 
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
-    def test_get_builds(
+    def test_get_nvrs(
             self, errata_http_get, errata_rest_get):
         MockedErrataAPI(errata_rest_get, errata_http_get)
-        ret = self.errata.get_builds(28484, "")
-        self.assertEqual(ret, set(['libntirpc-1.4.3-4.el7rhgs',
-                                  'libntirpc-1.4.3-4.el6rhs']))
+        srpms = self.errata.get_srpm_nvrs(28484, "")
+        binary_rpms = self.errata.get_binary_rpm_nvrs(28484)
+        self.assertEqual(set(srpms), set(['libntirpc-1.4.3-4.el7rhgs',
+                                          'libntirpc-1.4.3-4.el6rhs']))
+        self.assertEqual(set(binary_rpms), set(['libntirpc-devel-1.4.3-4.el6rhs',
+                                                'libntirpc-devel-1.4.3-4.el7rhgs']))
 
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
-    def test_get_builds_rhel_7(
+    def test_get_binary_rpms_rhel_7(
             self, errata_http_get, errata_rest_get):
         MockedErrataAPI(errata_rest_get, errata_http_get)
-        ret = self.errata.get_builds(28484, "RHEL-7")
-        self.assertEqual(ret, set(['libntirpc-1.4.3-4.el7rhgs']))
+        ret = self.errata.get_binary_rpm_nvrs(28484, "RHEL-7")
+        self.assertEqual(ret, ['libntirpc-devel-1.4.3-4.el7rhgs'])
 
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
-    def test_get_builds_no_srpm(
+    def test_get_srpm_nvrs_empty(
             self, errata_http_get, errata_rest_get):
         api = MockedErrataAPI(errata_rest_get, errata_http_get)
         api.builds_json = {
@@ -382,14 +385,34 @@ class TestErrata(helpers.FreshmakerTestCase):
                 }
             ]
         }
-        ret = self.errata.get_builds(28484, "")
-        self.assertEqual(ret, set(['libntirpc-1.4.3-4.el7rhgs']))
+        ret = self.errata.get_srpm_nvrs(28484, "")
+        self.assertEqual(ret, [])
 
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
-    def test_errata_get_cve_affected_srpm_nvrs(self, errata_http_get, errata_rest_get):
+    def test_get_binary_nvrs_empty(
+            self, errata_http_get, errata_rest_get):
+        api = MockedErrataAPI(errata_rest_get, errata_http_get)
+        api.builds_json = {
+            "PRODUCT1": [
+                {
+                    "libntirpc-1.4.3-4.el7rhgs":
+                        {
+                            "PRODUCT2-3.2-NFS":
+                                {"SRPMS": [
+                                    "libntirpc-devel-1.4.3-4.el7rhgs.x86_64.rpm"]}
+                        }
+                }
+            ]
+        }
+        ret = self.errata.get_binary_rpm_nvrs(28484, "")
+        self.assertEqual(ret, [])
+
+    @patch.object(Errata, "_errata_rest_get")
+    @patch.object(Errata, "_errata_http_get")
+    def test_errata_get_cve_affected_rpm_nvrs(self, errata_http_get, errata_rest_get):
         MockedErrataAPI(errata_rest_get, errata_http_get)
-        ret = self.errata.get_cve_affected_srpm_nvrs(28484)
+        ret = self.errata.get_cve_affected_rpm_nvrs(28484)
         self.assertEqual(ret, ['libntirpc-1.4.3-4.el6rhs'])
 
     def test_get_docker_repo_tags(self):

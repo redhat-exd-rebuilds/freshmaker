@@ -691,11 +691,11 @@ class LightBlue(object):
         repositories = self.find_container_repositories(repo_request)
         return {r["repository"]: r for r in repositories}
 
-    def _get_default_projection(self, srpm_names=None, include_rpm_manifest=True):
+    def _get_default_projection(self, rpm_names=None, include_rpm_manifest=True):
         """
         Returns the default projection list for containerImage objects.
 
-        :param list srpm_names: When not None, defines the SRPM names which
+        :param list rpm_names: When not None, defines the RPM names which
             are returned in "rpm_manifest" field of containerImage.;
         :param bool include_rpm_manifest: indicate whether to include
             "rpm_manifest" in the query result. Default is True.
@@ -713,18 +713,19 @@ class LightBlue(object):
             {"field": "architecture", "include": True, "recursive": False},
         ]
         if include_rpm_manifest:
-            if srpm_names:
+            if rpm_names:
                 projection += [
                     {"field": "rpm_manifest.*.rpms", "include": True, "recursive": True,
                      "match": {
                          "$or": [{
-                             "field": "srpm_name",
+                             "field": "name",
                              "op": "=",
-                             "rvalue": srpm_name
-                         } for srpm_name in srpm_names]},
+                             "rvalue": rpm_name
+                         } for rpm_name in rpm_names]},
                      "project": [
                          {"field": "srpm_nevra", "include": True},
                          {"field": "nvra", "include": True},
+                         {"field": "name", "include": True},
                          {"field": "srpm_name", "include": True},
                      ]
                      }
@@ -735,17 +736,19 @@ class LightBlue(object):
                      "include": True, "recursive": True},
                     {"field": "rpm_manifest.*.rpms.*.nvra",
                      "include": True, "recursive": True},
+                    {"field": "rpm_manifest.*.rpms.*.name",
+                     "include": True, "recursive": True},
                     {"field": "rpm_manifest.*.rpms.*.srpm_name",
                      "include": True, "recursive": True},
                 ]
         return projection
 
-    def filter_out_images_with_higher_srpm_nvr(self, images, srpm_name_to_nvrs):
+    def filter_out_images_with_higher_rpm_nvr(self, images, rpm_name_to_nvrs):
         """
-        Checks whether the input NVRs defined in `srpm_name_to_nvrs` dict are
-        newer than the matching SRPM NVRs in the container image.
+        Checks whether the input NVRs defined in `rpm_name_to_nvrs` dict are
+        newer than the matching RPM NVRs in the container image.
 
-        If all the SRPM NVRs in the container image are newer than matching
+        If all the RPM NVRs in the container image are newer than matching
         input NVRs, the container image is filtered out from the `images`
         list.
 
@@ -756,8 +759,8 @@ class LightBlue(object):
         package. Therefore we filter it out in this method.
 
         :param list images: List of ContainerImage instances.
-        :param dict srpm_name_to_nvrs: Dict with SRPM name as a key and list
-            of NVRs as a value.
+        :param dict rpm_name_to_nvrs: Dict with binary RPM name as a key and
+            list of NVRs as a value.
         :rtype: list
         :return: List of ContainerImage instances without the filtered images.
         """
@@ -768,17 +771,17 @@ class LightBlue(object):
                 ret.append(image)
             image_included = False
             for rpm in rpms or []:
-                image_srpm_nvr = kobo.rpmlib.parse_nvr(rpm["srpm_nevra"])
-                for srpm_nvr in srpm_name_to_nvrs.get(rpm.get("srpm_name"), []):
-                    input_srpm_nvr = kobo.rpmlib.parse_nvr(srpm_nvr)
+                image_rpm_nvra = kobo.rpmlib.parse_nvra(rpm["nvra"])
+                for rpm_nvr in rpm_name_to_nvrs.get(rpm.get("name"), []):
+                    input_rpm_nvr = kobo.rpmlib.parse_nvr(rpm_nvr)
                     # compare_nvr return values:
                     #   - nvr1 newer than nvr2: 1
                     #   - same nvrs: 0
                     #   - nvr1 older: -1
-                    # We want to rebuild only images with SRPM NVR lower than
-                    # input SRPM NVR, therefore we check for -1.
+                    # We want to rebuild only images with RPM NVR lower than
+                    # input RPM NVR, therefore we check for -1.
                     if kobo.rpmlib.compare_nvr(
-                            image_srpm_nvr, input_srpm_nvr, ignore_epoch=True) == -1:
+                            image_rpm_nvra, input_rpm_nvr, ignore_epoch=True) == -1:
                         ret.append(image)
                         image_included = True
                         break
@@ -791,19 +794,19 @@ class LightBlue(object):
                 # In our case, this means that we filtered out the image.
                 log.info("Will not rebuild %s, because it does not contain "
                          "older version of any input package: %r" % (
-                             image.nvr, srpm_name_to_nvrs.values()))
+                             image.nvr, rpm_name_to_nvrs.values()))
         return ret
 
-    def filter_out_modularity_mismatch(self, images, srpm_name_to_nvrs):
+    def filter_out_modularity_mismatch(self, images, rpm_name_to_nvrs):
         """
-        Filter out container images which have a modularity mismatch with ``srpm_name_to_nvrs``.
+        Filter out container images which have a modularity mismatch with ``rpm_name_to_nvrs``.
 
         If an advisory has a modular RPM, then the container image's RPM of the same name should
         also be modular. The opposite should also be true. If not, the container image is filtered
         out from the ``images`` list.
 
         :param list images: List of ContainerImage instances.
-        :param dict srpm_name_to_nvrs: Dict with SRPM name as a key and list
+        :param dict rpm_name_to_nvrs: Dict with RPM name as a key and list
             of NVRs as a value.
         :rtype: list
         :return: List of ContainerImage instances without the filtered images.
@@ -814,12 +817,11 @@ class LightBlue(object):
             if rpms is None:
                 ret.append(image)
             image_included = False
-            # Include the image if the SRPM from the advisory is modular, and the SRPM of the same
+            # Include the image if the RPM from the advisory is modular, and the RPM of the same
             # name in the image is also modular. Also, include the image if the opposite is true.
             for rpm in rpms or []:
-                for srpm_nvr in srpm_name_to_nvrs.get(rpm.get("srpm_name"), []):
-                    if ((is_pkg_modular(srpm_nvr) and is_pkg_modular(rpm["srpm_nevra"])) or
-                            (not is_pkg_modular(srpm_nvr) and not is_pkg_modular(rpm["srpm_nevra"]))):
+                for rpm_nvr in rpm_name_to_nvrs.get(rpm.get("name"), []):
+                    if is_pkg_modular(rpm_nvr) == is_pkg_modular(rpm["nvra"]):
                         ret.append(image)
                         image_included = True
                         break
@@ -829,7 +831,7 @@ class LightBlue(object):
                 log.info(
                     "Will not rebuild %s because there is a modularity mismatch between the RPMs "
                     "from the image and the advisory: %r" % (
-                        image.nvr, srpm_name_to_nvrs.values()))
+                        image.nvr, rpm_name_to_nvrs.values()))
         return ret
 
     def filter_out_images_based_on_content_set(self, images, content_sets):
@@ -860,8 +862,8 @@ class LightBlue(object):
                 ret.append(image)
         return ret
 
-    def find_images_with_included_srpms(
-            self, content_sets, srpm_nvrs, repositories, published=True,
+    def find_images_with_included_rpms(
+            self, content_sets, rpm_nvrs, repositories, published=True,
             include_rpm_manifest=True):
         """
         Query lightblue and find the containerImages in the given containerRepositories.
@@ -874,7 +876,7 @@ class LightBlue(object):
 
         :param list content_sets: List of content_sets the image includes RPMs
             from.
-        :param list srpm_nvrs: list of SRPM NVRs to look for
+        :param list rpm_nvrs: list of binary RPM NVRs to look for
         :param dict repositories: List of repository names to look for.
         :param bool published: whether to limit queries to published
             repositories
@@ -885,12 +887,12 @@ class LightBlue(object):
             auto_rebuild_tags |= set(repo["auto_rebuild_tags"])
 
         # Lightblue cannot compare NVRs, so just ask for all the container
-        # images with any version/release of SRPM we are interested in and
+        # images with any version/release of RPM we are interested in and
         # compare it on client side.
-        srpm_name_to_nvrs = {}
-        for srpm_nvr in srpm_nvrs:
-            name = koji.parse_NVR(srpm_nvr)["name"]
-            srpm_name_to_nvrs.setdefault(name, []).append(srpm_nvr)
+        rpm_name_to_nvrs = {}
+        for rpm_nvr in rpm_nvrs:
+            name = koji.parse_NVR(rpm_nvr)["name"]
+            rpm_name_to_nvrs.setdefault(name, []).append(rpm_nvr)
 
         image_request = {
             "objectType": "containerImage",
@@ -911,7 +913,7 @@ class LightBlue(object):
                 ]
             },
             "projection": self._get_default_projection(
-                srpm_names=srpm_name_to_nvrs.keys(),
+                rpm_names=rpm_name_to_nvrs.keys(),
                 include_rpm_manifest=include_rpm_manifest)
         }
 
@@ -925,14 +927,14 @@ class LightBlue(object):
                     } for r in content_sets]
                 })
 
-        if srpm_nvrs:
+        if rpm_nvrs:
             image_request["query"]["$and"].append(
                 {
                     "$or": [{
-                        "field": "rpm_manifest.*.rpms.*.srpm_name",
+                        "field": "rpm_manifest.*.rpms.*.name",
                         "op": "=",
-                        "rvalue": srpm_name
-                    } for srpm_name in srpm_name_to_nvrs.keys()]
+                        "rvalue": rpm_name
+                    } for rpm_name in rpm_name_to_nvrs.keys()]
                 })
 
         if published is not None:
@@ -984,15 +986,15 @@ class LightBlue(object):
 
         # Reassign the filtered values to `images`
         images = list(image_nvr_to_image.values())
-        images = self.filter_out_images_with_higher_srpm_nvr(images, srpm_name_to_nvrs)
-        images = self.filter_out_modularity_mismatch(images, srpm_name_to_nvrs)
+        images = self.filter_out_images_with_higher_rpm_nvr(images, rpm_name_to_nvrs)
+        images = self.filter_out_modularity_mismatch(images, rpm_name_to_nvrs)
         if content_sets:
             images = self.filter_out_images_based_on_content_set(images, set(content_sets))
         return images
 
     def get_images_by_nvrs(self, nvrs, published=True, content_sets=None,
-                           srpm_nvrs=None, include_rpm_manifest=True,
-                           srpm_names=None):
+                           rpm_nvrs=None, include_rpm_manifest=True,
+                           rpm_names=None):
         """Query lightblue and returns containerImages defined by list of
         `nvrs`.
 
@@ -1000,10 +1002,10 @@ class LightBlue(object):
         :param bool published: whether to limit queries to published images
         :param list content_sets: List of content_sets the image includes RPMs
             from.
-        :param list srpm_nvrs: list of SRPM NVRs to look for
+        :param list rpm_nvrs: list of binary RPM NVRs to look for
         :param bool include_rpm_manifest: When True, the rpm_manifest is
             included in the returned ContainerImages.
-        :param list srpm_names: list of SRPM names to look for.
+        :param list rpm_names: list of RPM names to look for.
         :return: List of containerImages.
         :rtype: list of ContainerImages.
         """
@@ -1040,21 +1042,21 @@ class LightBlue(object):
                 }
             )
 
-        if srpm_nvrs is not None:
+        if rpm_nvrs is not None:
             # Lightblue cannot compare NVRs, so just ask for all the container
-            # images with any version/release of SRPM we are interested in and
+            # images with any version/release of RPM we are interested in and
             # compare it on client side.
-            srpm_name_to_nvrs = {}
-            for srpm_nvr in srpm_nvrs:
-                name = koji.parse_NVR(srpm_nvr)["name"]
-                srpm_name_to_nvrs.setdefault(name, []).append(srpm_nvr)
+            rpm_name_to_nvrs = {}
+            for rpm_nvr in rpm_nvrs:
+                name = koji.parse_NVR(rpm_nvr)["name"]
+                rpm_name_to_nvrs.setdefault(name, []).append(rpm_nvr)
             image_request["query"]["$and"].append(
                 {
                     "$or": [{
-                        "field": "rpm_manifest.*.rpms.*.srpm_name",
+                        "field": "rpm_manifest.*.rpms.*.name",
                         "op": "=",
-                        "rvalue": srpm_name
-                    } for srpm_name in srpm_name_to_nvrs.keys()]
+                        "rvalue": rpm_name
+                    } for rpm_name in rpm_name_to_nvrs.keys()]
                 }
             )
 
@@ -1066,20 +1068,20 @@ class LightBlue(object):
                     "rvalue": published
                 })
 
-        if srpm_names:
+        if rpm_names:
             image_request["query"]["$and"].append(
                 {
                     "$or": [{
-                        "field": "rpm_manifest.*.rpms.*.srpm_name",
+                        "field": "rpm_manifest.*.rpms.*.name",
                         "op": "=",
-                        "rvalue": srpm_name
-                    } for srpm_name in srpm_names]
+                        "rvalue": rpm_name
+                    } for rpm_name in rpm_names]
                 }
             )
 
         images = self.find_container_images(image_request)
-        if srpm_nvrs is not None:
-            images = self.filter_out_images_with_higher_srpm_nvr(images, srpm_name_to_nvrs)
+        if rpm_nvrs is not None:
+            images = self.filter_out_images_with_higher_rpm_nvr(images, rpm_name_to_nvrs)
         return images
 
     def get_images_by_brew_package(self, names):
@@ -1139,10 +1141,10 @@ class LightBlue(object):
 
         return parent_brew_build
 
-    def find_parent_images_with_package(self, child_image, srpm_name, images=None):
+    def find_parent_images_with_package(self, child_image, rpm_name, images=None):
         """
         Returns the chain of all parent images of the image which contain the
-        package `srpm_name` in their RPM manifest.
+        package `rpm_name` in their RPM manifest.
 
         The first item in the list is the direct parent of the image in question.
         The last item in the list is the top level parent of the image in
@@ -1159,7 +1161,7 @@ class LightBlue(object):
         # We've reached the base image, stop recursion
         if not parent_brew_build:
             return images
-        parent_image = self.get_images_by_nvrs([parent_brew_build], srpm_names=[srpm_name], published=None)
+        parent_image = self.get_images_by_nvrs([parent_brew_build], rpm_names=[rpm_name], published=None)
 
         if parent_image:
             # In some cases, an image may not have its content sets defined. To
@@ -1193,16 +1195,16 @@ class LightBlue(object):
         if not parent_image:
             return images
         images.append(parent_image)
-        return self.find_parent_images_with_package(parent_image, srpm_name, images)
+        return self.find_parent_images_with_package(parent_image, rpm_name, images)
 
     def find_images_with_packages_from_content_set(
-            self, srpm_nvrs, content_sets, filter_fnc=None, published=True,
+            self, rpm_nvrs, content_sets, filter_fnc=None, published=True,
             release_categories=conf.lightblue_release_categories,
             leaf_container_images=None):
         """Query lightblue and find containers which contain given
         package from one of content sets
 
-        :param list srpm_nvrs: list of SRPM NVRs to look for
+        :param list rpm_nvrs: list of binary RPM NVRs to look for
         :param list content_sets: list of strings (content sets) to consider
             when looking for the packages
         :param function filter_fnc: Function called as
@@ -1220,11 +1222,7 @@ class LightBlue(object):
             consider for the rebuild. If not set, all images found in
             Lightblue will be considered for rebuild.
 
-        :return: a list of dictionaries with three keys - repository, commit and
-            srpm_nevra. Repository is a name git repository including the
-            namespace. Commit is a git ref - usually a git commit
-            hash. srpm_nevra is whole NEVRA of source rpm that is included in
-            the given image - can be used for comparisons if needed
+        :return: a list of dictionaries which represents container images
         :rtype: list
         """
 
@@ -1232,17 +1230,17 @@ class LightBlue(object):
         if not repos:
             return []
         if not leaf_container_images:
-            images = self.find_images_with_included_srpms(
-                content_sets, srpm_nvrs, repos, published)
+            images = self.find_images_with_included_rpms(
+                content_sets, rpm_nvrs, repos, published)
         else:
             # The `leaf_container_images` can contain unpublished container image,
             # therefore set `published` to None.
             images = self.get_images_by_nvrs(
-                leaf_container_images, None, content_sets, srpm_nvrs)
+                leaf_container_images, None, content_sets, rpm_nvrs)
 
         # In case we query for unpublished images, we need to return just
         # the latest NVR for given name-version, otherwise images would
-        # contain all the versions which ever containing the srpm_name.
+        # contain all the versions which ever containing the rpm_name.
         if not published:
 
             def _name_version_key(item):
@@ -1495,7 +1493,7 @@ class LightBlue(object):
         return batches
 
     def find_images_to_rebuild(
-            self, srpm_nvrs, content_sets, published=True,
+            self, rpm_nvrs, content_sets, published=True,
             release_categories=conf.lightblue_release_categories,
             filter_fnc=None, leaf_container_images=None):
         """
@@ -1507,7 +1505,7 @@ class LightBlue(object):
         image from N+1 must happen *after* all of the images from sub-list N
         have been rebuilt.
 
-        :param list srpm_nvrs: List of SRPM NVRs to look for
+        :param list rpm_nvrs: List of binary RPM NVRs to look for
         :param list content_sets: list of strings (content sets) to consider
             when looking for the packages
         :param bool published: whether to limit queries to published
@@ -1526,28 +1524,28 @@ class LightBlue(object):
             is not respected when `leaf_container_images` are used.
         """
         images = self.find_images_with_packages_from_content_set(
-            srpm_nvrs, content_sets, filter_fnc, published,
+            rpm_nvrs, content_sets, filter_fnc, published,
             release_categories, leaf_container_images=leaf_container_images)
 
-        srpm_names = [koji.parse_NVR(srpm_nvr)["name"] for srpm_nvr in srpm_nvrs]
+        rpm_names = [koji.parse_NVR(rpm_nvr)["name"] for rpm_nvr in rpm_nvrs]
 
         def _get_images_to_rebuild(image):
             """
             Find out parent images to rebuild, helper called from threadpool.
             """
-            rebuild_list = {}  # per srpm-name rebuild list.
-            for srpm_name in srpm_names:
+            rebuild_list = {}  # per binary rpm name rebuild list.
+            for rpm_name in rpm_names:
                 for rpm in image["rpm_manifest"][0]["rpms"]:
-                    if rpm["srpm_name"] == srpm_name:
+                    if rpm["name"] == rpm_name:
                         break
                 else:
-                    # This `srpm_name` is not in image.
+                    # This `rpm_name` is not in image.
                     continue
 
-                rebuild_list[srpm_name] = self.find_parent_images_with_package(
-                    image, srpm_name, [])
-                if rebuild_list[srpm_name]:
-                    image['parent'] = rebuild_list[srpm_name][0]
+                rebuild_list[rpm_name] = self.find_parent_images_with_package(
+                    image, rpm_name, [])
+                if rebuild_list[rpm_name]:
+                    image['parent'] = rebuild_list[rpm_name][0]
                 else:
                     parent_brew_build = self.find_parent_brew_build_nvr_from_child(image)
                     if parent_brew_build:
@@ -1556,11 +1554,11 @@ class LightBlue(object):
                             parent = parent[0]
                             parent.resolve(self, images)
                             image['parent'] = parent
-                rebuild_list[srpm_name].insert(0, image)
+                rebuild_list[rpm_name].insert(0, image)
             return rebuild_list
 
         # For every image, find out all its parent images which contain the
-        # srpm_name package and store these lists to to_rebuild.
+        # binary rpm package and store these lists to to_rebuild.
         to_rebuild = []
         optimization_base = 50
         with ThreadPoolExecutor(max_workers=conf.max_thread_workers) as executor:
