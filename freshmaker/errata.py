@@ -55,16 +55,16 @@ class ErrataAdvisory(object):
         self.cve_list = cve_list or []
         self.has_hightouch_bug = has_hightouch_bug
 
-        self._affected_srpm_nvrs = None
+        self._affected_rpm_nvrs = None
 
     @property
-    def affected_srpm_nvrs(self):
-        if self._affected_srpm_nvrs is not None:
-            return self._affected_srpm_nvrs
+    def affected_rpm_nvrs(self):
+        if self._affected_rpm_nvrs is not None:
+            return self._affected_rpm_nvrs
 
         errata = Errata()
-        self._affected_srpm_nvrs = errata.get_cve_affected_srpm_nvrs(self.errata_id)
-        return self._affected_srpm_nvrs
+        self._affected_rpm_nvrs = errata.get_cve_affected_rpm_nvrs(self.errata_id)
+        return self._affected_rpm_nvrs
 
     @classmethod
     def from_advisory_id(cls, errata, errata_id):
@@ -318,10 +318,11 @@ class Errata(object):
 
         return data["rhel_release"]["name"]
 
-    def get_builds(self, errata_id, rhel_release_prefix=None):
+    def _get_rpms(self, errata_id, rhel_release_prefix=None):
         """
-        Returns set of NVRs of builds added to the advisory. These are just
-        brew build NVRs, not the particular RPM NVRs.
+        Returns dictionary of NVRs of builds added to the advisory.
+        "source_rpms" key with SRPMs as a value
+        "binary_rpms" key with binary rpms as a value
 
         If module build is attached to advisory, also all the NVRs of builds
         included in this module build are returned, together with the NVR of
@@ -334,18 +335,9 @@ class Errata(object):
             `rhel_release_prefix`. For example to return only RHEL-7 builds,
             this should be set to "RHEL-7".
             Defaults to conf.errata_rhel_release_prefix.
-        :rtype: set of strings
-        :return: Set of NVR builds.
+        :rtype: dict
+        :return: Dictionary with source and binary rpms.
         """
-        def get_srpms_nvrs(build_dict):
-            """ Gets srpms nvrs from the build dictionary. """
-            for key, val in build_dict.items():
-                if build_dict.get('SRPMS'):
-                    return {nvr.split(".src.rpm")[0] for nvr in build_dict['SRPMS']}
-                if isinstance(val, dict):
-                    return get_srpms_nvrs(val)
-                return
-
         if rhel_release_prefix is None:
             rhel_release_prefix = conf.errata_rhel_release_prefix
 
@@ -353,7 +345,8 @@ class Errata(object):
             "advisory/%s/builds.json" % str(errata_id))
 
         # Store NVRs of all builds in advisory to nvrs set.
-        nvrs = set()
+        source_rpms = set()
+        binary_rpms = set()
         for product_version, builds in builds_per_product.items():
             if rhel_release_prefix:
                 rhel_release = Errata.product_region.get(product_version)
@@ -368,17 +361,52 @@ class Errata(object):
                     continue
 
             for build in builds:
-                # Add attached Koji build NVRs.
-                nvrs.update(set(build.keys()))
+                for variant_arch in build.values():
+                    for arch_rpms in variant_arch.values():
+                        for arch, rpms in arch_rpms.items():
+                            if arch == "SRPMS":
+                                source_rpms.update(rpms)
+                            else:
+                                binary_rpms.update(rpms)
+        return {"source_rpms": source_rpms, "binary_rpms": binary_rpms}
 
-                # Add attached SRPM NVRs. For normal RPM builds, these are the
-                # same as Koji build NVRs, but for modules, these are SRPMs
-                # included in a module.
-                srpm_nvrs = get_srpms_nvrs(build)
-                if srpm_nvrs:
-                    nvrs.update(srpm_nvrs)
+    def get_srpm_nvrs(self, errata_id, rhel_release_prefix=None):
+        """"
+        Returns list with nvrs of SRPMs attached to the advisory
 
-        return nvrs
+        :param number errata_id: ID of advisory.
+        :param string rhel_release_prefix: When set to non-empty string,
+            it will be used to limit the set of builds returned by this
+            method to only builds based on the RHEL version starting with
+            `rhel_release_prefix`. For example to return only RHEL-7 builds,
+            this should be set to "RHEL-7".
+            Defaults to conf.errata_rhel_release_prefix.
+        :rtype: list
+        :return: List with SRPMs nvrs.
+        """
+        rpms = self._get_rpms(errata_id, rhel_release_prefix)
+        source_rpms = rpms.get("source_rpms", [])
+        srpm_nvrs = {nvr.rsplit('.', 2)[0] for nvr in source_rpms}
+        return list(srpm_nvrs)
+
+    def get_binary_rpm_nvrs(self, errata_id, rhel_release_prefix=None):
+        """"
+        Returns list with nvrs of all binary RPMs attached to the advisory
+
+        :param number errata_id: ID of advisory.
+        :param string rhel_release_prefix: When set to non-empty string,
+            it will be used to limit the set of builds returned by this
+            method to only builds based on the RHEL version starting with
+            `rhel_release_prefix`. For example to return only RHEL-7 builds,
+            this should be set to "RHEL-7".
+            Defaults to conf.errata_rhel_release_prefix.
+        :rtype: list
+        :return: List with nvrs of binary RPMs.
+        """
+        rpms = self._get_rpms(errata_id, rhel_release_prefix)
+        binary_rpms = rpms.get("binary_rpms", [])
+        nvrs = {nvr.rsplit('.', 2)[0] for nvr in binary_rpms}
+        return list(nvrs)
 
     def get_pulp_repository_ids(self, errata_id):
         """Get Pulp repository IDs where packages included in errata will end up
@@ -392,25 +420,29 @@ class Errata(object):
             '/errata/get_pulp_packages/{}.json'.format(errata_id))
         return data.keys()
 
-    def get_cve_affected_srpm_nvrs(self, errata_id):
-        """ Get SRPM nvrs which are affected by the CVEs in errata
+    def get_cve_affected_rpm_nvrs(self, errata_id):
+        """ Get RPM nvrs which are affected by the CVEs in errata
 
         :param errata_id: Errata advisory ID, e.g. 25713.
         :type errata_id: str or int
-        :return: a list of strings each of them is a source rpm nvr
+        :return: a list of strings each of them is a binary rpm nvr
         :rtype: list
         """
         data = self._errata_rest_get(f"/erratum/{errata_id}/builds_by_cve")
-        srpms = set()
-        for cve, data_by_product in data.items():
-            for product, product_data in data_by_product.items():
+        nvrs = set()
+        for data_by_product in data.values():
+            for product_data in data_by_product.values():
                 for build in product_data.get("builds", []):
-                    for build_nvr, build_info in build.items():
+                    for build_info in build.values():
                         # for rpm advisories, build_nvr equal to srpm nvr, but this is
                         # not true for module advisories, so we need to get the srpms
                         # from variants data
                         for variant, variant_data in build_info.get("variant_arch", {}).items():
-                            for srpm in variant_data.get("SRPMS", []):
-                                srpms.add(srpm.split(".src.rpm")[0])
+                            for arch, rpms in variant_data.items():
+                                # Remove '.arch.....' part from rpm's name
+                                # and make a list from them
+                                if arch != 'SRPMS':
+                                    just_nvrs = [rpm.rsplit('.', 2)[0] for rpm in rpms]
+                                    nvrs.update(just_nvrs)
 
-        return list(srpms)
+        return list(nvrs)

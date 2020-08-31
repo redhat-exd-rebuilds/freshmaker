@@ -94,7 +94,7 @@ class TestImageVerifier(helpers.FreshmakerTestCase):
                 "auto_rebuild_tags": ["latest"]
             })
         ]
-        self.lb.find_images_with_included_srpms.return_value = [
+        self.lb.find_images_with_included_rpms.return_value = [
             ContainerImage({
                 "brew": {"build": "foo-1-1"},
                 "content_sets": []
@@ -113,7 +113,7 @@ class TestImageVerifier(helpers.FreshmakerTestCase):
                 "auto_rebuild_tags": ["latest"]
             })
         ]
-        self.lb.find_images_with_included_srpms.return_value = [
+        self.lb.find_images_with_included_rpms.return_value = [
             ContainerImage({
                 "brew": {"build": "foo-1-1"},
                 "content_sets": ["content-set"]

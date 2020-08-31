@@ -208,12 +208,12 @@ class TestRebuildImagesOnParentImageBuild(helpers.ModelsTestCase):
                          self.db_advisory_rpm_signed_event.state)
 
     @mock.patch('freshmaker.kojiservice.KojiService')
-    @mock.patch('freshmaker.errata.Errata.get_builds')
-    def test_mark_build_done_when_container_has_latest_rpms_from_advisory(self, errata_get_builds, KojiService):
+    @mock.patch('freshmaker.errata.Errata.get_binary_rpm_nvrs')
+    def test_mark_build_done_when_container_has_latest_rpms_from_advisory(self, get_binary_rpm_nvrs, KojiService):
         """
         Tests when dependency container build task failed in brew, only update build state in db.
         """
-        errata_get_builds.return_value = set(['foo-1.2.1-22.el7'])
+        get_binary_rpm_nvrs.return_value = set(['foo-1.2.1-22.el7'])
 
         koji_service = KojiService.return_value
         koji_service.get_build_rpms.return_value = [
@@ -236,12 +236,12 @@ class TestRebuildImagesOnParentImageBuild(helpers.ModelsTestCase):
         self.assertEqual(build.state_reason, 'Built successfully.')
 
     @mock.patch('freshmaker.kojiservice.KojiService')
-    @mock.patch('freshmaker.errata.Errata.get_builds')
-    def test_mark_build_fail_when_container_not_has_latest_rpms_from_advisory(self, errata_get_builds, KojiService):
+    @mock.patch('freshmaker.errata.Errata.get_binary_rpm_nvrs')
+    def test_mark_build_fail_when_container_not_has_latest_rpms_from_advisory(self, get_binary_rpm_nvrs, KojiService):
         """
         Tests when dependency container build task failed in brew, only update build state in db.
         """
-        errata_get_builds.return_value = set(['foo-1.2.1-23.el7'])
+        get_binary_rpm_nvrs.return_value = set(['foo-1.2.1-23.el7'])
 
         koji_service = KojiService.return_value
         koji_service.get_build_rpms.return_value = [

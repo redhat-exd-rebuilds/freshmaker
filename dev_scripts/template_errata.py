@@ -24,5 +24,5 @@ conf.errata_tool_server_url = sys.argv[1]
 errata = Errata()
 
 # Example usage:
-data = errata.get_builds(42515)
+data = errata.get_srpm_nvrs(42515)
 pprint(data)

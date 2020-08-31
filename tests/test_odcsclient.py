@@ -174,7 +174,7 @@ class TestPrepareYumRepo(helpers.ModelsTestCase):
             "state_name": "wait",
         }
 
-        errata.return_value.get_builds.return_value = set(["httpd-2.4.15-1.f27"])
+        errata.return_value.get_srpm_nvrs.return_value = set(["httpd-2.4.15-1.f27"])
 
         handler = MyHandler()
         compose = handler.odcs.prepare_yum_repo(self.ev)
@@ -207,7 +207,7 @@ class TestPrepareYumRepo(helpers.ModelsTestCase):
         _get_compose_source.side_effect = [
             'rhel-7.2-candidate', 'rhel-7.7-candidate']
 
-        errata.return_value.get_builds.return_value = [
+        errata.return_value.get_srpm_nvrs.return_value = [
             set(["httpd-2.4.15-1.f27"]), set(["foo-2.4.15-1.f27"])]
 
         handler = MyHandler()
@@ -233,7 +233,7 @@ class TestPrepareYumRepo(helpers.ModelsTestCase):
         _get_packages_for_compose.return_value = ['httpd', 'httpd-debuginfo']
         _get_compose_source.return_value = None
 
-        errata.return_value.get_builds.return_value = [
+        errata.return_value.get_srpm_nvrs.return_value = [
             set(["httpd-2.4.15-1.f27"]), set(["foo-2.4.15-1.f27"])]
 
         handler = MyHandler()

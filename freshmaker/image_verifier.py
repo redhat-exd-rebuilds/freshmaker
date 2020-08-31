@@ -171,7 +171,7 @@ class ImageVerifier(object):
         self._verify_repository_data(repo)
 
         rebuildable_images = {}
-        images = self.lb.find_images_with_included_srpms(
+        images = self.lb.find_images_with_included_rpms(
             [], [], {repo["repository"]: repo}, include_rpm_manifest=False)
         for image in images:
             self._verify_image_data(image)

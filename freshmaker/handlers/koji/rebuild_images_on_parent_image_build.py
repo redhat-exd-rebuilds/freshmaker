@@ -176,17 +176,13 @@ class RebuildImagesOnParentImageBuild(ContainerBuildHandler):
         # and use set of the nvrs as a value.
         advisory_rpms_by_name = {}
         e = Errata()
-        build_nvrs = e.get_builds(errata_id)
-        if build_nvrs:
-            with koji_service(
-                    conf.koji_profile, log, login=False,
-                    dry_run=self.dry_run) as session:
-                for build_nvr in build_nvrs:
-                    build_rpms = session.get_build_rpms(build_nvr)
-                    for rpm in build_rpms:
-                        if rpm['name'] not in advisory_rpms_by_name:
-                            advisory_rpms_by_name[rpm['name']] = set()
-                        advisory_rpms_by_name[rpm['name']].add(rpm['nvr'])
+        binary_rpm_nvrs = e.get_binary_rpm_nvrs(errata_id)
+        if binary_rpm_nvrs:
+            for nvr in binary_rpm_nvrs:
+                parsed_nvr = rpmlib.parse_nvr(nvr)
+                if parsed_nvr['name'] not in advisory_rpms_by_name:
+                    advisory_rpms_by_name[parsed_nvr['name']] = set()
+                advisory_rpms_by_name[parsed_nvr['name']].add(nvr)
 
         # get rpms in container
         with koji_service(
