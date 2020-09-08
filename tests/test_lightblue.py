@@ -557,7 +557,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                  "dummy-content-set-2"],
                 'parent_brew_build': 'some-original-nvr-7.6-252.1561619826',
                 'repositories': [
-                    {'repository': 'product1/repo1', 'published': True,
+                    {'registry': 'registry.example.com',
+                     'repository': 'product1/repo1', 'published': True,
                      'tags': [{"name": "latest"}]}
                 ],
                 'parsed_data': {
@@ -590,7 +591,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                 },
                 "content_sets": ["dummy-content-set-1"],
                 'repositories': [
-                    {'repository': 'product2/repo2', 'published': True,
+                    {'registry': 'registry.example.com',
+                     'repository': 'product2/repo2', 'published': True,
                      'tags': [{"name": "latest"}]}
                 ],
                 'parsed_data': {
@@ -632,7 +634,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                 "content_sets": ["dummy-content-set-1",
                                  "dummy-content-set-2"],
                 'repositories': [
-                    {'repository': 'product2/repo2', 'published': True,
+                    {'registry': 'registry.example.com',
+                     'repository': 'product2/repo2', 'published': True,
                      'tags': [{"name": "tag2"}]}
                 ],
                 'parsed_data': {
@@ -669,7 +672,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                 "content_sets": ["dummy-content-set-1",
                                  "dummy-content-set-2"],
                 'repositories': [
-                    {'repository': 'product2/repo2', 'published': True,
+                    {'registry': 'registry.example.com',
+                     'repository': 'product2/repo2', 'published': True,
                      'tags': [{"name": "tag2"}]}
                 ],
                 'parsed_data': {
@@ -707,7 +711,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                  'dummy-content-set-2'],
                 'parent_brew_build': 'some-original-nvr-7.6-252.1561619826',
                 'repositories': [
-                    {'repository': 'product1/repo1', 'published': True,
+                    {'registry': 'registry.example.com',
+                     'repository': 'product1/repo1', 'published': True,
                      'tags': [{'name': 'latest'}]}
                 ],
                 'parsed_data': {
@@ -1240,7 +1245,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                 {"content_sets": ["dummy-content-set-1"],
                  "brew": {"build": "filtered_x-1-23"},
                  "repositories": [
-                     {"repository": "product/repo1", "published": True,
+                     {"registry": "registry.example.com",
+                      "repository": "product/repo1", "published": True,
                       "tags": [{"name": "latest"}]}]})]
         # Include the images for second time to ensure that they will be
         # returned only once. This can happen when the image is multiarch.
@@ -1284,7 +1290,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                  'directly_affected': True,
                                  "release_categories": ["Generally Available"],
                                  'repositories': [
-                                     {'repository': 'product2/repo2', 'published': True,
+                                     {'registry': 'registry.example.com',
+                                      'repository': 'product2/repo2', 'published': True,
                                       'tags': [{"name": "latest"}]}
                                  ],
                                  'parsed_data': {
@@ -1335,6 +1342,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                     "brew": {"build": "filtered_x-1-23"},
                     "repositories": [
                         {
+                            "registry": "registry.example.com",
                             "repository": "product/repo1",
                             "published": True,
                             "tags": [{"name": "latest"}]
@@ -1389,7 +1397,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                  'directly_affected': True,
                                  "release_categories": ["Generally Available"],
                                  'repositories': [
-                                     {'repository': 'product2/repo2', 'published': True,
+                                     {'registry': 'registry.example.com',
+                                      'repository': 'product2/repo2', 'published': True,
                                       'tags': [{"name": "latest"}]}
                                  ],
                                  'parsed_data': {
@@ -1974,6 +1983,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                             {'field': 'parsed_data.files', 'include': True, 'recursive': True},
                             {'field': 'parsed_data.layers.*', 'include': True, 'recursive': True},
                             {'field': 'repositories.*.published', 'include': True, 'recursive': True},
+                            {'field': 'repositories.*.registry', 'include': True, 'recursive': True},
                             {'field': 'repositories.*.repository', 'include': True, 'recursive': True},
                             {'field': 'repositories.*.tags.*.name', 'include': True, 'recursive': True},
                             {'field': 'content_sets', 'include': True, 'recursive': True},
@@ -2087,6 +2097,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             self, exists, cont_images):
 
         repos = [{
+            "registry": "registry.example.com",
             "repository": "product/repo1", "published": True,
             'tags': [{"name": "latest"}]}]
         exists.return_value = True
@@ -2112,6 +2123,59 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         self.assertEqual(
             [image.nvr for image in ret],
             ["parent-1-2", "parent-1-3"])
+
+    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @patch('os.path.exists')
+    def test_images_with_included_srpm_but_exclude_build_repo_images(self, exists, find_images):
+        """Test images from build repositories will be excluded."""
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key)
+        repositories = {
+            repo["repository"]: repo for repo in
+            self.fake_repositories_with_content_sets}
+        build_repo_image = {
+            'brew': {
+                'completion_date': u'20170421T04:27:51.000-0400',
+                'build': 'package-name-3.1-238',
+                'package': 'package-name-3'
+            },
+            "content_sets": ["dummy-content-set-1",
+                             "dummy-content-set-2"],
+            'parent_brew_build': 'some-base-container-202-30',
+            'repositories': [
+                {'registry': 'registry.internel-build.example.com',
+                 'repository': 'product2/repo2', 'published': False,
+                 'tags': [{"name": "latest"}]}
+            ],
+            'rpm_manifest': [{
+                'rpms': [
+                    {
+                        "srpm_name": "openssl",
+                        "srpm_nevra": "openssl-0:1.2.3-1.src"
+                    }
+                ]
+            }],
+            'architecture': 'amd64'
+        }
+        build_repo_image = ContainerImage.create(build_repo_image)
+        self.fake_container_images.append(build_repo_image)
+        find_images.return_value = self.fake_container_images
+
+        ret = lb.find_images_with_included_srpms(
+            ["dummy-content-set-1", "dummy-content-set-2"], ["openssl-1.2.3-2"], repositories)
+
+        self.assertEqual(ret, [find_images.return_value[1], find_images.return_value[-1]])
+
+        # again, but this time we have build registries set
+        build_registries = ["registry.internel-build.example.com"]
+        with patch.object(
+            freshmaker.conf, "image_build_repository_registries", new=build_registries
+        ):
+            ret = lb.find_images_with_included_srpms(
+                ["dummy-content-set-1", "dummy-content-set-2"], ["openssl-1.2.3-2"], repositories)
+
+        self.assertEqual(ret, [find_images.return_value[1]])
 
 
 class TestEntityVersion(helpers.FreshmakerTestCase):

@@ -705,6 +705,7 @@ class LightBlue(object):
             {"field": "parsed_data.files", "include": True, "recursive": True},
             {"field": "parsed_data.layers.*", "include": True, "recursive": True},
             {"field": "repositories.*.published", "include": True, "recursive": True},
+            {"field": "repositories.*.registry", "include": True, "recursive": True},
             {"field": "repositories.*.repository", "include": True, "recursive": True},
             {"field": "repositories.*.tags.*.name", "include": True, "recursive": True},
             {"field": "content_sets", "include": True, "recursive": True},
@@ -960,6 +961,10 @@ class LightBlue(object):
 
             for repository in image["repositories"]:
                 if repository["repository"] not in repositories:
+                    continue
+
+                # skip images from build repositories
+                if repository["registry"] in conf.image_build_repository_registries:
                     continue
 
                 published_repo = repositories[repository["repository"]]
