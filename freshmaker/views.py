@@ -706,11 +706,22 @@ class VerifyImageRepositoryAPI(MethodView):
         .. sourcecode:: none
 
             {
+                "repository: {
+                    "auto_rebuild_tags": [
+                        "latest"
+                    ],
+                },
                 "images": {
-                    "foo-1-1": [
-                        "content-set-1",
-                        "content-set-2"
-                    ]
+                    "foo-1-1": {
+                        "content_sets": [
+                            "content-set-1",
+                            "content-set-2"
+                        ],
+                        "tags": [
+                            "latest",
+                            "2.0"
+                        ]
+                    }
                 },
                 "msg": "Found 1 images which are handled by Freshmaker."
             }
@@ -723,11 +734,12 @@ class VerifyImageRepositoryAPI(MethodView):
             raise ValueError("No image repository name provided")
 
         verifier = ImageVerifier()
-        images = verifier.verify_repository("%s/%s" % (project, repo))
+        data = verifier.verify_repository("%s/%s" % (project, repo))
         ret = {
             "msg": "Found %d images which are handled by Freshmaker for "
-                   "defined content_sets." % len(images),
-            "images": images,
+                   "defined content_sets." % len(data["images"]),
+            "images": data["images"],
+            "repository": data["repository"]
         }
         return jsonify(ret), 200
 

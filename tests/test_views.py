@@ -609,12 +609,26 @@ class TestViews(helpers.ModelsTestCase):
     @patch("freshmaker.views.ImageVerifier")
     def test_verify_image_repository(self, verifier):
         verifier.return_value.verify_repository.return_value = {
-            "foo-1-1": ["content-set"]}
-        resp = self.client.get('/api/1/verify-image-repository/foo/bar')
+            "repository": {"auto_rebuild_tags": ["latest"]},
+            "images": {
+                "foo-1-1": {"content_sets": ["content-set"], "tags": ["1", "latest", "1-1"]}
+            }
+        }
+        resp = self.client.get("/api/1/verify-image-repository/foo/bar")
         data = resp.json
-        self.assertEqual(data, {
-            'images': {'foo-1-1': ['content-set']},
-            'msg': 'Found 1 images which are handled by Freshmaker for defined content_sets.'})
+        expected = {
+            "repository": {
+                "auto_rebuild_tags": ["latest"],
+            },
+            "images": {
+                "foo-1-1": {
+                    "tags": ["1", "latest", "1-1"],
+                    "content_sets": ["content-set"]
+                }
+            },
+            "msg": "Found 1 images which are handled by Freshmaker for defined content_sets."
+        }
+        self.assertEqual(data, expected)
 
     def test_dependencies(self):
         event = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000003", "103", events.TestingEvent)

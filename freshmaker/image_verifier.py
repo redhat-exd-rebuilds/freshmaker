@@ -95,7 +95,7 @@ class ImageVerifier(object):
             ]
         }
 
-        repos = self.lb.find_container_repositories(query)
+        repos = self.lb.find_container_repositories(query, auto_rebuild=False)
         if not repos:
             raise ValueError("Cannot get repository %s from Lightblue." % repo_name)
         if len(repos) != 1:
@@ -165,21 +165,34 @@ class ImageVerifier(object):
 
         :param str repo_name: Name of repository to verify.
         :rtype: dict
-        :return: Dict with image NVR as key and list of content_sets as values.
+        :return: A dict with "repository" and "images" as keys. "repository" is
+        a dict with "auto_rebuild_tags" as key and list of auto rebuild tags as
+        values. "images" is a dict with image NVR as key, value is a dict with
+        tags and content_sets info.
         """
         repo = self._get_repository_from_name(repo_name)
         self._verify_repository_data(repo)
 
-        rebuildable_images = {}
+        data = {
+            "repository": {"auto_rebuild_tags": repo["auto_rebuild_tags"]},
+            "images": {}
+        }
+
         images = self.lb.find_images_with_included_rpms(
             [], [], {repo["repository"]: repo}, include_rpm_manifest=False)
         for image in images:
             self._verify_image_data(image)
-            rebuildable_images[image.nvr] = image["content_sets"]
+            image_data = {"content_sets": [], "tags": []}
+            for repodata in image['repositories']:
+                if repodata["repository"] == repo_name:
+                    image_data["tags"] = [t["name"] for t in repodata["tags"]]
+                    break
+            image_data["content_sets"] = image["content_sets"]
+            data["images"][image.nvr] = image_data
 
-        if not rebuildable_images:
+        if not data["images"]:
             raise ValueError(
                 "No published images tagged by %r found in repository" % (
                     repo["auto_rebuild_tags"]))
 
-        return rebuildable_images
+        return data
