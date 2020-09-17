@@ -549,13 +549,14 @@ class LightBlue(object):
         else:
             raise LightBlueRequestError(status_code, response.json())
 
-    def find_container_repositories(self, request):
+    def find_container_repositories(self, request, auto_rebuild=True):
         """Query via entity containerRepository
 
         :param dict request: a map containing complete query expression.
             This query will be sent to LightBlue in a POST request. Refer to
             https://jewzaam.gitbooks.io/lightblue-specifications/content/language_specification/query.html
             to know more detail about how to write a query.
+        :param bool auto_rebuild: only include repositories that have auto_rebuild_tags set.
         :return: a list of ContainerRepository objects
         :rtype: list
         """
@@ -566,7 +567,7 @@ class LightBlue(object):
 
         repos = []
         for repo_data in response['processed']:
-            if not repo_data.get('auto_rebuild_tags'):
+            if auto_rebuild and not repo_data.get('auto_rebuild_tags'):
                 log.info('"auto_rebuild_tags" not set for %s repository, ignoring repository',
                          repo_data["repository"])
                 continue

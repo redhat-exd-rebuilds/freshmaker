@@ -116,11 +116,31 @@ class TestImageVerifier(helpers.FreshmakerTestCase):
         self.lb.find_images_with_included_rpms.return_value = [
             ContainerImage({
                 "brew": {"build": "foo-1-1"},
-                "content_sets": ["content-set"]
+                "content_sets": ["content-set"],
+                "repositories": [
+                    {
+                        "registry": "registry.example.com",
+                        "published": True,
+                        "repository": "foo/bar",
+                        "tags": [{"name": "1"}, {"name": "latest"}, {"name": "1-1"}],
+                    },
+                    {
+                        "registry": "registry.build.example.com",
+                        "published": False,
+                        "repository": "buildsys/foobar",
+                        "tags": [{"name": "1-1"}, {"name": "1.old"}],
+                    },
+                ]
             })
         ]
         ret = self.verifier.verify_repository("foo/bar")
-        self.assertEqual(ret, {"foo-1-1": ["content-set"]})
+        expected = {
+            "repository": {"auto_rebuild_tags": ["latest"]},
+            "images": {
+                "foo-1-1": {"content_sets": ["content-set"], "tags": ["1", "latest", "1-1"]}
+            },
+        }
+        self.assertEqual(ret, expected)
 
     def test_get_verify_image(self):
         self.lb.find_container_repositories.return_value = [
