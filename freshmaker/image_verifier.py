@@ -45,10 +45,11 @@ class ImageVerifier(object):
         Raises ValueError in case of error.
         """
         categories = set(conf.lightblue_release_categories)
-        if not set(repo["release_categories"]).intersection(categories):
+        repo_categories = repo.get("release_categories", [])
+        if not set(repo_categories).intersection(categories):
             raise ValueError(
                 "Only repositories with one of %r release_categories can be "
-                "rebuilt, but found %r." % (categories, repo["release_categories"]))
+                "rebuilt, but found %r." % (categories, repo_categories))
 
         if not repo["published"]:
             raise ValueError(
