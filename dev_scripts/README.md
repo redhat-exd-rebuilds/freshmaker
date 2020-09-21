@@ -42,3 +42,30 @@ python3 find_images_to_rebuild.py 53137
  ```bash
 python3 find_images_to_rebuild.py 53137 --cassette-path ~/vcr_test/fixtures/cassettes/1.yml
  ```
+
+For copying the desired cassette from the OpenShift persistent volume to your workstation run command 
+for the coping the directory from the pod to the local directory (on the `dev` example): 
+
+        oc rsync freshmaker-dev-consumer-<...>:/var/tmp/lighblue_records ./local/dir
+
+or
+
+        oc rsync freshmaker-dev-consumer-<...>:/var/tmp/lighblue_records/filename ./local/dir
+
+for coping a single file.
+
+Before run `oc rsync` command: 
+
+1) login to OpenShift with
+    
+        oc login --token <token> registry.upshift.redhat.com:8443  
+        
+2) run
+
+        oc project freshmaker-dev
+
+   to change project  
+        
+3) find `freshmaker-dev-consumer - <>` pod with
+
+        oc -n freshmaker-dev get pods
