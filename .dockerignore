@@ -1,0 +1,2 @@
+# ignore .git folder because we don't need it
+.git
