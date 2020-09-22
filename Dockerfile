@@ -1,22 +1,14 @@
 # TODO: Upgrade to a more recent fedora version
 FROM fedora:32
 
-# The caller should build a Freshmaker RPM package and then pass it in this arg.
-ARG cacert_url=undefined
-ARG commitid=undefined
-
 LABEL \
     name="Freshmaker application" \
     vendor="Freshmaker developers" \
-    license="GPLv2+" \
-    build-date="" \
-    version="$commitid"
+    license="GPLv2+" 
 
 
-# An internal yum repo is needed for rhmsg
-ADD http://download.devel.redhat.com/rel-eng/RCMTOOLS/rcm-tools-fedora.repo /etc/yum.repos.d/
-# ...but the image doesn't have the required root CA installed
-RUN sed -i 's_https://_http://_' /etc/yum.repos.d/rcm-tools-fedora.repo
+# Use Copr repo for python3-rhmsg package
+RUN dnf install -y 'dnf-command(copr)' && dnf copr enable -y qwan/python-rhmsg
 
 COPY yum-packages.txt /tmp/yum-packages.txt
 
@@ -41,11 +33,6 @@ RUN \
     FRESHMAKER_CONFIG_FILE=/etc/freshmaker/config.py FRESHMAKER_CONFIG_SECTION=DevConfiguration freshmaker-gencert --help &&\
     FRESHMAKER_CONFIG_FILE=/etc/freshmaker/config.py FRESHMAKER_CONFIG_SECTION=DevConfiguration freshmaker-upgradedb --help
 
-RUN if [ "$cacert_url" != "undefined" ]; then \
-        cd /etc/pki/ca-trust/source/anchors \
-        && curl -O --insecure $cacert_url \
-        && update-ca-trust extract; \
-    fi
 
 USER 1001
 EXPOSE 8080
