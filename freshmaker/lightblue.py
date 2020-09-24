@@ -906,11 +906,6 @@ class LightBlue(object):
                             "rvalue": tag
                         } for tag in auto_rebuild_tags]
                     },
-                    {
-                        "field": "parsed_data.files.*.key",
-                        "op": "=",
-                        "rvalue": "buildfile"
-                    },
                 ]
             },
             "projection": self._get_default_projection(
@@ -1020,11 +1015,6 @@ class LightBlue(object):
                             "op": "=",
                             "rvalue": nvr
                         } for nvr in nvrs]
-                    },
-                    {
-                        "field": "parsed_data.files.*.key",
-                        "op": "=",
-                        "rvalue": "buildfile"
                     },
                 ]
             },
