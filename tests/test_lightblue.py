@@ -1133,11 +1133,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                         ],
                     },
                     {
-                        "field": "parsed_data.files.*.key",
-                        "op": "=",
-                        "rvalue": "buildfile"
-                    },
-                    {
                         "$or": [
                             {
                                 "field": "content_sets.*",
@@ -2008,7 +2003,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                     {'$or': [
                         {'field': 'brew.build', 'rvalue': 'foo', 'op': '='},
                         {'field': 'brew.build', 'rvalue': 'bar', 'op': '='}]},
-                    {'field': 'parsed_data.files.*.key', 'rvalue': 'buildfile', 'op': '='},
                     {'$or': [{'field': 'content_sets.*', 'rvalue': 'dummy-content-set', 'op': '='}]},
                     {'$or': [{'field': 'rpm_manifest.*.rpms.*.name', 'rvalue': 'openssl', 'op': '='}]}]},
              'projection': [{'field': 'brew', 'include': True, 'recursive': True},
