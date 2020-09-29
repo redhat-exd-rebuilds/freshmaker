@@ -1,3 +1,4 @@
+[![Freshmaker-status](https://quay.io/repository/factory2/freshmaker/status)](https://quay.io/repository/factory2/freshmaker)
 ![Freshmaker](https://github.com/redhat-exd-rebuilds/freshmaker/raw/master/logo.png)
 
 ## What is Freshmaker?
