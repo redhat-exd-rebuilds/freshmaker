@@ -18,6 +18,8 @@ Example usage:
         ./freshmaker-cli --redhat --stage --name httpd24-docker
     - Search for events in particular state
         ./freshmaker-cli --redhat --stage --state skipped
+    - Search for RHSA advisories from ET ignored by Freshmaker in the past 5 days
+        ./freshmaker-cli --redhat  --errata --days-ago 5
 """
 
 from __future__ import print_function
@@ -25,7 +27,11 @@ from __future__ import print_function
 import textwrap
 import argparse
 import sys
+import urllib
+from datetime import date, timedelta, datetime
+
 import requests
+from requests_kerberos import HTTPKerberosAuth
 from tabulate import tabulate
 
 # Disable InsecureRequestWarning
@@ -50,6 +56,7 @@ EVENT_TYPES = {
     12: {"name": "ODCS compose state changed", "url": ""},
     13: {"name": "Manual rebuild with advisory",
          "url": "https://errata.devel.redhat.com/advisory/{search_key}"},
+    None: {"name": "No event", "url": ""}
 }
 
 
@@ -59,7 +66,10 @@ EVENT_STATES = [
     "complete",
     "failed",
     "skipped",
-    ]
+    "changed",
+    "no event"
+]
+
 
 def split_nvr_epoch(nvre):
     """Split nvre to N-V-R and E.
@@ -121,6 +131,7 @@ def parse_nvr(nvre):
     result["epoch"] = epoch
     return result
 
+
 def get_api_url(deployment, env):
     API_URLS = {
         "redhat": {
@@ -140,6 +151,19 @@ def get_api_url(deployment, env):
         return None
 
     return envs[env]
+
+
+def get_errata_filter(env):
+    """
+    Returns the address of custom precreated filter which shows the last 100 RHSA in SHIPPED_LIVE
+    state depending on the environment
+    """
+    ERRATA_FILTERS = {
+        "prod": "https://errata.engineering.redhat.com/filter/2964.json",
+        "stage": "https://errata.stage.engineering.redhat.com/filter/1471.json",
+        "dev": "https://errata.devel.redhat.com/filter/2971.json",
+    }
+    return ERRATA_FILTERS.get(env)
 
 
 def _get_freshmaker_items(url, params, limit=None):
@@ -222,6 +246,55 @@ def get_freshmaker_events_by_ids(api_url, ids):
             print(ret["error"])
 
     events = sorted(events, key=lambda k: k['id'])
+    return events
+
+
+def get_advisories_from_errata(errata_url, days=7):
+    """
+    Sends the GET request to the preset Errata filter. Filter shows RHSA in SHIPPED_LIVE state
+    ordered by date of shipping (from the latest to the oldest). Returns the list of advisories
+    that are IMPORTANT or CRITICAL and the date of shipping is older given number of days before the
+    current date.
+    """
+    if days > 7:
+        print("The interval between dates should not exceed 7 days")
+        sys.exit(1)
+    page = 1
+    krb_auth = HTTPKerberosAuth()
+    advisories = []
+    date_from = date.today() - timedelta(days)
+    while True:
+        print("Getting advisories from  Errata page", page)
+        r = requests.get(errata_url, auth=krb_auth, timeout=30, params={page: page})
+        r.raise_for_status()
+        data = r.json()
+        if not data:
+            return advisories
+        for advisory in data:
+            ship_date = datetime.strptime(advisory["timestamps"]["actual_ship_date"], "%Y-%m-%dT%H:%M:%SZ").date()
+            if ship_date < date_from:
+                return advisories
+            if advisory["security_impact"] in ("Important", "Critical"):
+                advisories.append(advisory["id"])
+        page += 1
+
+
+def get_errata_advisories_ignored_by_freshmaker(api_url, advisories):
+    print("Getting Freshmaker events")
+    events = []
+    for advisory in advisories:
+        url = urllib.parse.urljoin(api_url, f'/api/1/events/?search_key={advisory}')
+        r = requests.get(url, timeout=30)
+        r.raise_for_status()
+        ret = r.json()
+        if not ret["items"]:
+            events += [{"id": None,
+                        "state": 6,
+                        "builds": None,
+                        "state_reason": None,
+                        "event_type_id": None,
+                        "search_key": str(advisory),
+                        'builds': []}]
     return events
 
 
@@ -357,6 +430,9 @@ parser.add_argument(
     '--redhat', default=False, action='store_true',
     help="Use the redhat instances.")
 parser.add_argument(
+    '--errata', default=False, action='store_true',
+    help="Check RHSA if freshmaker reacted on them")
+parser.add_argument(
     'events', metavar='event', nargs='*',
     help='Event ids to be queried')
 parser.add_argument(
@@ -377,6 +453,10 @@ parser.add_argument(
 parser.add_argument(
     '--limit', default=10, type=int,
     help="Return only last N events")
+parser.add_argument('--days-ago', default=7, dest="days", type=int, choices=range(1, 8),
+                    help="Number of days in the past for searching from today. Used only with the "
+                         "--errata flag")
+
 args = parser.parse_args()
 
 if args.redhat:
@@ -398,7 +478,20 @@ if not api_url:
     print("There is no Freshmaker instance for deployment %s and env %s" %( deployment, env))
     sys.exit(1)
 
-if not args.events:
+if args.errata:
+    if args.events:
+        print("The flags --errata and --event can't be used simultaneously")
+        sys.exit(1)
+
+    api_errata = get_errata_filter(env)
+    if not api_errata:
+        print("There is no Errata instance for env %s" % (env))
+        sys.exit(1)
+
+    advisories = get_advisories_from_errata(api_errata, args.days)
+    events = get_errata_advisories_ignored_by_freshmaker(api_url, advisories)
+    print_events(events)
+elif not args.events:
     if not args.state:
         args.state = ["init", "building", "complete", "failed"]
     events = get_freshmaker_events(api_url, search_key=args.search_key,
