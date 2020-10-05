@@ -14,6 +14,8 @@ Freshmaker is a service which:
   * Handlers are small classes using the high-level API provided to them by Freshmaker core to rebuild artifacts.
 * Provides high-level API to track dependencies between artifacts and make rebuilding of them easy.
 
+See the [docs](https://redhat-exd-rebuilds.github.io/freshmaker/) for additional information.
+
 ## How does it work?
 
 Freshmaker waits for new fedmsg messages about artifact being updated,
