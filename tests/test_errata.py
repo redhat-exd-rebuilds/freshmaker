@@ -79,7 +79,10 @@ class MockedErrataAPI(object):
             "product": {
                 "id": 89,
                 "short_name": "product",
-            }
+            },
+            "people": {
+                "reporter": "botas/dev-jenkins.some.strange.letters.redhat.com@REDHAT.COM"
+            },
         }
 
         self.advisory_rest_json = {
