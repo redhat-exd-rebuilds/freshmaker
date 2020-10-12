@@ -452,3 +452,10 @@ class FreshmakerAsyncManualBuildEvent(BaseEvent):
         self.brew_target = brew_target
         self.requester = requester
         self.requester_metadata_json = requester_metadata_json
+
+
+class BotasErrataShippedEvent(ErrataBaseEvent):
+    """ Event triggered, when BOTAS pushes advisory to SHIPPED_LIVE state """
+
+    def __init__(self, msg_id, advisory, dry_run=False):
+        super().__init__(msg_id, advisory, dry_run=dry_run)

@@ -20,13 +20,14 @@
 # SOFTWARE.
 
 from freshmaker.parsers import BaseParser
-from freshmaker.events import ErrataAdvisoryStateChangedEvent
+from freshmaker.events import ErrataAdvisoryStateChangedEvent, BotasErrataShippedEvent
 from freshmaker.errata import Errata, ErrataAdvisory
 
 
 class ErrataAdvisoryStateChangedParser(BaseParser):
     """
     Parser parsing errata.activity.status.
+    If event produced by BOTAS we will generate specific type of event
     """
 
     name = "ErrataAdvisoryStateChangedParser"
@@ -41,6 +42,12 @@ class ErrataAdvisoryStateChangedParser(BaseParser):
         errata_id = int(inner_msg.get('errata_id'))
 
         errata = Errata()
-        return ErrataAdvisoryStateChangedEvent(
-            msg_id, ErrataAdvisory.from_advisory_id(errata, errata_id)
-        )
+        advisory = ErrataAdvisory.from_advisory_id(errata, errata_id)
+        # If advisory created by BOTAS and it's shipped,
+        # then return BotasErrataShippedEvent event
+        if advisory.state == "SHIPPED_LIVE" and \
+           advisory.reporter.startswith('botas'):
+            event = BotasErrataShippedEvent(msg_id, advisory)
+        else:
+            event = ErrataAdvisoryStateChangedEvent(msg_id, advisory)
+        return event

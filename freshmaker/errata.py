@@ -56,6 +56,7 @@ class ErrataAdvisory(object):
         self.has_hightouch_bug = has_hightouch_bug
 
         self._affected_rpm_nvrs = None
+        self._reporter = ""
 
     @property
     def affected_rpm_nvrs(self):
@@ -65,6 +66,16 @@ class ErrataAdvisory(object):
         errata = Errata()
         self._affected_rpm_nvrs = errata.get_cve_affected_rpm_nvrs(self.errata_id)
         return self._affected_rpm_nvrs
+
+    @property
+    def reporter(self):
+        if self._reporter:
+            return self._reporter
+
+        errata = Errata()
+        advisory_data = errata._get_advisory_legacy(self.errata_id)
+        self._reporter = advisory_data['people']['reporter']
+        return self._reporter
 
     @classmethod
     def from_advisory_id(cls, errata, errata_id):
@@ -170,6 +181,9 @@ class Errata(object):
 
     def _get_advisory(self, errata_id):
         return self._errata_rest_get('erratum/{0}'.format(errata_id))
+
+    def _get_advisory_legacy(self, errata_id):
+        return self._errata_http_get('advisory/{0}.json'.format(errata_id))
 
     def _get_product(self, product_id):
         return self._errata_http_get("products/%s.json" % str(product_id))
