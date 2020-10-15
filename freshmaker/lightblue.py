@@ -631,7 +631,8 @@ class LightBlue(object):
 
     def _set_container_repository_filters(
             self, request, published=True,
-            release_categories=conf.lightblue_release_categories):
+            release_categories=conf.lightblue_release_categories,
+            vendors=conf.lightblue_repo_vendors):
         """
         Sets the additional filters to containerRepository request
         based on the self.published, self.release_categories attributes.
@@ -640,6 +641,8 @@ class LightBlue(object):
         :param release_categories: filter only repositories with specific
             release categories (options: Deprecated, Generally Available, Beta, Tech Preview)
         :type release_categories: tuple[str] or list[str]
+        :param vendors: accept repositories only from selected vendors
+        :type vendors: tuple[str]
         """
         if published is not None:
             request["query"]["$and"].append({
@@ -655,6 +658,15 @@ class LightBlue(object):
                     "op": "=",
                     "rvalue": category
                 } for category in release_categories]
+            })
+
+        if vendors:
+            request["query"]["$and"].append({
+                "$or": [{
+                    "field": "vendorLabel",
+                    "op": "=",
+                    "rvalue": vendor
+                } for vendor in vendors]
             })
 
         return request
