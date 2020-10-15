@@ -1076,6 +1076,11 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                             {"field": "release_categories.*", "rvalue": "Tech Preview", "op": "="},
                             {"field": "release_categories.*", "rvalue": "Beta", "op": "="}]
                     },
+                    {
+                        "$or": [
+                            {"field": "vendorLabel", "rvalue": "redhat", "op": "="},
+                        ]
+                    },
                 ]
             },
             "projection": [

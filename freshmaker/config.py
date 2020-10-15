@@ -271,6 +271,10 @@ class Config(object):
                     'for other images. WARN: This may lead to downgrade to older '
                     'release as result of rebuild when image to rebuild depends '
                     'on unreleased release of the parent image.'},
+        'lightblue_repo_vendors': {
+            'type': tuple,
+            'default': ("redhat",),
+            'desc': 'Allowed vendors for Container Repositories'},
         'image_build_repository_registries': {
             'type': list,
             'default': [],
