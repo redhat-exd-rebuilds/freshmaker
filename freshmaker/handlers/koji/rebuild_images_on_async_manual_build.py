@@ -116,7 +116,7 @@ class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
         return LightBlue(server_url=conf.lightblue_server_url,
                          cert=conf.lightblue_certificate,
                          private_key=conf.lightblue_private_key,
-                         event_id=self.event.msg_id)
+                         event_id=self.current_db_event_id)
 
     def filter_out_unrelated_images(self, batches):
         """
