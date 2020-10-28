@@ -387,9 +387,7 @@ class ContainerImage(dict):
     def resolve(self, lb_instance, children=None):
         """
         Resolves the Container image - populates additional metadata by
-        querying Koji and dist-git.
-
-        Calls self.resolve_commit() and self.resolve_content_sets().
+        querying Koji and lightblue.
         """
         try:
             self.resolve_commit()
