@@ -1320,18 +1320,17 @@ class LightBlue(object):
             # Constructs the temporary dicts as described above.
             for image_id, images in enumerate(to_rebuild):
                 for parent_id, image in enumerate(images):
-                    nvr = image.nvr
                     image_group = self.describe_image_group(image)
-                    if image_group not in image_group_to_nvrs:
-                        image_group_to_nvrs[image_group] = []
-                    if nvr not in image_group_to_nvrs[image_group]:
-                        image_group_to_nvrs[image_group].append(nvr)
-                    if nvr not in nvr_to_coordinates:
-                        nvr_to_coordinates[nvr] = []
-                    nvr_to_coordinates[nvr].append([image_id, parent_id])
-                    nvr_to_image[nvr] = image
-                    if "latest_released" in image and image["latest_released"]:
-                        image_group_to_latest_released_nvr[image_group] = nvr
+
+                    image_group_to_nvrs.setdefault(image_group, [])
+                    if image.nvr not in image_group_to_nvrs[image_group]:
+                        image_group_to_nvrs[image_group].append(image.nvr)
+
+                    nvr_to_coordinates.setdefault(image.nvr, []).append([image_id, parent_id])
+                    nvr_to_image[image.nvr] = image
+
+                    if image.get("latest_released"):
+                        image_group_to_latest_released_nvr[image_group] = image.nvr
 
             # Sort the lists in image_group_to_nvrs dict.
             for image_group in image_group_to_nvrs.keys():
@@ -1352,9 +1351,7 @@ class LightBlue(object):
                 latest_content_sets = []
                 for nvr in reversed(image_group_to_nvrs[image_group]):
                     image = nvr_to_image[nvr]
-                    if ("content_sets" not in image or
-                            not image["content_sets"] or
-                            "content_sets_source" not in image):
+                    if not image.get("content_sets") or "content_sets_source" not in image:
                         image["content_sets"] = latest_content_sets
                     elif image["content_sets_source"] == "child_image":
                         if latest_content_sets:
@@ -1386,7 +1383,7 @@ class LightBlue(object):
                 if phase == "handle_parent_change":
                     # Find out the name of parent image of latest release image.
                     latest_image = nvr_to_image[latest_released_nvr]
-                    if "parent" not in latest_image or not latest_image["parent"]:
+                    if not latest_image.get("parent"):
                         continue
                     latest_parent_nvr_dict = koji.parse_NVR(latest_image["parent"].nvr)
                     latest_parent_name = latest_parent_nvr_dict["name"]
@@ -1396,7 +1393,7 @@ class LightBlue(object):
                     # update its parents according to latest image parents.
                     for nvr in nvrs[latest_released_nvr_index + 1:]:
                         image = nvr_to_image[nvr]
-                        if "parent" not in image or not image["parent"]:
+                        if not image.get("parent"):
                             continue
                         parent_nvr_dict = koji.parse_NVR(image["parent"].nvr)
                         parent_name = parent_nvr_dict["name"]
