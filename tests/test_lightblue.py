@@ -25,6 +25,7 @@ import json
 import io
 import http.client
 
+from unittest import mock
 from unittest.mock import call, patch, Mock
 
 import freshmaker
@@ -1563,9 +1564,11 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
 
     @patch('freshmaker.lightblue.LightBlue.find_images_with_packages_from_content_set')
     @patch('freshmaker.lightblue.LightBlue.find_parent_images_with_package')
+    @patch('freshmaker.lightblue.LightBlue._filter_out_already_fixed_published_images')
     @patch('os.path.exists')
     def test_images_to_rebuild(self,
                                exists,
+                               _filter_out_already_fixed_published_images,
                                find_parent_images_with_package,
                                find_images_with_packages_from_content_set):
         exists.return_value = True
@@ -1742,6 +1745,14 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                 if image.nvr == "leaf-image-6-1":
                     self.assertTrue(leaf_image6_as_parent["directly_affected"])
                     break
+        expected_directly_affected_nvrs = {
+            "leaf-image-5-1", "leaf-image-1-1", "leaf-image-3-1", "leaf-image-6-1",
+            "leaf-image-7-1", "leaf-image-4-1", "leaf-image-2-1",
+        }
+
+        _filter_out_already_fixed_published_images.assert_called_once_with(
+            mock.ANY, expected_directly_affected_nvrs, ["dummy-1-1"], ["dummy"]
+        )
 
     @patch("freshmaker.lightblue.ContainerImage.resolve_published")
     @patch("freshmaker.lightblue.LightBlue.get_images_by_nvrs")
@@ -1775,10 +1786,12 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
     @patch("freshmaker.lightblue.LightBlue.get_images_by_nvrs")
     @patch('freshmaker.lightblue.LightBlue.find_images_with_packages_from_content_set')
     @patch('freshmaker.lightblue.LightBlue.find_parent_images_with_package')
+    @patch('freshmaker.lightblue.LightBlue._filter_out_already_fixed_published_images')
     @patch('os.path.exists')
     def test_parent_images_with_package_using_field_parent_brew_build_parent_empty(
-            self, exists, find_parent_images_with_package,
-            find_images_with_packages_from_content_set, cont_images):
+            self, exists, _filter_out_already_fixed_published_images,
+            find_parent_images_with_package, find_images_with_packages_from_content_set,
+            cont_images):
         exists.return_value = True
 
         image_a = ContainerImage.create({
@@ -1809,10 +1822,12 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
     @patch("freshmaker.lightblue.LightBlue.get_images_by_nvrs")
     @patch('freshmaker.lightblue.LightBlue.find_images_with_packages_from_content_set')
     @patch('freshmaker.lightblue.LightBlue.find_parent_images_with_package')
+    @patch('freshmaker.lightblue.LightBlue._filter_out_already_fixed_published_images')
     @patch('os.path.exists')
     def test_dedupe_dependency_images_with_all_repositories(
-            self, exists, find_parent_images_with_package,
-            find_images_with_packages_from_content_set, get_images_by_nvrs):
+            self, exists, _filter_out_already_fixed_published_images,
+            find_parent_images_with_package, find_images_with_packages_from_content_set,
+            get_images_by_nvrs):
         exists.return_value = True
 
         vulnerable_rpm_name = 'oh-noes'
@@ -2686,3 +2701,449 @@ class TestDeduplicateImagesToRebuild(helpers.FreshmakerTestCase):
             with patch.object(freshmaker.conf, 'lightblue_released_dependencies_only', new=val):
                 ret = self.lb._deduplicate_images_to_rebuild([httpd, perl])
                 self.assertEqual(ret, expected_images)
+
+
+@patch('os.path.exists', return_value=True)
+@patch('freshmaker.lightblue.LightBlue.get_fixed_published_image')
+@patch('freshmaker.lightblue.LightBlue.describe_image_group')
+def test_filter_out_already_fixed_published_images(mock_dig, mock_gfpi, mock_exists):
+    vulerable_bash_rpm_manifest = [
+        {
+            "rpms": [
+                {
+                    "name": "bash",
+                    "nvra": "bash-4.2.46-31.el7.x86_64",
+                    "srpm_name": "bash",
+                    "srpm_nevra": "bash-0:4.2.46-31.el7.src",
+                    "version": "4.2.46",
+                }
+            ]
+        }
+    ]
+    parent_image = ContainerImage.create(
+        {
+            "brew": {"build": "rhel-server-container-7.6-1"},
+            "content_sets": ["rhel-7-server-rpms"],
+            "rpm_manifest": vulerable_bash_rpm_manifest,
+        }
+    )
+    child_image = ContainerImage.create(
+        {
+            "brew": {"build": "focaccia-maker-1.0.0-1"},
+            "content_sets": ["rhel-7-server-rpms"],
+            "directly_affected": True,
+            "parent": parent_image,
+            "parent_build_id": 1275600,
+            "parent_image_builds": {
+                "registry.domain.local/rhel7/rhel:latest": {
+                    "id": 1275600,
+                    "nvr": "rhel-server-container-7.6-1",
+                }
+            },
+            "rpm_manifest": vulerable_bash_rpm_manifest,
+        }
+    )
+    fixed_parent_image = ContainerImage.create(
+        {
+            "brew": {"build": "rhel-server-container-7.9-189"},
+            "content_sets": ["rhel-7-server-rpms"],
+            "rpm_manifest": [
+                {
+                    "rpms": [
+                        {
+                            "name": "bash",
+                            "nvra": "bash-4.2.46-34.el7.x86_64",
+                            "srpm_name": "bash",
+                            "srpm_nevra": "bash-0:4.2.46-34.el7.src",
+                            "version": "4.2.46",
+                        }
+                    ]
+                }
+            ],
+        }
+    )
+    second_parent_image = ContainerImage.create(
+        {
+            "brew": {"build": "rhel-server-container-7.8-1"},
+            "content_sets": ["rhel-7-server-rpms"],
+            "rpm_manifest": vulerable_bash_rpm_manifest,
+        }
+    )
+    third_parent_image = ContainerImage.create(
+        {
+            "brew": {"build": "rhel-server-container-7.8-2"},
+            "content_sets": ["rhel-7-server-rpms"],
+        }
+    )
+    second_child_image = ContainerImage.create(
+        {
+            "brew": {"build": "pizza-dough-tosser-1.0.0-1"},
+            "content_sets": ["rhel-7-server-rpms"],
+            "directly_affected": True,
+            "parent": second_parent_image,
+            "parent_build_id": 1275601,
+            "parent_image_builds": {
+                "registry.domain.local/rhel7/rhel:7.8": {
+                    "id": 1275601,
+                    "nvr": "rhel-server-container-7.8-1",
+                }
+            },
+            "rpm_manifest": vulerable_bash_rpm_manifest,
+        }
+    )
+    intermediate_image = ContainerImage.create(
+        {
+            "brew": {"build": "pizza-oven-2.7-1"},
+            "content_sets": ["rhel-7-server-rpms"],
+            "parent_build_id": 1275600,
+            "parent_image_builds": {
+                "registry.domain.local/rhel7/rhel:latest": {
+                    "id": 1275600,
+                    "nvr": "rhel-server-container-7.6-1",
+                }
+            },
+            "rpm_manifest": vulerable_bash_rpm_manifest,
+        }
+    )
+    third_child_image = ContainerImage.create(
+        {
+            "brew": {"build": "pineapple-topping-remover-1.0.0-1"},
+            "content_sets": ["rhel-7-server-rpms"],
+            "directly_affected": True,
+            "parent": second_parent_image,
+            "parent_build_id": 1275801,
+            "parent_image_builds": {
+                "registry.domain.local/appliances/pizza-oven:2.7": {
+                    "id": 1275801,
+                    "nvr": "pizza-oven-2.7-1",
+                }
+            },
+            "rpm_manifest": vulerable_bash_rpm_manifest,
+        }
+    )
+    fourth_child_image = ContainerImage.create(
+        {
+            "brew": {"build": "pizza-fries-cooker-1.0.0-1"},
+            "content_sets": ["rhel-7-server-rpms"],
+            "directly_affected": True,
+            "parent_build_id": 1275602,
+            "parent_image_builds": {
+                "registry.domain.local/rhel7/rhel:7.9": {
+                    "id": 1275602,
+                    "nvr": "rhel-server-container-7.9-123",
+                }
+            },
+            "rpm_manifest": vulerable_bash_rpm_manifest,
+        }
+    )
+    fifth_child_image = ContainerImage.create(
+        {
+            "brew": {"build": "chicken-parm-you-taste-so-good-1.0.0-1"},
+            "content_sets": ["rhel-7-server-rpms"],
+            "directly_affected": True,
+            "parent_build_id": 1275602,
+            "parent_image_builds": {
+                "registry.domain.local/rhel7/rhel:7.9": {
+                    "id": 1275602,
+                    "nvr": "rhel-server-container-7.9-123",
+                }
+            },
+            "rpm_manifest": vulerable_bash_rpm_manifest,
+        }
+    )
+    mock_gfpi.side_effect = [fixed_parent_image, None, fixed_parent_image]
+    to_rebuild = [
+        # This parent image of child image will be replaced with the published image.
+        # The parent image will not be in to_rebuild after the method is executed.
+        [child_image, parent_image],
+        # Because get_fixed_published_image will return None on the second group,
+        # this will remain the same
+        [second_child_image, second_parent_image],
+        # Because the intermediate image is directly affected in the third group
+        # but the parent image is not and there is a published image with the
+        # fix, the parent image will not be in to_rebuild after the method is
+        # executed.
+        [third_child_image, intermediate_image, parent_image],
+        # Since there are only directly affected images, this will remain the same
+        [fourth_child_image],
+        # Since the third parent image in this group does not have an RPM
+        # manifest, this group will remain the same
+        [fifth_child_image, third_parent_image],
+    ]
+    directly_affected_nvrs = {
+        "chicken-parm-you-taste-so-good-1.0.0-1",
+        "focaccia-maker-1.0.0-1",
+        "pizza-dough-tosser-1.0.0-1",
+        "pizza-fries-cooker-1.0.0-1",
+        "pizza-oven-2.7-1",
+        "pineapple-topping-remover-1.0.0-1"
+    }
+    rpm_nvrs = ["bash-4.2.46-34.el7"]
+    content_sets = ["rhel-7-server-rpms"]
+
+    lb = LightBlue("lb.domain.local", "/path/to/cert", "/path/to/key")
+    lb._filter_out_already_fixed_published_images(
+        to_rebuild, directly_affected_nvrs, rpm_nvrs, content_sets
+    )
+
+    assert to_rebuild == [
+        [child_image],
+        [second_child_image, second_parent_image],
+        [third_child_image, intermediate_image],
+        [fourth_child_image],
+        [fifth_child_image, third_parent_image],
+    ]
+    assert child_image["parent"] == fixed_parent_image
+    assert intermediate_image["parent"] == fixed_parent_image
+    assert mock_gfpi.call_count == 3
+    mock_gfpi.assert_has_calls(
+        (
+            mock.call('rhel-server-container', '7.6', mock_dig(), set(rpm_nvrs), content_sets),
+            mock.call('rhel-server-container', '7.8', mock_dig(), set(rpm_nvrs), content_sets),
+            mock.call('rhel-server-container', '7.6', mock_dig(), set(rpm_nvrs), content_sets),
+        )
+    )
+
+
+@patch('os.path.exists', return_value=True)
+@patch('freshmaker.lightblue.LightBlue.find_container_images')
+def test_get_fixed_published_image(mock_fci, mock_exists):
+    other_rhel7_image = ContainerImage.create(
+        {
+            "brew": {"build": "rhel-server-container-7.9-188"},
+            "content_sets": ["rhel-7-server-rpms"],
+            "repositories": [{"repository": "repo"}],
+            "rpm_manifest": [
+                {
+                    "rpms": [
+                        {
+                            "name": "bash",
+                            "nvra": "bash-4.2.46-34.el7.x86_64",
+                            "srpm_name": "bash",
+                            "srpm_nevra": "bash-0:4.2.46-34.el7.src",
+                            "version": "4.2.46",
+                        }
+                    ]
+                }
+            ],
+        }
+    )
+    latest_rhel7_image = ContainerImage.create(
+        {
+            "brew": {"build": "rhel-server-container-7.9-189"},
+            "content_sets": ["rhel-7-server-rpms"],
+            "repositories": [{"repository": "repo"}],
+            "rpm_manifest": [
+                {
+                    "rpms": [
+                        {
+                            "name": "bash",
+                            "nvra": "bash-4.2.46-34.el7.x86_64",
+                            "srpm_name": "bash",
+                            "srpm_nevra": "bash-0:4.2.46-34.el7.src",
+                            "version": "4.2.46",
+                        }
+                    ]
+                }
+            ],
+        }
+    )
+    # Don't have `resolve` reach out over the network
+    other_rhel7_image.resolve = Mock()
+    latest_rhel7_image.resolve = Mock()
+    mock_fci.side_effect = [[other_rhel7_image, latest_rhel7_image], [latest_rhel7_image]]
+    image_group = "rhel-server-container-7.9-['repo']"
+    rpm_nvrs = ["bash-4.2.46-34.el7"]
+    content_sets = ["rhel-7-server-rpms"]
+    lb = LightBlue("lb.domain.local", "/path/to/cert", "/path/to/key")
+
+    image = lb.get_fixed_published_image(
+        "rhel-server-container", "7.9", image_group, rpm_nvrs, content_sets
+    )
+
+    assert image == latest_rhel7_image
+
+
+@patch('os.path.exists', return_value=True)
+@patch('freshmaker.lightblue.LightBlue.find_container_images')
+def test_get_fixed_published_image_not_found(mock_fci, mock_exists):
+    mock_fci.return_value = []
+    image_group = "rhel-server-container-7.9-['repo']"
+    rpm_nvrs = ["bash-4.2.46-34.el7"]
+    content_sets = ["rhel-7-server-rpms"]
+    lb = LightBlue("lb.domain.local", "/path/to/cert", "/path/to/key")
+
+    image = lb.get_fixed_published_image(
+        "rhel-server-container", "7.9", image_group, rpm_nvrs, content_sets
+    )
+
+    assert image is None
+
+
+@patch('os.path.exists', return_value=True)
+@patch('freshmaker.lightblue.LightBlue.find_container_images')
+def test_get_fixed_published_image_diff_repo(mock_fci, mock_exists):
+    latest_rhel7_image = ContainerImage.create(
+        {
+            "brew": {"build": "rhel-server-container-7.9-189"},
+            "content_sets": ["rhel-7-server-rpms"],
+            "repositories": [{"repository": "other_repo"}],
+            "rpm_manifest": [
+                {
+                    "rpms": [
+                        {
+                            "name": "bash",
+                            "nvra": "bash-4.2.46-34.el7.x86_64",
+                            "srpm_name": "bash",
+                            "srpm_nevra": "bash-0:4.2.46-34.el7.src",
+                            "version": "4.2.46",
+                        }
+                    ]
+                }
+            ],
+        }
+    )
+    mock_fci.return_value = [latest_rhel7_image]
+    image_group = "rhel-server-container-7.9-['repo']"
+    rpm_nvrs = ["bash-4.2.46-34.el7"]
+    content_sets = ["rhel-7-server-rpms"]
+    lb = LightBlue("lb.domain.local", "/path/to/cert", "/path/to/key")
+
+    image = lb.get_fixed_published_image(
+        "rhel-server-container", "7.9", image_group, rpm_nvrs, content_sets
+    )
+
+    assert image is None
+
+
+@patch('os.path.exists', return_value=True)
+@patch('freshmaker.lightblue.LightBlue.find_container_images')
+def test_get_fixed_published_image_missing_rpm(mock_fci, mock_exists):
+    latest_rhel7_image = ContainerImage.create(
+        {
+            "brew": {"build": "rhel-server-container-7.9-189"},
+            "content_sets": ["rhel-7-server-rpms"],
+            "repositories": [{"repository": "repo"}],
+        }
+    )
+    mock_fci.return_value = [latest_rhel7_image]
+    image_group = "rhel-server-container-7.9-['repo']"
+    rpm_nvrs = ["bash-4.2.46-34.el7"]
+    content_sets = ["rhel-7-server-rpms"]
+    lb = LightBlue("lb.domain.local", "/path/to/cert", "/path/to/key")
+
+    image = lb.get_fixed_published_image(
+        "rhel-server-container", "7.9", image_group, rpm_nvrs, content_sets
+    )
+
+    assert image is None
+
+
+@patch('os.path.exists', return_value=True)
+@patch('freshmaker.lightblue.LightBlue.find_container_images')
+def test_get_fixed_published_image_modularity_mismatch(mock_fci, mock_exists):
+    latest_rhel8_image = ContainerImage.create(
+        {
+            "brew": {"build": "rhel-server-container-8.2-189"},
+            "content_sets": ["rhel-7-server-rpms"],
+            "repositories": [{"repository": "repo"}],
+            "rpm_manifest": [
+                {
+                    "rpms": [
+                        {
+                            "name": "bash",
+                            "nvra": "bash-4.2.46-34.module+el8.2.0+6123+12149598.x86_64",
+                            "srpm_name": "bash",
+                            "srpm_nevra": "bash-0:4.2.46-34.module+el8.2.0+6123+12149598.src",
+                            "version": "4.2.46",
+                        }
+                    ]
+                }
+            ],
+        }
+    )
+    mock_fci.return_value = [latest_rhel8_image]
+    image_group = "rhel-server-container-8.2-['repo']"
+    rpm_nvrs = ["bash-4.2.46-34.el8"]
+    content_sets = ["rhel-7-server-rpms"]
+    lb = LightBlue("lb.domain.local", "/path/to/cert", "/path/to/key")
+
+    image = lb.get_fixed_published_image(
+        "rhel-server-container", "8.2", image_group, rpm_nvrs, content_sets
+    )
+
+    assert image is None
+
+
+@patch('os.path.exists', return_value=True)
+@patch('freshmaker.lightblue.LightBlue.find_container_images')
+def test_get_fixed_published_image_rpm_too_old(mock_fci, mock_exists):
+    latest_rhel7_image = ContainerImage.create(
+        {
+            "brew": {"build": "rhel-server-container-7.9-189"},
+            "content_sets": ["rhel-7-server-rpms"],
+            "repositories": [{"repository": "repo"}],
+            "rpm_manifest": [
+                {
+                    "rpms": [
+                        {
+                            "name": "bash",
+                            "nvra": "bash-4.2.46-33.el7.x86_64",
+                            "srpm_name": "bash",
+                            "srpm_nevra": "bash-0:4.2.46-33.el7.src",
+                            "version": "4.2.46",
+                        }
+                    ]
+                }
+            ],
+        }
+    )
+    mock_fci.return_value = [latest_rhel7_image]
+    image_group = "rhel-server-container-7.9-['repo']"
+    rpm_nvrs = ["bash-4.2.46-34.el7"]
+    content_sets = ["rhel-7-server-rpms"]
+    lb = LightBlue("lb.domain.local", "/path/to/cert", "/path/to/key")
+
+    image = lb.get_fixed_published_image(
+        "rhel-server-container", "7.9", image_group, rpm_nvrs, content_sets
+    )
+
+    assert image is None
+
+
+@patch('os.path.exists', return_value=True)
+@patch('freshmaker.lightblue.LightBlue.find_container_images')
+def test_get_fixed_published_image_not_found_by_nvr(mock_fci, mock_exists):
+    latest_rhel7_image = ContainerImage.create(
+        {
+            "brew": {"build": "rhel-server-container-7.9-189"},
+            "content_sets": ["rhel-7-server-rpms"],
+            "repositories": [{"repository": "repo"}],
+            "rpm_manifest": [
+                {
+                    "rpms": [
+                        {
+                            "name": "bash",
+                            "nvra": "bash-4.2.46-34.el7.x86_64",
+                            "srpm_name": "bash",
+                            "srpm_nevra": "bash-0:4.2.46-34.el7.src",
+                            "version": "4.2.46",
+                        }
+                    ]
+                }
+            ],
+        }
+    )
+    # Don't have `resolve` reach out over the network
+    latest_rhel7_image.resolve = Mock()
+    mock_fci.side_effect = [[latest_rhel7_image], []]
+    image_group = "rhel-server-container-7.9-['repo']"
+    rpm_nvrs = ["bash-4.2.46-34.el7"]
+    content_sets = ["rhel-7-server-rpms"]
+    lb = LightBlue("lb.domain.local", "/path/to/cert", "/path/to/key")
+
+    image = lb.get_fixed_published_image(
+        "rhel-server-container", "7.9", image_group, rpm_nvrs, content_sets
+    )
+
+    assert image is None
