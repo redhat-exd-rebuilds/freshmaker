@@ -251,6 +251,8 @@ class TestConfiguration(BaseConfiguration):
     LIGHTBLUE_SERVER_URL = ''  # replace with real dev server url
     LIGHTBLUE_VERIFY_SSL = False
 
+    PYXIS_SERVER_URL = 'https://localhost/'
+
     # Disable caching for tests
     DOGPILE_CACHE_BACKEND = "dogpile.cache.null"
 

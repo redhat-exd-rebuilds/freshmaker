@@ -28,6 +28,9 @@ class BaseConfiguration(object):
     LIGHTBLUE_PRIVATE_KEY = "./lb-freshmaker-key.pem"
     LIGHTBLUE_RELEASED_DEPENDENCIES_ONLY = True
 
+    PYXIS_SERVER_URL = 'https://pyxis.localhost.tld/'
+    PYXIS_INDEX_IMAGE_ORGANIZATION = 'organization'
+
     HANDLER_BUILD_WHITELIST = {
         'global': {
             'image': any_(
