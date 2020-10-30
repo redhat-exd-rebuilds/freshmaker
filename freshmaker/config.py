@@ -91,9 +91,7 @@ def init_config(app):
     # In any of the following cases, use configuration directly from Freshmaker
     # package -> /conf/config.py.
 
-    elif ('FRESHMAKER_DEVELOPER_ENV' in os.environ and
-          'FRESHMAKER_CONFIG_FILE' not in os.environ and
-          os.environ['FRESHMAKER_DEVELOPER_ENV'].lower() in ('1', 'on', 'true', 'y', 'yes')):
+    elif os.environ.get('FRESHMAKER_DEVELOPER_ENV', '').lower() in ('1', 'on', 'true', 'y', 'yes'):
         config_section = 'DevConfiguration'
         if 'FRESHMAKER_CONFIG_FILE' in os.environ:
             config_file = os.environ['FRESHMAKER_CONFIG_FILE']
@@ -401,6 +399,16 @@ class Config(object):
             'type': str,
             'default': 'all',
             'desc': 'vcr mode for recording lightblue queries'
+        },
+        'pyxis_server_url': {
+            'type': str,
+            'default': '',
+            'desc': 'Server URL of Pyxis.'
+        },
+        'pyxis_index_image_organization': {
+            'type': str,
+            'default': '',
+            'desc': 'Query Pyxis for index images only with this organization'
         }
     }
 
