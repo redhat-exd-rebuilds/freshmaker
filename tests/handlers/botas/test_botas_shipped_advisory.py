@@ -167,23 +167,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
 
     @patch('freshmaker.handlers.botas.botas_shipped_advisory.koji_service')
     def test_filter_bundles_by_pinned_related_images(self, service):
-        bundle_images = [
-            {
-                "brew": {
-                    "build": "some_nvr_1"
-                }
-            },
-            {
-                "brew": {
-                    "build": "some_nvr_2"
-                }
-            },
-            {
-                "brew": {
-                    "build": "some_nvr_3"
-                }
-            }
-        ]
+        bundle_images_nvrs = {"some_nvr_1", "some_nvr_2"}
         temp_mock = MagicMock()
         service.return_value.__enter__.return_value = temp_mock
         temp_mock.get_build.side_effect = [
@@ -217,8 +201,9 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
             None
         ]
 
-        nvrs = self.handler._filter_bundles_by_pinned_related_images(bundle_images)
+        nvrs = self.handler._filter_bundles_by_pinned_related_images(bundle_images_nvrs)
+        bundle_list = list(bundle_images_nvrs)
 
-        temp_mock.get_build.assert_has_calls([call("some_nvr_1"),
-                                             call("some_nvr_2")])
-        self.assertEqual(nvrs, {"some_nvr_1"})
+        temp_mock.get_build.assert_has_calls([call(bundle_list[0]),
+                                             call(bundle_list[1])])
+        self.assertEqual(nvrs, {bundle_list[0]})

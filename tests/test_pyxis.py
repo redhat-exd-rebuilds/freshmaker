@@ -219,11 +219,17 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                 "repositories": [
                     {
                         "manifest_list_digest": "sha256:1111",
-                        "published": False
+                        "published": False,
+                        "registry": "reg1",
+                        "repository": "repo1",
+                        "tags": [{"name": "tag0"}]
                     },
                     {
                         "manifest_list_digest": "sha256:1112",
-                        "published": True
+                        "published": True,
+                        "registry": "reg2",
+                        "repository": "repo2",
+                        "tags": [{"name": "tag1"}, {"name": "tag2"}]
                     }
                 ]
             },
@@ -237,7 +243,10 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                 "repositories": [
                     {
                         "manifest_list_digest": "sha256:2222",
-                        "published": True
+                        "published": True,
+                        "registry": "reg2",
+                        "repository": "repo2",
+                        "tags": [{"name": "tag2"}]
                     }
                 ]
             },
@@ -251,7 +260,10 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                 "repositories": [
                     {
                         "manifest_list_digest": "sha256:3333",
-                        "published": True
+                        "published": True,
+                        "registry": "reg3",
+                        "repository": "repo3",
+                        "tags": [{"name": "latest"}]
                     }
                 ]
             },
@@ -265,7 +277,10 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                 "repositories": [
                     {
                         "manifest_list_digest": "sha256:4444",
-                        "published": True
+                        "published": True,
+                        "registry": "reg4",
+                        "repository": "repo4",
+                        "tags": [{"name": "tag1"}]
                     }
                 ]
             }
@@ -424,10 +439,125 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
         images = self.px.get_images_by_digests(['sha256:111', 'sha256:222'])
 
         my_pagination.assert_called_once_with(
-            'images', {'include': 'data.brew',
+            'images', {'include': 'data.brew,data.repositories',
                        'filter': 'repositories.manifest_list_digest=in='
                                  '(sha256:111,sha256:222)'
                        }
         )
         self.assertEqual(page.call_count, 1)
         self.assertEqual(self.images[0:2], images)
+
+    @patch('freshmaker.pyxis.Pyxis._pagination')
+    def test_add_repositories_info(self, page):
+        reg_repo_info = {('reg1', 'rep1'): {'nvrs': {'nvr1', 'nvr2'}},
+                         ('reg1', 'rep2'): {'nvrs': {'nvr3'}},
+                         ('reg2', 'rep1'): {'nvrs': {'nvr4', 'nvr5'}},
+                         ('reg3', 'rep3'): {'nvrs': {'nvr6', 'nvr7'}},
+                         }
+        page.return_value = [
+            {'auto_rebuild_tags': ['tag1', 'tag2'],
+             'registry': 'reg1',
+             'repository': 'rep1'
+             },
+            {'auto_rebuild_tags': ['latest'],
+             'registry': 'reg1',
+             'repository': 'rep2'
+             },
+            {'auto_rebuild_tags': ['tag1', 'tag2'],
+             'registry': 'reg2',
+             'repository': 'rep1'
+             },
+            {'registry': 'reg3',
+             'repository': 'rep3'
+             }
+        ]
+
+        self.px._add_repositories_info(reg_repo_info)
+
+        params = {'include': 'data.auto_rebuild_tags,data.registry,data.repository',
+                  'filter': '(registry==reg1;repository==rep1),'
+                            '(registry==reg1;repository==rep2),'
+                            '(registry==reg2;repository==rep1),'
+                            '(registry==reg3;repository==rep3)'}
+        page.assert_called_with('repositories', params)
+
+        expected_info = {('reg1', 'rep1'): {'nvrs': {'nvr1', 'nvr2'},
+                                            'auto_rebuild_tags': {'tag1', 'tag2'}},
+                         ('reg1', 'rep2'): {'nvrs': {'nvr3'},
+                                            'auto_rebuild_tags': {'latest'}},
+                         ('reg2', 'rep1'): {'nvrs': {'nvr4', 'nvr5'},
+                                            'auto_rebuild_tags': {'tag1', 'tag2'}},
+                         }
+        self.assertEqual(reg_repo_info, expected_info)
+
+    @patch('freshmaker.pyxis.Pyxis._pagination')
+    def test_filter_auto_rebuild_nvrs(self, page):
+        my_page = self.copy_call_args(page)
+        reg_repo_info = {('reg1', 'rep1'): {'nvrs': {'nvr1', 'nvr2'},
+                                            'auto_rebuild_tags': ['tag1', 'tag2']},
+                         ('reg1', 'rep2'): {'nvrs': {'nvr3'},
+                                            'auto_rebuild_tags': ['latest']},
+                         ('reg2', 'rep1'): {'nvrs': {'nvr4', 'nvr5'},
+                                            'auto_rebuild_tags': ['tag1', 'tag2']},
+                         ('reg3', 'rep3'): {'auto_rebuild_tags': ['tag1', 'tag2']}
+                         }
+        my_page.side_effect = [[{'brew': {'build': 'nvr1'}}, {'brew': {'build': 'nvr2'}}],
+                               [],
+                               [],
+                               [{'brew': {'build': 'nvr4'}}],
+                               [{'brew': {'build': 'nvr5'}}],
+                               []]
+
+        ret = self.px._filter_auto_rebuild_nvrs(reg_repo_info)
+        expected = {'nvr1', 'nvr2', 'nvr4', 'nvr5'}
+        self.assertEqual(ret, expected)
+        self.assertEqual(my_page.call_count, 5)
+        # using .join() method because it's unclear how set will be ordered
+        my_page.assert_has_calls([
+            call('repositories/registry/reg1/repository/rep1/tag/tag1',
+                 {'include': 'data.brew.build',
+                  'filter': f'brew.build=in=({",".join({"nvr1", "nvr2"})})'}),
+            call('repositories/registry/reg1/repository/rep1/tag/tag2',
+                 {'include': 'data.brew.build',
+                  'filter': f'brew.build=in=({",".join({"nvr1", "nvr2"})})'}),
+            call('repositories/registry/reg1/repository/rep2/tag/latest',
+                 {'include': 'data.brew.build',
+                  'filter': 'brew.build=in=(nvr3)'}),
+            call('repositories/registry/reg2/repository/rep1/tag/tag1',
+                 {'include': 'data.brew.build',
+                  'filter': f'brew.build=in=({",".join({"nvr4","nvr5"})})'}),
+            call('repositories/registry/reg2/repository/rep1/tag/tag2',
+                 {'include': 'data.brew.build',
+                  'filter': f'brew.build=in=({",".join({"nvr4","nvr5"})})'}),
+        ])
+
+    @patch('freshmaker.pyxis.Pyxis._filter_auto_rebuild_nvrs')
+    @patch('freshmaker.pyxis.Pyxis._add_repositories_info')
+    def test_get_auto_rebuild_tagged_images(self, info, tag_filter):
+        tag_filter.return_value = {'nvr1', 'nvr2', 'nvr4', 'nvr5'}
+        # change nvr for the second image to have more variations to test
+        self.images[1]['brew']['build'] = 'nvr1'
+
+        ret = self.px.get_auto_rebuild_tagged_images(self.images)
+
+        info.assert_called_once_with({
+            ('reg1', 'repo1'): {'nvrs': {'s2i-1-2'}},
+            ('reg2', 'repo2'): {'nvrs': {'s2i-1-2', 'nvr1'}},
+            ('reg3', 'repo3'): {'nvrs': {'s2i-1-2'}},
+            ('reg4', 'repo4'): {'nvrs': {'s2i-1-2'}},
+        })
+
+        expected_ret = {'nvr1', 'nvr2', 'nvr4', 'nvr5'}
+        self.assertEqual(ret, expected_ret)
+
+    @patch('freshmaker.pyxis.Pyxis._filter_auto_rebuild_nvrs')
+    @patch('freshmaker.pyxis.Pyxis._add_repositories_info')
+    def test_no_nvr_and_repos(self, info, tag_filter):
+        del self.images[0]['brew']['build']
+        del self.images[1]['repositories']
+        self.images[1]['brew']['build'] = 'nvr1'
+
+        with self.assertLogs('freshmaker', level='WARNING') as log:
+            self.px.get_auto_rebuild_tagged_images(self.images)
+            self.assertTrue('One of bundle images doesn\'t have brew.build' in log.output[0])
+            self.assertTrue('Bundle image nvr1 doesn\'t have repositories set' in log.output[1])

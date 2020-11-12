@@ -215,6 +215,121 @@ class Pyxis(object):
         :return: bundle ContainerImages
         :rtype: list
         """
-        request_params = {'include': 'data.brew',
-                          'filter': f"repositories.manifest_list_digest=in=({','.join(digests)})"}
-        return self._pagination("images", request_params)
+        request_params = {'include': 'data.brew,data.repositories',
+                          'filter': f'repositories.manifest_list_digest=in=({",".join(digests)})'}
+        return self._pagination('images', request_params)
+
+    def _add_repositories_info(self, reg_repo_info):
+        """
+        For every pair of registry-repository add information about it's
+        auto_rebuild tags. To decrease amount of queries to Pyxis, only one
+        query is performed with the filter set to proper registry-repository
+        pair.
+
+        A list of tags for each repository will be added to the
+        'auto_rebuild_tags' key in the input info about the repository.
+
+        Entries about repos without 'auto_rebuild_tags' will be deleted from
+        the mapping.
+
+        :param dict reg_repo_info: map of pairs (registry, repository) to a
+            dict containing nvrs of bundle images from that repo and
+            auto_rebuild tags of that repo
+        """
+        if not reg_repo_info:
+            return None
+        fltr = ""
+        # Construct filter for future request to Pyxis with registry-repository pairs
+        for reg, repo in reg_repo_info.keys():
+            if fltr:
+                fltr += ','
+            fltr += f'(registry=={reg};repository=={repo})'
+        params = {'include': ','.join(['data.auto_rebuild_tags',
+                                       'data.registry', 'data.repository']),
+                  'filter': fltr}
+        repos = self._pagination('repositories', params)
+
+        # For every repo add it's auto_rebuild_tags info
+        for repo in repos:
+            reg_repo_pair = (repo['registry'], repo['repository'])
+            # one of repos isn't in previously constructed map,
+            # so there is inconsistency
+            if reg_repo_pair not in reg_repo_info:
+                log.warning('There is inconsistency in naming for: %s/%s',
+                            reg_repo_pair[0], reg_repo_pair[1])
+                continue
+            tags = repo.get('auto_rebuild_tags')
+            # If the repository doesn't have 'auto_rebuild_tags', don't proceed with it
+            if tags:
+                reg_repo_info[reg_repo_pair]['auto_rebuild_tags'] = set(tags)
+            else:
+                del reg_repo_info[reg_repo_pair]
+
+    def _filter_auto_rebuild_nvrs(self, reg_repo_info):
+        """
+        For every pair in mapping get history of every auto_rebuild tag
+        filtering all nvrs from that registry/repo pair.
+
+        :param dict reg_repo_info: map of pairs (registry, repository) to a
+            dict containing nvrs of bundle images from that repo and
+            auto-rebuild tags of that repo
+        :return: NVRs that were at least once tagged with an auto-rebuild tag
+        :rtype set(str):
+        """
+        params = {'include': 'data.brew.build'}
+        ret_nvrs = set()
+        for reg_repo_pair, info in reg_repo_info.items():
+            if not info.get('nvrs'):
+                continue
+            fltr = f'brew.build=in=({",".join(info["nvrs"])})'
+            params['filter'] = fltr
+            reg, repo = reg_repo_pair
+            for tag in info.get('auto_rebuild_tags', []):
+                tag_history = \
+                    self._pagination(f'repositories/registry/{reg}/'
+                                     f'repository/{repo}/tag/{tag}', params)
+                # If there is at least one record with nvr(brew.build) of the
+                # image, it means that image was published to a repo with
+                # auto_rebuild tag
+                if tag_history:
+                    for temp_tag in tag_history:
+                        ret_nvrs.add(temp_tag['brew']['build'])
+        return ret_nvrs
+
+    def get_auto_rebuild_tagged_images(self, bundle_images):
+        """
+        Determine which bundle images are published to a container repository
+        and was at least once tagged with an auto-rebuild tag.
+
+        :param list bundle_images: Images of operator bundles that should
+            be filtered
+        :return: Image NVRs that where published to repositories with auto_rebuild tag
+        :rtype: set(str)
+        """
+        reg_repo_info = {}
+        for bundle_image in bundle_images:
+            bundle_nvr = bundle_image.get('brew', {}).get('build')
+            if not bundle_nvr:
+                log.warning('One of bundle images doesn\'t have brew.build')
+                continue
+            if not bundle_image.get('repositories'):
+                log.warning('Bundle image %s doesn\'t have repositories set',
+                            bundle_nvr)
+                continue
+            # construct mapping of (registry, repository) -> {'nvrs': {bundles_nvrs}}
+            for repo in bundle_image.get('repositories'):
+                if not (repo.get('registry') and repo.get('repository')):
+                    log.warning('"registry" or "repository" isn\'t set in %s',
+                                bundle_nvr)
+                    continue
+                reg_repo = (repo['registry'], repo['repository'])
+                reg_repo_info.setdefault(reg_repo, {})\
+                    .setdefault('nvrs', set()).add(bundle_nvr)
+
+        # Add auto_rebuild_tags to info structures for every repo
+        self._add_repositories_info(reg_repo_info)
+        # Get tag history for every repo and get nvrs tagged with auto_rebuild tag
+        nvrs = self._filter_auto_rebuild_nvrs(reg_repo_info)
+        if not nvrs:
+            log.warning('Can\'t find any nvr tagged with an auto-rebuild tag')
+        return nvrs
