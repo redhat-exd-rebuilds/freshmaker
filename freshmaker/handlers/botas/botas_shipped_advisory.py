@@ -81,7 +81,6 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             msg = f"The are no digests for NVRs: {','.join(original_nvrs)}"
             log.warning(msg)
             db_event.transition(EventState.SKIPPED, msg)
-            db.session.commit()
             return []
 
         index_images = self._pyxis.get_operator_indices()
@@ -100,9 +99,13 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             bundle_digests.add(bundle['bundle_path_digest'])
         bundle_images = self._pyxis.get_images_by_digests(bundle_digests)
 
+        # Filter image nvrs that don't have or never had auto_rebuild tag
+        # in repos, where image is published
+        auto_rebuild_nvrs = self._pyxis.get_auto_rebuild_tagged_images(bundle_images)
+
         # get NVRs only of those bundles, which have OSBS pinning
         bundles_nvrs = self._filter_bundles_by_pinned_related_images(
-            bundle_images)
+            auto_rebuild_nvrs)
 
         # Skip that event because we can't proceed with processing it.
         # TODO
@@ -112,24 +115,23 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         db_event.transition(EventState.SKIPPED, msg)
         return []
 
-    def _filter_bundles_by_pinned_related_images(self, bundle_images):
+    def _filter_bundles_by_pinned_related_images(self, bundle_image_nvrs):
         """
-        If the digests were not pinned by OSBS, the bundle image
+        If the digests were not pinned by OSBS, the bundle image nvr
         will be filtered out.
 
         There is no need in checking pinning for every of related images,
         because we already know that digest points to the manifest list,
         because of previous filtering.
 
-        :param list bundle_images: ContainerImages of operator bundles
+        :param set bundle_image_nvrs: NVRs of operator bundles
         :return: list of NVRs of bundle images that have at least one
             original related image that was rebuilt
         """
         ret_bundle_images_nvrs = set()
         with koji_service(conf.koji_profile, log, dry_run=self.dry_run,
                           login=False) as session:
-            for bundle in bundle_images:
-                nvr = bundle['brew']['build']
+            for nvr in bundle_image_nvrs:
                 build = session.get_build(nvr)
                 if not build:
                     log.error("Could not find the build %s in Koji", nvr)
