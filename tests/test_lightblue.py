@@ -482,7 +482,7 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
         lb.get_images_by_nvrs.side_effect = [[], [{"rpm_manifest": "x"}]]
         image.resolve_published(lb)
         self.assertEqual(image["published"], False)
-        lb.get_images_by_nvrs.asssert_has_calls([
+        lb.get_images_by_nvrs.assert_has_calls([
             call(["package-name-1-4-12.10"], published=True, include_rpm_manifest=False),
             call(["package-name-1-4-12.10"])])
 
