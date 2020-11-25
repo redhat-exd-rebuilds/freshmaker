@@ -1,9 +1,12 @@
+import dogpile.cache
 import requests
 import urllib
+from datetime import datetime
 from requests_kerberos import HTTPKerberosAuth, OPTIONAL
 from packaging import version
 
 from freshmaker import log, conf
+from freshmaker.utils import get_ocp_release_date
 
 
 class PyxisRequestError(Exception):
@@ -33,6 +36,8 @@ class PyxisRequestError(Exception):
 
 class Pyxis(object):
     """ Interface for querying Pyxis"""
+
+    region = dogpile.cache.make_region().configure(conf.dogpile_cache_backend)
 
     def __init__(self, server_url):
         self._server_url = server_url
@@ -98,8 +103,30 @@ class Pyxis(object):
         organization = conf.pyxis_index_image_organization
         if organization:
             request_params["filter"] = "organization==" + organization
+        indices = self._pagination("operators/indices", request_params)
 
-        return self._pagination("operators/indices", request_params)
+        # Operator indices can be available in pyxis prior to the Openshift version
+        # is released, so we need to filter out such indices
+        indices = list(filter(lambda x: self.ocp_is_released(x["ocp_version"]), indices))
+        return indices
+
+    @region.cache_on_arguments()
+    def ocp_is_released(self, ocp_version):
+        """ Check if ocp_version is released by comparing the GA date with current date
+
+        :param str ocp_version: the OpenShift Version
+        :return: True if GA date in Product Pages is in the past, otherwise False
+        :rtype: bool
+        """
+        ga_date_str = get_ocp_release_date(ocp_version)
+        # None is returned if GA date is not found
+        if not ga_date_str:
+            log.warning(
+                f"GA date of OpenShift {ocp_version} is not found in Product Pages, ignore it"
+            )
+            return False
+
+        return datetime.now() > datetime.strptime(ga_date_str, "%Y-%m-%d")
 
     def _get_bundles_per_index_image(self, index_images):
         """

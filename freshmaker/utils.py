@@ -21,6 +21,7 @@
 #
 
 import functools
+import requests
 import subprocess
 import sys
 import tempfile
@@ -189,3 +190,30 @@ def _run_command(command, logger=None, rundir=None, output=subprocess.PIPE, erro
 def is_pkg_modular(nvr):
     """ Returns True if the package is modular, False otherwise. """
     return "module+" in nvr
+
+
+def get_ocp_release_date(ocp_version):
+    """ Get the OpenShift version release date via the Product Pages API
+
+    :param str ocp_version: the OpenShift version
+    :return: None or date in format of "%Y-%m-%d", example: 2021-02-23.
+    :rtype: str or None
+    """
+    if not conf.product_pages_api_url:
+        raise RuntimeError("Product Pages API url is not set in config")
+
+    ocp_release = f"openshift-{ocp_version}"
+
+    url = f"{conf.product_pages_api_url.rstrip('/')}/releases/{ocp_release}/schedule-tasks"
+    resp = requests.get(
+        url,
+        params={"name": "GA", "fields": "name,date_finish"},
+        timeout=conf.net_timeout,
+    )
+
+    if resp.status_code == 404:
+        log.warning(f"GA date of {ocp_release} is not found via {resp.url}: {resp.reason}")
+        return None
+    if not resp.ok:
+        resp.raise_for_status()
+    return resp.json()[0]['date_finish']

@@ -409,6 +409,11 @@ class Config(object):
             'type': str,
             'default': '',
             'desc': 'Query Pyxis for index images only with this organization'
+        },
+        'product_pages_api_url': {
+            'type': str,
+            'default': '',
+            'desc': 'The API URL of the Product Pages service'
         }
     }
 

@@ -21,7 +21,10 @@
 # SOFTWARE.
 
 import requests
+import requests_mock
 
+from datetime import datetime
+from freezegun import freeze_time
 from http import HTTPStatus
 from copy import deepcopy
 from unittest.mock import call, patch, create_autospec, Mock
@@ -359,6 +362,47 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
         self.px.get_operator_indices()
         page.assert_called_once_with(
             'operators/indices', {'filter': 'organization==org'})
+
+    @patch.object(conf, "product_pages_api_url", new="http://pp.example.com/api")
+    @patch("freshmaker.pyxis.Pyxis._pagination")
+    def test_get_operator_indices_with_unreleased_filtered_out(self, page):
+        pp_mock_data = [
+            {
+                "url": "http://pp.example.com/api/releases/openshift-4.5/schedule-tasks",
+                "json": [{"name": "GA", "date_finish": "2020-02-05"}]
+            },
+            {
+                "url": "http://pp.example.com/api/releases/openshift-4.6/schedule-tasks",
+                "json": [{"name": "GA", "date_finish": "2020-05-23"}]
+            },
+            {
+                "url": "http://pp.example.com/api/releases/openshift-4.8/schedule-tasks",
+                "json": [{"name": "GA", "date_finish": "2021-08-12"}]
+            }
+        ]
+        page.return_value = self.indices + [
+            {
+                "_id": "3",
+                "created_by": "meteor",
+                "creation_date": "2020-11-01T08:23:28.253000+00:00",
+                "last_update_date": "2020-11-01T08:23:28.253000+00:00",
+                "last_updated_by": "meteor",
+                "ocp_version": "4.8",
+                "organization": "org",
+                "path": ""
+            }
+        ]
+        now = datetime(year=2020, month=12, day=15, hour=0, minute=0, second=0)
+
+        with requests_mock.Mocker() as http:
+            for data in pp_mock_data:
+                http.get(data["url"], json=data["json"])
+
+            with freeze_time(now):
+                indices = self.px.get_operator_indices()
+
+        assert len(indices) == 3
+        assert "4.8" not in [i["ocp_version"] for i in indices]
 
     @patch('freshmaker.pyxis.Pyxis._pagination')
     def test_get_bundles_per_index_image(self, page):
