@@ -1,9 +1,11 @@
 -r requirements.txt
 
 copr
+freezegun
 pytest
 pytest-cov
 vcrpy
+requests_mock
 tox
 mypy
 # It seems like Flask needs this itsdangerous package.
