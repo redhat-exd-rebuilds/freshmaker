@@ -66,7 +66,7 @@ class RebuildImagesOnImageAdvisoryChangeTest(helpers.ModelsTestCase):
         ret = self.handler.can_handle(self.event)
         self.assertFalse(ret)
 
-    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+    @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'RebuildImagesOnImageAdvisoryChange': {
             "image": {"advisory_state": "SHIPPED_LIVE"}
         }

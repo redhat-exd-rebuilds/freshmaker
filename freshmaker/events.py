@@ -135,7 +135,7 @@ class BaseEvent(object):
 
     def is_allowed(self, handler, artifact_type, **kwargs):
         """
-        Returns True if whitelist/blacklist allows handling this event.
+        Returns True if allowlist/blocklist allows handling this event.
         Calls `handler.allow_build()` to find the answer.
 
         :param BaseHandler handler: Handler currently handling the event.

@@ -33,10 +33,10 @@ class TestBrewSignHandler(helpers.ModelsTestCase):
 
     @patch('freshmaker.errata.Errata.advisories_from_event')
     @patch('freshmaker.errata.Errata.builds_signed')
-    @patch("freshmaker.config.Config.handler_build_whitelist",
+    @patch("freshmaker.config.Config.handler_build_allowlist",
            new_callable=PropertyMock, return_value={
                "GenerateAdvisorySignedEventOnRPMSign": {"image": {"advisory_name": "RHSA-.*"}}})
-    def test_return_value(self, handler_build_whitelist, builds_signed,
+    def test_return_value(self, handler_build_allowlist, builds_signed,
                           advisories_from_event):
         """
         Tests that handle method returns ErrataAdvisoryRPMsSignedEvent.
@@ -56,10 +56,10 @@ class TestBrewSignHandler(helpers.ModelsTestCase):
 
     @patch('freshmaker.errata.Errata.advisories_from_event')
     @patch('freshmaker.errata.Errata.builds_signed')
-    @patch("freshmaker.config.Config.handler_build_whitelist",
+    @patch("freshmaker.config.Config.handler_build_allowlist",
            new_callable=PropertyMock, return_value={
                "global": {"image": {"advisory_name": "RHSA-.*"}}})
-    def test_allow_build_false_global(self, handler_build_whitelist,
+    def test_allow_build_false_global(self, handler_build_allowlist,
                                       builds_signed, advisories_from_event):
         """
         Tests that allow_build filters out advisories based on advisory_name.
@@ -77,10 +77,10 @@ class TestBrewSignHandler(helpers.ModelsTestCase):
 
     @patch('freshmaker.errata.Errata.advisories_from_event')
     @patch('freshmaker.errata.Errata.builds_signed')
-    @patch("freshmaker.config.Config.handler_build_whitelist",
+    @patch("freshmaker.config.Config.handler_build_allowlist",
            new_callable=PropertyMock, return_value={
                "global": {"image": {"advisory_name": "RHSA-.*"}}})
-    def test_allow_build_true_global(self, handler_build_whitelist,
+    def test_allow_build_true_global(self, handler_build_allowlist,
                                      builds_signed, advisories_from_event):
         """
         Tests that allow_build does not filter out advisories based on
@@ -98,10 +98,10 @@ class TestBrewSignHandler(helpers.ModelsTestCase):
 
     @patch('freshmaker.errata.Errata.advisories_from_event')
     @patch('freshmaker.errata.Errata.builds_signed')
-    @patch("freshmaker.config.Config.handler_build_whitelist",
+    @patch("freshmaker.config.Config.handler_build_allowlist",
            new_callable=PropertyMock, return_value={
                "GenerateAdvisorySignedEventOnRPMSign": {"image": {"advisory_name": "RHSA-.*"}}})
-    def test_allow_build_false(self, handler_build_whitelist, builds_signed,
+    def test_allow_build_false(self, handler_build_allowlist, builds_signed,
                                advisories_from_event):
         """
         Tests that allow_build filters out advisories based on advisory_name.
@@ -119,10 +119,10 @@ class TestBrewSignHandler(helpers.ModelsTestCase):
 
     @patch('freshmaker.errata.Errata.advisories_from_event')
     @patch('freshmaker.errata.Errata.builds_signed')
-    @patch("freshmaker.config.Config.handler_build_whitelist",
+    @patch("freshmaker.config.Config.handler_build_allowlist",
            new_callable=PropertyMock, return_value={
                "GenerateAdvisorySignedEventOnRPMSign": {"image": {"advisory_name": "RHSA-.*"}}})
-    def test_allow_build_true(self, handler_build_whitelist, builds_signed,
+    def test_allow_build_true(self, handler_build_allowlist, builds_signed,
                               advisories_from_event):
         """
         Tests that allow_build does not filter out advisories based on
@@ -141,7 +141,7 @@ class TestBrewSignHandler(helpers.ModelsTestCase):
     @patch('freshmaker.errata.Errata.advisories_from_event')
     @patch('freshmaker.errata.Errata.builds_signed')
     @patch(
-        "freshmaker.config.Config.handler_build_whitelist",
+        "freshmaker.config.Config.handler_build_allowlist",
         new_callable=PropertyMock,
         return_value={
             "GenerateAdvisorySignedEventOnRPMSign": {
@@ -153,7 +153,7 @@ class TestBrewSignHandler(helpers.ModelsTestCase):
             }
         })
     def test_allow_security_impact_important_true(
-            self, handler_build_whitelist, builds_signed,
+            self, handler_build_allowlist, builds_signed,
             advisories_from_event):
         """
         Tests that allow_build does not filter out advisories based on
@@ -172,7 +172,7 @@ class TestBrewSignHandler(helpers.ModelsTestCase):
     @patch('freshmaker.errata.Errata.advisories_from_event')
     @patch('freshmaker.errata.Errata.builds_signed')
     @patch(
-        "freshmaker.config.Config.handler_build_whitelist",
+        "freshmaker.config.Config.handler_build_allowlist",
         new_callable=PropertyMock,
         return_value={
             "GenerateAdvisorySignedEventOnRPMSign": {
@@ -184,7 +184,7 @@ class TestBrewSignHandler(helpers.ModelsTestCase):
             }
         })
     def test_allow_security_impact_important_false(
-            self, handler_build_whitelist, builds_signed,
+            self, handler_build_allowlist, builds_signed,
             advisories_from_event):
         """
         Tests that allow_build dost filter out advisories based on
@@ -202,11 +202,11 @@ class TestBrewSignHandler(helpers.ModelsTestCase):
 
     @patch('freshmaker.errata.Errata.advisories_from_event')
     @patch('freshmaker.errata.Errata.builds_signed')
-    @patch("freshmaker.config.Config.handler_build_whitelist",
+    @patch("freshmaker.config.Config.handler_build_allowlist",
            new_callable=PropertyMock, return_value={
                "GenerateAdvisorySignedEventOnRPMSign": {"image": {"advisory_name": "RHSA-.*"}}})
     def test_do_not_create_already_handled_event(
-            self, handler_build_whitelist, builds_signed,
+            self, handler_build_allowlist, builds_signed,
             advisories_from_event):
         """
         Tests that GenerateAdvisorySignedEventOnRPMSign don't return Event which already exists

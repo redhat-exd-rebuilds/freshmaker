@@ -216,7 +216,7 @@ The Freshmaker Artifact Build is always represented in the API request as JSON, 
 *rebuild_reason* - ``(string)``
     The reason why this artifact is included in the Event. Can be one of:
 
-    - ``directly_affected`` - The Artifact build is directly affected by the Event (for example affected by the CVE) and is whitelisted by Freshmaker's configuration.
+    - ``directly_affected`` - The Artifact build is directly affected by the Event (for example affected by the CVE) and is allowed by Freshmaker's configuration.
     - ``dependency`` - The Artifact build is included in the Event just because it is dependency of ``directly_affected`` Artifact build.
 
 .. _build_rebuilt_nvr:

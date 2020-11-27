@@ -64,7 +64,7 @@ class BaseConfiguration(object):
 
     SSL_ENABLED = False
 
-    # whitelist for handlers to decide whether an artifact
+    # allowlist for handlers to decide whether an artifact
     # can be built.
     #
     # In format of:
@@ -76,7 +76,7 @@ class BaseConfiguration(object):
     # The `handler_name` is usually set to "global" to affect all
     # the handlers.
     #
-    # The `rule(s)` part of a whitelist are dictionaries with key named as
+    # The `rule(s)` part of a allowlist are dictionaries with key named as
     # some artifact attribute. The value can be str, bool or list of strings.
     # If it is list of strings, the rule matches if any string from the list
     # matches the artifact attribute.
@@ -93,7 +93,7 @@ class BaseConfiguration(object):
     # an RHSA advisory with critical/important severity or with hightouch bug
     # moves to SHIPPED_LIVE:
     #
-    # HANDLER_BUILD_WHITELIST = {
+    # HANDLER_BUILD_ALLOWLIST = {
     #     "global": {
     #         "image": all_(
     #             {'advisory_name': 'RHSA-.*'
@@ -106,13 +106,13 @@ class BaseConfiguration(object):
     #     },
     # }
 
-    # whitelist for handlers to decide whether an artifact
-    # allowed to be built by whitelist should be build.
+    # allowlist for handlers to decide whether an artifact
+    # allowed to be built by allowlist should be build.
     #
-    # The syntax is the same as for HANDLER_BUILD_WHITELIST, but any matched
+    # The syntax is the same as for HANDLER_BUILD_ALLOWLIST, but any matched
     # artifact will *not* be rebuild.
     #
-    # HANDLER_BUILD_BLACKLIST = {
+    # HANDLER_BUILD_BLOCKLIST = {
     #     "global": {
     #         "image": all_(
     #             {'advisory_name': 'RHSA-.*'
@@ -261,7 +261,7 @@ class TestConfiguration(BaseConfiguration):
     AUTH_LDAP_USER_BASE = 'ou=users,dc=example,dc=com'
     MAX_THREAD_WORKERS = 1
 
-    HANDLER_BUILD_WHITELIST = {
+    HANDLER_BUILD_ALLOWLIST = {
         'GenerateAdvisorySignedEventOnRPMSign': {
             'image': {
                 'advisory_state': 'REL_PREP|PUSH_READY|IN_PUSH|SHIPPED_LIVE',

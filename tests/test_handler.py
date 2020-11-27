@@ -250,10 +250,10 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
         self.assertEqual(self.build_1.state, ArtifactBuildState.PLANNED.value)
 
 
-class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
+class TestAllowBuildBasedOnAllowlist(helpers.FreshmakerTestCase):
     """Test BaseHandler.allow_build"""
 
-    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+    @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'global': {
             'image': any_(
                 {
@@ -271,7 +271,7 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
             )
         }
     })
-    def test_whitelist_not_overwritten(self):
+    def test_allowlist_not_overwritten(self):
         """
         Test that "global" config section is not overwritten by handler-specific
         section after calling the handler.allow_build().
@@ -287,15 +287,15 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
             ArtifactType.IMAGE, advisory_state="SHIPPED_LIVE")
         self.assertFalse(allowed)
 
-    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+    @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'MyHandler': {
             'image': {
                 'name': 'test'
             }
         }
     })
-    def test_allow_build_in_whitelist(self):
-        """ Test if artifact is in the handlers whitelist """
+    def test_allow_build_in_allowlist(self):
+        """ Test if artifact is in the handlers allowlist """
         handler = MyHandler()
         container = {"name": "test", "branch": "branch"}
 
@@ -304,15 +304,15 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
                                     branch=container["branch"])
         assert allow
 
-    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+    @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'MyHandler': {
             'image': {
                 'name': 'test1'
             }
         }
     })
-    def test_allow_build_not_in_whitelist(self):
-        """ Test if artifact is not in the handlers whitelist """
+    def test_allow_build_not_in_allowlist(self):
+        """ Test if artifact is not in the handlers allowlist """
         handler = MyHandler()
         container = {"name": "test", "branch": "branch"}
 
@@ -321,7 +321,7 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
                                     branch=container["branch"])
         assert not allow
 
-    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+    @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'MyHandler': {
             'image': {
                 'name': 'te(st'
@@ -339,7 +339,7 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
                                 name=container["name"],
                                 branch=container["branch"])
 
-    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+    @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'MyHandler': {
             'image': {
                 'advisory_state': ['REL_PREP', 'SHIPPED_LIVE']
@@ -356,7 +356,7 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
             ArtifactType.IMAGE, advisory_state='SHIPPED_LIVE', published=True)
         self.assertTrue(allowed)
 
-    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+    @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'MyHandler': {
             'image': {
                 'advisory_state': ['REL_PREP', 'SHIPPED_LIVE'],
@@ -370,7 +370,7 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
             ArtifactType.IMAGE, advisory_state='SHIPPED_LIVE', published=True)
         self.assertFalse(allowed)
 
-    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+    @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'MyHandler': {
             'image': {
                 'advisory_state': ['REL_PREP', 'SHIPPED_LIVE']
@@ -382,13 +382,13 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
         allowed = handler.allow_build(ArtifactType.IMAGE, state='SHIPPED_LIVE')
         self.assertFalse(allowed)
 
-    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={})
-    def test_not_allow_if_whitelist_is_not_configured(self):
+    @patch.object(freshmaker.conf, 'handler_build_allowlist', new={})
+    def test_not_allow_if_allowlist_is_not_configured(self):
         handler = MyHandler()
         allowed = handler.allow_build(ArtifactType.IMAGE, state='SHIPPED_LIVE')
         self.assertFalse(allowed)
 
-    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+    @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'MyHandler': {
             'image': {
                 'advisory_state': ['REL_PREP', 'SHIPPED_LIVE']
@@ -401,7 +401,7 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
                                       advisory_state='SHIPPED_LIVE')
         self.assertTrue(allowed)
 
-    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+    @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'MyHandler': {
             'image': {
                 'advisory_name': r'RHSA-\d+:\d+'
@@ -418,7 +418,7 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
                                       advisory_name='RHBA-2017:31861')
         self.assertFalse(allowed)
 
-    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+    @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'MyHandler': {
             'image': {
                 'advisory_name': r'RHSA-\d+:\d+',
@@ -438,7 +438,7 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
                                       advisory_state='SHIPPED_LIVE')
         self.assertFalse(allowed)
 
-    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+    @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'MyHandler': {
             'image': any_(
                 {'advisory_name': r'RHSA-\d+:\d+'},
@@ -458,7 +458,7 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
                                       advisory_state='REL_PREP')
         self.assertTrue(allowed)
 
-    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+    @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'MyHandler': {
             'image': all_(
                 {'advisory_name': r'RHSA-\d+:\d+'},
@@ -495,17 +495,17 @@ class TestAllowBuildBasedOnWhitelist(helpers.FreshmakerTestCase):
                                       severity="critical")
         self.assertFalse(allowed)
 
-    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+    @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'MyHandler': {
             'image': {'advisory_name': r'RHSA-\d+:\d+'},
         }
     })
-    @patch.object(freshmaker.conf, 'handler_build_blacklist', new={
+    @patch.object(freshmaker.conf, 'handler_build_blocklist', new={
         'MyHandler': {
             'image': {'advisory_name': r'RHSA-2016:\d+'},
         }
     })
-    def test_blacklist(self):
+    def test_blocklist(self):
         handler = MyHandler()
         allowed = handler.allow_build(
             ArtifactType.IMAGE, advisory_name='RHSA-2017:1000')
