@@ -267,7 +267,7 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
         db_event = Event.get(db.session, message_id='123')
         self.assertEqual(db_event.requester, 'requester1')
 
-    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+    @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'RebuildImagesOnRPMAdvisoryChange': {
             'image': {'product_short_name': 'foo'}
         }
@@ -285,7 +285,7 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
         db_event = Event.get(db.session, message_id='123')
         self.assertEqual(db_event.state, EventState.SKIPPED.value)
 
-    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+    @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'RebuildImagesOnRPMAdvisoryChange': {
             'image': {
                 'advisory_security_impact': ['critical', 'important']
@@ -314,7 +314,7 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
                     db_event.state_reason,
                     "No container images to rebuild for advisory 'RHBA-2017'")
 
-    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+    @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'RebuildImagesOnRPMAdvisoryChange': {
             'image': {
                 'advisory_has_hightouch_bug': True,
@@ -343,7 +343,7 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
                     db_event.state_reason,
                     "No container images to rebuild for advisory 'RHBA-2017'")
 
-    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+    @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'RebuildImagesOnRPMAdvisoryChange': {
             'image': {'advisory_name': 'RHBA-2017'}
         }
@@ -359,7 +359,7 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
             db_event.state_reason,
             "No container images to rebuild for advisory 'RHBA-2017'")
 
-    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+    @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'RebuildImagesOnRPMAdvisoryChange': {
             'image': {'advisory_name': 'RHBA-2017'}
         }
@@ -461,7 +461,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
         super(TestFindImagesToRebuild, self).tearDown()
         self.patcher.unpatch_all()
 
-    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+    @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'RebuildImagesOnRPMAdvisoryChange': {
             'image': {'advisory_name': 'RHBA-*'}
         }
@@ -477,7 +477,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             published=True, release_categories=conf.lightblue_release_categories,
             leaf_container_images=None)
 
-    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+    @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'RebuildImagesOnRPMAdvisoryChange': {
             'image': {'advisory_name': 'RHBA-*'}
         }
@@ -494,7 +494,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             published=True, release_categories=conf.lightblue_release_categories,
             leaf_container_images=None)
 
-    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+    @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'RebuildImagesOnRPMAdvisoryChange': {
             'image': any_({'advisory_name': 'RHBA-*', 'published': True,
                            'advisory_product_short_name': 'foo'},
@@ -513,7 +513,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             published=None, release_categories=None,
             leaf_container_images=None)
 
-    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+    @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'RebuildImagesOnRPMAdvisoryChange': {
             'image': {'advisory_name': 'RHBA-*',
                       'published': True}
@@ -530,7 +530,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             published=True, release_categories=conf.lightblue_release_categories,
             leaf_container_images=None)
 
-    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+    @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'RebuildImagesOnRPMAdvisoryChange': {
             'image': {'advisory_name': 'RHBA-*',
                       'published': True}
@@ -548,7 +548,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             published=True, release_categories=conf.lightblue_release_categories,
             leaf_container_images=["foo", "bar"])
 
-    @patch.object(freshmaker.conf, 'handler_build_whitelist', new={
+    @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'RebuildImagesOnRPMAdvisoryChange': {
             'image': {'advisory_name': 'RHBA-*'}
         }
@@ -572,10 +572,10 @@ class TestAllowBuild(helpers.ModelsTestCase):
 
     @patch("freshmaker.handlers.koji.RebuildImagesOnRPMAdvisoryChange."
            "_find_images_to_rebuild", return_value=[])
-    @patch("freshmaker.config.Config.handler_build_whitelist",
+    @patch("freshmaker.config.Config.handler_build_allowlist",
            new_callable=PropertyMock, return_value={
                "RebuildImagesOnRPMAdvisoryChange": {"image": {"advisory_name": "RHSA-.*"}}})
-    def test_allow_build_false(self, handler_build_whitelist, record_images):
+    def test_allow_build_false(self, handler_build_allowlist, record_images):
         """
         Tests that allow_build filters out advisories based on advisory_name.
         """
@@ -591,10 +591,10 @@ class TestAllowBuild(helpers.ModelsTestCase):
 
     @patch("freshmaker.handlers.koji.RebuildImagesOnRPMAdvisoryChange."
            "_find_images_to_rebuild", return_value=[])
-    @patch("freshmaker.config.Config.handler_build_whitelist",
+    @patch("freshmaker.config.Config.handler_build_allowlist",
            new_callable=PropertyMock, return_value={
                "RebuildImagesOnRPMAdvisoryChange": {"image": {"advisory_name": "RHSA-.*"}}})
-    def test_allow_build_true(self, handler_build_whitelist, record_images):
+    def test_allow_build_true(self, handler_build_allowlist, record_images):
         """
         Tests that allow_build does not filter out advisories based on
         advisory_name.
@@ -613,7 +613,7 @@ class TestAllowBuild(helpers.ModelsTestCase):
     @patch("freshmaker.handlers.koji.RebuildImagesOnRPMAdvisoryChange."
            "_find_images_to_rebuild", return_value=[])
     @patch(
-        "freshmaker.config.Config.handler_build_whitelist",
+        "freshmaker.config.Config.handler_build_allowlist",
         new_callable=PropertyMock,
         return_value={
             "RebuildImagesOnRPMAdvisoryChange": {
@@ -626,7 +626,7 @@ class TestAllowBuild(helpers.ModelsTestCase):
             }
         })
     def test_allow_security_impact_important_true(
-            self, handler_build_whitelist, record_images):
+            self, handler_build_allowlist, record_images):
         """
         Tests that allow_build does not filter out advisories based on
         advisory_security_impact.
@@ -644,7 +644,7 @@ class TestAllowBuild(helpers.ModelsTestCase):
     @patch("freshmaker.handlers.koji.RebuildImagesOnRPMAdvisoryChange."
            "_find_images_to_rebuild", return_value=[])
     @patch(
-        "freshmaker.config.Config.handler_build_whitelist",
+        "freshmaker.config.Config.handler_build_allowlist",
         new_callable=PropertyMock,
         return_value={
             "RebuildImagesOnRPMAdvisoryChange": {
@@ -656,7 +656,7 @@ class TestAllowBuild(helpers.ModelsTestCase):
             }
         })
     def test_allow_security_impact_important_false(
-            self, handler_build_whitelist, record_images):
+            self, handler_build_allowlist, record_images):
         """
         Tests that allow_build dost filter out advisories based on
         advisory_security_impact.
@@ -672,7 +672,7 @@ class TestAllowBuild(helpers.ModelsTestCase):
         record_images.assert_not_called()
 
     @patch(
-        "freshmaker.config.Config.handler_build_whitelist",
+        "freshmaker.config.Config.handler_build_allowlist",
         new_callable=PropertyMock,
         return_value={
             "RebuildImagesOnRPMAdvisoryChange": {
@@ -682,7 +682,7 @@ class TestAllowBuild(helpers.ModelsTestCase):
             }
         })
     def test_filter_out_not_allowed_builds(
-            self, handler_build_whitelist):
+            self, handler_build_allowlist):
         """
         Tests that allow_build does filter images based on image_name.
         """
@@ -711,7 +711,7 @@ class TestAllowBuild(helpers.ModelsTestCase):
         self.assertEqual(ret, True)
 
     @patch(
-        "freshmaker.config.Config.handler_build_whitelist",
+        "freshmaker.config.Config.handler_build_allowlist",
         new_callable=PropertyMock,
         return_value={
             "RebuildImagesOnRPMAdvisoryChange": {
@@ -722,7 +722,7 @@ class TestAllowBuild(helpers.ModelsTestCase):
             }
         })
     def test_filter_out_image_name_and_advisory_name(
-            self, handler_build_whitelist):
+            self, handler_build_allowlist):
         """
         Tests that allow_build does filter images based on image_name.
         """
@@ -743,7 +743,7 @@ class TestAllowBuild(helpers.ModelsTestCase):
         self.assertEqual(ret, True)
 
     @patch(
-        "freshmaker.config.Config.handler_build_whitelist",
+        "freshmaker.config.Config.handler_build_allowlist",
         new_callable=PropertyMock,
         return_value={
             "RebuildImagesOnRPMAdvisoryChange": {
@@ -753,7 +753,7 @@ class TestAllowBuild(helpers.ModelsTestCase):
             }
         })
     @patch(
-        "freshmaker.config.Config.handler_build_blacklist",
+        "freshmaker.config.Config.handler_build_blocklist",
         new_callable=PropertyMock,
         return_value={
             "RebuildImagesOnRPMAdvisoryChange": {
@@ -766,7 +766,7 @@ class TestAllowBuild(helpers.ModelsTestCase):
             }
         })
     def test_filter_out_not_allowed_builds_image_version(
-            self, handler_build_blacklist, handler_build_whitelist):
+            self, handler_build_blocklist, handler_build_allowlist):
         handler = RebuildImagesOnRPMAdvisoryChange()
         handler.event = ErrataAdvisoryRPMsSignedEvent(
             "123",

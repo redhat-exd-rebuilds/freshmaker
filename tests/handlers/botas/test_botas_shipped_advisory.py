@@ -95,7 +95,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
             "This image rebuild is not allowed by internal policy."))
 
     @patch.object(conf, 'dry_run', new=True)
-    @patch.object(conf, 'handler_build_whitelist', new={
+    @patch.object(conf, 'handler_build_allowlist', new={
         'HandleBotasAdvisory': {
             'image': {
                 'advisory_name': 'RHBA-2020'
@@ -113,7 +113,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
             db_event.state_reason.startswith("The are no digests for NVRs:"))
 
     @patch.object(conf, 'dry_run', new=True)
-    @patch.object(conf, 'handler_build_whitelist', new={
+    @patch.object(conf, 'handler_build_allowlist', new={
         'HandleBotasAdvisory': {
             'image': {
                 'advisory_name': 'RHBA-2020'

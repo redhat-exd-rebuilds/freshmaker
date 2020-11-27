@@ -35,24 +35,24 @@ from freshmaker import logger
 
 def any_(*rules):
     """
-    Returns list of rules which can be used in HANDLER_MODULE_WHITELIST
-    or HANDLER_MODULE_BLACKLIST and is later evaluated as "matched" if *any*
+    Returns list of rules which can be used in HANDLER_MODULE_ALLOWLIST
+    or HANDLER_MODULE_BLOCKLIST and is later evaluated as "matched" if *any*
     rule from the `rules` matches.
 
     :param rules: Each rule is a dict in the same format as other
-        dicts in the HANDLER_MODULE_WHITELIST or HANDLER_MODULE_BLACKLIST.
+        dicts in the HANDLER_MODULE_ALLOWLIST or HANDLER_MODULE_BLOCKLIST.
     """
     return ["any", [rule for rule in rules]]
 
 
 def all_(*rules):
     """
-    Returns list of rules which can be used in HANDLER_MODULE_WHITELIST
-    or HANDLER_MODULE_BLACKLIST and is later evaluated as "matched" if *all*
+    Returns list of rules which can be used in HANDLER_MODULE_ALLOWLIST
+    or HANDLER_MODULE_BLOCKLIST and is later evaluated as "matched" if *all*
     rules from the `rules` matches.
 
     :param rules: Each rule is a dict in the same format as other
-        dicts in the HANDLER_MODULE_WHITELIST or HANDLER_MODULE_BLACKLIST.
+        dicts in the HANDLER_MODULE_ALLOWLIST or HANDLER_MODULE_BLOCKLIST.
     """
     return ["all", [rule for rule in rules]]
 
@@ -225,15 +225,15 @@ class Config(object):
                     'generate fake "build succeeded" events to mark fake '
                     'artifact rebuild as done.',
         },
-        'handler_build_whitelist': {
+        'handler_build_allowlist': {
             'type': dict,
             'default': {},
-            'desc': 'Whitelist for build targets of handlers',
+            'desc': 'Allowlist for build targets of handlers',
         },
-        'handler_build_blacklist': {
+        'handler_build_blocklist': {
             'type': dict,
             'default': {},
-            'desc': 'Blacklist for build targets of handlers',
+            'desc': 'Blocklist for build targets of handlers',
         },
         'image_extra_repo': {
             'type': dict,

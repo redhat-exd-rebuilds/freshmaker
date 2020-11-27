@@ -86,7 +86,7 @@ def fail_event_on_handler_exception(func):
     return decorator
 
 
-def fail_artifact_build_on_handler_exception(whitelist=None):
+def fail_artifact_build_on_handler_exception(allowlist=None):
     """
     Decorator which marks the models.ArtifactBuild associated with handler by
     BaseHandler.set_context() as FAILED in case the `func` raises an
@@ -94,7 +94,7 @@ def fail_artifact_build_on_handler_exception(whitelist=None):
 
     The exception is re-raised by this decorator once its finished.
 
-    :param list/set whitelist: When set, defines the whitelist of Exception
+    :param list/set allowlist: When set, defines the allowlist of Exception
         subclasses which do not cause the ArtifactBuild to fail but are instead
         just re-raised.
     """
@@ -111,7 +111,7 @@ def fail_artifact_build_on_handler_exception(whitelist=None):
                     raise
                 handler._last_handled_exception = e
 
-                if whitelist and type(e) in whitelist:
+                if allowlist and type(e) in allowlist:
                     raise
 
                 err = 'Could not process message handler. See the traceback.'
@@ -381,50 +381,50 @@ class BaseHandler(object):
     def allow_build(self, artifact_type, **criteria):
         """
         Check whether the artifact is allowed to be built by checking
-        HANDLER_BUILD_WHITELIST in config.
+        HANDLER_BUILD_ALLOWLIST in config.
 
         :param artifact_type: an enum member of ArtifactType.
         :param criteria: keyword arguments listing criteria that will be
-            checked against whitelist to determine whether build is allowed.
+            checked against allowlist to determine whether build is allowed.
             There is not specific order or logical relationship to these
-            criteria. How they are checked depends on how whitelist is
+            criteria. How they are checked depends on how allowlist is
             configured.
         :return: True if build is allowed, otherwise False is returned.
         :rtype: bool
         """
         # Global rules
-        whitelist_rules = copy.deepcopy(
-            conf.handler_build_whitelist.get("global", {}))
-        blacklist_rules = copy.deepcopy(
-            conf.handler_build_blacklist.get("global", {}))
+        allowlist_rules = copy.deepcopy(
+            conf.handler_build_allowlist.get("global", {}))
+        blocklist_rules = copy.deepcopy(
+            conf.handler_build_blocklist.get("global", {}))
 
         # This handler rules
         handler_name = self.name
-        whitelist_rules.update(conf.handler_build_whitelist.get(handler_name, {}))
-        blacklist_rules.update(conf.handler_build_blacklist.get(handler_name, {}))
+        allowlist_rules.update(conf.handler_build_allowlist.get(handler_name, {}))
+        blocklist_rules.update(conf.handler_build_blocklist.get(handler_name, {}))
 
         try:
-            whitelist = whitelist_rules.get(artifact_type.name.lower(), [])
-            if self._match_allow_build_rule(criteria, whitelist):
-                blacklist = blacklist_rules.get(artifact_type.name.lower(), [])
-                if self._match_allow_build_rule(criteria, blacklist):
-                    self.log_debug('%r, type=%r is blacklisted.',
+            allowlist = allowlist_rules.get(artifact_type.name.lower(), [])
+            if self._match_allow_build_rule(criteria, allowlist):
+                blocklist = blocklist_rules.get(artifact_type.name.lower(), [])
+                if self._match_allow_build_rule(criteria, blocklist):
+                    self.log_debug('%r, type=%r is blocked.',
                                    criteria, artifact_type.name.lower())
                     return False
-                self.log_debug('%r, type=%r is whitelisted.',
+                self.log_debug('%r, type=%r is allowed.',
                                criteria, artifact_type.name.lower())
-                self.log_debug('name=%r, whitelist=%r', handler_name, whitelist)
+                self.log_debug('name=%r, allowlist=%r', handler_name, allowlist)
                 return True
         except re.error as exc:
             err_msg = ("Error while compiling whilelist rule "
                        "for <handler(%s) artifact(%s)>:\n"
                        "Incorrect regular expression: %s\n"
-                       "Whitelist will not take effect" %
+                       "Allowlist will not take effect" %
                        (handler_name, artifact_type.name.lower(), str(exc)))
             self.log_error(err_msg)
             raise UnprocessableEntity(err_msg)
 
-        self.log_debug('%r, type=%r is not whitelisted.',
+        self.log_debug('%r, type=%r is not allowed.',
                        criteria, artifact_type.name.lower())
         return False
 
@@ -470,7 +470,7 @@ class ContainerBuildHandler(BaseHandler):
                                            scratch=conf.koji_container_scratch_build,
                                            compose_ids=compose_ids)
 
-    @fail_artifact_build_on_handler_exception(whitelist=[ODCSComposeNotReady])
+    @fail_artifact_build_on_handler_exception(allowlist=[ODCSComposeNotReady])
     def build_image_artifact_build(self, build, repo_urls=None):
         """
         Submits ArtifactBuild of 'image' type to Koji.

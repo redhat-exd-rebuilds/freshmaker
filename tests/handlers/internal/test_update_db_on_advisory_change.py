@@ -52,7 +52,7 @@ class TestUpdateDBOnAdvisoryChange(helpers.ModelsTestCase):
             self.assertEqual(ret[0].advisory.name, "RHSA-2017")
 
     @patch('freshmaker.errata.Errata.advisories_from_event')
-    @patch.object(conf, 'handler_build_whitelist', new={
+    @patch.object(conf, 'handler_build_allowlist', new={
         'UpdateDBOnAdvisoryChange': {
             'image': {
                 'advisory_state': r'REL_PREP|SHIPPED_LIVE',
@@ -73,7 +73,7 @@ class TestUpdateDBOnAdvisoryChange(helpers.ModelsTestCase):
             self.assertEqual(len(ret), 0)
 
     @patch('freshmaker.errata.Errata.advisories_from_event')
-    @patch.object(conf, 'handler_build_whitelist', new={
+    @patch.object(conf, 'handler_build_allowlist', new={
         'UpdateDBOnAdvisoryChange': {
             'image': {
                 'advisory_state': '.*',
@@ -179,7 +179,7 @@ class TestUpdateDBOnAdvisoryChange(helpers.ModelsTestCase):
 
     @patch('freshmaker.handlers.internal.UpdateDBOnAdvisoryChange'
            '.rebuild_if_not_exists')
-    @patch.object(conf, 'handler_build_whitelist', new={
+    @patch.object(conf, 'handler_build_allowlist', new={
         'UpdateDBOnAdvisoryChange': {
             'image': {
                 'advisory_state': r'REL_PREP',
@@ -204,7 +204,7 @@ class TestUpdateDBOnAdvisoryChange(helpers.ModelsTestCase):
 
     @patch('freshmaker.handlers.internal.UpdateDBOnAdvisoryChange'
            '.rebuild_if_not_exists')
-    @patch.object(conf, 'handler_build_whitelist', new={
+    @patch.object(conf, 'handler_build_allowlist', new={
         'UpdateDBOnAdvisoryChange': {
             'image': {
                 'advisory_state': r'SHIPPED_LIVE',
