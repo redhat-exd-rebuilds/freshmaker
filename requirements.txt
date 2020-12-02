@@ -13,6 +13,7 @@ Flask-Migrate
 Flask-SQLAlchemy
 Flask-Login
 requests
+requests-kerberos
 odcs[client]
 dogpile.cache
 pyldap

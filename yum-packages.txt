@@ -31,6 +31,7 @@ python3-pyOpenSSL
 python3-pyyaml
 python3-qpid-proton
 python3-requests
+python3-requests-kerberos
 python3-rpm
 python3-setuptools
 python3-sqlalchemy
