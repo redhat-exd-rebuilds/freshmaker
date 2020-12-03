@@ -5,6 +5,7 @@
 /build/
 /dist/
 /freshmaker.egg-info/
+/dev_scripts/
 *swp
 tests/test_freshmaker.db
 freshmaker.db
