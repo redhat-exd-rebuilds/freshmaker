@@ -194,7 +194,7 @@ class Pyxis(object):
         """
         Get images' digests(manifest_list_digest field) by their NVRs
 
-        :param list nvrs: list of NVRs of ContainerImages to query Pyxis
+        :param set nvrs: set of NVRs of ContainerImages to query Pyxis
         :return: digests of images which we get by NVRs
         :rtype: set
         """

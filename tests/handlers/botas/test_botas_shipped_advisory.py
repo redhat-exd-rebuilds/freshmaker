@@ -24,10 +24,11 @@ from unittest.mock import patch, call, MagicMock
 from freshmaker import db, conf
 from freshmaker.events import (
     BotasErrataShippedEvent,
-    ManualRebuildWithAdvisoryEvent)
+    ManualRebuildWithAdvisoryEvent,
+    TestingEvent)
 from freshmaker.handlers.botas import HandleBotasAdvisory
 from freshmaker.errata import ErrataAdvisory
-from freshmaker.models import Event
+from freshmaker.models import Event, ArtifactBuild
 from freshmaker.types import EventState
 from tests import helpers
 
@@ -101,16 +102,39 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
                 'advisory_name': 'RHBA-2020'
             }
         }})
+    @patch("freshmaker.handlers.botas.botas_shipped_advisory.HandleBotasAdvisory.get_published_original_nvr")
+    def test_get_original_nvrs(self, get_build):
+        event = BotasErrataShippedEvent("test_msg_id", self.botas_advisory)
+        self.botas_advisory._builds = {
+            "product_name": {
+                "builds": [{"nvr": "some_name-2-2"},
+                           {"nvr": "some_name_two-2-2"}]
+            }
+        }
+        get_build.return_value = "some_name-1-0"
+
+        self.handler.handle(event)
+
+        self.pyxis().get_digests_by_nvrs.assert_called_with({"some_name-1-0"})
+
+    @patch.object(conf, 'dry_run', new=True)
+    @patch.object(conf, 'handler_build_allowlist', new={
+        'HandleBotasAdvisory': {
+            'image': {
+                'advisory_name': 'RHBA-2020'
+            }
+        }})
     def test_handle_no_digests_error(self):
         event = BotasErrataShippedEvent("test_msg_id", self.botas_advisory)
         self.pyxis().get_digests_by_nvrs.return_value = set()
+        self.botas_advisory._builds = {}
 
         self.handler.handle(event)
         db_event = Event.get(db.session, message_id='test_msg_id')
 
         self.assertEqual(db_event.state, EventState.SKIPPED.value)
         self.assertTrue(
-            db_event.state_reason.startswith("The are no digests for NVRs:"))
+            db_event.state_reason.startswith("There are no digests for NVRs:"))
 
     @patch.object(conf, 'dry_run', new=True)
     @patch.object(conf, 'handler_build_allowlist', new={
@@ -150,6 +174,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
             },
         ]
         self.pyxis().filter_bundles_by_related_image_digests.return_value = bundles
+        self.botas_advisory._builds = {}
 
         self.handler.handle(event)
         db_event = Event.get(db.session, message_id='test_msg_id')
@@ -207,3 +232,45 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         temp_mock.get_build.assert_has_calls([call(bundle_list[0]),
                                              call(bundle_list[1])])
         self.assertEqual(nvrs, {bundle_list[0]})
+
+    def test_get_published_original_nvr_single_event(self):
+        event1 = Event.create(db.session, "id1", "RHSA-1", TestingEvent)
+        ArtifactBuild.create(db.session, event1, "ed0", "image", 1234,
+                             original_nvr="nvr1-0-1",
+                             rebuilt_nvr="nvr1-0-2")
+        db.session.commit()
+        self.pyxis()._pagination.return_value = [
+            {"repositories": [{"published": True}]}
+        ]
+
+        ret_nvr = self.handler.get_published_original_nvr("nvr1-0-2")
+        self.assertEqual(ret_nvr, "nvr1-0-1")
+
+    def test_get_published_original_nvr(self):
+        event1 = Event.create(db.session, "id1", "RHSA-1", TestingEvent)
+        ArtifactBuild.create(db.session, event1, "ed0", "image", 1234,
+                             original_nvr="nvr1", rebuilt_nvr="nvr1-001")
+
+        event2 = Event.create(db.session, "id2", "RHSA-1",
+                              ManualRebuildWithAdvisoryEvent)
+        ArtifactBuild.create(db.session, event2, "ed1", "image", 12345,
+                             original_nvr="nvr1-001", rebuilt_nvr="nvr1-002")
+
+        event3 = Event.create(db.session, "id3", "RHSA-1",
+                              ManualRebuildWithAdvisoryEvent)
+        ArtifactBuild.create(db.session, event3, "ed2", "image", 123456,
+                             original_nvr="nvr1-002", rebuilt_nvr="nvr1-003")
+        db.session.commit()
+        self.pyxis()._pagination.side_effect = [
+            [{"repositories": [{"published": False}]}],
+            [{"repositories": [{"published": True}]}]
+        ]
+
+        ret_nvr = self.handler.get_published_original_nvr("nvr1-003")
+        self.assertEqual(ret_nvr, "nvr1-001")
+
+    def test_no_original_build_by_nvr(self):
+        self.pyxis()._pagination.return_value = [
+            {"repositories": [{"published": True}]}
+        ]
+        self.assertIsNone(self.handler.get_published_original_nvr("nvr2"))

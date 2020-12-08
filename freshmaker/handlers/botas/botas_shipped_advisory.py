@@ -22,7 +22,7 @@
 from freshmaker import db, conf, log
 from freshmaker.handlers import ContainerBuildHandler
 from freshmaker.events import BotasErrataShippedEvent
-from freshmaker.models import Event
+from freshmaker.models import ArtifactBuild, ArtifactType, Event
 from freshmaker.types import EventState
 from freshmaker.pyxis import Pyxis
 from freshmaker.kojiservice import koji_service
@@ -56,8 +56,6 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             self.force_dry_run()
         self.event = event
 
-        # Get event from database or create new one.
-        # Then we can get original NVRs from it.
         db_event = Event.get_or_create_from_event(db.session, event)
 
         self.set_context(db_event)
@@ -70,15 +68,25 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             self.log_info(msg)
             return []
 
-        # Get original nvrs of all builds in the advisory
-        original_nvrs = [build.original_nvr for build in db_event.builds]
+        # Get builds NVRs from the advisory attached to the message/event and
+        # then get original NVR for every build
+        original_nvrs = set()
+        for product_info in event.advisory.builds.values():
+            for build in product_info['builds']:
+                # Search for the first build that triggered the chain of rebuilds
+                # for every shipped NVR to get original NVR from it
+                original_nvr = self.get_published_original_nvr(build['nvr'])
+                if original_nvr is None:
+                    continue
+                original_nvrs.add(original_nvr)
+
         self.log_info(
             "Orignial nvrs of build in the advisory #{0} are: {1}".format(
-                db_event.search_key, " ".join(original_nvrs)))
+                event.advisory.errata_id, " ".join(original_nvrs)))
         # Get images by nvrs and then get their digests
-        original_images_digests = set(self._pyxis.get_digests_by_nvrs(original_nvrs))
+        original_images_digests = self._pyxis.get_digests_by_nvrs(original_nvrs)
         if not original_images_digests:
-            msg = f"The are no digests for NVRs: {','.join(original_nvrs)}"
+            msg = f"There are no digests for NVRs: {','.join(original_nvrs)}"
             log.warning(msg)
             db_event.transition(EventState.SKIPPED, msg)
             return []
@@ -149,3 +157,39 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                     continue
                 ret_bundle_images_nvrs.add(nvr)
         return ret_bundle_images_nvrs
+
+    def get_published_original_nvr(self, rebuilt_nvr):
+        """
+        Search for an original build, that has been built and published to a
+            repository, and get original_nvr from it
+
+        :param str rebuilt_nvr: rebuilt NVR to look build by
+        :rtype: str or None
+        :return: original NVR from the first published FM build for given NVR
+        """
+        original_nvr = None
+        # artifact build should be only one in database, or raise an error
+        artifact_build = db.session.query(ArtifactBuild).filter(
+            ArtifactBuild.rebuilt_nvr == rebuilt_nvr,
+            ArtifactBuild.type == ArtifactType.IMAGE.value,
+        ).one_or_none()
+        # recursively search for original artifact build
+        if artifact_build is not None:
+            original_nvr = artifact_build.original_nvr
+
+            # check if image is published
+            request_params = {'include': 'data.repositories',
+                              'page_size': 1}
+            images = self._pyxis._pagination(f'images/nvr/{original_nvr}',
+                                             request_params)
+            if not images:
+                return None
+            # stop recursion if the image is published in some repo
+            if any(repo['published'] for repo in images[0].get('repositories')):
+                return original_nvr
+
+            next_nvr = self.get_published_original_nvr(original_nvr)
+            if next_nvr is not None:
+                original_nvr = next_nvr
+
+        return original_nvr
