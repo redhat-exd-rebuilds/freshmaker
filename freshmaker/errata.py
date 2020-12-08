@@ -57,6 +57,7 @@ class ErrataAdvisory(object):
 
         self._affected_rpm_nvrs = None
         self._reporter = ""
+        self._builds = None
 
     @property
     def affected_rpm_nvrs(self):
@@ -76,6 +77,15 @@ class ErrataAdvisory(object):
         advisory_data = errata._get_advisory_legacy(self.errata_id)
         self._reporter = advisory_data['people']['reporter']
         return self._reporter
+
+    @property
+    def builds(self):
+        if self._builds is None:
+            errata = Errata()
+            self._builds = errata._errata_rest_get(f"erratum/{self.errata_id}"
+                                                   "/builds")
+
+        return self._builds
 
     @classmethod
     def from_advisory_id(cls, errata, errata_id):
