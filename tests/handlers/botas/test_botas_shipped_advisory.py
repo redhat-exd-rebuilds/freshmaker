@@ -19,7 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from unittest.mock import patch, call, MagicMock
+from unittest.mock import patch, call
 
 from freshmaker import db, conf
 from freshmaker.events import (
@@ -114,8 +114,10 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         get_build.return_value = "some_name-1-0"
 
         self.handler.handle(event)
-
-        self.pyxis().get_digests_by_nvrs.assert_called_with({"some_name-1-0"})
+        self.pyxis().get_manifest_list_digest_by_nvr.assert_has_calls([
+            call("some_name-1-0"),
+            call("some_name_two-2-2"),
+        ], any_order=True)
 
     @patch.object(conf, 'dry_run', new=True)
     @patch.object(conf, 'handler_build_allowlist', new={
@@ -126,7 +128,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         }})
     def test_handle_no_digests_error(self):
         event = BotasErrataShippedEvent("test_msg_id", self.botas_advisory)
-        self.pyxis().get_digests_by_nvrs.return_value = set()
+        self.pyxis().get_manifest_list_digest_by_nvr.return_value = None
         self.botas_advisory._builds = {}
 
         self.handler.handle(event)
@@ -134,7 +136,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
 
         self.assertEqual(db_event.state, EventState.SKIPPED.value)
         self.assertTrue(
-            db_event.state_reason.startswith("There are no digests for NVRs:"))
+            db_event.state_reason.startswith("None of the original images have digest"))
 
     @patch.object(conf, 'dry_run', new=True)
     @patch.object(conf, 'handler_build_allowlist', new={
@@ -143,95 +145,177 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
                 'advisory_name': 'RHBA-2020'
             }
         }})
-    def test_handle_get_bundle_paths(self):
+    @patch("freshmaker.handlers.botas.botas_shipped_advisory.HandleBotasAdvisory.get_published_original_nvr")
+    @patch("freshmaker.handlers.botas.botas_shipped_advisory.KojiService")
+    def test_multiple_bundles_to_single_related_image(self, mock_koji, get_published):
         event = BotasErrataShippedEvent("test_msg_id", self.botas_advisory)
-        self.pyxis().get_digests_by_nvrs.return_value = {'nvr1'}
-        bundles = [
-            {
-                "bundle_path": "some_path",
-                "bundle_path_digest": "sha256:123123",
-                "channel_name": "streams-1.5.x",
-                "related_images": [
+        self.botas_advisory._builds = {
+            "product_name": {
+                "builds": [{"nvr": "foo-1-2.123"},
+                           {"nvr": "bar-2-2.134"}]
+            }
+        }
+
+        published_nvrs = {
+            "foo-1-2.123": "foo-1-2",
+            "bar-2-2.134": "bar-2-2"
+        }
+        get_published.side_effect = lambda x: published_nvrs[x]
+
+        digests_by_nvrs = {
+            "foo-1-2": "sha256:111",
+            "bar-2-2": "sha256:222",
+            "foo-1-2.123": "sha256:333",
+            "bar-2-2.134": "sha256:444",
+        }
+        self.pyxis().get_manifest_list_digest_by_nvr.side_effect = lambda x: digests_by_nvrs[x]
+
+        bundles_by_related_digest = {
+            "sha256:111": [
+                {
+                    "bundle_path": "bundle-a/path",
+                    "bundle_path_digest": "sha256:123123",
+                    "channel_name": "streams-1.5.x",
+                    "related_images": [
+                        {
+                            "image": "foo@sha256:111",
+                            "name": "foo",
+                            "digest": "sha256:111"
+                        },
+                    ],
+                    "version": "1.5.3"
+                },
+                {
+                    "bundle_path": "bundle-b/path",
+                    "bundle_path_digest": "sha256:023023",
+                    "channel_name": "4.5",
+                    "related_images": [
+                        {
+                            "image": "foo@sha256:111",
+                            "name": "foo",
+                            "digest": "sha256:111"
+                        },
+                    ],
+                    "version": "2.4.2"
+                },
+            ],
+            "sha256:222": []
+        }
+        self.pyxis().get_bundles_by_related_image_digest.side_effect = \
+            lambda x, _: bundles_by_related_digest[x]
+
+        bundle_images = {
+            "sha256:123123": [{
+                "brew": {
+                    "build": "foo-a-bundle-2.1-2",
+                    "nvra": "foo-a-bundle-2.1-2.amd64",
+                    "package": "foo-a-bundle",
+                },
+                "repositories": [
                     {
-                        "image": "registry/amq7/amq-streams-r-operator@sha256:111",
-                        "name": "strimzi-cluster-operator",
-                        "digest": "sha256:111"
-                    },
+                        "content_advisory_ids": [],
+                        "manifest_list_digest": "sha256:12322",
+                        "manifest_schema2_digest": "sha256:123123",
+                        "published": True,
+                        "registry": "registry.example.com",
+                        "repository": "foo/foo-a-operator-bundle",
+                        "tags": [{"name": "2"}, {"name": "2.1"}],
+                    }
                 ],
-                "version": "1.5.3"
-            },
-            {
-                "bundle_path": "some_path_2",
-                "channel_name": "streams-1.5.x",
-                "related_images": [
+            }],
+            "sha256:023023": [{
+                "brew": {
+                    "build": "foo-b-bundle-3.1-2",
+                    "nvra": "foo-b-bundle-3.1-2.amd64",
+                    "package": "foo-b-bundle",
+                },
+                "repositories": [
                     {
-                        "image": "registry/amq7/amq-streams-r-operator@sha256:555",
-                        "name": "strimzi-cluster-operator",
-                        "digest": "sha256:555"
-                    },
+                        "content_advisory_ids": [],
+                        "manifest_list_digest": "sha256:12345",
+                        "manifest_schema2_digest": "sha256:023023",
+                        "published": True,
+                        "registry": "registry.example.com",
+                        "repository": "foo/foo-b-operator-bundle",
+                        "tags": [{"name": "3"}, {"name": "3.1"}],
+                    }
                 ],
-                "version": "1.5.4"
+            }]
+        }
+        self.pyxis().get_images_by_digest.side_effect = lambda x: bundle_images[x]
+
+        def _fake_get_auto_rebuild_tags(registry, repository):
+            if repository == "foo/foo-a-operator-bundle":
+                return ["2", "latest"]
+            if repository == "foo/foo-b-operator-bundle":
+                return ["3", "latest"]
+
+        self.pyxis().get_auto_rebuild_tags.side_effect = _fake_get_auto_rebuild_tags
+
+        koji_builds = {
+            "foo-a-bundle-2.1-2": {
+                "build_id": 123,
+                "extra": {
+                    "image": {
+                        "operator_manifests": {
+                            "related_images": {
+                                "created_by_osbs": True,
+                                "pullspecs": [
+                                    {
+                                        "new": "registry.example.com/foo/foo-container@sha256:111",
+                                        "original": "registry.exampl.com/foo/foo-container:0.1",
+                                        "pinned": True,
+                                    }
+                                ],
+                            }
+                        },
+                    }
+                },
+                "name": "foo-a-bundle",
+                "nvr": "foo-a-bundle-2.1-2",
+
             },
-        ]
-        self.pyxis().filter_bundles_by_related_image_digests.return_value = bundles
-        self.botas_advisory._builds = {}
+            "foo-b-bundle-3.1-2": {
+                "build_id": 234,
+                "extra": {
+                    "image": {
+                        "operator_manifests": {
+                            "related_images": {
+                                "created_by_osbs": True,
+                                "pullspecs": [
+                                    {
+                                        "new": "registry.example.com/foo/foo-container@sha256:111",
+                                        "original": "registry.exampl.com/foo/foo-container:0.1",
+                                        "pinned": True,
+                                    }
+                                ],
+                            }
+                        },
+                    }
+                },
+                "name": "foo-b-bundle",
+                "nvr": "foo-b-bundle-3.1-2",
+
+            }
+        }
+        mock_koji.return_value.get_build.side_effect = lambda x: koji_builds[x]
 
         self.handler.handle(event)
         db_event = Event.get(db.session, message_id='test_msg_id')
 
-        # should be called only with the first digest, because second one
-        # doesn't have 'bundle_path_digest'
-        self.pyxis().get_images_by_digests.assert_called_once_with({"sha256:123123"})
+        self.pyxis().get_images_by_digest.assert_has_calls([
+            call("sha256:123123"),
+            call("sha256:023023")
+        ], any_order=True)
+
         self.assertEqual(db_event.state, EventState.SKIPPED.value)
         self.assertTrue(
-            db_event.state_reason.startswith("Skipping the rebuild of"))
+            db_event.state_reason.startswith("Skipping the rebuild of 2 bundle images")
+        )
 
     def test_can_handle_manual_rebuild_with_advisory(self):
         event = ManualRebuildWithAdvisoryEvent("123", self.botas_advisory, [])
         self.assertFalse(self.handler.can_handle(event))
-
-    @patch('freshmaker.handlers.botas.botas_shipped_advisory.koji_service')
-    def test_filter_bundles_by_pinned_related_images(self, service):
-        bundle_images_nvrs = {"some_nvr_1", "some_nvr_2"}
-        temp_mock = MagicMock()
-        service.return_value.__enter__.return_value = temp_mock
-        temp_mock.get_build.side_effect = [
-            {
-                "build": {
-                    "extra": {
-                        "image": {
-                            "operator_manifests": {
-                                "related_images": {
-                                    "created_by_osbs": True
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            {
-                "build": {
-                    "extra": {
-                        "image": {
-                            "operator_manifests": {
-                                "related_images": {
-                                    "created_by_osbs": False
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            # To check that we will ignore invalid/not found build
-            None
-        ]
-
-        nvrs = self.handler._filter_bundles_by_pinned_related_images(bundle_images_nvrs)
-        bundle_list = list(bundle_images_nvrs)
-
-        temp_mock.get_build.assert_has_calls([call(bundle_list[0]),
-                                             call(bundle_list[1])])
-        self.assertEqual(nvrs, {bundle_list[0]})
 
     def test_get_published_original_nvr_single_event(self):
         event1 = Event.create(db.session, "id1", "RHSA-1", TestingEvent)
@@ -274,3 +358,28 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
             {"repositories": [{"published": True}]}
         ]
         self.assertIsNone(self.handler.get_published_original_nvr("nvr2"))
+
+    def test_image_has_auto_rebuild_tag(self):
+        bundle_image = {
+            "brew": {
+                "build": "foo-operator-2.1-2",
+                "nvra": "foo-operator-2.1-2.amd64",
+                "package": "foo",
+            },
+            "repositories": [
+                {
+                    "content_advisory_ids": [],
+                    "manifest_list_digest": "sha256:12345",
+                    "manifest_schema2_digest": "sha256:23456",
+                    "published": True,
+                    "registry": "registry.example.com",
+                    "repository": "foo/foo-operator-bundle",
+                    "tags": [{"name": "2"}, {"name": "2.1"}],
+                }
+            ],
+        }
+
+        self.pyxis().get_auto_rebuild_tags.return_value = ["2", "latest"]
+
+        has_auto_rebuild_tag = self.handler.image_has_auto_rebuild_tag(bundle_image)
+        self.assertTrue(has_auto_rebuild_tag)

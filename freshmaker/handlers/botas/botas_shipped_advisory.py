@@ -18,6 +18,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+import copy
 
 from freshmaker import db, conf, log
 from freshmaker.handlers import ContainerBuildHandler
@@ -25,7 +26,7 @@ from freshmaker.events import BotasErrataShippedEvent
 from freshmaker.models import ArtifactBuild, ArtifactType, Event
 from freshmaker.types import EventState
 from freshmaker.pyxis import Pyxis
-from freshmaker.kojiservice import koji_service
+from freshmaker.kojiservice import KojiService
 
 
 class HandleBotasAdvisory(ContainerBuildHandler):
@@ -70,7 +71,9 @@ class HandleBotasAdvisory(ContainerBuildHandler):
 
         # Get builds NVRs from the advisory attached to the message/event and
         # then get original NVR for every build
-        original_nvrs = set()
+
+        # Mapping of original build nvrs to rebuilt nvrs in advisory
+        nvrs_mapping = {}
         for product_info in event.advisory.builds.values():
             for build in product_info['builds']:
                 # Search for the first build that triggered the chain of rebuilds
@@ -78,15 +81,50 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                 original_nvr = self.get_published_original_nvr(build['nvr'])
                 if original_nvr is None:
                     continue
-                original_nvrs.add(original_nvr)
+                nvrs_mapping[original_nvr] = build['nvr']
 
+        original_nvrs = nvrs_mapping.keys()
         self.log_info(
             "Orignial nvrs of build in the advisory #{0} are: {1}".format(
                 event.advisory.errata_id, " ".join(original_nvrs)))
-        # Get images by nvrs and then get their digests
-        original_images_digests = self._pyxis.get_digests_by_nvrs(original_nvrs)
-        if not original_images_digests:
-            msg = f"There are no digests for NVRs: {','.join(original_nvrs)}"
+
+        # Get image manifest_list_digest for all original images, manifest_list_digest is used
+        # in pullspecs in bundle's related images
+        original_digests_by_nvr = {}
+        original_nvrs_by_digest = {}
+        for nvr in original_nvrs:
+            digest = self._pyxis.get_manifest_list_digest_by_nvr(nvr)
+            if digest:
+                original_digests_by_nvr[nvr] = digest
+                original_nvrs_by_digest[digest] = nvr
+            else:
+                log.warning(
+                    f"Image manifest_list_digest not found for original image {nvr} in Pyxis, "
+                    "skip this image"
+                )
+
+        if not original_digests_by_nvr:
+            msg = f"None of the original images have digests in Pyxis: {','.join(original_nvrs)}"
+            log.warning(msg)
+            db_event.transition(EventState.SKIPPED, msg)
+            return []
+
+        # Get image manifest_list_digest for all rebuilt images, manifest_list_digest is used
+        # in pullspecs of bundle's related images
+        rebuilt_digests_by_nvr = {}
+        rebuilt_nvrs = nvrs_mapping.values()
+        for nvr in rebuilt_nvrs:
+            digest = self._pyxis.get_manifest_list_digest_by_nvr(nvr)
+            if digest:
+                rebuilt_digests_by_nvr[nvr] = digest
+            else:
+                log.warning(
+                    f"Image manifest_list_digest not found for rebuilt image {nvr} in Pyxis, "
+                    "skip this image"
+                )
+
+        if not rebuilt_digests_by_nvr:
+            msg = f"None of the rebuilt images have digests in Pyxis: {','.join(rebuilt_nvrs)}"
             log.warning(msg)
             db_event.transition(EventState.SKIPPED, msg)
             return []
@@ -96,62 +134,138 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         # by the highest semantic version
         all_bundles = self._pyxis.get_latest_bundles(index_images)
 
-        bundles = self._pyxis.filter_bundles_by_related_image_digests(
-            original_images_digests, all_bundles)
+        # A set of unique bundle digests
         bundle_digests = set()
-        for bundle in bundles:
-            if not bundle.get('bundle_path_digest'):
-                log.warning("Bundle %s doesn't have 'bundle_path_digests' set",
-                            bundle['bundle_path'])
+
+        # get bundle digests for original images
+        bundle_digests_by_related_nvr = {}
+        for image_nvr, image_digest in original_digests_by_nvr.items():
+            bundles = self._pyxis.get_bundles_by_related_image_digest(
+                image_digest, all_bundles
+            )
+            if not bundles:
+                log.info(f"No latest bundle image with the related image of {image_nvr}")
                 continue
-            bundle_digests.add(bundle['bundle_path_digest'])
-        bundle_images = self._pyxis.get_images_by_digests(bundle_digests)
 
-        # Filter image nvrs that don't have or never had auto_rebuild tag
-        # in repos, where image is published
-        auto_rebuild_nvrs = self._pyxis.get_auto_rebuild_tagged_images(bundle_images)
+            for bundle in bundles:
+                bundle_digest = bundle['bundle_path_digest']
+                bundle_digests.add(bundle_digest)
+                bundle_digests_by_related_nvr.setdefault(image_nvr, []).append(bundle_digest)
 
-        # get NVRs only of those bundles, which have OSBS pinning
-        bundles_nvrs = self._filter_bundles_by_pinned_related_images(
-            auto_rebuild_nvrs)
+        if not bundle_digests_by_related_nvr:
+            msg = "None of the original images have related bundles, skip."
+            log.warning(msg)
+            db_event.transition(EventState.SKIPPED, msg)
+            return []
+
+        # Mapping of bundle digest to bundle data
+        # {
+        #     digest: {
+        #         "images": [image_amd64, image_aarch64],
+        #         "nvr": NVR,
+        #         "auto_rebuild": True/False,
+        #         "osbs_pinning": True/False,
+        #         "pullspecs": [...],
+        #     }
+        # }
+        bundles_by_digest = {}
+        default_bundle_data = {
+            'images': [],
+            'nvr': None,
+            'auto_rebuild': False,
+            'osbs_pinning': False,
+            'pullspecs': [],
+        }
+
+        # Get images for each bundle digest, a bundle digest can have multiple images
+        # with different arches.
+        for digest in bundle_digests:
+            bundles = self._pyxis.get_images_by_digest(digest)
+            # If no bundle image found, just skip this bundle digest
+            if not bundles:
+                continue
+
+            bundles_by_digest.setdefault(digest, copy.deepcopy(default_bundle_data))
+            bundles_by_digest[digest]['nvr'] = bundles[0]['brew']['build']
+            bundles_by_digest[digest]['images'] = bundles
+
+        # Unauthenticated koji session to fetch build info of bundles
+        koji_api = KojiService(conf.koji_profile)
+
+        # For each bundle, check whether it should be rebuilt by comparing the
+        # auto_rebuild_tags of repository and bundle's tags
+        for digest, bundle_data in bundles_by_digest.items():
+            bundle_nvr = bundle_data['nvr']
+
+            # Images are for different arches, just check against the first image
+            image = bundle_data['images'][0]
+            if self.image_has_auto_rebuild_tag(image):
+                bundle_data['auto_rebuild'] = True
+
+            # Fetch buildinfo
+            buildinfo = koji_api.get_build(bundle_nvr)
+            related_images = (
+                buildinfo.get("extra", {})
+                .get("image", {})
+                .get("operator_manifests", {})
+                .get("related_images", {})
+            )
+            bundle_data['osbs_pinning'] = related_images.get('created_by_osbs', False)
+            # Save the original pullspecs
+            bundle_data['pullspecs'] = related_images.get('pullspecs', [])
+
+        # Digests of bundles to be rebuilt
+        to_rebuild_digests = set()
+
+        # Now for each bundle, replace the original digest with rebuilt
+        # digest (override pullspecs)
+        for digest, bundle_data in bundles_by_digest.items():
+            # Override pullspecs only when auto_rebuild is enabled and OSBS-pinning
+            # mechanism is used.
+            if not (bundle_data['auto_rebuild'] and bundle_data['osbs_pinning']):
+                continue
+
+            for pullspec in bundle_data['pullspecs']:
+                # A pullspec item example:
+                # {
+                #   'new': 'registry.exampe.io/repo/example-operator@sha256:<sha256-value>'
+                #   'original': 'registry.example.io/repo/example-operator:v2.2.0',
+                #   'pinned': True
+                # }
+
+                # If related image is not pinned by OSBS, skip
+                if not pullspec.get('pinned', False):
+                    continue
+
+                # A pullspec path is in format of "registry/repository@digest"
+                pullspec_elems = pullspec.get('new').split('@')
+                old_digest = pullspec_elems[1]
+
+                if old_digest not in original_nvrs_by_digest:
+                    # This related image is not one of the original images
+                    continue
+
+                # This related image is one of our original images
+                old_nvr = original_nvrs_by_digest[old_digest]
+                new_nvr = nvrs_mapping[old_nvr]
+                new_digest = rebuilt_digests_by_nvr[new_nvr]
+
+                # Replace the old digest with new digest
+                pullspec_elems[1] = new_digest
+                new_pullspec = '@'.join(pullspec_elems)
+                pullspec['new'] = new_pullspec
+
+                # Once a pullspec in this bundle has been overrided, add this bundle
+                # to rebuild list
+                to_rebuild_digests.add(digest)
 
         # Skip that event because we can't proceed with processing it.
         # TODO
         # Now when we have bundle images' nvrs we can procceed with rebuilding it
-        msg = f"Skipping the rebuild of {len(bundles_nvrs)} bundle images " \
+        msg = f"Skipping the rebuild of {len(to_rebuild_digests)} bundle images " \
               "due to being blocked on further implementation for now."
         db_event.transition(EventState.SKIPPED, msg)
         return []
-
-    def _filter_bundles_by_pinned_related_images(self, bundle_image_nvrs):
-        """
-        If the digests were not pinned by OSBS, the bundle image nvr
-        will be filtered out.
-
-        :param set bundle_image_nvrs: NVRs of operator bundles
-        :return: set of NVRs of bundle images that underwent OSBS pinning
-        """
-        ret_bundle_images_nvrs = set()
-        with koji_service(conf.koji_profile, log, dry_run=self.dry_run,
-                          login=False) as session:
-            for nvr in bundle_image_nvrs:
-                build = session.get_build(nvr)
-                if not build:
-                    log.error("Could not find the build %s in Koji", nvr)
-                    continue
-                related_images = (
-                    build.get("build", {})
-                         .get("extra", {})
-                         .get("image", {})
-                         .get("operator_manifests", {})
-                         .get("related_images", {})
-                )
-
-                # Skip the bundle if the related images section was not populated by OSBS
-                if related_images.get("created_by_osbs") is not True:
-                    continue
-                ret_bundle_images_nvrs.add(nvr)
-        return ret_bundle_images_nvrs
 
     def get_published_original_nvr(self, rebuilt_nvr):
         """
@@ -188,3 +302,23 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                 original_nvr = next_nvr
 
         return original_nvr
+
+    def image_has_auto_rebuild_tag(self, image):
+        """ Check if image has a tag enabled for auto rebuild.
+
+        :param dict image: Dict representation of an image entity in Pyxis.
+        :rtype: bool
+        :return: True if image has a tag enabled for auto rebuild in repository, otherwise False.
+        """
+        for repo in image['repositories']:
+            # Skip unpublished repository
+            if not repo['published']:
+                continue
+
+            auto_rebuild_tags = self._pyxis.get_auto_rebuild_tags(
+                repo['registry'], repo['repository']
+            )
+            tags = [t['name'] for t in repo.get('tags', [])]
+            if set(auto_rebuild_tags) & set(tags):
+                return True
+        return False
