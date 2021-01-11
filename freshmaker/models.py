@@ -559,6 +559,11 @@ class ArtifactBuild(FreshmakerBase):
     # `freshmaker.types.RebuildReason`.
     rebuild_reason = db.Column(db.Integer, nullable=True)
 
+    # pullspec overrides
+    _bundle_pullspec_overrides = db.Column(
+        "bundle_pullspec_overrides", db.Text, nullable=True
+    )
+
     composes = db.relationship('ArtifactBuildCompose', back_populates='build')
 
     @classmethod
@@ -616,6 +621,28 @@ class ArtifactBuild(FreshmakerBase):
         if not build:
             return 0
         return build.build_id
+
+    @property
+    def bundle_pullspec_overrides(self):
+        """Return the Python representation of the JSON bundle_pullspec_overrides."""
+        return (
+            json.loads(self._bundle_pullspec_overrides)
+            if self._bundle_pullspec_overrides
+            else None
+        )
+
+    @bundle_pullspec_overrides.setter
+    def bundle_pullspec_overrides(self, bundle_pullspec_overrides):
+        """
+        Set the bundle_pullspec_overrides column to the input bundle_pullspec_overrides as a JSON string.
+        If ``None`` is provided, it will be simply set to ``None`` and not be converted to JSON.
+        :param dict bundle_pullspec_overrides: the dictionary of the bundle_pullspec_overrides or ``None``
+        """
+        self._bundle_pullspec_overrides = (
+            json.dumps(bundle_pullspec_overrides, sort_keys=True)
+            if bundle_pullspec_overrides is not None
+            else None
+        )
 
     def depending_artifact_builds(self):
         """
