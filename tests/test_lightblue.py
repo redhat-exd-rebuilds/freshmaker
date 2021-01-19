@@ -1562,6 +1562,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         self.assertEqual(set(ret[2]["content_sets"]),
                          set(['dummy-content-set-1', 'dummy-content-set-2']))
 
+    @patch('freshmaker.lightblue.LightBlue.find_all_container_repositories')
     @patch('freshmaker.lightblue.LightBlue.find_images_with_packages_from_content_set')
     @patch('freshmaker.lightblue.LightBlue.find_parent_images_with_package')
     @patch('freshmaker.lightblue.LightBlue._filter_out_already_fixed_published_images')
@@ -1570,8 +1571,10 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                exists,
                                _filter_out_already_fixed_published_images,
                                find_parent_images_with_package,
-                               find_images_with_packages_from_content_set):
+                               find_images_with_packages_from_content_set,
+                               find_repos):
         exists.return_value = True
+        find_repos.return_value = {}
 
         image_a = ContainerImage.create({
             'brew': {'package': 'image-a', 'build': 'image-a-v-r1'},
@@ -1783,7 +1786,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             "Couldn't find parent image some-original-nvr-7.6-252.1561619826. "
             "Lightblue data is probably incomplete"))
 
-    @patch("freshmaker.lightblue.LightBlue.get_images_by_nvrs")
+    @patch('freshmaker.lightblue.LightBlue.find_all_container_repositories')
+    @patch('freshmaker.lightblue.LightBlue.get_images_by_nvrs')
     @patch('freshmaker.lightblue.LightBlue.find_images_with_packages_from_content_set')
     @patch('freshmaker.lightblue.LightBlue.find_parent_images_with_package')
     @patch('freshmaker.lightblue.LightBlue._filter_out_already_fixed_published_images')
@@ -1791,8 +1795,9 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
     def test_parent_images_with_package_using_field_parent_brew_build_parent_empty(
             self, exists, _filter_out_already_fixed_published_images,
             find_parent_images_with_package, find_images_with_packages_from_content_set,
-            cont_images):
+            cont_images, find_repos):
         exists.return_value = True
+        find_repos.return_value = {}
 
         image_a = ContainerImage.create({
             "brew": {"package": "image-a", "build": "image-a-v-r1"},
@@ -1819,7 +1824,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         self.assertEqual(len(ret), 1)
         self.assertIsNotNone(ret[0][0].get("parent"))
 
-    @patch("freshmaker.lightblue.LightBlue.get_images_by_nvrs")
+    @patch('freshmaker.lightblue.LightBlue.find_all_container_repositories')
+    @patch('freshmaker.lightblue.LightBlue.get_images_by_nvrs')
     @patch('freshmaker.lightblue.LightBlue.find_images_with_packages_from_content_set')
     @patch('freshmaker.lightblue.LightBlue.find_parent_images_with_package')
     @patch('freshmaker.lightblue.LightBlue._filter_out_already_fixed_published_images')
@@ -1827,8 +1833,9 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
     def test_dedupe_dependency_images_with_all_repositories(
             self, exists, _filter_out_already_fixed_published_images,
             find_parent_images_with_package, find_images_with_packages_from_content_set,
-            get_images_by_nvrs):
+            get_images_by_nvrs, find_repos):
         exists.return_value = True
+        find_repos.return_value = {}
 
         vulnerable_rpm_name = 'oh-noes'
         vulnerable_rpm_nvr = '{}-1.0-1'.format(vulnerable_rpm_name)
@@ -3147,3 +3154,51 @@ def test_get_fixed_published_image_not_found_by_nvr(mock_fci, mock_exists):
     )
 
     assert image is None
+
+
+@patch('os.path.exists', return_value=True)
+@patch('freshmaker.lightblue.LightBlue.find_container_repositories')
+def test_is_latest_eus_image(find_repos, mock_exists):
+    images = [
+        # EUS tagged with auto_rebuild tag
+        {'repositories': [{'repository': 'some_repo/rhel',
+                           'tags': [{'name': 'tag1'}, {'name': 'tag2'}]
+                           },
+                          {'repository': 'rhel9-9-els/rhel-999',
+                           'tags': [{'name': 'tag1'}, {'name': 'latest'}]
+                           }
+                          ]
+         },
+        # EUS not tagged with auto_rebuild
+        {'repositories': [{'repository': 'rhel8-2-els/rhel',
+                           'tags': [{'name': 'tag1'}, {'name': 'tag2'}]
+                           },
+                          {'repository': 'rh-osbs/rhel',
+                           'tags': [{'name': 'latest'}]
+                           }
+                          ]
+         },
+        # repo names similar to EUS names tagged with auto_rebuild
+        {'repositories': [{'repository': 'some_repo-els1/rhel',
+                           'tags': [{'name': 'latest'}]
+                           },
+                          {'repository': 'some_repo-1els/rhel',
+                           'tags': [{'name': 'latest'}]
+                           },
+                          {'repository': 'rh-osbs/rhel-qels',
+                           'tags': [{'name': 'latest'}]
+                           },
+                          {'repository': 'rh-osbs/rhel-elsq',
+                           'tags': [{'name': 'latest'}]
+                           },
+                          ]
+         },
+    ]
+    find_repos.return_value = [{'auto_rebuild_tags': ['latest']}]
+    lb = LightBlue("lb.domain.local", "/path/to/cert", "/path/to/key")
+
+    results = []
+    for image in images:
+        results.append(lb.is_latest_eus_image(image))
+    assert results == [True, False, False]
+    assert find_repos.call_count == 2
