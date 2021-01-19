@@ -128,13 +128,8 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         If the digests were not pinned by OSBS, the bundle image nvr
         will be filtered out.
 
-        There is no need in checking pinning for every of related images,
-        because we already know that digest points to the manifest list,
-        because of previous filtering.
-
         :param set bundle_image_nvrs: NVRs of operator bundles
-        :return: list of NVRs of bundle images that have at least one
-            original related image that was rebuilt
+        :return: set of NVRs of bundle images that underwent OSBS pinning
         """
         ret_bundle_images_nvrs = set()
         with koji_service(conf.koji_profile, log, dry_run=self.dry_run,
