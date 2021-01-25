@@ -264,7 +264,7 @@ class BaseHandler(object):
         """
         raise NotImplementedError()
 
-    def record_build(self, event, name, artifact_type,
+    def record_build(self, event, handler_name, name, artifact_type,
                      build_id=None, dep_on=None, state=None,
                      original_nvr=None, rebuilt_nvr=None,
                      rebuild_reason=0):
@@ -272,6 +272,7 @@ class BaseHandler(object):
         Record build in db.
 
         :param event: instance of an event.
+        :param handler_name: name of the handler of given event
         :param name: name of the artifact.
         :param artifact_type: an enum member of ArtifactType.
         :param build_id: id of the real build in a build system. If omitted,
@@ -292,7 +293,8 @@ class BaseHandler(object):
             ev = event
         else:
             ev = models.Event.get_or_create(
-                db.session, event.msg_id, event.search_key, event.__class__)
+                db.session, handler_name, event.msg_id, event.search_key,
+                event.__class__)
         build = models.ArtifactBuild.create(db.session, ev, name,
                                             artifact_type.name.lower(),
                                             build_id, dep_on, state,

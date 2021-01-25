@@ -100,7 +100,7 @@ class GenerateAdvisorySignedEventOnRPMSign(BaseHandler):
             new_event = ErrataAdvisoryRPMsSignedEvent(
                 event.msg_id + "." + str(advisory.name), advisory)
             db_event = Event.create(
-                db.session, new_event.msg_id, new_event.search_key,
+                db.session, self.name, new_event.msg_id, new_event.search_key,
                 new_event.__class__, released=False)
             db.session.add(db_event)
             new_events.append(new_event)

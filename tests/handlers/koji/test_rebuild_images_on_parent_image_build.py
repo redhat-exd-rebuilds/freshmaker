@@ -61,7 +61,8 @@ class TestRebuildImagesOnParentImageBuild(helpers.ModelsTestCase):
         """
         build_image.side_effect = [1, 2, 3]
         repo_urls.return_value = ["url"]
-        e1 = models.Event.create(db.session, "test_msg_id", "RHSA-2018-001", events.TestingEvent)
+        e1 = models.Event.create(db.session, "handler", "test_msg_id",
+                                 "RHSA-2018-001", events.TestingEvent)
         event = self.get_event_from_msg(get_fedmsg('brew_container_task_closed'))
 
         base_build = models.ArtifactBuild.create(db.session, e1, 'test-product-docker', ArtifactType.IMAGE, event.task_id)
@@ -96,7 +97,8 @@ class TestRebuildImagesOnParentImageBuild(helpers.ModelsTestCase):
         """
         build_image.side_effect = [1, 2, 3, 4]
         repo_urls.return_value = ["url"]
-        e1 = models.Event.create(db.session, "test_msg_id", "RHSA-2018-001", events.TestingEvent)
+        e1 = models.Event.create(db.session, "handler", "test_msg_id",
+                                 "RHSA-2018-001", events.TestingEvent)
         event = self.get_event_from_msg(get_fedmsg('brew_container_task_failed'))
 
         base_build = models.ArtifactBuild.create(
@@ -122,7 +124,7 @@ class TestRebuildImagesOnParentImageBuild(helpers.ModelsTestCase):
     @mock.patch('freshmaker.models.messaging.publish')
     def test_mark_event_COMPLETE_if_all_builds_done(self, publish):
         self.db_advisory_rpm_signed_event = models.Event.create(
-            db.session, 'msg-id-123', '12345',
+            db.session, 'handler', 'msg-id-123', '12345',
             events.ErrataAdvisoryStateChangedEvent,
             state=EventState.BUILDING.value)
 
@@ -171,7 +173,7 @@ class TestRebuildImagesOnParentImageBuild(helpers.ModelsTestCase):
         build_image_artifact_build.return_value = 67890
 
         self.db_advisory_rpm_signed_event = models.Event.create(
-            db.session, 'msg-id-123', '12345',
+            db.session, 'handler', 'msg-id-123', '12345',
             events.ErrataAdvisoryStateChangedEvent,
             state=EventState.BUILDING.value)
 
@@ -226,7 +228,8 @@ class TestRebuildImagesOnParentImageBuild(helpers.ModelsTestCase):
             ['foo-1.2.1-22.el7', 'bar-1.2.3-1.el7']
         )
 
-        e1 = models.Event.create(db.session, "test_msg_id", "2018001", events.ErrataAdvisoryRPMsSignedEvent)
+        e1 = models.Event.create(db.session, "handler", "test_msg_id",
+                                 "2018001", events.ErrataAdvisoryRPMsSignedEvent)
         event = self.get_event_from_msg(get_fedmsg('brew_container_task_closed'))
         build = models.ArtifactBuild.create(db.session, e1, 'test-product-docker', ArtifactType.IMAGE, event.task_id)
 
@@ -254,7 +257,8 @@ class TestRebuildImagesOnParentImageBuild(helpers.ModelsTestCase):
             ['foo-1.2.1-22.el7', 'bar-1.2.3-1.el7']
         )
 
-        e1 = models.Event.create(db.session, "test_msg_id", "2018001", events.ErrataAdvisoryRPMsSignedEvent)
+        e1 = models.Event.create(db.session, "handler", "test_msg_id",
+                                 "2018001", events.ErrataAdvisoryRPMsSignedEvent)
         event = self.get_event_from_msg(get_fedmsg('brew_container_task_closed'))
         build = models.ArtifactBuild.create(db.session, e1, 'test-product-docker', ArtifactType.IMAGE, event.task_id)
 
@@ -272,7 +276,7 @@ class TestRebuildImagesOnParentImageBuild(helpers.ModelsTestCase):
         build_image_artifact_build.return_value = 67890
 
         self.db_advisory_rpm_signed_event = models.Event.create(
-            db.session, 'msg-id-123', '12345',
+            db.session, 'handler', 'msg-id-123', '12345',
             events.ErrataAdvisoryStateChangedEvent,
             state=EventState.BUILDING.value)
 

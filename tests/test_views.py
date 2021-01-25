@@ -120,12 +120,16 @@ class TestViews(helpers.ModelsTestCase):
         self.client = app.test_client()
 
     def _init_data(self):
-        event = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000001", "101", events.TestingEvent)
+        event = models.Event.create(db.session, "handler",
+                                    "2017-00000000-0000-0000-0000-000000000001",
+                                    "101", events.TestingEvent)
         build = models.ArtifactBuild.create(db.session, event, "ed", "module", 1234)
         build.build_args = '{"key": "value"}'
         models.ArtifactBuild.create(db.session, event, "mksh", "module", 1235)
         models.ArtifactBuild.create(db.session, event, "bash", "module", 1236)
-        models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000002", "102", events.TestingEvent)
+        models.Event.create(db.session, "handler",
+                            "2017-00000000-0000-0000-0000-000000000002", "102",
+                            events.TestingEvent)
         db.session.commit()
         db.session.expire_all()
 
@@ -151,7 +155,9 @@ class TestViews(helpers.ModelsTestCase):
             self.assertIn(build_id, [b['build_id'] for b in builds])
 
     def test_query_builds_order_by_default(self):
-        event = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000003", "103", events.TestingEvent)
+        event = models.Event.create(db.session, "handler",
+                                    "2017-00000000-0000-0000-0000-000000000003",
+                                    "103", events.TestingEvent)
         build9 = models.ArtifactBuild.create(db.session, event, "make", "module", 1237)
         build9.id = 9
         db.session.commit()
@@ -166,7 +172,9 @@ class TestViews(helpers.ModelsTestCase):
             self.assertEqual(id, build['id'])
 
     def test_query_builds_order_by_id_asc(self):
-        event = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000003", "103", events.TestingEvent)
+        event = models.Event.create(db.session, "handler",
+                                    "2017-00000000-0000-0000-0000-000000000003",
+                                    "103", events.TestingEvent)
         build9 = models.ArtifactBuild.create(db.session, event, "make", "module", 1237)
         build9.id = 9
         db.session.commit()
@@ -181,7 +189,9 @@ class TestViews(helpers.ModelsTestCase):
             self.assertEqual(id, build['id'])
 
     def test_query_builds_order_by_build_id_desc(self):
-        event = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000003", "103", events.TestingEvent)
+        event = models.Event.create(db.session, "handler",
+                                    "2017-00000000-0000-0000-0000-000000000003",
+                                    "103", events.TestingEvent)
         build9 = models.ArtifactBuild.create(db.session, event, "make", "module", 1237)
         build9.id = 9
         db.session.commit()
@@ -255,18 +265,18 @@ class TestViews(helpers.ModelsTestCase):
                          "An invalid state was supplied")
 
     def test_query_build_by_event_type_id(self):
-        event1 = models.Event.create(db.session,
+        event1 = models.Event.create(db.session, "handler",
                                      "2018-00000000-0000-0000-0000-000000000001",
                                      "testmodule/master/?#0000000000000000000000000000000000000001",
                                      events.GitModuleMetadataChangeEvent)
         build1 = models.ArtifactBuild.create(db.session, event1, "testmodule", "module", 2345)
-        event2 = models.Event.create(db.session,
+        event2 = models.Event.create(db.session, "handler",
                                      "2018-00000000-0000-0000-0000-000000000002",
                                      "2345",
                                      events.MBSModuleStateChangeEvent)
         models.ArtifactBuild.create(db.session, event2, "testmodule2", "module", 2346, build1)
 
-        event3 = models.Event.create(db.session,
+        event3 = models.Event.create(db.session, "handler",
                                      "2018-00000000-0000-0000-0000-000000000003",
                                      "testmodule3/master/?#0000000000000000000000000000000000000001",
                                      events.GitModuleMetadataChangeEvent)
@@ -308,7 +318,9 @@ class TestViews(helpers.ModelsTestCase):
         self.assertEqual(len(builds), 0)
 
     def test_query_builds_pagination_includes_query_params(self):
-        event = models.Event.create(db.session, '2018-00000000-0000-0000-0000-000000000001', '101', events.TestingEvent)
+        event = models.Event.create(db.session, 'handler',
+                                    '2018-00000000-0000-0000-0000-000000000001',
+                                    '101', events.TestingEvent)
         models.ArtifactBuild.create(db.session, event, 'ed', 'module', 20081234)
         models.ArtifactBuild.create(db.session, event, 'ed', 'module', 20081235)
         resp = self.client.get('/api/1/builds/?name=ed&per_page=1&page=2')
@@ -391,7 +403,7 @@ class TestViews(helpers.ModelsTestCase):
         self.assertEqual(evs[0]['search_key'], '101')
 
     def test_query_event_by_state_name(self):
-        models.Event.create(db.session,
+        models.Event.create(db.session, "handler",
                             "2018-00000000-0000-0000-0123-000000000001",
                             "0123001",
                             events.MBSModuleStateChangeEvent,
@@ -408,17 +420,17 @@ class TestViews(helpers.ModelsTestCase):
         self.assertEqual(data['message'], "Invalid state was supplied: invalid")
 
     def test_query_event_by_multiple_state_names(self):
-        models.Event.create(db.session,
+        models.Event.create(db.session, "handler",
                             "2018-00000000-0000-0000-0123-000000000001",
                             "0123001",
                             events.MBSModuleStateChangeEvent,
                             state=EventState['BUILDING'].value)
-        models.Event.create(db.session,
+        models.Event.create(db.session, "handler",
                             "2018-00000000-0000-0000-0123-000000000002",
                             "0123002",
                             events.MBSModuleStateChangeEvent,
                             state=EventState['COMPLETE'].value)
-        models.Event.create(db.session,
+        models.Event.create(db.session, "handler",
                             "2018-00000000-0000-0000-0123-000000000003",
                             "0123003",
                             events.MBSModuleStateChangeEvent,
@@ -433,7 +445,7 @@ class TestViews(helpers.ModelsTestCase):
 
     def test_query_event_by_requester(self):
         ev1 = models.Event.create(
-            db.session,
+            db.session, "handler",
             "2018-00000000-0000-0000-0123-000000000001",
             "0123001",
             events.ManualRebuildWithAdvisoryEvent,
@@ -453,7 +465,7 @@ class TestViews(helpers.ModelsTestCase):
 
     def test_query_event_by_multiple_requesters(self):
         models.Event.create(
-            db.session,
+            db.session, "handler",
             "2018-00000000-0000-0000-0123-000000000001",
             "0123001",
             events.ManualRebuildWithAdvisoryEvent,
@@ -462,7 +474,7 @@ class TestViews(helpers.ModelsTestCase):
             requested_rebuilds="foo-1-1 bar-1-1"
         ),
         models.Event.create(
-            db.session,
+            db.session, "handler",
             "2018-00000000-0000-0000-0123-000000000002",
             "0123002",
             events.ManualRebuildWithAdvisoryEvent,
@@ -495,8 +507,12 @@ class TestViews(helpers.ModelsTestCase):
             self.assertEqual(id, build['id'])
 
     def test_query_event_pagination_includes_query_params(self):
-        models.Event.create(db.session, '2018-00000000-0000-0000-0000-000000000001', '101', events.TestingEvent)
-        models.Event.create(db.session, '2018-00000000-0000-0000-0000-000000000002', '101', events.TestingEvent)
+        models.Event.create(db.session, 'handler',
+                            '2018-00000000-0000-0000-0000-000000000001',
+                            '101', events.TestingEvent)
+        models.Event.create(db.session, 'handler',
+                            '2018-00000000-0000-0000-0000-000000000002',
+                            '101', events.TestingEvent)
         resp = self.client.get('/api/1/events/?search_key=101&per_page=1&page=2')
         data = resp.json
         evs = data['items']
@@ -631,8 +647,12 @@ class TestViews(helpers.ModelsTestCase):
         self.assertEqual(data, expected)
 
     def test_dependencies(self):
-        event = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000003", "103", events.TestingEvent)
-        event1 = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000004", "104", events.TestingEvent)
+        event = models.Event.create(db.session, "handler",
+                                    "2017-00000000-0000-0000-0000-000000000003",
+                                    "103", events.TestingEvent)
+        event1 = models.Event.create(db.session, "handler",
+                                     "2017-00000000-0000-0000-0000-000000000004",
+                                     "104", events.TestingEvent)
         db.session.commit()
         event.add_event_dependency(db.session, event1)
         db.session.commit()
@@ -666,7 +686,7 @@ class TestViewsMultipleFilterValues(helpers.ModelsTestCase):
 
     def _init_data(self):
         event = models.Event.create(
-            db.session, "2017-00000000-0000-0000-0000-000000000001",
+            db.session, "handler", "2017-00000000-0000-0000-0000-000000000001",
             "101", events.TestingEvent)
         event.state = EventState.BUILDING.value
         build = models.ArtifactBuild.create(db.session, event, "ed", "module", 1234)
@@ -674,11 +694,11 @@ class TestViewsMultipleFilterValues(helpers.ModelsTestCase):
         models.ArtifactBuild.create(db.session, event, "mksh", "module", 1235)
         models.ArtifactBuild.create(db.session, event, "bash", "module", 1236)
         event2 = models.Event.create(
-            db.session, "2017-00000000-0000-0000-0000-000000000002",
+            db.session, "handler", "2017-00000000-0000-0000-0000-000000000002",
             "102", events.GitModuleMetadataChangeEvent)
         event2.state = EventState.SKIPPED.value
         event3 = models.Event.create(
-            db.session, "2017-00000000-0000-0000-0000-000000000003",
+            db.session, "handler", "2017-00000000-0000-0000-0000-000000000003",
             "103", events.MBSModuleStateChangeEvent)
         event3.state = EventState.FAILED.value
         db.session.commit()
@@ -845,7 +865,7 @@ class TestManualTriggerRebuild(ViewBaseTest):
     @patch('freshmaker.models.Event.add_event_dependency')
     def test_dependent_manual_rebuild_on_existing_event(self, add_dependency, time,
                                                         from_advisory_id, publish):
-        models.Event.create(db.session,
+        models.Event.create(db.session, "handler",
                             "2017-00000000-0000-0000-0000-000000000003",
                             "103", events.TestingEvent)
         db.session.commit()
@@ -881,7 +901,9 @@ class TestManualTriggerRebuild(ViewBaseTest):
         self, add_dependency, time, from_advisory_id, publish,
     ):
         models.Event.create(
-            db.session, '2017-00000000-0000-0000-0000-000000000003', '1', events.TestingEvent,
+            db.session, 'handler',
+            '2017-00000000-0000-0000-0000-000000000003', '1',
+            events.TestingEvent,
         )
         db.session.commit()
         from_advisory_id.return_value = ErrataAdvisory(1, 'name', 'REL_PREP', ['rpm'])
@@ -898,7 +920,9 @@ class TestManualTriggerRebuild(ViewBaseTest):
 
     def test_dependent_manual_rebuild_on_existing_event_errata_id_mismatch(self):
         models.Event.create(
-            db.session, '2017-00000000-0000-0000-0000-000000000003', '1', events.TestingEvent,
+            db.session, 'handler',
+            '2017-00000000-0000-0000-0000-000000000003', '1',
+            events.TestingEvent,
         )
         db.session.commit()
 
@@ -973,8 +997,8 @@ class TestManualTriggerRebuild(ViewBaseTest):
 
     def test_manual_rebuild_with_async_event(self):
         models.Event.create(
-            db.session, '2017-00000000-0000-0000-0000-000000000003', '123',
-            events.FreshmakerAsyncManualBuildEvent
+            db.session, 'handler', '2017-00000000-0000-0000-0000-000000000003',
+            '123', events.FreshmakerAsyncManualBuildEvent
         )
         db.session.commit()
         with patch('freshmaker.models.datetime') as datetime_patch:
@@ -1077,7 +1101,9 @@ class TestAsyncBuild(ViewBaseTest):
 
     def test_async_build_with_non_async_event(self):
         models.Event.create(
-            db.session, '2017-00000000-0000-0000-0000-000000000003', '123', events.TestingEvent,
+            db.session, 'handler',
+            '2017-00000000-0000-0000-0000-000000000003', '123',
+            events.TestingEvent,
         )
         db.session.commit()
         with patch('freshmaker.models.datetime') as datetime_patch:
@@ -1146,7 +1172,7 @@ class TestAsyncBuild(ViewBaseTest):
 class TestPatchAPI(ViewBaseTest):
     def test_patch_event_cancel(self):
         event = models.Event.create(
-            db.session,
+            db.session, 'handler',
             '2017-00000000-0000-0000-0000-000000000003',
             '103',
             events.TestingEvent,
@@ -1177,7 +1203,7 @@ class TestPatchAPI(ViewBaseTest):
 
     def test_patch_event_cancel_user(self):
         event = models.Event.create(
-            db.session,
+            db.session, 'handler',
             '2017-00000000-0000-0000-0000-000000000003',
             '123',
             events.TestingEvent,
@@ -1191,7 +1217,7 @@ class TestPatchAPI(ViewBaseTest):
 
     def test_patch_event_cancel_user_not_their_event(self):
         event = models.Event.create(
-            db.session,
+            db.session, 'handler',
             '2017-00000000-0000-0000-0000-000000000003',
             '103',
             events.TestingEvent,

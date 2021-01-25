@@ -147,7 +147,7 @@ class TestPrepareYumRepo(helpers.ModelsTestCase):
     def setUp(self):
         super(TestPrepareYumRepo, self).setUp()
 
-        self.ev = Event.create(db.session, 'msg-id', '123', 100)
+        self.ev = Event.create(db.session, 'handler', 'msg-id', '123', 100)
         ArtifactBuild.create(
             db.session, self.ev, "parent", "image",
             state=ArtifactBuildState.PLANNED)
@@ -404,7 +404,7 @@ class TestPrepareYumReposForRebuilds(helpers.ModelsTestCase):
             'freshmaker.models.Event.find_dependent_events')
 
         self.db_event = Event.create(
-            db.session, 'msg-1', 'search-key-1', 1,
+            db.session, 'handler', 'msg-1', 'search-key-1', 1,
             state=EventState.INITIALIZED,
             released=False)
         self.build_1 = ArtifactBuild.create(

@@ -404,7 +404,7 @@ def _create_rebuild_event_from_request(db_session, parser, request):
     # Store the event into database, so it gets the ID which we can return
     # to client sending this POST request. The client can then use the ID
     # to check for the event status.
-    db_event = models.Event.get_or_create_from_event(db_session, event)
+    db_event = models.Event.get_or_create_from_event(db_session, event, None)
     db_event.requester = g.user.username
     db_event.requested_rebuilds = " ".join(event.container_images)
     if hasattr(event, 'requester_metadata_json') and event.requester_metadata_json:

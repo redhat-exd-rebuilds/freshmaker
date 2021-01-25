@@ -38,12 +38,13 @@ class TestModels(helpers.ModelsTestCase):
         event = events.TestingEvent('msg-1')
         # First call creates new event, second call returns the same one.
         for i in range(2):
-            db_event = Event.get_or_create_from_event(db.session, event)
+            db_event = Event.get_or_create_from_event(db.session, event,
+                                                      'handler')
             self.assertEqual(db_event.id, 1)
             self.assertEqual(db_event.message_id, 'msg-1')
 
     def test_creating_event_and_builds(self):
-        event = Event.create(db.session, "test_msg_id", "RHSA-2017-284", events.TestingEvent)
+        event = Event.create(db.session, "handler", "test_msg_id", "RHSA-2017-284", events.TestingEvent)
         build = ArtifactBuild.create(db.session, event, "ed", "module", 1234,
                                      rebuild_reason=RebuildReason.DIRECTLY_AFFECTED.value)
         ArtifactBuild.create(db.session, event, "mksh", "module", 1235, build,
@@ -72,7 +73,8 @@ class TestModels(helpers.ModelsTestCase):
         self.assertEqual(e.builds[1].rebuild_reason, RebuildReason.DEPENDENCY.value)
 
     def test_get_root_dep_on(self):
-        event = Event.create(db.session, "test_msg_id", "test", events.TestingEvent)
+        event = Event.create(db.session, "handler", "test_msg_id", "test",
+                             events.TestingEvent)
         build1 = ArtifactBuild.create(db.session, event, "ed", "module", 1234)
         build2 = ArtifactBuild.create(db.session, event, "mksh", "module", 1235, build1)
         build3 = ArtifactBuild.create(db.session, event, "runtime", "module", 1236, build2)
@@ -85,7 +87,8 @@ class TestModels(helpers.ModelsTestCase):
         self.assertEqual(build4.get_root_dep_on(), build1)
 
     def test_depending_artifact_builds(self):
-        event = Event.create(db.session, "test_msg_id", "test", events.TestingEvent)
+        event = Event.create(db.session, "handler", "test_msg_id", "test",
+                             events.TestingEvent)
         parent = ArtifactBuild.create(db.session, event, "parent", "module", 1234)
         build2 = ArtifactBuild.create(db.session, event, "mksh", "module", 1235, parent)
         build3 = ArtifactBuild.create(db.session, event, "runtime", "module", 1236, parent)
@@ -98,7 +101,9 @@ class TestModels(helpers.ModelsTestCase):
     def test_event_transition(self):
         for i, state in enumerate([
                 EventState.COMPLETE, EventState.COMPLETE.value, "complete"]):
-            event = Event.create(db.session, "test_msg_id_{}".format(i), "test", events.TestingEvent)
+            event = Event.create(db.session, "handler",
+                                 "test_msg_id_{}".format(i), "test",
+                                 events.TestingEvent)
             event.transition(state, "reason")
             self.assertEqual(event.state, EventState.COMPLETE.value)
             self.assertTrue(event.time_done is not None)
@@ -106,7 +111,7 @@ class TestModels(helpers.ModelsTestCase):
     def test_build_transition_recursion(self):
         for i, state in enumerate([ArtifactBuildState.FAILED.value,
                                    ArtifactBuildState.CANCELED.value]):
-            event = Event.create(db.session, "test_msg_id_{}".format(i), "test", events.TestingEvent)
+            event = Event.create(db.session, "handler", "test_msg_id_{}".format(i), "test", events.TestingEvent)
             build1 = ArtifactBuild.create(db.session, event, "ed", "module", 1234)
             build2 = ArtifactBuild.create(db.session, event, "mksh", "module", 1235, build1)
             build3 = ArtifactBuild.create(db.session, event, "runtime", "module", 1236, build2)
@@ -129,7 +134,7 @@ class TestModels(helpers.ModelsTestCase):
     def test_build_transition_recursion_not_done_for_ok_states(self):
         for i, state in enumerate([ArtifactBuildState.DONE.value,
                                    ArtifactBuildState.PLANNED.value]):
-            event = Event.create(db.session, "test_msg_id_{}".format(i), "test", events.TestingEvent)
+            event = Event.create(db.session, "handler", "test_msg_id_{}".format(i), "test", events.TestingEvent)
             build1 = ArtifactBuild.create(db.session, event, "ed", "module", 1234)
             build2 = ArtifactBuild.create(db.session, event, "mksh", "module", 1235, build1)
             build3 = ArtifactBuild.create(db.session, event, "runtime", "module", 1236, build2)
@@ -145,19 +150,23 @@ class TestModels(helpers.ModelsTestCase):
                 self.assertEqual(build4.state_reason, None)
 
     def test_get_unreleased(self):
-        event1 = Event.create(db.session, "test_msg_id1", "test", events.TestingEvent)
+        event1 = Event.create(db.session, "handler", "test_msg_id1", "test",
+                              events.TestingEvent)
         event1.state = EventState.COMPLETE
         event1.released = False
 
-        event2 = Event.create(db.session, "test_msg_id2", "test", events.TestingEvent)
+        event2 = Event.create(db.session, "handler", "test_msg_id2", "test",
+                              events.TestingEvent)
         event2.state = EventState.COMPLETE
         event2.released = True
 
-        event3 = Event.create(db.session, "test_msg_id3", "test", events.TestingEvent)
+        event3 = Event.create(db.session, "handler", "test_msg_id3", "test",
+                              events.TestingEvent)
         event3.state = EventState.SKIPPED
         event3.released = False
 
-        event4 = Event.create(db.session, "test_msg_id4", "test", events.TestingEvent)
+        event4 = Event.create(db.session, "handler", "test_msg_id4", "test",
+                              events.TestingEvent)
         event4.state = EventState.SKIPPED
         event4.released = True
         db.session.commit()
@@ -171,19 +180,20 @@ class TestModels(helpers.ModelsTestCase):
         self.assertEqual(ret, [event3])
 
     def test_str(self):
-        event = Event.create(db.session, "test_msg_id1", "test",
+        event = Event.create(db.session, "handler", "test_msg_id1", "test",
                              events.TestingEvent)
         self.assertEqual(str(event), "<TestingEvent, search_key=test>")
 
     def test_str_unknown_event_type(self):
-        event = Event.create(db.session, "test_msg_id1", "test", 1024)
+        event = Event.create(db.session, "handler", "test_msg_id1", "test", 1024)
         self.assertEqual(
             str(event), "<UnknownEventType 1024, search_key=test>")
 
     def test_event_json_min(self):
         with patch('freshmaker.models.datetime') as datetime_patch:
             datetime_patch.utcnow.return_value = datetime.datetime(2017, 8, 21, 13, 42, 20)
-            event = Event.create(db.session, "test_msg_id5", "RHSA-2017-289", events.TestingEvent)
+            event = Event.create(db.session, "handler", "test_msg_id5",
+                                 "RHSA-2017-289", events.TestingEvent)
 
         build = ArtifactBuild.create(db.session, event, "ed", "module", 1234)
         build.state = ArtifactBuildState.FAILED
@@ -217,7 +227,7 @@ class TestFindDependentEvents(helpers.ModelsTestCase):
         super(TestFindDependentEvents, self). setUp()
 
         self.event_1 = Event.create(
-            db.session, 'msg-1', 'search-key-1',
+            db.session, 'handler', 'msg-1', 'search-key-1',
             EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
             state=EventState.INITIALIZED,
             released=False)
@@ -231,7 +241,7 @@ class TestFindDependentEvents(helpers.ModelsTestCase):
             db.session, self.event_1, 'build-4', ArtifactType.IMAGE)
 
         self.event_2 = Event.create(
-            db.session, 'msg-2', 'search-key-2',
+            db.session, 'handler', 'msg-2', 'search-key-2',
             EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
             state=EventState.BUILDING,
             released=False)
@@ -243,7 +253,7 @@ class TestFindDependentEvents(helpers.ModelsTestCase):
             db.session, self.event_2, 'build-6', ArtifactType.IMAGE)
 
         self.event_3 = Event.create(
-            db.session, 'msg-3', 'search-key-3',
+            db.session, 'handler', 'msg-3', 'search-key-3',
             EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
             state=EventState.COMPLETE,
             released=False)
@@ -260,7 +270,7 @@ class TestFindDependentEvents(helpers.ModelsTestCase):
 
         # Failed events should not be included
         self.event_4 = Event.create(
-            db.session, 'msg-4', 'search-key-4',
+            db.session, 'handler', 'msg-4', 'search-key-4',
             EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
             state=EventState.FAILED,
             released=False)
@@ -269,7 +279,7 @@ class TestFindDependentEvents(helpers.ModelsTestCase):
 
         # Manual triggered rebuild should not be included as well
         self.event_5 = Event.create(
-            db.session, 'msg-5', 'search-key-5',
+            db.session, 'handler', 'msg-5', 'search-key-5',
             EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
             state=EventState.BUILDING,
             released=False, manual=True)
@@ -278,7 +288,7 @@ class TestFindDependentEvents(helpers.ModelsTestCase):
 
         # Released event should not be included also
         self.event_6 = Event.create(
-            db.session, 'msg-6', 'search-key-6',
+            db.session, 'handler', 'msg-6', 'search-key-6',
             EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
             state=EventState.COMPLETE,
             released=True)
@@ -316,7 +326,7 @@ class TestArtifactBuildComposesRel(helpers.ModelsTestCase):
         db.session.add(self.compose_4)
 
         self.event = Event.create(
-            db.session, 'msg-1', 'search-key-1',
+            db.session, 'handler', 'msg-1', 'search-key-1',
             EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
             state=EventState.INITIALIZED,
             released=False)
@@ -387,14 +397,17 @@ class TestEventDependency(helpers.ModelsTestCase):
     """Test Event.add_event_dependency"""
 
     def test_event_dependencies(self):
-        event = Event.create(db.session, "test_msg_id", "test", events.TestingEvent)
+        event = Event.create(db.session, "handler", "test_msg_id", "test",
+                             events.TestingEvent)
         db.session.commit()
         self.assertEqual(event.event_dependencies, [])
         self.assertEqual(event.depending_events, [])
 
     def test_add_a_dependent_event(self):
-        event = Event.create(db.session, "test_msg_id", "test", events.TestingEvent)
-        event1 = Event.create(db.session, "test_msg_id2", "test2", events.TestingEvent)
+        event = Event.create(db.session, "handler", "test_msg_id", "test",
+                             events.TestingEvent)
+        event1 = Event.create(db.session, "handler", "test_msg_id2", "test2",
+                              events.TestingEvent)
         db.session.commit()
 
         event.add_event_dependency(db.session, event1)
@@ -407,8 +420,10 @@ class TestEventDependency(helpers.ModelsTestCase):
         self.assertEqual(event.depending_events, [])
 
     def test_add_existing_dependent_event(self):
-        event = Event.create(db.session, "test_msg_id", "test", events.TestingEvent)
-        event1 = Event.create(db.session, "test_msg_id2", "test2", events.TestingEvent)
+        event = Event.create(db.session, "handler", "test_msg_id", "test",
+                             events.TestingEvent)
+        event1 = Event.create(db.session, "handler", "test_msg_id2", "test2",
+                              events.TestingEvent)
         db.session.commit()
         event.add_event_dependency(db.session, event1)
         db.session.commit()
@@ -420,8 +435,10 @@ class TestEventDependency(helpers.ModelsTestCase):
         self.assertEqual(event1.depending_events, [event])
 
     def test_return_added_dependency_relationship(self):
-        event = Event.create(db.session, "test_msg_id", "test", events.TestingEvent)
-        event1 = Event.create(db.session, "test_msg_id2", "test2", events.TestingEvent)
+        event = Event.create(db.session, "handler", "test_msg_id", "test",
+                             events.TestingEvent)
+        event1 = Event.create(db.session, "handler", "test_msg_id2", "test2",
+                              events.TestingEvent)
         db.session.commit()
 
         dep_rel = event.add_event_dependency(db.session, event1)

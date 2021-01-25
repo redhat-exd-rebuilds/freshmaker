@@ -45,12 +45,16 @@ class TestViews(helpers.ModelsTestCase):
         self.client = app.test_client()
 
     def _init_data(self):
-        event = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000001", "RHSA-2018-101", events.TestingEvent)
+        event = models.Event.create(db.session, "handler",
+                                    "2017-00000000-0000-0000-0000-000000000001",
+                                    "RHSA-2018-101", events.TestingEvent)
         build = models.ArtifactBuild.create(db.session, event, "ed", "module", 1234)
         build.build_args = '{"key": "value"}'
         models.ArtifactBuild.create(db.session, event, "mksh", "module", 1235)
         models.ArtifactBuild.create(db.session, event, "bash", "module", 1236)
-        models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000002", "RHSA-2018-102", events.TestingEvent)
+        models.Event.create(db.session, "handler",
+                            "2017-00000000-0000-0000-0000-000000000002",
+                            "RHSA-2018-102", events.TestingEvent)
         db.session.commit()
         db.session.expire_all()
 

@@ -85,7 +85,8 @@ class TestUpdateDBOnAdvisoryChange(helpers.ModelsTestCase):
         handler = UpdateDBOnAdvisoryChange()
 
         db_event = Event.create(
-            db.session, "msg124", "123", ErrataAdvisoryRPMsSignedEvent)
+            db.session, "handler", "msg124", "123",
+            ErrataAdvisoryRPMsSignedEvent)
         db.session.commit()
 
         for manual in [True, False]:
@@ -140,7 +141,8 @@ class TestUpdateDBOnAdvisoryChange(helpers.ModelsTestCase):
 
     def test_mark_as_released(self):
         db_event = Event.create(
-            db.session, "msg124", "123", ErrataAdvisoryRPMsSignedEvent, False)
+            db.session, "handler", "msg124", "123",
+            ErrataAdvisoryRPMsSignedEvent, False)
         db.session.commit()
 
         self.assertEqual(db_event.released, False)
@@ -156,7 +158,8 @@ class TestUpdateDBOnAdvisoryChange(helpers.ModelsTestCase):
 
     def test_mark_as_released_wrong_advisory_status(self):
         db_event = Event.create(
-            db.session, "msg124", "123", ErrataAdvisoryRPMsSignedEvent, False)
+            db.session, "handler", "msg124", "123",
+            ErrataAdvisoryRPMsSignedEvent, False)
         db.session.commit()
 
         for state in ["NEW_FILES", "QE", "REL_PREP", "PUSH_READY", "IN_PUSH"]:
@@ -190,7 +193,7 @@ class TestUpdateDBOnAdvisoryChange(helpers.ModelsTestCase):
             self, rebuild_if_not_exists):
         rebuild_if_not_exists.return_value = [Mock(), Mock()]
 
-        Event.create(db.session, "msg-id-123", "123456",
+        Event.create(db.session, "handler", "msg-id-123", "123456",
                      ErrataAdvisoryRPMsSignedEvent, False)
         db.session.commit()
 
@@ -215,7 +218,7 @@ class TestUpdateDBOnAdvisoryChange(helpers.ModelsTestCase):
             self, rebuild_if_not_exists):
         rebuild_if_not_exists.return_value = [Mock()]
 
-        Event.create(db.session, "msg-id-123", "123456",
+        Event.create(db.session, "handler", "msg-id-123", "123456",
                      ErrataAdvisoryRPMsSignedEvent, False)
         db.session.commit()
 

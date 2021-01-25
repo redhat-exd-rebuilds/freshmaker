@@ -57,7 +57,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             self.force_dry_run()
         self.event = event
 
-        db_event = Event.get_or_create_from_event(db.session, event)
+        db_event = Event.get_or_create_from_event(db.session, event, self.name)
 
         self.set_context(db_event)
 

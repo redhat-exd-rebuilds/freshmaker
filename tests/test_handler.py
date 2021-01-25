@@ -58,7 +58,8 @@ class TestContext(helpers.ModelsTestCase):
 
     def test_context_event(self):
         db_event = Event.get_or_create(
-            db.session, "msg1", "current_event", ErrataAdvisoryRPMsSignedEvent)
+            db.session, "handler", "msg1", "current_event",
+            ErrataAdvisoryRPMsSignedEvent)
         db.session.commit()
         handler = MyHandler()
         handler.set_context(db_event)
@@ -68,7 +69,8 @@ class TestContext(helpers.ModelsTestCase):
 
     def test_context_artifact_build(self):
         db_event = Event.get_or_create(
-            db.session, "msg1", "current_event", ErrataAdvisoryRPMsSignedEvent)
+            db.session, "handler", "msg1", "current_event",
+            ErrataAdvisoryRPMsSignedEvent)
         build = ArtifactBuild.create(db.session, db_event, "parent1-1-4",
                                      "image")
         db.session.commit()
@@ -108,7 +110,7 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
         db.session.add(self.compose_4)
 
         self.event = Event.create(
-            db.session, 'msg-1', 'search-key-1',
+            db.session, 'handler', 'msg-1', 'search-key-1',
             EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
             state=EventState.BUILDING,
             released=False)

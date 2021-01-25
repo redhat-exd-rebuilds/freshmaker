@@ -280,6 +280,7 @@ class ErrataBaseEvent(BaseEvent):
         super(ErrataBaseEvent, self).__init__(msg_id, **kwargs)
         self.advisory = advisory
         self.freshmaker_event_id = freshmaker_event_id
+        self.content_sets = None
 
     @property
     def search_key(self):

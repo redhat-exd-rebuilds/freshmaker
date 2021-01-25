@@ -318,7 +318,8 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         self.assertFalse(self.handler.can_handle(event))
 
     def test_get_published_original_nvr_single_event(self):
-        event1 = Event.create(db.session, "id1", "RHSA-1", TestingEvent)
+        event1 = Event.create(db.session, "handler", "id1", "RHSA-1",
+                              TestingEvent)
         ArtifactBuild.create(db.session, event1, "ed0", "image", 1234,
                              original_nvr="nvr1-0-1",
                              rebuilt_nvr="nvr1-0-2")
@@ -331,16 +332,17 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         self.assertEqual(ret_nvr, "nvr1-0-1")
 
     def test_get_published_original_nvr(self):
-        event1 = Event.create(db.session, "id1", "RHSA-1", TestingEvent)
+        event1 = Event.create(db.session, "handler", "id1", "RHSA-1",
+                              TestingEvent)
         ArtifactBuild.create(db.session, event1, "ed0", "image", 1234,
                              original_nvr="nvr1", rebuilt_nvr="nvr1-001")
 
-        event2 = Event.create(db.session, "id2", "RHSA-1",
+        event2 = Event.create(db.session, "handler", "id2", "RHSA-1",
                               ManualRebuildWithAdvisoryEvent)
         ArtifactBuild.create(db.session, event2, "ed1", "image", 12345,
                              original_nvr="nvr1-001", rebuilt_nvr="nvr1-002")
 
-        event3 = Event.create(db.session, "id3", "RHSA-1",
+        event3 = Event.create(db.session, "handler", "id3", "RHSA-1",
                               ManualRebuildWithAdvisoryEvent)
         ArtifactBuild.create(db.session, event3, "ed2", "image", 123456,
                              original_nvr="nvr1-002", rebuilt_nvr="nvr1-003")

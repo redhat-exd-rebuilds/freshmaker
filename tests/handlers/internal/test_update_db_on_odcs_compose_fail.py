@@ -47,7 +47,7 @@ class TestUpdateDBOnODCSComposeFail(helpers.ModelsTestCase):
 
     def _create_test_event(self, event_id, search_key, build_name, compose_id):
         db_event = Event.create(
-            db.session, event_id, search_key,
+            db.session, "handler", event_id, search_key,
             EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
             state=EventState.INITIALIZED,
             released=False)

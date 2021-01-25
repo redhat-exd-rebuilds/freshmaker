@@ -45,7 +45,8 @@ class TestCheckUnfinishedKojiTasks(helpers.ModelsTestCase):
         self.koji_read_config_patcher.start()
 
         db_event = Event.get_or_create(
-            db.session, "msg1", "current_event", ErrataAdvisoryRPMsSignedEvent)
+            db.session, "handler", "msg1", "current_event",
+            ErrataAdvisoryRPMsSignedEvent)
         db_event.state = EventState.BUILDING
         self.build = ArtifactBuild.create(db.session, db_event, "parent1-1-4",
                                           "image")

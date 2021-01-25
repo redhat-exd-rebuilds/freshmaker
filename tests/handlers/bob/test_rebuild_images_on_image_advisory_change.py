@@ -43,8 +43,8 @@ class RebuildImagesOnImageAdvisoryChangeTest(helpers.ModelsTestCase):
                            product_short_name="product"))
         self.handler = RebuildImagesOnImageAdvisoryChange()
         self.db_event = models.Event.get_or_create(
-            db.session, self.event.msg_id, self.event.search_key,
-            self.event.__class__)
+            db.session, self.handler.name, self.event.msg_id,
+            self.event.search_key, self.event.__class__)
 
     def test_can_handle(self):
         self.event.advisory.content_types = ["docker"]

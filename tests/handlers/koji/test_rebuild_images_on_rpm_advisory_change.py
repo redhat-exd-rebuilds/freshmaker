@@ -925,7 +925,7 @@ class TestCheckImagesToRebuild(helpers.ModelsTestCase):
             "odcs_pulp_compose_id": 15,
         })
 
-        self.ev = Event.create(db.session, 'msg-id', '123',
+        self.ev = Event.create(db.session, 'handler', 'msg-id', '123',
                                EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent])
         self.b1 = ArtifactBuild.create(
             db.session, self.ev, "parent", "image",
@@ -1546,9 +1546,9 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
             ErrataAdvisory(123, "RHSA-2017", "REL_PREP", [],
                            security_impact="None",
                            product_short_name="product"))
-        event0 = Event.create(db.session, 'msg-id-1', '1230',
+        event0 = Event.create(db.session, 'handler', 'msg-id-1', '1230',
                               EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent])
-        event1 = Event.create(db.session, 'msg-id-2', '1231',
+        event1 = Event.create(db.session, 'handler', 'msg-id-2', '1231',
                               EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent])
         ArtifactBuild.create(
             db.session, event0, "parent", "image",

@@ -70,7 +70,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
         # Generate the Database representation of `event`, it can be
         # triggered by user, we want to track what happened
 
-        db_event = Event.get_or_create_from_event(db.session, event)
+        db_event = Event.get_or_create_from_event(db.session, event, self.name)
 
         db.session.commit()
         self.set_context(db_event)
@@ -207,7 +207,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
             stored into database.
         :rtype: dict
         """
-        db_event = Event.get_or_create_from_event(db.session, event)
+        db_event = Event.get_or_create_from_event(db.session, event, self.name)
 
         # Used as tmp dict with {brew_build_nvr: ArtifactBuild, ...} mapping.
         builds = builds or {}
@@ -271,7 +271,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                     rebuild_reason = RebuildReason.DEPENDENCY.value
 
                 build = self.record_build(
-                    event, image_name, ArtifactType.IMAGE,
+                    event, self.name, image_name, ArtifactType.IMAGE,
                     dep_on=dep_on,
                     state=ArtifactBuildState.PLANNED.value,
                     original_nvr=nvr,
@@ -375,21 +375,13 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
 
         :param int errata_id: Errata ID.
         """
-        errata = Errata()
-        errata_id = int(errata_id)
-
-        # Use the errata_id to find out Pulp repository IDs from Errata Tool
-        # and furthermore get content_sets from Pulp where signed RPM will end
-        # up eventually when advisories are shipped.
-        pulp_repo_ids = list(set(errata.get_pulp_repository_ids(errata_id)))
-
-        pulp = Pulp(server_url=conf.pulp_server_url,
-                    username=conf.pulp_username,
-                    password=conf.pulp_password)
-        content_sets = pulp.get_content_set_by_repo_ids(pulp_repo_ids)
+        # If 'content_sets' of the event doesn't exist yet, create and fill it
+        if self.event.content_sets is None:
+            errata = Errata()
+            self._set_event_content_sets(errata, errata_id)
 
         self.log_info('RPMs from advisory ends up in following content sets: '
-                      '%s', content_sets)
+                      '%s', self.event.content_sets)
 
         # Query images from LightBlue by signed RPM's srpm name and found
         # content sets
@@ -423,8 +415,32 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
             "Going to find all the container images to rebuild as "
             "result of %r update.", affected_nvrs)
         batches = lb.find_images_to_rebuild(
-            affected_nvrs, content_sets,
+            affected_nvrs, self.event.content_sets,
             filter_fnc=self._filter_out_not_allowed_builds,
             published=published, release_categories=release_categories,
             leaf_container_images=leaf_container_images)
         return batches
+
+    def _set_event_content_sets(self, errata, errata_id):
+        """
+        Set 'content_sets' for currently processed event
+
+        Use the errata_id to find out Pulp repository IDs from Errata Tool
+        and furthermore get content_sets from Pulp where signed RPM will end
+        up eventually when advisories are shipped.
+
+        :param Errata errata: Errata api to get Pulp repos IDs
+        :param int errata_id: Errata advisory ID
+        """
+        # Other handler could set 'content_sets' for the event
+        if self.event.content_sets is None:
+            # Use the errata_id to find out Pulp repository IDs from Errata Tool
+            # and furthermore get content_sets from Pulp where signed RPM will end
+            # up eventually when advisories are shipped.
+            pulp_repo_ids = list(set(errata.get_pulp_repository_ids(errata_id)))
+
+            pulp = Pulp(server_url=conf.pulp_server_url,
+                        username=conf.pulp_username,
+                        password=conf.pulp_password)
+            self.event.content_sets = pulp.get_content_set_by_repo_ids(
+                pulp_repo_ids)

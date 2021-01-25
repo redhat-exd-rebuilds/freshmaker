@@ -133,6 +133,8 @@ class User(FreshmakerBase, UserMixin):
 class Event(FreshmakerBase):
     __tablename__ = "events"
     id = db.Column(db.Integer, primary_key=True)
+    # Handler which is handling the event
+    handler = db.Column(db.String, nullable=True)
     # ID of message generating the rebuild event.
     message_id = db.Column(db.String, nullable=False)
     # Searchable key for the event - used when searching for events from the JSON
@@ -172,13 +174,14 @@ class Event(FreshmakerBase):
         doc='Whether this event is triggered manually')
 
     @classmethod
-    def create(cls, session, message_id, search_key, event_type, released=True,
-               state=None, manual=False, dry_run=False, requester=None,
-               requested_rebuilds=None, requester_metadata=None):
+    def create(cls, session, handler_name, message_id, search_key, event_type,
+               released=True, state=None, manual=False, dry_run=False,
+               requester=None, requested_rebuilds=None, requester_metadata=None):
         if event_type in EVENT_TYPES:
             event_type = EVENT_TYPES[event_type]
         now = datetime.utcnow()
         event = cls(
+            handler=handler_name,
             message_id=message_id,
             search_key=search_key,
             event_type_id=event_type,
@@ -209,15 +212,15 @@ class Event(FreshmakerBase):
         return session.query(cls).filter_by(message_id=message_id).first()
 
     @classmethod
-    def get_or_create(cls, session, message_id, search_key, event_type,
-                      released=True, manual=False, dry_run=False,
+    def get_or_create(cls, session, handler_name, message_id, search_key,
+                      event_type, released=True, manual=False, dry_run=False,
                       requester=None, requested_rebuilds=None,
                       requester_metadata=None):
         instance = cls.get(session, message_id)
         if instance:
             return instance
         instance = cls.create(
-            session, message_id, search_key, event_type,
+            session, handler_name, message_id, search_key, event_type,
             released=released, manual=manual, dry_run=dry_run,
             requester=requester, requested_rebuilds=requested_rebuilds,
             requester_metadata=requester_metadata)
@@ -225,7 +228,8 @@ class Event(FreshmakerBase):
         return instance
 
     @classmethod
-    def get_or_create_from_event(cls, session, event, released=True):
+    def get_or_create_from_event(cls, session, event, handler_name,
+                                 released=True):
         # we must extract all needed arguments,
         # because event might not have some of them so we will use defaults
         requester = getattr(event, "requester", None)
@@ -245,7 +249,7 @@ class Event(FreshmakerBase):
                             requester_metadata)
                 requester_metadata = None
 
-        return cls.get_or_create(session, event.msg_id,
+        return cls.get_or_create(session, handler_name, event.msg_id,
                                  event.search_key, event.__class__,
                                  released=released, manual=event.manual,
                                  dry_run=event.dry_run, requester=requester,

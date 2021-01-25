@@ -130,7 +130,8 @@ class ConsumerTest(helpers.ConsumerBaseTest):
 
         @fail_event_on_handler_exception
         def mocked_handle(cls, msg):
-            event = Event.get_or_create(db.session, "msg_id", "msg_id", 0)
+            event = Event.get_or_create(db.session, "handler", "msg_id",
+                                        "msg_id", 0)
             ArtifactBuild.create(db.session, event, "foo", 0)
             db.session.commit()
             cls.set_context(event)

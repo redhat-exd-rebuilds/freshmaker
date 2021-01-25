@@ -52,7 +52,7 @@ class TestRebuildImagesOnODCSComposeDone(helpers.ModelsTestCase):
         #     build 6 (not planned): [compose 1, pulp compose 6]
 
         self.db_event = Event.create(
-            db.session, 'msg-1', 'search-key-1',
+            db.session, 'handler', 'msg-1', 'search-key-1',
             EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
             state=EventState.INITIALIZED,
             released=False)
@@ -96,7 +96,7 @@ class TestRebuildImagesOnODCSComposeDone(helpers.ModelsTestCase):
         # Create another DB event, build and compose just to have more data
         # in database.
         another_db_event = Event.create(
-            db.session, 'msg-2', 'search-key-2',
+            db.session, 'handler', 'msg-2', 'search-key-2',
             EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
             state=EventState.INITIALIZED,
             released=False)

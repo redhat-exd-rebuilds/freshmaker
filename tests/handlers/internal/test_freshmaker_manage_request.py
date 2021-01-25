@@ -71,7 +71,8 @@ class CancelEventOnFreshmakerManageRequestTest(helpers.ModelsTestCase):
         self.koji_read_config_patcher.start()
 
         self.db_event = models.Event.create(
-            db.session, "2017-00000000-0000-0000-0000-000000000003", "RHSA-2018-103",
+            db.session, "handler", "2017-00000000-0000-0000-0000-000000000003",
+            "RHSA-2018-103",
             events.TestingEvent)
         models.ArtifactBuild.create(
             db.session, self.db_event, "mksh", "module", build_id=1237,

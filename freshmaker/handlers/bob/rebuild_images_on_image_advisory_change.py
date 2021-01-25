@@ -52,7 +52,7 @@ class RebuildImagesOnImageAdvisoryChange(ContainerBuildHandler):
         if event.dry_run:
             self.force_dry_run()
 
-        db_event = Event.get_or_create_from_event(db.session, event)
+        db_event = Event.get_or_create_from_event(db.session, event, self.name)
 
         self.set_context(db_event)
 
@@ -110,7 +110,7 @@ class RebuildImagesOnImageAdvisoryChange(ContainerBuildHandler):
             self.log_info("Requesting Bob rebuild of %s", repo_name)
 
             parent_build = self.record_build(
-                db_event, repo_name, ArtifactType.IMAGE_REPOSITORY,
+                db_event, self.name, repo_name, ArtifactType.IMAGE_REPOSITORY,
                 state=ArtifactBuildState.DONE.value)
 
             bob_url = "%s/update_children/%s" % (
@@ -130,7 +130,8 @@ class RebuildImagesOnImageAdvisoryChange(ContainerBuildHandler):
                 num_impacted += len(resp["impacted"])
                 for external_repo_name in resp["impacted"]:
                     self.record_build(
-                        db_event, external_repo_name, ArtifactType.IMAGE_REPOSITORY,
+                        db_event, self.name, external_repo_name,
+                        ArtifactType.IMAGE_REPOSITORY,
                         state=ArtifactBuildState.DONE.value, dep_on=parent_build)
 
         msg = "Advisory %s: Informed Bob about update of %d image repositories." % (
