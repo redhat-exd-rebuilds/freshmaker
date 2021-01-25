@@ -1,5 +1,5 @@
 # TODO: Upgrade to a more recent fedora version
-FROM fedora:32
+FROM quay.io/fedora/fedora:32-x86_64
 
 LABEL \
     name="Freshmaker application" \
