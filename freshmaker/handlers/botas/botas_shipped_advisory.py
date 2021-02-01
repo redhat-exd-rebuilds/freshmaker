@@ -233,10 +233,6 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                 #   'pinned': True
                 # }
 
-                # If related image is not pinned by OSBS, skip
-                if not pullspec.get('pinned', False):
-                    continue
-
                 # A pullspec path is in format of "registry/repository@digest"
                 pullspec_elems = pullspec.get('new').split('@')
                 old_digest = pullspec_elems[1]
@@ -254,6 +250,10 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                 pullspec_elems[1] = new_digest
                 new_pullspec = '@'.join(pullspec_elems)
                 pullspec['new'] = new_pullspec
+                # Always set pinned to True when it was replaced by Freshmaker
+                # since it indicates that the pullspec was modified from the
+                # original pullspec
+                pullspec['pinned'] = True
 
                 # Once a pullspec in this bundle has been overrided, add this bundle
                 # to rebuild list
