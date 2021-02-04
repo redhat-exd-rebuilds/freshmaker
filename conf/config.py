@@ -204,6 +204,9 @@ class BaseConfiguration(object):
         }
     }
 
+    # repositories that should be searched for unpublished images, specifically because of EUS base images
+    UNPUBLISHED_EXCEPTIONS = []
+
 
 class DevConfiguration(BaseConfiguration):
     DEBUG = True

@@ -414,7 +414,13 @@ class Config(object):
             'type': str,
             'default': '',
             'desc': 'The API URL of the Product Pages service'
-        }
+        },
+        'unpublished_exceptions': {
+            'type': list,
+            'default': [],
+            'desc': 'List of dictionaries with unpublished repos, containing '
+                    '"registry" and "repository" keys that should not be ignored '
+                    'when searching for images to rebuild.'}
     }
 
     def __init__(self, conf_section_obj):
@@ -562,3 +568,14 @@ class Config(object):
         ccache_file = ccache_file.replace(
             "$pid", str(os.getpid()))
         return ccache_file
+
+    def _setifok_unpublished_exceptions(self, exceptions):
+        for exception in exceptions:
+            if not exception.get("registry", ""):
+                raise ValueError("There is no 'registry' or it's empty in one"
+                                 " of the UNPUBLISHED_EXCEPTIONS")
+
+            if not exception.get("repository", ""):
+                raise ValueError("There is no 'repository' or it's empty in one"
+                                 " of the UNPUBLISHED_EXCEPTIONS")
+        self._unpublished_exceptions = exceptions
