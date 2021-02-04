@@ -486,9 +486,6 @@ class LightBlue(object):
 
         self.entity_versions = entity_versions or {}
 
-        # dict with mapping of EUS repositories to their 'auto_rebuild_tags'
-        self.repo_to_auto_rebuild_tags = {}
-
     def _get_entity_version(self, entity_name):
         """Lookup configured entity's version
 
@@ -1579,10 +1576,8 @@ class LightBlue(object):
         to_rebuild = self._deduplicate_images_to_rebuild(to_rebuild)
         # Get all the directly affected images so that any parents that are not marked as
         # directly affected can be set in _images_to_rebuild_to_batches
-        # And in addition mark all latest EUS images as directly affected so
-        # botas could correctly file an advisory
         directly_affected_nvrs = {
-            image.nvr for image in images if image.get("directly_affected") or self.is_latest_eus_image(image)
+            image.nvr for image in images if image.get("directly_affected")
         }
         # Some images that aren't marked as directly affected may have already been fixed
         # in the latest published version of the image. Use those images instead.
@@ -1830,49 +1825,3 @@ class LightBlue(object):
         image = images[0]
         image.resolve(self)
         return image
-
-    def is_latest_eus_image(self, image):
-        """
-        Check if the image is EUS base image and its repository is marked with
-        auto_rebuild tag. EUS repository contains '-els' suffix.
-
-        :param ContainerImage image: image to check
-        :param dict repo_to_auto_rebuild_tags: mapping of processed repositories
-            names to set of their 'auto_rebuild_tags'
-        :return: True if image is EUS base image with 'auto_rebuild_tag', False otherwise
-        """
-        def get_repo(repository):
-            query = {
-                "objectType": "containerRepository",
-                "query": {
-                    "$and": [
-                        {
-                            "field": "repository",
-                            "op": "=",
-                            "rvalue": repository
-                        },
-                    ]
-                },
-                "projection": [
-                    {"field": "auto_rebuild_tags", "include": True, "recursive": False}
-                ]
-            }
-            repos = self.find_container_repositories(query, auto_rebuild=True)
-            return repos[0]
-
-        for repo in image["repositories"]:
-            repo_name = repo["repository"]
-            # Check tags only if it's EUS image
-            if re.match(r"rhel\d+-\d+-els\/rhel", repo_name):
-                auto_rebuild_tags = self.repo_to_auto_rebuild_tags.get(repo_name)
-                if auto_rebuild_tags is None:
-                    auto_rebuild_tags = set(get_repo(repo_name)["auto_rebuild_tags"])
-                    self.repo_to_auto_rebuild_tags[repo_name] = auto_rebuild_tags
-
-                if not auto_rebuild_tags:
-                    continue
-                for tag in repo["tags"]:
-                    if tag["name"] in auto_rebuild_tags:
-                        return True
-
-        return False
