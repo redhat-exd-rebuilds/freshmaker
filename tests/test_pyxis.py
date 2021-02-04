@@ -405,55 +405,28 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
         assert "4.8" not in [i["ocp_version"] for i in indices]
 
     @patch('freshmaker.pyxis.Pyxis._pagination')
-    def test_get_bundles_per_index_image(self, page):
+    def test_get_latest_bundles(self, page):
         page_copy = self.copy_call_args(page)
-        page_copy.side_effect = [self.bundles[0:2], self.bundles[2:]]
-        out = self.px._get_bundles_per_index_image(self.indices)
-
-        expected_out = {"path/to/registry:v4.5": self.bundles[0:2],
-                        "path/to/registry:v4.6": self.bundles[2:]}
-
-        self.assertEqual(out, expected_out)
-        page.assert_has_calls([
-            call('operators/bundles',
-                 {'include': 'data.channel_name,data.version,'
-                             'data.related_images,data.bundle_path_digest,'
-                             'data.bundle_path', 'filter':
-                     'source_index_container_path==path/to/registry:v4.6'}),
-            call('operators/bundles',
-                 {'include': 'data.channel_name,data.version,'
-                             'data.related_images,data.bundle_path_digest,'
-                             'data.bundle_path', 'filter':
-                     'source_index_container_path==path/to/registry:v4.6'})
-        ])
-
-    @patch('freshmaker.pyxis.Pyxis._get_bundles_per_index_image')
-    def test_get_latest_bundles(self, get_bundles_per_indices):
-        get_bundles_per_indices.return_value = {
-            "path/to/registry:v4.5": self.bundles[0:2],
-            "path/to/registry:v4.6": self.bundles[2:]
-        }
+        page_copy.side_effect = [[self.bundles[:3]], []]
 
         out = self.px.get_latest_bundles(self.indices)
-        # we expect 0 and 3 bundles to be filtered out, because of older versions
-        expected_out = self.bundles[1:3] + self.bundles[4:]
+        expected_out = [self.bundles[:3]]
+
         self.assertEqual(out, expected_out)
-        get_bundles_per_indices.assert_called_once()
-
-    @patch('freshmaker.pyxis.Pyxis._get_bundles_per_index_image')
-    def test_get_latest_bundles_invalid_version(self, get_bundles_per_indices):
-        # set invalid version
-        for bundle in self.bundles:
-            bundle['version'] = "InvalidVersion"
-        get_bundles_per_indices.return_value = {
-            "path/to/registry:v4.5": self.bundles[0:2],
-            "path/to/registry:v4.6": self.bundles[2:]
-        }
-
-        with self.assertLogs("freshmaker", level="WARNING"):
-            bundles = self.px.get_latest_bundles(self.indices)
-            self.assertEqual(bundles, [])
-            get_bundles_per_indices.assert_called_once()
+        page_copy.assert_has_calls([
+            call('operators/bundles',
+                 {'include': 'data.channel_name,data.version,'
+                             'data.related_images,data.bundle_path_digest,'
+                             'data.bundle_path',
+                  'filter': 'latest_in_channel==true&'
+                            'source_index_container_path==path/to/registry:v4.5'}),
+            call('operators/bundles',
+                 {'include': 'data.channel_name,data.version,'
+                             'data.related_images,data.bundle_path_digest,'
+                             'data.bundle_path',
+                  'filter': 'latest_in_channel==true&'
+                            'source_index_container_path==path/to/registry:v4.6'}),
+        ])
 
     @patch('freshmaker.pyxis.Pyxis._pagination')
     def test_get_manifest_list_digest_by_nvr(self, page):
