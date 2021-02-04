@@ -3,7 +3,6 @@ import requests
 import urllib
 from datetime import datetime
 from requests_kerberos import HTTPKerberosAuth, OPTIONAL
-from packaging import version
 
 from freshmaker import log, conf
 from freshmaker.utils import get_ocp_release_date
@@ -143,67 +142,33 @@ class Pyxis(object):
 
         return datetime.now() > datetime.strptime(ga_date_str, "%Y-%m-%d")
 
-    def _get_bundles_per_index_image(self, index_images):
+    def get_latest_bundles(self, index_images):
         """
-        Get bundle images for all index images
+        Get latest bundle images per channel per index image
 
         :param list index_images: list of index images to get bundle images for
-        :return: bundle images per index image
-        :rtype: dict
+        :return: latest bundle images per channel per index image
+        :rtype: list
         """
-        bundles_per_index_image = {}
         # we need 'bundle_path_digest' to find ContainerImage of that bundle
         include_fields = ['data.channel_name', 'data.version',
                           'data.related_images', 'data.bundle_path_digest',
                           'data.bundle_path']
         request_params = {'include': ','.join(include_fields)}
+
+        latest_bundles = []
         for index_image in index_images:
             path = index_image.get('path', '')
             if not path:
                 continue
-            request_params['filter'] = f"source_index_container_path=={path}"
-            bundles_per_index_image[path] = self._pagination(
-                'operators/bundles',
-                request_params)
 
-        return bundles_per_index_image
+            request_params['filter'] = \
+                f'latest_in_channel==true&source_index_container_path=={path}'
+            bundle_list = self._pagination('operators/bundles', request_params)
 
-    def get_latest_bundles(self, index_images):
-        """
-        Get latest bundle images per channel per index image
+            latest_bundles.extend(bundle_list)
 
-        :param list index_images: list of index images
-        :return: latest bundle images per channel per index image
-        :rtype: list
-        """
-        bundles_per_index_image = \
-            self._get_bundles_per_index_image(index_images)
-
-        ret_bundles = []
-        for index_image, bundles in bundles_per_index_image.items():
-            bundle_per_channel = {}
-            # get latest versions of bundle images per channel
-            for bundle in bundles:
-                channel = bundle['channel_name']
-                try:
-                    # Always ensure the new version is a valid semantic version
-                    new_ver = version.Version(bundle['version'])
-                    if channel in bundle_per_channel:
-                        old_ver = version.Version(
-                            bundle_per_channel[channel]['version'])
-                        if new_ver > old_ver:
-                            bundle_per_channel[channel] = bundle
-                    else:
-                        bundle_per_channel[channel] = bundle
-                # Check if the right format of version is used
-                except version.InvalidVersion as e:
-                    path = bundle.get('bundle_path', 'Unknown bundle path')
-                    log.warning("Other format than SemVer is used in "
-                                "bundle: %s", path)
-                    log.warning(repr(e))
-            ret_bundles.extend(bundle_per_channel.values())
-
-        return ret_bundles
+        return latest_bundles
 
     def get_manifest_list_digest_by_nvr(self, nvr):
         """
