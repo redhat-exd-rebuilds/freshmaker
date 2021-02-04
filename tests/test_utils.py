@@ -35,8 +35,7 @@ from tests import helpers
 def test_get_rebuilt_nvr(mock_time, rebuilt_nvr_release_suffix):
     nvr = "python-v3.6-201910221723"
     expected = f"{nvr}.1572631468{rebuilt_nvr_release_suffix}"
-    with patch.object(conf, "rebuilt_nvr_release_suffix",
-                      new=rebuilt_nvr_release_suffix):
+    with patch.object(conf, "rebuilt_nvr_release_suffix", new=rebuilt_nvr_release_suffix):
         rebuilt_nvr = get_rebuilt_nvr(ArtifactType.IMAGE.value, nvr)
     assert rebuilt_nvr == expected
 
