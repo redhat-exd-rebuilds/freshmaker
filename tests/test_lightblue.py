@@ -541,12 +541,14 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                  "dummy-content-set-2"],
                 "auto_rebuild_tags": ["latest", "tag1"],
                 "release_categories": ["Generally Available"],
+                "published": "true",
             },
             {
                 "repository": "product2/repo2",
                 "content_sets": ["dummy-content-set-1"],
                 "auto_rebuild_tags": ["latest", "tag2"],
                 "release_categories": ["Generally Available"],
+                "published": "true",
             }
         ]
 
@@ -1048,6 +1050,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             self.assertRaises(LightBlueRequestError,
                               lb._make_request, 'find/containerRepository/', fake_request)
 
+    @patch.object(freshmaker.conf, 'unpublished_exceptions',
+                  new=[{"repository": "some_repo", "registry": "some_registry"}])
     @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
     @patch('os.path.exists')
     def test_find_all_container_repositories(self, exists, cont_repos):
@@ -1060,27 +1064,41 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         expected_repo_request = {
             "objectType": "containerRepository",
             "query": {
-                "$and": [
+                "$or": [
                     {
-                        "field": "published",
-                        "op": "=",
-                        "rvalue": True
-                    },
-                    {
-                        "$or": [
-                            {"field": "release_categories.*", "rvalue": "Generally Available", "op": "="},
-                            {"field": "release_categories.*", "rvalue": "Tech Preview", "op": "="},
-                            {"field": "release_categories.*", "rvalue": "Beta", "op": "="}]
-                    },
-                    {
-                        "$or": [
-                            {"field": "vendorLabel", "rvalue": "redhat", "op": "="},
+                        "$and": [
+                            {
+                                "field": "published",
+                                "op": "=",
+                                "rvalue": True
+                            },
+                            {
+                                "$or": [
+                                    {"field": "release_categories.*", "rvalue": "Generally Available", "op": "="},
+                                    {"field": "release_categories.*", "rvalue": "Tech Preview", "op": "="},
+                                    {"field": "release_categories.*", "rvalue": "Beta", "op": "="}]
+                            },
+                            {
+                                "$or": [
+                                    {"field": "vendorLabel", "rvalue": "redhat", "op": "="},
+                                ]
+                            },
                         ]
                     },
+                    {
+                        "$and": [
+                            {"field": "published", "op": "=", "rvalue": False},
+                            {"field": "registry", "op": "=",
+                             "rvalue": "some_registry"},
+                            {"field": "repository", "op": "=",
+                             "rvalue": "some_repo"},
+                        ]
+                    }
                 ]
             },
             "projection": [
                 {"field": "repository", "include": True},
+                {"field": "published", "include": True},
                 {"field": "auto_rebuild_tags", "include": True, "recursive": True},
                 {"field": "release_categories", "include": True, "recursive": True},
             ]
@@ -1092,11 +1110,15 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             self.fake_repositories_with_content_sets}
         self.assertEqual(ret, expected_ret)
 
+    @patch.object(freshmaker.conf, 'unpublished_exceptions', new=[
+        {'registry': 'unpublished_registry_1',
+         'repository': 'unpublished_repo_1'},
+        {'registry': 'unpublished_registry_2',
+         'repository': 'unpublished_repo_2'}
+    ])
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('os.path.exists')
-    def test_images_with_included_srpm(self, exists,
-                                       cont_images):
-
+    def test_find_images_with_included_srpm(self, exists, cont_images):
         exists.return_value = True
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
@@ -1116,51 +1138,46 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                 "$and": [
                     {
                         "$or": [
+                            {"field": "repositories.*.published", "op": "=",
+                             "rvalue": True},
                             {
-                                "field": "repositories.*.tags.*.name",
-                                "op": "=",
-                                "rvalue": "latest"
+                                "$and": [
+                                    {"field": "repositories.*.published",
+                                     "op": "=",
+                                     "rvalue": False},
+                                    {"field": "repositories.*.registry",
+                                     "op": "=",
+                                     "rvalue": "unpublished_registry_1"},
+                                    {"field": "repositories.*.repository",
+                                     "op": "=",
+                                     "rvalue": "unpublished_repo_1"}
+                                ]
                             },
                             {
-                                "field": "repositories.*.tags.*.name",
-                                "op": "=",
-                                "rvalue": "tag1"
-                            },
-                            {
-                                "field": "repositories.*.tags.*.name",
-                                "op": "=",
-                                "rvalue": "tag2"
-                            },
-                        ],
+                                "$and": [
+                                    {"field": "repositories.*.published",
+                                     "op": "=",
+                                     "rvalue": False},
+                                    {"field": "repositories.*.registry",
+                                     "op": "=",
+                                     "rvalue": "unpublished_registry_2"},
+                                    {"field": "repositories.*.repository",
+                                     "op": "=",
+                                     "rvalue": "unpublished_repo_2"}
+                                ]
+                            }
+                        ]
                     },
                     {
-                        "$or": [
-                            {
-                                "field": "content_sets.*",
-                                "op": "=",
-                                "rvalue": "dummy-content-set-1"
-                            },
-                            {
-                                "field": "content_sets.*",
-                                "op": "=",
-                                "rvalue": "dummy-content-set-2"
-                            },
-                        ],
+                        "field": "repositories.*.tags.*.name", "op": "$in",
+                        "values": ["latest", "tag1", "tag2"]
                     },
                     {
-                        "$or": [
-                            {
-                                "field": "rpm_manifest.*.rpms.*.name",
-                                "op": "=",
-                                "rvalue": "openssl"
-                            },
-                        ],
-                    },
+                        "field": "content_sets.*", "op": "$in",
+                        "values": ["dummy-content-set-1", "dummy-content-set-2"]},
                     {
-                        "field": "repositories.*.published",
-                        "op": "=",
-                        "rvalue": True
-                    },
+                        "field": "rpm_manifest.*.rpms.*.name", "op": "$in",
+                        "values": ["openssl"]}
                 ]
             },
             "projection": lb._get_default_projection(rpm_names=["openssl"])
@@ -1169,11 +1186,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         # auto_rebuild_tags is a set in the source code. When generate
         # criteria for tags, the order is not guaranteed. Following lines sort
         # the tags criteria in order to assert with expected value.
-        args, _ = cont_images.call_args
-        request_arg = args[0]
-        tags_criteira = request_arg['query']['$and'][0]['$or']
-        request_arg['query']['$and'][0]['$or'] = sorted(
-            tags_criteira, key=lambda item: item['rvalue'])
+        request_arg = cont_images.call_args[0][0]
+        request_arg['query']['$and'][1]["values"].sort()
 
         self.assertEqual(expected_image_request, request_arg)
 

@@ -643,14 +643,27 @@ class LightBlue(object):
         :type vendors: tuple[str]
         """
         if published is not None:
-            request["query"]["$and"].append({
+            request["query"]["$or"][0]["$and"].append({
                 "field": "published",
                 "op": "=",
                 "rvalue": published
             })
+            # If the query is for published images, add configurable repos  for
+            # unpublished images(like EUS) too because they shouldn't be ignored
+            if published is True and conf.unpublished_exceptions:
+                for repo in conf.unpublished_exceptions:
+                    request["query"]["$or"].append(
+                        {
+                            "$and": [
+                                {"field": "published", "op": "=", "rvalue": False},
+                                {"field": "registry", "op": "=", "rvalue": repo["registry"]},
+                                {"field": "repository", "op": "=", "rvalue": repo["repository"]},
+                            ]
+                        }
+                    )
 
         if release_categories:  # Check if release_categories is None or empty
-            request["query"]["$and"].append({
+            request["query"]["$or"][0]["$and"].append({
                 "$or": [{
                     "field": "release_categories.*",
                     "op": "=",
@@ -659,7 +672,7 @@ class LightBlue(object):
             })
 
         if vendors:
-            request["query"]["$and"].append({
+            request["query"]["$or"][0]["$and"].append({
                 "$or": [{
                     "field": "vendorLabel",
                     "op": "=",
@@ -667,6 +680,10 @@ class LightBlue(object):
                 } for vendor in vendors]
             })
 
+        # If there was no changes to query performed, change query to avoid
+        # Lightblue syntax error
+        if not request["query"]["$or"][0]["$and"]:
+            request["query"] = {"$and": []}
         return request
 
     def find_all_container_repositories(
@@ -689,10 +706,13 @@ class LightBlue(object):
         repo_request = {
             "objectType": "containerRepository",
             "query": {
-                "$and": []  # filled by _set_container_repository_filters().
+                "$or": [
+                    {"$and": []}  # filled by _set_container_repository_filters().
+                ]
             },
             "projection": [
                 {"field": "repository", "include": True},
+                {"field": "published", "include": True},
                 {"field": "auto_rebuild_tags", "include": True, "recursive": True},
                 {"field": "release_categories", "include": True, "recursive": True},
             ]
@@ -873,6 +893,65 @@ class LightBlue(object):
                 ret.append(image)
         return ret
 
+    def _set_container_image_filters(self, request, content_sets,
+                                     rpm_nvrs_names, auto_rebuild_tags,
+                                     published):
+        """
+        Sets the additional filters to containerImage request
+
+        :param dict request: request that should be modified
+        :param list content_sets: List of content_sets the image includes RPMs
+            from.
+        :param list rpm_nvrs_names: list names of the binary RPM NVRs to look for
+        :param set auto_rebuild_tags: set of auto rebuild tags to add to query
+        :param bool published: whether to limit queries to published
+            repositories(some unpublished repos still will be queried)
+        """
+        repo_filters = []
+        if published is not None:
+            repo_filters.append({"field": "repositories.*.published", "op": "=",
+                                 "rvalue": published})
+
+            # If the query is for published images, add configurable repos  for
+            # unpublished images(like EUS) too, because they shouldn't be ignored
+            if published and conf.unpublished_exceptions:
+                for repo in conf.unpublished_exceptions:
+                    repo_filters.append(
+                        {
+                            "$and": [
+                                {"field": "repositories.*.published", "op": "=",
+                                 "rvalue": False},
+                                {"field": "repositories.*.registry", "op": "=",
+                                 "rvalue": repo["registry"]},
+                                {"field": "repositories.*.repository",
+                                 "op": "=", "rvalue": repo["repository"]},
+                            ]
+                        }
+                    )
+
+        query = {"$and": []}
+        if len(repo_filters) == 1:
+            query["$and"].append(repo_filters[0])
+        if len(repo_filters) > 1:
+            query["$and"].append({"$or": [r for r in repo_filters]})
+
+        if auto_rebuild_tags:
+            query["$and"].append(
+                {"field": "repositories.*.tags.*.name", "op": "$in",
+                 "values": list(auto_rebuild_tags)})
+
+        if content_sets:
+            query["$and"].append({"field": "content_sets.*", "op": "$in",
+                                  "values": content_sets})
+
+        if rpm_nvrs_names:
+            query["$and"].append(
+                {"field": "rpm_manifest.*.rpms.*.name", "op": "$in",
+                 "values": rpm_nvrs_names})
+        request["query"] = query
+
+        return request
+
     def find_images_with_included_rpms(
             self, content_sets, rpm_nvrs, repositories, published=True,
             include_rpm_manifest=True):
@@ -907,51 +986,17 @@ class LightBlue(object):
 
         image_request = {
             "objectType": "containerImage",
-            "query": {
-                "$and": [
-                    {
-                        "$or": [{
-                            "field": "repositories.*.tags.*.name",
-                            "op": "=",
-                            "rvalue": tag
-                        } for tag in auto_rebuild_tags]
-                    },
-                ]
-            },
+            "query": {},   # set by _set_container_image_filters()
             "projection": self._get_default_projection(
                 rpm_names=rpm_name_to_nvrs.keys(),
                 include_rpm_manifest=include_rpm_manifest)
         }
 
-        if content_sets:
-            image_request["query"]["$and"].append(
-                {
-                    "$or": [{
-                        "field": "content_sets.*",
-                        "op": "=",
-                        "rvalue": r
-                    } for r in content_sets]
-                })
+        request = self._set_container_image_filters(
+            image_request, content_sets, list(rpm_name_to_nvrs.keys()),
+            auto_rebuild_tags, published)
 
-        if rpm_nvrs:
-            image_request["query"]["$and"].append(
-                {
-                    "$or": [{
-                        "field": "rpm_manifest.*.rpms.*.name",
-                        "op": "=",
-                        "rvalue": rpm_name
-                    } for rpm_name in rpm_name_to_nvrs.keys()]
-                })
-
-        if published is not None:
-            image_request["query"]["$and"].append(
-                {
-                    "field": "repositories.*.published",
-                    "op": "=",
-                    "rvalue": published
-                })
-
-        images = self.find_container_images(image_request)
+        images = self.find_container_images(request)
         if not images:
             return images
 
