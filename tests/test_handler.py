@@ -22,8 +22,10 @@
 #
 # Written by Chenxiong Qi <cqi@redhat.com>
 
-from unittest.mock import patch
 import json
+
+from unittest.mock import patch
+from requests.exceptions import HTTPError
 
 import freshmaker
 
@@ -514,3 +516,25 @@ class TestAllowBuildBasedOnAllowlist(helpers.FreshmakerTestCase):
         allowed = handler.allow_build(
             ArtifactType.IMAGE, advisory_name='RHSA-2016:1000')
         self.assertFalse(allowed)
+
+
+class TestStartToBuildImages(helpers.ModelsTestCase):
+
+    @patch('freshmaker.handlers.ContainerBuildHandler.build_image_artifact_build')
+    def test_start_to_build_images(self, build_artifact):
+        build_artifact.side_effect = [HTTPError('500 Server Error'), 1]
+        db_event = Event.get_or_create(
+            db.session, 'msg1', 'current_event', ErrataAdvisoryRPMsSignedEvent)
+        build = ArtifactBuild.create(db.session, db_event, 'parent1-1-4',
+                                     'image')
+        build2 = ArtifactBuild.create(db.session, db_event, 'parent1-1-5',
+                                      'image')
+        db.session.commit()
+        handler = MyHandler()
+
+        with self.assertLogs('freshmaker', 'ERROR'):
+            handler.start_to_build_images([build, build2])
+
+        self.assertEqual(build.state, ArtifactBuildState.FAILED.value)
+        self.assertEqual(build2.state, ArtifactBuildState.BUILD.value)
+        self.assertEqual(len(db.session.query(ArtifactBuild).all()), 2)
