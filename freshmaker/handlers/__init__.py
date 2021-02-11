@@ -196,6 +196,12 @@ class BaseHandler(object):
         """
         return self._log(log.error, msg, *args, **kwargs)
 
+    def log_except(self, msg, *args, **kwargs):
+        """
+        Wraps log.exception, prefixes the message with a context of this handler.
+        """
+        return self._log(log.exception, msg, *args, **kwargs)
+
     def force_dry_run(self):
         """
         Forces the handling of the current even in DRY_RUN mode.
@@ -605,20 +611,32 @@ class ContainerBuildHandler(BaseHandler):
         def build_image(build):
             self.set_context(build)
             repo_urls = self.get_repo_urls(build)
+            unknown_exception_occurred = False
             try:
                 build.build_id = self.build_image_artifact_build(build, repo_urls)
             except ODCSComposeNotReady:
                 # We skip this image for now. It will be built once the ODCS
                 # compose is finished.
                 return
-            if build.build_id:
+            except Exception:
+                self.log_except(
+                    "While processing the event with id {} exception occurred"
+                    .format(self._db_event_id))
+                unknown_exception_occurred = True
+
+            if unknown_exception_occurred:
                 build.transition(
-                    ArtifactBuildState.BUILD.value,
-                    "Building container image in Koji.")
-            else:
+                    ArtifactBuildState.FAILED.value,
+                    "An unknown error occurred.")
+            elif not build.build_id:
                 build.transition(
                     ArtifactBuildState.FAILED.value,
                     "Error while building container image in Koji.")
+            else:
+                build.transition(
+                    ArtifactBuildState.BUILD.value,
+                    "Building container image in Koji.")
+
             db.session.add(build)
             db.session.commit()
 
