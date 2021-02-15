@@ -387,6 +387,10 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                     username=conf.pulp_username,
                     password=conf.pulp_password)
         content_sets = pulp.get_content_set_by_repo_ids(pulp_repo_ids)
+        # Some container builds declare Pulp repos directly instead of content
+        # sets, but they are stored in the same location as content sets so they
+        # can be treated the same
+        content_sets.extend(pulp_repo_ids)
 
         self.log_info('RPMs from advisory ends up in following content sets: '
                       '%s', content_sets)
