@@ -472,7 +472,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             pass
 
         self.find_images_to_rebuild.assert_called_once_with(
-            ['httpd-2.4-11.el7'], ['content-set-1'],
+            ['httpd-2.4-11.el7'], ['content-set-1', 'pulp_repo_x86_64'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
             published=True, release_categories=conf.lightblue_release_categories,
             leaf_container_images=None)
@@ -489,7 +489,8 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             pass
 
         self.find_images_to_rebuild.assert_called_once_with(
-            ['httpd-2.4-11.el7', 'httpd-2.2-11.el6'], ['content-set-1'],
+            ['httpd-2.4-11.el7', 'httpd-2.2-11.el6'],
+            ['content-set-1', 'pulp_repo_x86_64'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
             published=True, release_categories=conf.lightblue_release_categories,
             leaf_container_images=None)
@@ -508,7 +509,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             pass
 
         self.find_images_to_rebuild.assert_called_once_with(
-            ['httpd-2.4-11.el7'], ['content-set-1'],
+            ['httpd-2.4-11.el7'], ['content-set-1', 'pulp_repo_x86_64'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
             published=None, release_categories=None,
             leaf_container_images=None)
@@ -525,7 +526,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             pass
 
         self.find_images_to_rebuild.assert_called_once_with(
-            ['httpd-2.4-11.el7'], ['content-set-1'],
+            ['httpd-2.4-11.el7'], ['content-set-1', 'pulp_repo_x86_64'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
             published=True, release_categories=conf.lightblue_release_categories,
             leaf_container_images=None)
@@ -543,7 +544,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             pass
 
         self.find_images_to_rebuild.assert_called_once_with(
-            ['httpd-2.4-11.el7'], ['content-set-1'],
+            ['httpd-2.4-11.el7'], ['content-set-1', 'pulp_repo_x86_64'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
             published=True, release_categories=conf.lightblue_release_categories,
             leaf_container_images=["foo", "bar"])
@@ -561,7 +562,8 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
         self.handler._find_images_to_rebuild(123456)
 
         self.find_images_to_rebuild.assert_called_once_with(
-            ['nodejs-10.19.0-1.module+el8.1.0+5726+6ed65f8c.x86_64'], ['content-set-1'],
+            ['nodejs-10.19.0-1.module+el8.1.0+5726+6ed65f8c.x86_64'],
+            ['content-set-1', 'pulp_repo_x86_64'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
             published=True, release_categories=conf.lightblue_release_categories,
             leaf_container_images=None)
