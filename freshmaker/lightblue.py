@@ -895,36 +895,13 @@ class LightBlue(object):
             from.
         :param list rpm_nvrs_names: list names of the binary RPM NVRs to look for
         :param set auto_rebuild_tags: set of auto rebuild tags to add to query
-        :param bool published: whether to limit queries to published
-            repositories(some unpublished repos still will be queried)
+        :param bool published: whether to limit queries to images that are published
+            in a repository
         """
-        repo_filters = []
-        if published is not None:
-            repo_filters.append({"field": "repositories.*.published", "op": "=",
-                                 "rvalue": published})
-
-            # If the query is for published images, add configurable repos  for
-            # unpublished images(like EUS) too, because they shouldn't be ignored
-            if published and conf.unpublished_exceptions:
-                for repo in conf.unpublished_exceptions:
-                    repo_filters.append(
-                        {
-                            "$and": [
-                                {"field": "repositories.*.published", "op": "=",
-                                 "rvalue": False},
-                                {"field": "repositories.*.registry", "op": "=",
-                                 "rvalue": repo["registry"]},
-                                {"field": "repositories.*.repository",
-                                 "op": "=", "rvalue": repo["repository"]},
-                            ]
-                        }
-                    )
-
         query = {"$and": []}
-        if len(repo_filters) == 1:
-            query["$and"].append(repo_filters[0])
-        if len(repo_filters) > 1:
-            query["$and"].append({"$or": [r for r in repo_filters]})
+        if published is not None:
+            query["$and"].append({"field": "repositories.*.published", "op": "=",
+                                  "rvalue": published})
 
         if auto_rebuild_tags:
             query["$and"].append(

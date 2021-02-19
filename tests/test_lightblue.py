@@ -1110,12 +1110,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             self.fake_repositories_with_content_sets}
         self.assertEqual(ret, expected_ret)
 
-    @patch.object(freshmaker.conf, 'unpublished_exceptions', new=[
-        {'registry': 'unpublished_registry_1',
-         'repository': 'unpublished_repo_1'},
-        {'registry': 'unpublished_registry_2',
-         'repository': 'unpublished_repo_2'}
-    ])
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('os.path.exists')
     def test_find_images_with_included_srpm(self, exists, cont_images):
@@ -1136,38 +1130,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             "objectType": "containerImage",
             "query": {
                 "$and": [
-                    {
-                        "$or": [
-                            {"field": "repositories.*.published", "op": "=",
-                             "rvalue": True},
-                            {
-                                "$and": [
-                                    {"field": "repositories.*.published",
-                                     "op": "=",
-                                     "rvalue": False},
-                                    {"field": "repositories.*.registry",
-                                     "op": "=",
-                                     "rvalue": "unpublished_registry_1"},
-                                    {"field": "repositories.*.repository",
-                                     "op": "=",
-                                     "rvalue": "unpublished_repo_1"}
-                                ]
-                            },
-                            {
-                                "$and": [
-                                    {"field": "repositories.*.published",
-                                     "op": "=",
-                                     "rvalue": False},
-                                    {"field": "repositories.*.registry",
-                                     "op": "=",
-                                     "rvalue": "unpublished_registry_2"},
-                                    {"field": "repositories.*.repository",
-                                     "op": "=",
-                                     "rvalue": "unpublished_repo_2"}
-                                ]
-                            }
-                        ]
-                    },
+                    {"field": "repositories.*.published", "op": "=", "rvalue": True},
                     {
                         "field": "repositories.*.tags.*.name", "op": "$in",
                         "values": ["latest", "tag1", "tag2"]
