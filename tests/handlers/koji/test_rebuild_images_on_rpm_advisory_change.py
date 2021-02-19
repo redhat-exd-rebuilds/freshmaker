@@ -65,6 +65,10 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
         self.mock_find_images_to_rebuild = self.patcher.patch(
             '_find_images_to_rebuild')
 
+        self.patcher.patch(
+            'freshmaker.handlers.koji.rebuild_images_on_rpm_advisory_change.is_in_unpublished_exceptions',
+            return_value=False)
+
         # Fake images found to rebuild has these relationships
         #
         # Batch 1  |         Batch 2            |          Batch 3
@@ -801,6 +805,10 @@ class TestBatches(helpers.ModelsTestCase):
         self.patcher = helpers.Patcher(
             'freshmaker.handlers.koji.RebuildImagesOnRPMAdvisoryChange.')
 
+        self.patcher.patch(
+            'freshmaker.handlers.koji.rebuild_images_on_rpm_advisory_change.is_in_unpublished_exceptions',
+            return_value=False)
+
     def tearDown(self):
         super(TestBatches, self).tearDown()
         self.patcher.unpatch_all()
@@ -1008,6 +1016,9 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
 
         self.patcher.patch_dict(
             'freshmaker.models.EVENT_TYPES', {self.mock_event.__class__: 0})
+
+        self.patcher.patch('freshmaker.handlers.koji.rebuild_images_on_rpm_advisory_change.is_in_unpublished_exceptions',
+                           return_value=False)
 
     def tearDown(self):
         super(TestRecordBatchesImages, self).tearDown()

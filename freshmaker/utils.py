@@ -217,3 +217,21 @@ def get_ocp_release_date(ocp_version):
     if not resp.ok:
         resp.raise_for_status()
     return resp.json()[0]['date_finish']
+
+
+def is_in_unpublished_exceptions(image):
+    """
+    Check if image is published in one of the repositories that is in
+    'unpublished_exceptions' configuration list.
+
+    :param ContainerImage image: image that should be checked
+    :return: True if image is published in 'exceptions' repository, False otherwise
+    """
+    repo_reg_pairs = {
+        (image_repo["repository"], image_repo["registry"])
+        for image_repo in image["repositories"]
+    }
+    return any(
+        (exception["repository"], exception["registry"]) in repo_reg_pairs
+        for exception in conf.unpublished_exceptions
+    )

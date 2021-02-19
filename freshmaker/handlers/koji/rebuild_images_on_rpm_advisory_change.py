@@ -35,6 +35,7 @@ from freshmaker.errata import Errata
 from freshmaker.types import (
     ArtifactType, ArtifactBuildState, EventState, RebuildReason)
 from freshmaker.models import Event, Compose
+from freshmaker.utils import is_in_unpublished_exceptions
 
 
 class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
@@ -297,12 +298,14 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
 
                 if state != ArtifactBuildState.FAILED.value:
                     # Store odcs pulp compose to build.
-                    # Also generate pulp repos in case the image is unpublished,
+                    # Also generate pulp repos in case the image is unpublished
+                    # and not from repositories in UNPUBLISHED_EXCEPTION,
                     # because in this case, we have to generate extra ODCS compose
                     # with all the RPMs in the image anyway later. And OSBS works
                     # in a way that we have to pass all the ODCS composes to it or
                     # no ODCS compose at all.
-                    if image["generate_pulp_repos"] or not image["published"]:
+                    is_unpublished_exception = is_in_unpublished_exceptions(image)
+                    if image["generate_pulp_repos"] or not (image["published"] or is_unpublished_exception):
                         # Check if the compose for these content_sets is
                         # already cached and use it in this case.
                         cache_key = " ".join(sorted(image["content_sets"]))
@@ -327,7 +330,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                     # Unpublished images can contain unreleased RPMs, so generate
                     # the ODCS compose with all the RPMs in the image to allow
                     # installation of possibly unreleased RPMs.
-                    if not image["published"]:
+                    if not image["published"] and not is_unpublished_exception:
                         compose = self.odcs.prepare_odcs_compose_with_image_rpms(image)
                         if compose:
                             db_compose = Compose(odcs_compose_id=compose['id'])

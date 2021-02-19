@@ -20,13 +20,13 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
-from unittest.mock import patch
+from unittest.mock import patch, PropertyMock
 
 import pytest
 
 from freshmaker import conf
 from freshmaker.models import ArtifactType
-from freshmaker.utils import get_rebuilt_nvr, sorted_by_nvr
+from freshmaker.utils import get_rebuilt_nvr, sorted_by_nvr, is_in_unpublished_exceptions
 from tests import helpers
 
 
@@ -38,6 +38,19 @@ def test_get_rebuilt_nvr(mock_time, rebuilt_nvr_release_suffix):
     with patch.object(conf, "rebuilt_nvr_release_suffix", new=rebuilt_nvr_release_suffix):
         rebuilt_nvr = get_rebuilt_nvr(ArtifactType.IMAGE.value, nvr)
     assert rebuilt_nvr == expected
+
+
+@patch("freshmaker.config.Config.unpublished_exceptions",
+       new_callable=PropertyMock,
+       return_value=[{"repository": "some-repo", "registry": "some-registry"}])
+def test_is_in_unpublished_exceptions(exception):
+    images = [{"repositories": [{"registry": "some-registry", "repository": "repo"}]},
+              {"repositories": [{"registry": "registry", "repository": "some-repo"}]},
+              {"repositories": [{"registry": "some-registry", "repository": "some-repo"}]}]
+
+    results = list(map(is_in_unpublished_exceptions, images))
+
+    assert results == [False, False, True]
 
 
 class TestSortedByNVR(helpers.FreshmakerTestCase):
