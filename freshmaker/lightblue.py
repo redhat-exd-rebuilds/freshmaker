@@ -184,15 +184,6 @@ class ContainerImage(dict):
             return
         self['multi_arch_rpm_manifest'][image_arch] = image_rpm_manifest
 
-    @property
-    def dockerfile(self):
-        dockerfile = [file for file in self['parsed_data']['files']
-                      if file['filename'] == 'Dockerfile']
-        if not dockerfile:
-            log.warning('Image %s does not contain a Dockerfile.', self.nvr)
-            return None
-        return dockerfile[0]
-
     def _get_default_additional_data(self):
         return {
             "repository": None,
