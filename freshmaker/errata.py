@@ -201,6 +201,12 @@ class Errata(object):
     def _get_bugs(self, errata_id):
         return self._errata_http_get("advisory/%s/bugs.json" % str(errata_id))
 
+    def _get_blocking_advisories(self, errata_id):
+        return self._errata_http_get(f"errata/blocking_errata_for/{errata_id}.json")
+
+    def _get_attached_builds(self, errata_id):
+        return self._errata_http_get(f"advisory/{errata_id}/builds.json")
+
     @region.cache_on_arguments()
     def _advisories_from_nvr(self, nvr):
         """
@@ -285,8 +291,7 @@ class Errata(object):
         :return: True if all builds in advisory are signed.
         :rtype: bool
         """
-        builds_per_product = self._errata_http_get(
-            "advisory/%s/builds.json" % str(errata_id))
+        builds_per_product = self._get_attached_builds(errata_id)
 
         # Store NVRs of all builds in advisory to nvrs set.
         nvrs = set()
@@ -365,8 +370,7 @@ class Errata(object):
         if rhel_release_prefix is None:
             rhel_release_prefix = conf.errata_rhel_release_prefix
 
-        builds_per_product = self._errata_http_get(
-            "advisory/%s/builds.json" % str(errata_id))
+        builds_per_product = self._get_attached_builds(errata_id)
 
         # Store NVRs of all builds in advisory to nvrs set.
         source_rpms = set()
@@ -470,3 +474,21 @@ class Errata(object):
                                     nvrs.update(just_nvrs)
 
         return list(nvrs)
+
+    def get_blocking_advisories_builds(self, errata_id):
+        """ Get all advisories that block given advisory id, and fetch all builds from it
+
+        :param number errata_id: ID of advisory
+        :return: NVRs of builds attached to all dependent advisories
+        :rtype: set
+        """
+        nvrs = set()
+        for advisory_id in self._get_blocking_advisories(errata_id):
+            # recursively check for other blocking advisories and get builds from it
+            nvrs.update(self.get_blocking_advisories_builds(advisory_id))
+
+            product_builds = self._get_attached_builds(advisory_id)
+            for builds in product_builds.values():
+                for build in builds:
+                    nvrs.update(set(build.keys()))
+        return nvrs
