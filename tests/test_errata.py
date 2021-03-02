@@ -181,6 +181,8 @@ class MockedErrataAPI(object):
             }
         }
 
+        self.blocking_errata_for = ["28484"]
+
     def errata_rest_get(self, endpoint):
         if endpoint.find("build/") != -1:
             nvr = endpoint.split("/")[-1]
@@ -206,6 +208,8 @@ class MockedErrataAPI(object):
             else:
                 id = int(endpoint.split("/")[-1].replace(".json", ""))
                 return self.products[id]
+        elif endpoint.startswith("errata/blocking_errata_for/"):
+            return self.blocking_errata_for
 
 
 class TestErrata(helpers.FreshmakerTestCase):
@@ -448,6 +452,36 @@ class TestErrata(helpers.FreshmakerTestCase):
             xmlrpc.get_advisory_cdn_docker_file_list.return_value = None
             repo_tags = self.errata.get_docker_repo_tags(28484)
             self.assertEqual(repo_tags, None)
+
+    @patch.object(Errata, "_get_attached_builds")
+    @patch.object(Errata, "_get_blocking_advisories")
+    def test_get_blocking_advisories_builds(self, get_blocks, get_builds):
+        get_builds.return_value = {"product3": [{"nvr1": "some_info"},
+                                                {"nvr2": "some_info"}]}
+        get_blocks.side_effect = [["28484"], []]
+
+        builds = self.errata.get_blocking_advisories_builds("123")
+
+        self.assertSetEqual(builds, {"nvr1", "nvr2"})
+        get_builds.assert_called_once_with("28484")
+
+    @patch.object(Errata, "_get_attached_builds")
+    @patch.object(Errata, "_get_blocking_advisories")
+    def test_get_recursive_blocking_advisories_builds(self, get_blocks,
+                                                      get_builds):
+        get_blocks.side_effect = [["12:34"], ["56:78"], []]
+        get_builds.side_effect = [{"product1": [{"nvr1": "some_info",
+                                                 "nvr2": "some_info"}],
+                                  "product2": [{"nvr3": "some_info",
+                                                "nvr4": "some_info"}]
+                                   },
+                                  {"product3": [{"nvr5": "some_info"}]}
+                                  ]
+
+        builds = self.errata.get_blocking_advisories_builds("123")
+
+        self.assertSetEqual(builds, {"nvr1", "nvr2", "nvr3", "nvr4", "nvr5"})
+        self.assertEqual(get_blocks.call_count, 3)
 
 
 class TestErrataAuthorizedGet(helpers.FreshmakerTestCase):

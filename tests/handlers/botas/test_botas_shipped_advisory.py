@@ -44,6 +44,9 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         self.patcher = helpers.Patcher(
             'freshmaker.handlers.botas.botas_shipped_advisory.')
         self.pyxis = self.patcher.patch("Pyxis")
+        self.get_blocking_advisories = \
+            self.patcher.patch("freshmaker.errata.Errata.get_blocking_advisories_builds",
+                               return_value=set())
 
         # We do not want to send messages to message bus while running tests
         self.mock_messaging_publish = self.patcher.patch(
@@ -383,3 +386,24 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
 
         has_auto_rebuild_tag = self.handler.image_has_auto_rebuild_tag(bundle_image)
         self.assertTrue(has_auto_rebuild_tag)
+
+    @patch("freshmaker.handlers.botas.botas_shipped_advisory.HandleBotasAdvisory.get_published_original_nvr")
+    def test_create_original_to_rebuilt_nvrs_map(self, get_original_build):
+        get_original_build.side_effect = ["original_1", "original_2"]
+        self.handler.event = BotasErrataShippedEvent("test_msg_id", self.botas_advisory)
+        self.botas_advisory._builds = {
+            "product_name": {
+                "builds": [{"nvr": "some_name-2-12345"},
+                           {"nvr": "some_name_two-2-2"}]
+            }
+        }
+        self.get_blocking_advisories.return_value = {"some_name-1-1",
+                                                     "some_name-2-1"}
+        expected_map = {"original_1": "some_name-2-12345",
+                        "original_2": "some_name_two-2-2",
+                        "some_name-2-1": "some_name-2-12345"}
+
+        mapping = self.handler._create_original_to_rebuilt_nvrs_map()
+
+        self.assertEqual(get_original_build.call_count, 2)
+        self.assertEqual(mapping, expected_map)

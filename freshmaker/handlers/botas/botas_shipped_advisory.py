@@ -20,6 +20,8 @@
 # SOFTWARE.
 import copy
 
+from kobo.rpmlib import parse_nvr
+
 from freshmaker import db, conf, log
 from freshmaker.handlers import ContainerBuildHandler
 from freshmaker.events import BotasErrataShippedEvent
@@ -27,6 +29,7 @@ from freshmaker.models import ArtifactBuild, ArtifactType, Event
 from freshmaker.types import EventState
 from freshmaker.pyxis import Pyxis
 from freshmaker.kojiservice import KojiService
+from freshmaker.errata import Errata
 
 
 class HandleBotasAdvisory(ContainerBuildHandler):
@@ -69,19 +72,8 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             self.log_info(msg)
             return []
 
-        # Get builds NVRs from the advisory attached to the message/event and
-        # then get original NVR for every build
-
         # Mapping of original build nvrs to rebuilt nvrs in advisory
-        nvrs_mapping = {}
-        for product_info in event.advisory.builds.values():
-            for build in product_info['builds']:
-                # Search for the first build that triggered the chain of rebuilds
-                # for every shipped NVR to get original NVR from it
-                original_nvr = self.get_published_original_nvr(build['nvr'])
-                if original_nvr is None:
-                    continue
-                nvrs_mapping[original_nvr] = build['nvr']
+        nvrs_mapping = self._create_original_to_rebuilt_nvrs_map()
 
         original_nvrs = nvrs_mapping.keys()
         self.log_info(
@@ -322,3 +314,37 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             if set(auto_rebuild_tags) & set(tags):
                 return True
         return False
+
+    def _create_original_to_rebuilt_nvrs_map(self):
+        """
+        Creates mapping of original build NVRs to rebuilt NVRs in advisory.
+        Including NVRs of the builds from the blocking advisories
+
+        :rtype: dict
+        :return: map of the original NVRs as keys and rebuilt NVRs as values
+        """
+        nvrs_mapping = {}
+
+        # Get builds from all blocking advisories
+        blocking_advisories_builds = \
+            Errata().get_blocking_advisories_builds(self.event.advisory.errata_id)
+        # Get builds NVRs from the advisory attached to the message/event and
+        # then get original NVR for every build
+        for product_info in self.event.advisory.builds.values():
+            for build in product_info['builds']:
+                # Search for the first build that triggered the chain of rebuilds
+                # for every shipped NVR to get original NVR from it
+                original_nvr = self.get_published_original_nvr(build['nvr'])
+                if original_nvr is None:
+                    continue
+                nvrs_mapping[original_nvr] = build['nvr']
+                build_nvr = parse_nvr(build['nvr'])
+
+                # Check builds from blocking advisories and add to the mapping
+                # all of them, that have overlapping package names
+                for block_build in blocking_advisories_builds:
+                    block_build_nvr = parse_nvr(block_build)
+                    if block_build_nvr['name'] == build_nvr['name'] and \
+                            block_build_nvr['version'] == build_nvr['version']:
+                        nvrs_mapping[block_build] = build['nvr']
+        return nvrs_mapping
