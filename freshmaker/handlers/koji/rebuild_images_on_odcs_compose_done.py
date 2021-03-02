@@ -53,6 +53,10 @@ class RebuildImagesOnODCSComposeDone(ContainerBuildHandler):
             ArtifactBuild.state == ArtifactBuildState.PLANNED.value,
             Compose.odcs_compose_id == event.compose['id'],
             ArtifactBuildCompose.compose_id == Compose.id)
+
+        if builds_ready_to_rebuild:
+            self.log_info('ODCS compose %s finished', event.compose['id'])
+
         # ... and depending on DONE parent image or parent image which is
         # not planned to be built in this Event (dep_on == None).
         builds_ready_to_rebuild = [

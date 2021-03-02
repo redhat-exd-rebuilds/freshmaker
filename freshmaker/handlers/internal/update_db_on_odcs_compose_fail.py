@@ -50,6 +50,9 @@ class UpdateDBOnODCSComposeFail(BaseHandler):
             Compose.odcs_compose_id == event.compose["id"],
             ArtifactBuildCompose.compose_id == Compose.id)
 
+        if builds_with_compose:
+            self.log_error("ODCS compose %s failed", event.compose["id"])
+
         for build in builds_with_compose:
             build.transition(
                 ArtifactBuildState.FAILED.value,
