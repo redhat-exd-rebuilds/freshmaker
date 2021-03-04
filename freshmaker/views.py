@@ -160,6 +160,14 @@ api_v1 = {
                 'methods': ['GET'],
             }
         },
+    },
+    'pullspec_overrides': {
+        'pullspec_overrides': {
+            'url': '/api/1/pullspec_overrides/<int:id>',
+            'options': {
+                'methods': ['GET'],
+            }
+        },
     }
 }
 
@@ -744,6 +752,17 @@ class VerifyImageRepositoryAPI(MethodView):
         return jsonify(ret), 200
 
 
+class PullspecOverrideAPI(MethodView):
+    @freshmaker_build_api_latency.time()
+    def get(self, id):
+        build = models.ArtifactBuild.query.filter_by(id=id).first()
+        # 'bundle_pullspec_overrides' should already contain valid JSON
+        if build:
+            return jsonify(build.bundle_pullspec_overrides), 200
+        else:
+            return json_error(404, "Not Found", "No such bundle build")
+
+
 API_V1_MAPPING = {
     'events': EventAPI,
     'builds': BuildAPI,
@@ -754,6 +773,7 @@ API_V1_MAPPING = {
     'about': AboutAPI,
     'verify_image': VerifyImageAPI,
     'verify_image_repository': VerifyImageRepositoryAPI,
+    'pullspec_overrides': PullspecOverrideAPI,
 }
 
 

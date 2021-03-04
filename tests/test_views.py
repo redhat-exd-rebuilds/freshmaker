@@ -590,6 +590,39 @@ class TestViews(helpers.ModelsTestCase):
         self.assertEqual(data['error'], 'Not Found')
         self.assertEqual(data['message'], 'No such build state found.')
 
+    def test_query_pullspec_overrides(self):
+        event = models.Event.create(db.session, "test_msg_id", "RHSA-2017-284",
+                                    events.TestingEvent)
+        build = models.ArtifactBuild.create(db.session, event, "parent",
+                                            "module", 1234)
+        pullspecs = [
+            {'new': 'registry.io/repo/example-operator@sha256:<sha256>',
+             'original': 'registry.io/repo/example-operator:v1.1.0',
+             'pinned': True},
+            {'new': 'registry.io/repo/2example-operator@sha256:<sha256>',
+             'original': 'registry.io/repo/2example-operator:v2.2.0',
+             'pinned': True}
+        ]
+        build.bundle_pullspec_overrides = pullspecs
+        db.session.commit()
+
+        resp = self.client.get(f'/api/1/pullspec_overrides/{build.id}')
+
+        self.assertEqual(json.loads(resp.data), pullspecs)
+
+    def test_query_nonexist_pullspec_overrides(self):
+        resp = self.client.get('/api/1/pullspec_overrides/123')
+
+        self.assertEqual(resp.json['status'], 404)
+        self.assertEqual(resp.json['error'], 'Not Found')
+        self.assertEqual(resp.json['message'], 'No such bundle build')
+
+    def test_query_no_id_pullspec_overrides(self):
+        resp = self.client.get('/api/1/pullspec_overrides/')
+
+        self.assertEqual(resp.json['status'], 500)
+        self.assertEqual(resp.json['error'], 'Internal Server Error')
+
     def test_about_api(self):
         # Since the version is always changing, let's just mock it to be consistent
         with patch('freshmaker.views.version', '1.0.0'):
