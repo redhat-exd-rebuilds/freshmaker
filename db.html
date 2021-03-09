@@ -1,0 +1,300 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>Freshmaker database &mdash; Freshmaker  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="author" title="About these documents" href="about.html" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Messaging API" href="messaging_api.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Freshmaker
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1.2
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="about.html">About Freshmaker</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_v1.html">API version 1</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_v2.html">API version 2</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="messaging_api.html">Messaging API</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Freshmaker database</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#setting-up-database">Setting up Database</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#database-update">Database update</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#querying-database">Querying database</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#database-migrations">Database Migrations</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Freshmaker</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>Freshmaker database</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/db.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="freshmaker-database">
+<h1>Freshmaker database<a class="headerlink" href="#freshmaker-database" title="Permalink to this headline">¶</a></h1>
+<p>Freshmaker as an SQL toolkit uses SQLAlchemy extension for <a class="reference external" href="https://flask-sqlalchemy.palletsprojects.com/en/2.x/">Flask</a>. So whenever you want to add some columns or tables you should at least check <code class="docutils literal notranslate"><span class="pre">models.py</span></code> file. Every class that has a <strong>FreshmakerBase</strong> as a parent is actually a table with its own columns, relationships etc.</p>
+<p>As for database management system, we are using <a class="reference external" href="https://www.postgresql.org/">PostgreSQL</a> in deployments and <a class="reference external" href="https://www.sqlite.org/index.html">SQLite</a> in local environment.
+And besides that for testing we are using <em>in-memory</em> database, so whenever you are running tests from <code class="docutils literal notranslate"><span class="pre">tests/</span></code> folder, new database is created and live while tests are running.</p>
+<div class="section" id="setting-up-database">
+<h2>Setting up Database<a class="headerlink" href="#setting-up-database" title="Permalink to this headline">¶</a></h2>
+<p>When you for the first time want to create freshmaker database, you are supposed to run:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>./manager createdb
+</pre></div>
+</div>
+<p>This command will create new <code class="docutils literal notranslate"><span class="pre">freshmaker.db</span></code> file for local use for you.</p>
+</div>
+<div class="section" id="database-update">
+<h2>Database update<a class="headerlink" href="#database-update" title="Permalink to this headline">¶</a></h2>
+<p>When some changes are applied to database scheme, like changing <code class="docutils literal notranslate"><span class="pre">models.py</span></code>, you should generate  migration file for a new database scheme by running:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>./manager db migrate
+</pre></div>
+</div>
+<p>After that you can apply that migration by running:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>./manager db upgrade
+</pre></div>
+</div>
+<p>After that all changes should be already applied to your local database.</p>
+</div>
+<div class="section" id="querying-database">
+<h2>Querying database<a class="headerlink" href="#querying-database" title="Permalink to this headline">¶</a></h2>
+<p>You can query your locally created database by running something like this in the directory with database file:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>sqlite3 freshmaker.db &#39;SELECT id FROM artifact_builds;&#39;
+</pre></div>
+</div>
+</div>
+<div class="section" id="database-migrations">
+<h2>Database Migrations<a class="headerlink" href="#database-migrations" title="Permalink to this headline">¶</a></h2>
+<p>Migration is similar to <a class="reference external" href="https://github.com/release-engineering/cachito">Cachito</a>.
+Follow the steps below for database data and/or schema migrations:</p>
+<ul>
+<li><p>Checkout the master branch and ensure no schema changes are present in <code class="docutils literal notranslate"><span class="pre">freshmaker/models.py</span></code></p></li>
+<li><p>Set <code class="docutils literal notranslate"><span class="pre">SQLALCHEMY_DATABASE_URI</span></code> to <code class="docutils literal notranslate"><span class="pre">sqlite:///*path-to-your-freshmaker.db*</span></code> in used configuration file.</p></li>
+<li><p>Run <code class="docutils literal notranslate"><span class="pre">./manager</span> <span class="pre">db</span> <span class="pre">upgrade</span></code> which will create an empty database in the root of your Git repository</p>
+<p>called <code class="docutils literal notranslate"><span class="pre">freshmaker.db</span></code> with the current schema applied</p>
+</li>
+<li><p>Checkout a new branch where the changes are to be made</p></li>
+<li><p>In case of schema changes,</p>
+<ul>
+<li><p>Apply any schema changes to <code class="docutils literal notranslate"><span class="pre">freshmaker/models.py</span></code></p></li>
+<li><p>Run <code class="docutils literal notranslate"><span class="pre">./manager</span> <span class="pre">db</span> <span class="pre">migrate</span></code> which will autogenerate a migration script in</p>
+<p><code class="docutils literal notranslate"><span class="pre">freshmaker/migrations/versions</span></code></p>
+</li>
+</ul>
+</li>
+<li><p>In case of no schema changes,</p>
+<ul class="simple">
+<li><p>Run <code class="docutils literal notranslate"><span class="pre">./manager</span> <span class="pre">db</span> <span class="pre">revision</span></code> to create an empty migration script file</p></li>
+</ul>
+</li>
+<li><p>Rename the migration script so that the suffix has a description of the change</p></li>
+<li><p>Modify the docstring of the migration script</p></li>
+<li><p>For data migrations, define the schema of any tables you will be modifying. This is so that it</p>
+<p>captures the schema of the time of the migration and not necessarily what is in models.py since</p>
+<p>that reflects the latest schema.</p>
+</li>
+<li><p>Modify the <code class="docutils literal notranslate"><span class="pre">upgrade</span></code> function to make the adjustments as necessary</p></li>
+<li><p>Modify the <code class="docutils literal notranslate"><span class="pre">downgrade</span></code> function to reverse the changes that were made in the <code class="docutils literal notranslate"><span class="pre">upgrade</span></code> function</p></li>
+<li><p>Make any adjustments to the migration script as necessary</p></li>
+<li><p>To test the migration script,</p>
+<ul>
+<li><p>Populate the database with some dummy data as per the requirement</p></li>
+<li><p>Run <code class="docutils literal notranslate"><span class="pre">./manager</span> <span class="pre">db</span> <span class="pre">upgrade</span></code></p></li>
+<li><p>Also test the downgrade by running <code class="docutils literal notranslate"><span class="pre">./manager</span> <span class="pre">db</span> <span class="pre">downgrade</span> <span class="pre">&lt;previous</span> <span class="pre">revision&gt;</span></code></p>
+<p>(where previous revision is the revision ID of the previous migration script)</p>
+</li>
+</ul>
+</li>
+<li><p>Remove the configuration of <code class="docutils literal notranslate"><span class="pre">SQLALCHEMY_DATABASE_URI</span></code> that you set earlier</p></li>
+<li><p>Remove <code class="docutils literal notranslate"><span class="pre">freshmaker.db</span></code></p></li>
+<li><p>Commit your changes</p></li>
+</ul>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="messaging_api.html" class="btn btn-neutral float-left" title="Messaging API" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2020, Red Hat, Inc. and others.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

@@ -1,0 +1,760 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>API version 1 &mdash; Freshmaker  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="author" title="About these documents" href="about.html" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="API version 2" href="api_v2.html" />
+    <link rel="prev" title="About Freshmaker" href="about.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Freshmaker
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.1.2
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="about.html">About Freshmaker</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">API version 1</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#event-json-representation">Event JSON representation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#artifact-build-json-representation">Artifact Build JSON representation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#rest-api-pagination">REST API pagination</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#http-rest-api">HTTP REST API</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api_v2.html">API version 2</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="messaging_api.html">Messaging API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="db.html">Freshmaker database</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Freshmaker</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>API version 1</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/api_v1.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="api-version-1">
+<h1>API version 1<a class="headerlink" href="#api-version-1" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="event-json-representation">
+<span id="event-json-api-1"></span><h2>Event JSON representation<a class="headerlink" href="#event-json-representation" title="Permalink to this headline">¶</a></h2>
+<p>The Freshmaker Event is always represented in the API request as JSON, for example:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>{
+    &quot;builds&quot;: [],
+    &quot;depending_events&quot;: [],
+    &quot;depends_on_events&quot;: [],
+    &quot;dry_run&quot;: false,
+    &quot;event_type_id&quot;: 10,
+    &quot;id&quot;: 18730,
+    &quot;message_id&quot;: &quot;message_123&quot;,
+    &quot;requested_rebuilds&quot;: [],
+    &quot;requester&quot;: null,
+    &quot;requester_metadata&quot;: {},
+    &quot;search_key&quot;: &quot;44637&quot;,
+    &quot;state&quot;: 3,
+    &quot;state_name&quot;: &quot;COMPLETE&quot;,
+    &quot;state_reason&quot;: &quot;4 images rebuilt.&quot;,
+    &quot;time_created&quot;: &quot;2019-08-01T07:00:46Z&quot;,
+    &quot;time_done&quot;: &quot;2019-08-01T07:03:12Z&quot;,
+    &quot;url&quot;: &quot;/api/1/events/18730&quot;
+}
+</pre></div>
+</div>
+<p>The fields used in the Freshmaker Event JSON have following meaning:</p>
+<dl class="simple" id="event-builds">
+<dt><em>builds</em> - <code class="docutils literal notranslate"><span class="pre">(list</span> <span class="pre">of</span> <span class="pre">Freshmaker</span> <span class="pre">Artifact</span> <span class="pre">build</span> <span class="pre">JSONs)</span></code></dt><dd><p>List of artifact builds which are part of this Freshmaker event.</p>
+</dd>
+</dl>
+<dl class="simple" id="event-depending-events">
+<dt><em>depending_events</em> - <code class="docutils literal notranslate"><span class="pre">(list</span> <span class="pre">of</span> <span class="pre">numbers)</span></code></dt><dd><p>List of IDs of other Freshmaker events which are depending on this Freshmaker event.</p>
+</dd>
+</dl>
+<dl class="simple" id="event-depends-on-events">
+<dt><em>depends_on_events</em> - <code class="docutils literal notranslate"><span class="pre">(list</span> <span class="pre">of</span> <span class="pre">numbers)</span></code></dt><dd><p>List of IDs of other Freshmaker events which this event depends on.</p>
+</dd>
+</dl>
+<dl class="simple" id="event-dry-run">
+<dt><em>dry_run</em> - <code class="docutils literal notranslate"><span class="pre">(boolean)</span></code></dt><dd><p>When set to <code class="docutils literal notranslate"><span class="pre">true</span></code> the event is handled in dry run mode. In this mode, no real builds are submitted to build system. Instead, all the builds are automatically moved to <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code> state.</p>
+</dd>
+</dl>
+<dl class="simple" id="event-event-type-id">
+<dt><em>event_type_id</em> - <code class="docutils literal notranslate"><span class="pre">(number)</span></code></dt><dd><p>The ID of the type of this Event. Full list of Event types can listed using the <code class="docutils literal notranslate"><span class="pre">/api/1/event-types/</span></code> REST API. The most important event types are:</p>
+<ul class="simple">
+<li><p>10 (<code class="docutils literal notranslate"><span class="pre">ErrataAdvisoryStateChangedEvent</span></code>) - Event triggered by message, rebuilding all artifacts (currently just container images) as result of advisory release.</p></li>
+<li><p>13 (<code class="docutils literal notranslate"><span class="pre">ManualRebuildWithAdvisoryEvent</span></code>) - Event triggered manually, rebuilding all artifacts (currently just container images) as result of advisory release.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple" id="event-id">
+<dt><em>id</em> - <code class="docutils literal notranslate"><span class="pre">(number)</span></code></dt><dd><p>The ID of Freshmaker event.</p>
+</dd>
+</dl>
+<dl class="simple" id="event-message-id">
+<dt><em>message_id</em> - <code class="docutils literal notranslate"><span class="pre">(string)</span></code></dt><dd><p>The ID of message (fedmsg or AMQP) which triggered the Event.</p>
+</dd>
+</dl>
+<dl class="simple" id="event-requested-rebuilds">
+<dt><em>requested_rebuilds</em> - <code class="docutils literal notranslate"><span class="pre">(list</span> <span class="pre">of</span> <span class="pre">strings)</span></code></dt><dd><p>List of artifacts which should be rebuilt in this Freshmaker Event. Filled in only for manual rebuilds which requested particular artifacts to be rebuilt. Currently, it is always list of container images NVRs.</p>
+</dd>
+</dl>
+<dl class="simple" id="event-requester">
+<dt><em>requester</em> - <code class="docutils literal notranslate"><span class="pre">(string</span> <span class="pre">or</span> <span class="pre">null)</span></code></dt><dd><p>The Kerberos username of requester of this Freshmaker Event. Set to string only for manual rebuilds, otherwise <code class="docutils literal notranslate"><span class="pre">null</span></code>.</p>
+</dd>
+</dl>
+<dl class="simple" id="event-requester-metadata">
+<dt><em>requester_metadata</em> - <code class="docutils literal notranslate"><span class="pre">(JSON</span> <span class="pre">object)</span></code></dt><dd><p>Additional metadata set by requester when submitting the manual rebuild. It can be used to track the context of manual rebuild.</p>
+</dd>
+</dl>
+<dl class="simple" id="event-search-key">
+<dt><em>search_key</em> - <code class="docutils literal notranslate"><span class="pre">(string)</span></code></dt><dd><p>The key identifying source of the Event. For each Event type, there is a different way how the key is generated:</p>
+<ul class="simple">
+<li><p>Event type 10 (<code class="docutils literal notranslate"><span class="pre">ErrataAdvisoryStateChangedEvent</span></code>) - The ID of advisory which triggered the Event.</p></li>
+<li><p>Event type 13 (<code class="docutils literal notranslate"><span class="pre">ManualRebuildWithAdvisoryEvent</span></code>) - The ID of advisory which triggered the Event.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple" id="event-state">
+<dt><em>state</em> - <code class="docutils literal notranslate"><span class="pre">(number)</span></code></dt><dd><p>Number defining the state the Event is currently in:</p>
+<ul class="simple">
+<li><p>0 (<code class="docutils literal notranslate"><span class="pre">INITIALIZED</span></code>) - Event is initialized and Freshmaker is now searching for artifacts to build.</p></li>
+<li><p>1 (<code class="docutils literal notranslate"><span class="pre">BUILDING</span></code>) - Some artifacts to build have been found and Freshmaker is building them.</p></li>
+<li><p>2 (<code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code>) - All artifacts have been build. Note that this does not mean all the builds were successfull - just one successfull artifact build is enough to mark the Event as <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code>.</p></li>
+<li><p>3 (<code class="docutils literal notranslate"><span class="pre">FAILED</span></code>) - There was some major error while handling the Event or all the artifact builds failed to build.</p></li>
+<li><p>4 (<code class="docutils literal notranslate"><span class="pre">SKIPPED</span></code>) - No artifacts have been found to build or the Event is not allowed by the Freshmaker’s configuration.</p></li>
+<li><p>5 (<code class="docutils literal notranslate"><span class="pre">CANCELED</span></code>) - Event has been manually cancelled using the REST API.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple" id="event-state-name">
+<dt><em>state_name</em> - <code class="docutils literal notranslate"><span class="pre">(string)</span></code></dt><dd><p>Name of the state the Event is currently in. See <code class="docutils literal notranslate"><span class="pre">state</span></code> for more info.</p>
+</dd>
+</dl>
+<dl class="simple" id="event-state-reason">
+<dt><em>state_reason</em> - <code class="docutils literal notranslate"><span class="pre">(string)</span></code></dt><dd><p>Sentence describing the current state.</p>
+</dd>
+</dl>
+<dl class="simple" id="event-time-created">
+<dt><em>time_created</em> - <code class="docutils literal notranslate"><span class="pre">(datetime)</span></code></dt><dd><p>The date and time on which the Event has been initialized (moved to <code class="docutils literal notranslate"><span class="pre">INITIALIZED</span></code> state).</p>
+</dd>
+</dl>
+<dl class="simple" id="event-time-done">
+<dt><em>time_done</em> - <code class="docutils literal notranslate"><span class="pre">(datetime)</span></code></dt><dd><p>The date and time on which the Event has been moved to <code class="docutils literal notranslate"><span class="pre">FAILED</span></code>, <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code>, or <code class="docutils literal notranslate"><span class="pre">CANCELED</span></code> state.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="artifact-build-json-representation">
+<span id="build-json-api-1"></span><h2>Artifact Build JSON representation<a class="headerlink" href="#artifact-build-json-representation" title="Permalink to this headline">¶</a></h2>
+<p>The Freshmaker Artifact Build is always represented in the API request as JSON, for example:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>{
+    &quot;build_args&quot;: {
+        ...
+    },
+    &quot;build_id&quot;: 22429387,
+    &quot;dep_on&quot;: &quot;fedora-30-container&quot;,
+    &quot;dep_on_id&quot;: 21657,
+    &quot;event_id&quot;: 16730,
+    &quot;id&quot;: 21837,
+    &quot;name&quot;: &quot;httpd-container&quot;,
+    &quot;odcs_composes&quot;: [],
+    &quot;original_nvr&quot;: &quot;httpd-container-2.4-1&quot;,
+    &quot;rebuild_reason&quot;: &quot;directly_affected&quot;,
+    &quot;rebuilt_nvr&quot;: &quot;httpd-container-2.4-1.1561731291&quot;,
+    &quot;state&quot;: 1,
+    &quot;state_name&quot;: &quot;DONE&quot;,
+    &quot;state_reason&quot;: &quot;Built successfully.&quot;,
+    &quot;time_completed&quot;: &quot;2019-06-29T03:28:56Z&quot;,
+    &quot;time_submitted&quot;: &quot;2019-06-28T14:14:51Z&quot;,
+    &quot;type&quot;: 1,
+    &quot;type_name&quot;: &quot;IMAGE&quot;,
+    &quot;url&quot;: &quot;/api/1/builds/21837&quot;
+}
+</pre></div>
+</div>
+<dl id="build-build-args">
+<dt><em>build_args</em> - <code class="docutils literal notranslate"><span class="pre">(JSON</span> <span class="pre">object)</span></code></dt><dd><p>JSON object containing arguments passed to build system to build this artifact.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The content of this JSON object is not part of the Freshmaker REST API and can change at any time.</p>
+</div>
+<p>Commonly used <code class="docutils literal notranslate"><span class="pre">build_args</span></code> are:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">arches</span></code> - white-space separated list of architecture the Artifact is built against.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">branch</span></code> - name of the branch from which the Artifact’s source code is taken.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">commit</span></code> - commit hash in source repository from which the Artifact’s source code is taken.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">target</span></code> - Koji target in which the Artifact is built.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">retry_count</span></code> - number describes how many times was Artifact build retried.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple" id="build-build-id">
+<dt><em>build_id</em> - <code class="docutils literal notranslate"><span class="pre">(number)</span></code></dt><dd><p>The ID of Artifact Build.</p>
+</dd>
+</dl>
+<dl class="simple" id="build-dep-on">
+<dt><em>dep_on</em> - <code class="docutils literal notranslate"><span class="pre">(string)</span></code></dt><dd><p>The <a class="reference internal" href="#build-name"><span class="std std-ref">name</span></a>. of the Artifact build this Artifact build depends on.</p>
+</dd>
+</dl>
+<dl class="simple" id="build-dep-on-id">
+<dt><em>dep_on_id</em> - <code class="docutils literal notranslate"><span class="pre">(number)</span></code></dt><dd><p>The ID of the Artifact build this Artifact build depends on.</p>
+</dd>
+</dl>
+<dl class="simple" id="build-event-id">
+<dt><em>event_id</em> - <code class="docutils literal notranslate"><span class="pre">(number)</span></code></dt><dd><p>The ID of the Event this Artifact Build is part of.</p>
+</dd>
+</dl>
+<dl class="simple" id="build-name">
+<dt><em>name</em> - <code class="docutils literal notranslate"><span class="pre">(string)</span></code></dt><dd><p>The name of this Artifact Build.</p>
+</dd>
+</dl>
+<dl class="simple" id="build-odcs-composes">
+<dt><em>odcs_composes</em> - <code class="docutils literal notranslate"><span class="pre">(list</span> <span class="pre">of</span> <span class="pre">numbers)</span></code></dt><dd><p>List of ODCS composes the Freshmaker directly generated and used while building this Artifact build in the build system.</p>
+</dd>
+</dl>
+<dl class="simple" id="build-original-nvr">
+<dt><em>original_nvr</em> - <code class="docutils literal notranslate"><span class="pre">(string)</span></code></dt><dd><p>The original (before the rebuild) NVR of Artifact build.</p>
+</dd>
+</dl>
+<dl class="simple" id="build-rebuild-reason">
+<dt><em>rebuild_reason</em> - <code class="docutils literal notranslate"><span class="pre">(string)</span></code></dt><dd><p>The reason why this artifact is included in the Event. Can be one of:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">directly_affected</span></code> - The Artifact build is directly affected by the Event (for example affected by the CVE) and is allowed by Freshmaker’s configuration.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dependency</span></code> - The Artifact build is included in the Event just because it is dependency of <code class="docutils literal notranslate"><span class="pre">directly_affected</span></code> Artifact build.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple" id="build-rebuilt-nvr">
+<dt><em>rebuilt_nvr</em> - <code class="docutils literal notranslate"><span class="pre">(string)</span></code></dt><dd><p>The NVR of Artifact build built by Freshmaker.</p>
+</dd>
+</dl>
+<dl class="simple" id="build-state">
+<dt><em>state</em> - <code class="docutils literal notranslate"><span class="pre">(number)</span></code></dt><dd><p>Number defining the state the Artifact build is currently in:</p>
+<ul class="simple">
+<li><p>0 (<code class="docutils literal notranslate"><span class="pre">BUILD</span></code>) - Artifact build is currently being built in build system.</p></li>
+<li><p>1 (<code class="docutils literal notranslate"><span class="pre">DONE</span></code>) - Artifact build has been built successfully.</p></li>
+<li><p>2 (<code class="docutils literal notranslate"><span class="pre">FAILED</span></code>) - Artifact build failed to be build.</p></li>
+<li><p>3 (<code class="docutils literal notranslate"><span class="pre">CANCELED</span></code>) - Artifact build has been cancelled manually.</p></li>
+<li><p>4 (<code class="docutils literal notranslate"><span class="pre">PLANNED</span></code>) - Artifact build is planned to be build.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple" id="build-state-name">
+<dt><em>state_name</em> - <code class="docutils literal notranslate"><span class="pre">(string)</span></code></dt><dd><p>Name of the state the Artifact build is currently in. See <a class="reference internal" href="#build-state"><span class="std std-ref">state</span></a> for more info.</p>
+</dd>
+</dl>
+<dl class="simple" id="build-state-reason">
+<dt><em>state_reason</em> - <code class="docutils literal notranslate"><span class="pre">(string)</span></code></dt><dd><p>Sentence describing the current state.</p>
+</dd>
+</dl>
+<dl class="simple" id="build-time-completed">
+<dt><em>time_completed</em> - <code class="docutils literal notranslate"><span class="pre">(datetime)</span></code></dt><dd><p>The date and time on which the Artifact Build has been completed.</p>
+</dd>
+</dl>
+<dl class="simple" id="build-time-submitted">
+<dt><em>time_submitted</em> - <code class="docutils literal notranslate"><span class="pre">(datetime)</span></code></dt><dd><p>The date and time on which the Artifact build has been moved to <code class="docutils literal notranslate"><span class="pre">PLANNED</span></code> state.</p>
+</dd>
+</dl>
+<dl class="simple" id="build-type">
+<dt><em>type</em> - <code class="docutils literal notranslate"><span class="pre">(number)</span></code></dt><dd><p>Type of the Artifact build:</p>
+<ul class="simple">
+<li><p>0 (<code class="docutils literal notranslate"><span class="pre">RPM</span></code>) - Artifact build is an RPM package.</p></li>
+<li><p>1 (<code class="docutils literal notranslate"><span class="pre">IMAGE</span></code>) - Artifact build is a container image.</p></li>
+<li><p>2 (<code class="docutils literal notranslate"><span class="pre">MODULE</span></code>) - Artifact build is a module.</p></li>
+<li><p>3 (<code class="docutils literal notranslate"><span class="pre">IMAGE_REPOSITORY</span></code>) - Artifact build is a container image repository.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple" id="build-type-name">
+<dt><em>type__name</em> - <code class="docutils literal notranslate"><span class="pre">(string)</span></code></dt><dd><p>Name of the type of Artifact build. See <a class="reference internal" href="#build-type"><span class="std std-ref">type</span></a> for more info.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="rest-api-pagination">
+<span id="pagination-api-1"></span><h2>REST API pagination<a class="headerlink" href="#rest-api-pagination" title="Permalink to this headline">¶</a></h2>
+<p>When multiple objects are returned by the Freshmaker REST API, they are wrapped in the following JSON which allows pagination:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>{
+    &quot;items&quot;: [
+        {JSON_OBJECT},
+        ...
+    ],
+    &quot;meta&quot;: {
+        &quot;first&quot;: &quot;http://freshmaker.localhost/api/1/events/?per_page=10&amp;page=1&quot;,
+        &quot;last&quot;: &quot;http://freshmaker.localhost/api/1/events/?per_page=10&amp;page=14890&quot;,
+        &quot;next&quot;: &quot;http://freshmaker.localhost/api/1/events/?per_page=10&amp;page=2&quot;,
+        &quot;page&quot;: 1,
+        &quot;pages&quot;: 14890,
+        &quot;per_page&quot;: 10,
+        &quot;prev&quot;: null,
+        &quot;total&quot;: 148898
+    }
+}
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">items</span></code> list contains the objects JSONs. The <code class="docutils literal notranslate"><span class="pre">meta</span></code> dict contains metadata about pagination. It is possible to use <code class="docutils literal notranslate"><span class="pre">per_page</span></code> argument to set the number of objects showed per single page and <code class="docutils literal notranslate"><span class="pre">page</span></code> to choose the page to show.</p>
+</div>
+<div class="section" id="http-rest-api">
+<h2>HTTP REST API<a class="headerlink" href="#http-rest-api" title="Permalink to this headline">¶</a></h2>
+<dl class="http get">
+<dt id="get--api-1-events-">
+<code class="sig-name descname"><span class="pre">GET</span> </code><code class="sig-name descname"><span class="pre">/api/1/events/</span></code><a class="headerlink" href="#get--api-1-events-" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns Freshmaker Events.</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">id</span></code> is set, only the Freshmaker Event defined by that ID is
+returned.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Query Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>message_id</strong> (<em>string</em>) – Return only events with this <a class="reference internal" href="#event-message-id"><span class="std std-ref">message_id</span></a>.</p></li>
+<li><p><strong>search_key</strong> (<em>string</em>) – Return only events with this <a class="reference internal" href="#event-search-key"><span class="std std-ref">search_key</span></a>.</p></li>
+<li><p><strong>event_type_id</strong> (<em>number</em>) – Return only events with this <a class="reference internal" href="#event-event-type-id"><span class="std std-ref">event_type_id</span></a>.</p></li>
+<li><p><strong>state</strong> (<em>number/string</em>) – Return only events int this <a class="reference internal" href="#event-state"><span class="std std-ref">state</span></a>.</p></li>
+<li><p><strong>show_full_json</strong> (<em>bool</em>) – <p>When <code class="docutils literal notranslate"><span class="pre">True</span></code>, the returned Freshmaker Event JSON objects
+contains all the fields described in the
+<a class="reference internal" href="#event-json-api-1"><span class="std std-ref">Freshmaker Event representation for API version 1</span></a>.</p>
+<p>When <code class="docutils literal notranslate"><span class="pre">False</span></code>, the returned Freshmaker Event JSON objects are in the
+<a class="reference internal" href="api_v2.html#event-json-api-2"><span class="std std-ref">Freshmaker Event representation for API version 2</span></a> format.</p>
+<p>Default value for API version 1 is <code class="docutils literal notranslate"><span class="pre">True</span></code>, for API version 2 is <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p>
+</p></li>
+<li><p><strong>order_by</strong> (<em>string</em>) – <p>Order the events by the given field. If <code class="docutils literal notranslate"><span class="pre">-</span></code> prefix is used,
+the order will be descending. The default value is <code class="docutils literal notranslate"><span class="pre">-id</span></code>. Available fields are:</p>
+<ul>
+<li><p><a class="reference internal" href="#event-id"><span class="std std-ref">id</span></a></p></li>
+<li><p><a class="reference internal" href="#event-message-id"><span class="std std-ref">message_id</span></a></p></li>
+</ul>
+</p></li>
+</ul>
+</dd>
+<dt class="field-even">Status Codes</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a> – Requested events are returned.</p></li>
+<li><p><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.5">404 Not Found</a> – Freshmaker event not found.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="http get">
+<dt id="get--api-1-events-(int-id)">
+<code class="sig-name descname"><span class="pre">GET</span> </code><code class="sig-name descname"><span class="pre">/api/1/events/</span></code><span class="sig-paren">(</span><em class="property"><span class="pre">int:</span> </em><em class="sig-param"><span class="pre">id</span></em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-1-events-(int-id)" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns Freshmaker Events.</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">id</span></code> is set, only the Freshmaker Event defined by that ID is
+returned.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Query Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>message_id</strong> (<em>string</em>) – Return only events with this <a class="reference internal" href="#event-message-id"><span class="std std-ref">message_id</span></a>.</p></li>
+<li><p><strong>search_key</strong> (<em>string</em>) – Return only events with this <a class="reference internal" href="#event-search-key"><span class="std std-ref">search_key</span></a>.</p></li>
+<li><p><strong>event_type_id</strong> (<em>number</em>) – Return only events with this <a class="reference internal" href="#event-event-type-id"><span class="std std-ref">event_type_id</span></a>.</p></li>
+<li><p><strong>state</strong> (<em>number/string</em>) – Return only events int this <a class="reference internal" href="#event-state"><span class="std std-ref">state</span></a>.</p></li>
+<li><p><strong>show_full_json</strong> (<em>bool</em>) – <p>When <code class="docutils literal notranslate"><span class="pre">True</span></code>, the returned Freshmaker Event JSON objects
+contains all the fields described in the
+<a class="reference internal" href="#event-json-api-1"><span class="std std-ref">Freshmaker Event representation for API version 1</span></a>.</p>
+<p>When <code class="docutils literal notranslate"><span class="pre">False</span></code>, the returned Freshmaker Event JSON objects are in the
+<a class="reference internal" href="api_v2.html#event-json-api-2"><span class="std std-ref">Freshmaker Event representation for API version 2</span></a> format.</p>
+<p>Default value for API version 1 is <code class="docutils literal notranslate"><span class="pre">True</span></code>, for API version 2 is <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p>
+</p></li>
+<li><p><strong>order_by</strong> (<em>string</em>) – <p>Order the events by the given field. If <code class="docutils literal notranslate"><span class="pre">-</span></code> prefix is used,
+the order will be descending. The default value is <code class="docutils literal notranslate"><span class="pre">-id</span></code>. Available fields are:</p>
+<ul>
+<li><p><a class="reference internal" href="#event-id"><span class="std std-ref">id</span></a></p></li>
+<li><p><a class="reference internal" href="#event-message-id"><span class="std std-ref">message_id</span></a></p></li>
+</ul>
+</p></li>
+</ul>
+</dd>
+<dt class="field-even">Status Codes</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a> – Requested events are returned.</p></li>
+<li><p><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.5">404 Not Found</a> – Freshmaker event not found.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="http patch">
+<dt id="patch--api-1-events-(int-id)">
+<code class="sig-name descname"><span class="pre">PATCH</span> </code><code class="sig-name descname"><span class="pre">/api/1/events/</span></code><span class="sig-paren">(</span><em class="property"><span class="pre">int:</span> </em><em class="sig-param"><span class="pre">id</span></em><span class="sig-paren">)</span><a class="headerlink" href="#patch--api-1-events-(int-id)" title="Permalink to this definition">¶</a></dt>
+<dd><p>Manage Freshmaker event defined by ID. The request must be
+<em class="mimetype">application/json</em>.</p>
+<p>Returns the cancelled Freshmaker event as JSON.</p>
+<p><strong>Sample request</strong>:</p>
+<div class="highlight-http notranslate"><div class="highlight"><pre><span></span><span class="nf">PATCH</span> <span class="nn">/api/1/events</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Accept</span><span class="o">:</span> <span class="l">application/json</span>
+<span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
+
+<span class="p">{</span>
+    <span class="nt">&quot;action&quot;</span><span class="p">:</span> <span class="s2">&quot;cancel&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">JSON Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>action</strong> (<em>string</em>) – Action to do with an Event. Currently only “cancel”
+is supported.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Status Codes</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a> – Cancelled event is returned.</p></li>
+<li><p><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.1">400 Bad Request</a> – Action is missing or is unsupported.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="http post">
+<dt id="post--api-1-builds-">
+<code class="sig-name descname"><span class="pre">POST</span> </code><code class="sig-name descname"><span class="pre">/api/1/builds/</span></code><a class="headerlink" href="#post--api-1-builds-" title="Permalink to this definition">¶</a></dt>
+<dd><p>Trigger manual Freshmaker rebuild. The request must be
+<em class="mimetype">application/json</em>.</p>
+<p>Returns the newly created Freshmaker event as JSON.</p>
+<p><strong>Sample request</strong>:</p>
+<div class="highlight-http notranslate"><div class="highlight"><pre><span></span><span class="nf">POST</span> <span class="nn">/api/1/builds</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Accept</span><span class="o">:</span> <span class="l">application/json</span>
+<span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
+
+<span class="p">{</span>
+    <span class="nt">&quot;errata_id&quot;</span><span class="p">:</span> <span class="mi">12345</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">JSON Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>errata_id</strong> (<em>string</em>) – The ID of Errata advisory to rebuild
+artifacts for. If this is not set, freshmaker_event_id must be set.</p></li>
+<li><p><strong>container_images</strong> (<em>list</em>) – When set, defines list of NVRs
+of leaf container images which should be rebuild in the
+newly created Event.</p></li>
+<li><p><strong>dry_run</strong> (<em>bool</em>) – When True, the Event will be handled in
+the DRY_RUN mode.</p></li>
+<li><p><strong>freshmaker_event_id</strong> (<em>bool</em>) – When set, it defines the event
+which will be used as the dependant event. Successfull builds from
+this event will be reused in the newly created event instead of
+building all the artifacts from scratch. If errata_id is not
+provided, it will be inherited from this Freshmaker event.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Status Codes</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a> – A new event was created.</p></li>
+<li><p><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.1">400 Bad Request</a> – The provided input is invalid.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="http get">
+<dt id="get--api-1-verify-image-(image)">
+<code class="sig-name descname"><span class="pre">GET</span> </code><code class="sig-name descname"><span class="pre">/api/1/verify-image/</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="pre">image</span></em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-1-verify-image-(image)" title="Permalink to this definition">¶</a></dt>
+<dd><p>Verifies whether the container image defined by the NVR is handled
+by Freshmaker. If not, returns explanation why.</p>
+<p><strong>Sample request</strong>:</p>
+<div class="highlight-http notranslate"><div class="highlight"><pre><span></span><span class="nf">GET</span> <span class="nn">/api/1/verify-image/foo-1-1</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Accept</span><span class="o">:</span> <span class="l">application/json</span>
+</pre></div>
+</div>
+<p><strong>Sample response</strong>:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>{
+    &quot;images&quot;: {
+        &quot;foo-1-1&quot;: [
+            &quot;content-set-1&quot;,
+            &quot;content-set-2&quot;
+        ]
+    },
+    &quot;msg&quot;: &quot;Found 1 images which are handled by Freshmaker.&quot;
+}
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Status Codes</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a> – Image is handled by Freshmaker.</p></li>
+<li><p><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.1">400 Bad Request</a> – Image is not handled by Freshmaker or not found.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="http get">
+<dt id="get--api-1-verify-image-repository-(project)-(repo)">
+<code class="sig-name descname"><span class="pre">GET</span> </code><code class="sig-name descname"><span class="pre">/api/1/verify-image-repository/</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="pre">project</span></em><span class="sig-paren">)</span><code class="sig-name descname"><span class="pre">/</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="pre">repo</span></em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-1-verify-image-repository-(project)-(repo)" title="Permalink to this definition">¶</a></dt>
+<dd><p>Verifies whether the container image repository is handled
+by Freshmaker. If not, returns explanation why.</p>
+<p><strong>Sample request</strong>:</p>
+<div class="highlight-http notranslate"><div class="highlight"><pre><span></span><span class="nf">GET</span> <span class="nn">/api/1/verify-image-repository/foo/bar</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Accept</span><span class="o">:</span> <span class="l">application/json</span>
+</pre></div>
+</div>
+<p><strong>Sample response</strong>:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>{
+    &quot;repository: {
+        &quot;auto_rebuild_tags&quot;: [
+            &quot;latest&quot;
+        ],
+    },
+    &quot;images&quot;: {
+        &quot;foo-1-1&quot;: {
+            &quot;content_sets&quot;: [
+                &quot;content-set-1&quot;,
+                &quot;content-set-2&quot;
+            ],
+            &quot;tags&quot;: [
+                &quot;latest&quot;,
+                &quot;2.0&quot;
+            ]
+        }
+    },
+    &quot;msg&quot;: &quot;Found 1 images which are handled by Freshmaker.&quot;
+}
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Status Codes</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a> – Image repository is handled by Freshmaker.</p></li>
+<li><p><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.1">400 Bad Request</a> – Image repository is not handled by Freshmaker or not
+found.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="http post">
+<dt id="post--api-1-async-builds-">
+<code class="sig-name descname"><span class="pre">POST</span> </code><code class="sig-name descname"><span class="pre">/api/1/async-builds/</span></code><a class="headerlink" href="#post--api-1-async-builds-" title="Permalink to this definition">¶</a></dt>
+<dd><p>Trigger Freshmaker async rebuild (a.k.a non-CVE rebuild). The request
+must be <em class="mimetype">application/json</em>.</p>
+<p>Returns the newly created Freshmaker event as JSON.</p>
+<p><strong>Sample request</strong>:</p>
+<div class="highlight-http notranslate"><div class="highlight"><pre><span></span><span class="nf">POST</span> <span class="nn">/api/1/async-builds</span> <span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Accept</span><span class="o">:</span> <span class="l">application/json</span>
+<span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
+
+<span class="p">{</span>
+    <span class="nt">&quot;dist_git_branch&quot;</span><span class="p">:</span> <span class="s2">&quot;master&quot;</span><span class="p">,</span>
+    <span class="nt">&quot;container_images&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;foo-1-1&quot;</span><span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">JSON Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dist_git_branch</strong> (<em>string</em>) – The name of the branch in dist-git
+to build the container images from. This is a mandatory field.</p></li>
+<li><p><strong>container_images</strong> (<em>list</em>) – A list of images to rebuild. They
+might be sharing a parent-child relationship which are then rebuilt
+by Freshmaker in the right order. For example, if images A is parent
+image of B, which is parent image of C, and container_images is
+[A, B, C], Freshmaker will make sure to rebuild all three images,
+in the correct order. It is however possible also to rebuild images
+completely unrelated to each other. This is a mandatory field.</p></li>
+<li><p><strong>dry_run</strong> (<em>bool</em>) – When True, the Event will be handled in
+the DRY_RUN mode.</p></li>
+<li><p><strong>freshmaker_event_id</strong> (<em>bool</em>) – When set, it defines the event
+which will be used as the dependant event. Successfull builds from
+this event will be reused in the newly created event instead of
+building all the artifacts from scratch. The event should refer
+to an async rebuild event.</p></li>
+<li><p><strong>brew_target</strong> (<em>string</em>) – The name of the Brew target. While
+requesting an async rebuild, it should be the same for all the images
+in the list of container_images. This parameter is optional, with
+default value will be pulled from the previous buildContainer task.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Status Codes</dt>
+<dd class="field-even"><ul class="simple">
+<li><p><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a> – A new event was created.</p></li>
+<li><p><a class="reference external" href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.1">400 Bad Request</a> – The provided input is invalid.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="api_v2.html" class="btn btn-neutral float-right" title="API version 2" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="about.html" class="btn btn-neutral float-left" title="About Freshmaker" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2020, Red Hat, Inc. and others.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
