@@ -40,13 +40,18 @@ class ErrataAdvisoryStateChangedParser(BaseParser):
         msg_id = msg.get('msg_id')
         inner_msg = msg.get('msg')
         errata_id = int(inner_msg.get('errata_id'))
+        new_state = inner_msg.get('to')
 
         errata = Errata()
         advisory = ErrataAdvisory.from_advisory_id(errata, errata_id)
+        # When there is message delay, state change messages can arrive after
+        # advisory has been changed to a different state other than the one
+        # in message, so we override advisory state with the state in message
+        advisory.state = new_state
+
         # If advisory created by BOTAS and it's shipped,
         # then return BotasErrataShippedEvent event
-        if advisory.state == "SHIPPED_LIVE" and \
-           advisory.reporter.startswith('botas'):
+        if advisory.state == "SHIPPED_LIVE" and advisory.reporter.startswith('botas'):
             event = BotasErrataShippedEvent(msg_id, advisory)
         else:
             event = ErrataAdvisoryStateChangedEvent(msg_id, advisory)
