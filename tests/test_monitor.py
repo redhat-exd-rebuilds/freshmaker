@@ -30,7 +30,7 @@ from unittest import mock
 from freshmaker import app, db, events, models, login_manager
 from tests import helpers
 
-num_of_metrics = 46
+num_of_metrics = 44
 
 
 @login_manager.user_loader

@@ -75,10 +75,6 @@ messaging_tx_failed_counter = Counter(
     'Number of messages, for which the sender failed',
     registry=registry)
 
-db_dbapi_error_counter = Counter(
-    'db_dbapi_error',
-    'Number of DBAPI errors',
-    registry=registry)
 db_engine_connect_counter = Counter(
     'db_engine_connect',
     'Number of \'engine_connect\' events',
@@ -137,10 +133,6 @@ def db_hook_event_listeners(target=None):
 
     if not target:
         target = db.engine
-
-    @event.listens_for(target, 'dbapi_error', named=True)
-    def receive_dbapi_error(**kw):
-        db_dbapi_error_counter.inc()
 
     @event.listens_for(target, 'engine_connect')
     def receive_engine_connect(conn, branch):
