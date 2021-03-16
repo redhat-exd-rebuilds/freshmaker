@@ -21,7 +21,7 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from freshmaker.image_verifier import ImageVerifier
 from freshmaker.lightblue import ContainerRepository, ContainerImage
@@ -58,12 +58,27 @@ class TestImageVerifier(helpers.FreshmakerTestCase):
 
     def test_verify_repository_not_published(self):
         self.lb.find_container_repositories.return_value = [{
+            "registry": "motor-vehical.registry.local",
+            "repository": "long/wait",
             "release_categories": ["Generally Available"],
             "published": False,
             "auto_rebuild_tags": "latest"}]
         self.assertRaisesRegex(
             ValueError, r'.*is not published.',
             self.verifier.verify_repository, "foo/bar")
+
+    def test_verify_repository_data(self):
+        repo = {
+            "registry": "motor-vehical.registry.local",
+            "repository": "long/wait",
+            "release_categories": ["Generally Available"],
+            "published": False,
+            "auto_rebuild_tags": "latest",
+        }
+        exceptions = [{"registry": "motor-vehical.registry.local", "repository": "long/wait"}]
+        target = "freshmaker.image_verifier.conf.unpublished_exceptions"
+        with patch(target, new=exceptions):
+            self.verifier._verify_repository_data(repo)
 
     def test_verify_repository_no_auto_rebuild_tags(self):
         self.lb.find_container_repositories.return_value = [{

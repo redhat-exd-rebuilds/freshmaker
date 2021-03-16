@@ -52,9 +52,13 @@ class ImageVerifier(object):
                 "rebuilt, but found %r." % (categories, repo_categories))
 
         if not repo["published"]:
-            raise ValueError(
-                "Only published repositories can be rebuilt, but this repository is not "
-                "published.")
+            for exc in conf.unpublished_exceptions:
+                if repo["registry"] == exc["registry"] and repo["repository"] == exc["repository"]:
+                    break
+            else:
+                raise ValueError(
+                    "Only published repositories or unpublished exceptions can be rebuilt, but "
+                    "this repository is not published.")
 
         if "auto_rebuild_tags" not in repo:
             raise ValueError(
