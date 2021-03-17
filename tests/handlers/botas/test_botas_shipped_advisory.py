@@ -18,8 +18,9 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+import json
 
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 
 from freshmaker import db, conf
 from freshmaker.events import (
@@ -28,7 +29,7 @@ from freshmaker.events import (
     TestingEvent)
 from freshmaker.handlers.botas import HandleBotasAdvisory
 from freshmaker.errata import ErrataAdvisory
-from freshmaker.models import Event, ArtifactBuild
+from freshmaker.models import Event, ArtifactBuild, ArtifactBuildState
 from freshmaker.types import EventState
 from tests import helpers
 
@@ -98,11 +99,124 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         self.assertTrue(db_event.state_reason.startswith(
             "This image rebuild is not allowed by internal policy."))
 
-    @patch.object(conf, 'dry_run', new=True)
-    @patch.object(conf, 'handler_build_allowlist', new={
-        'HandleBotasAdvisory': {
-            'image': {
-                'advisory_name': 'RHBA-2020'
+    def test_handle(self):
+        event = BotasErrataShippedEvent("test_msg_id", self.botas_advisory)
+        self.handler.allow_build = MagicMock(return_value=True)
+        self.handler._create_original_to_rebuilt_nvrs_map = \
+            MagicMock(return_value={"original_1": "some_name-1-12345",
+                                    "original_2": "some_name_2-2-2"})
+        nvr_to_digest = {
+            "original_1": "original_1_digest",
+            "some_name-1-12345": "some_name-1-12345_digest",
+            "original_2": "original_2_digest",
+            "some_name_2-2-2": "some_name_2-2-2_digest",
+        }
+        bundles = [{"bundle_path_digest": "original_1_digest"},
+                   {"bundle_path_digest": "some_name-1-12345_digest"},
+                   {"bundle_path_digest": "original_2_digest"},
+                   {"bundle_path_digest": "some_name_2-2-2_digest"}]
+        bundles_with_related_images = {
+            "original_1_digest": [{
+                "bundle_path_digest": "bundle_with_related_images_1_digest"}],
+            "original_2_digest": [{
+                "bundle_path_digest": "bundle_with_related_images_2_digest"}]}
+
+        image_by_digest = {
+            "bundle_with_related_images_1_digest": {"brew": {"build": "bundle1_nvr-1-1"}},
+            "bundle_with_related_images_2_digest": {"brew": {"build": "bundle2_nvr-1-1"}},
+        }
+        self.pyxis().get_manifest_list_digest_by_nvr.side_effect = lambda x: nvr_to_digest[x]
+        self.pyxis().get_operator_indices.return_value = []
+        self.pyxis().get_latest_bundles.return_value = bundles
+        # return bundles for original images
+        self.pyxis().get_bundles_by_related_image_digest.side_effect = lambda x, y: bundles_with_related_images[x]
+        self.pyxis().get_images_by_digest.side_effect = lambda x: [image_by_digest[x]]
+        self.handler.image_has_auto_rebuild_tag = MagicMock(return_value=True)
+        get_build = self.patcher.patch("freshmaker.kojiservice.KojiService.get_build")
+        builds = {
+            "bundle1_nvr-1-1": {
+                "task_id": 1,
+                "extra": {
+                    "image": {
+                        "operator_manifests": {
+                            "related_images": {
+                                "created_by_osbs": True,
+                                "pullspecs": [{
+                                    "new": "registry/repo/operator1@original_1_digest",
+                                    "original": "registry/repo/operator1:v2.2.0",
+                                    "pinned": True,
+                                }]
+                            },
+                        }
+                    }
+                }
+            },
+            "bundle2_nvr-1-1": {
+                "task_id": 2,
+                "extra": {
+                    "image": {
+                        "operator_manifests": {
+                            "related_images": {
+                                "created_by_osbs": True,
+                                "pullspecs": [{
+                                    "new": "registry/repo/operator2@original_2_digest",
+                                    "original": "registry/repo/operator2:v2.2.0",
+                                    "pinned": True,
+                                }]
+                            },
+                        }
+                    }
+                }
+            }
+        }
+        get_build.side_effect = lambda x: builds[x]
+        db_event = Event.get_or_create_from_event(db.session, event)
+        self.handler._prepare_builds = MagicMock(return_value=[
+            ArtifactBuild.create(db.session, db_event, "ed0", "image", 1234,
+                                 original_nvr="some_name-2-12345", rebuilt_nvr="some_name-2-12346"),
+            ArtifactBuild.create(db.session, db_event, "ed0", "image", 12345,
+                                 original_nvr="some_name_2-2-2", rebuilt_nvr="some_name_2-2-210")
+        ])
+        self.handler.start_to_build_images = MagicMock()
+        db.session.commit()
+
+        self.handler.handle(event)
+
+        self.assertEqual(db_event.state, EventState.BUILDING.value)
+        get_build.assert_has_calls([call("bundle1_nvr-1-1"), call("bundle2_nvr-1-1")], any_order=True)
+        bundles_by_digest = \
+            {
+                'bundle_with_related_images_1_digest': {
+                    'images': [{'brew': {'build': 'bundle1_nvr-1-1'}}],
+                    'nvr': 'bundle1_nvr-1-1',
+                    'auto_rebuild': True,
+                    'osbs_pinning': True,
+                    'pullspecs': [{
+                        'new': 'registry/repo/operator1@some_name-1-12345_digest',
+                        'original': 'registry/repo/operator1:v2.2.0',
+                        'pinned': True
+                    }]
+                },
+                'bundle_with_related_images_2_digest': {
+                    'images': [{'brew': {'build': 'bundle2_nvr-1-1'}}],
+                    'nvr': 'bundle2_nvr-1-1',
+                    'auto_rebuild': True,
+                    'osbs_pinning': True,
+                    'pullspecs': [{
+                        'new': 'registry/repo/operator2@some_name_2-2-2_digest',
+                        'original': 'registry/repo/operator2:v2.2.0',
+                        'pinned': True
+                    }]
+                }
+            }
+        self.handler._prepare_builds.assert_called_with(
+            db_event, bundles_by_digest, {'bundle_with_related_images_1_digest', 'bundle_with_related_images_2_digest'})
+
+    @patch.object(conf, "dry_run", new=True)
+    @patch.object(conf, "handler_build_allowlist", new={
+        "HandleBotasAdvisory": {
+            "image": {
+                "advisory_name": "RHBA-2020"
             }
         }})
     @patch("freshmaker.handlers.botas.botas_shipped_advisory.HandleBotasAdvisory.get_published_original_nvr")
@@ -150,7 +264,8 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         }})
     @patch("freshmaker.handlers.botas.botas_shipped_advisory.HandleBotasAdvisory.get_published_original_nvr")
     @patch("freshmaker.handlers.botas.botas_shipped_advisory.KojiService")
-    def test_multiple_bundles_to_single_related_image(self, mock_koji, get_published):
+    def test_multiple_bundles_to_single_related_image(self, mock_koji,
+                                                      get_published):
         event = BotasErrataShippedEvent("test_msg_id", self.botas_advisory)
         self.botas_advisory._builds = {
             "product_name": {
@@ -302,6 +417,8 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
             }
         }
         mock_koji.return_value.get_build.side_effect = lambda x: koji_builds[x]
+        self.handler._prepare_builds = MagicMock()
+        self.handler.start_to_build_images = MagicMock()
 
         self.handler.handle(event)
         db_event = Event.get(db.session, message_id='test_msg_id')
@@ -310,11 +427,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
             call("sha256:123123"),
             call("sha256:023023")
         ], any_order=True)
-
-        self.assertEqual(db_event.state, EventState.SKIPPED.value)
-        self.assertTrue(
-            db_event.state_reason.startswith("Skipping the rebuild of 2 bundle images")
-        )
+        self.assertEqual(db_event.state, EventState.BUILDING.value)
 
     def test_can_handle_manual_rebuild_with_advisory(self):
         event = ManualRebuildWithAdvisoryEvent("123", self.botas_advisory, [])
@@ -407,3 +520,41 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
 
         self.assertEqual(get_original_build.call_count, 2)
         self.assertEqual(mapping, expected_map)
+
+    @patch("freshmaker.lightblue.ContainerImage.get_additional_data_from_koji")
+    def test_prepare_builds(self, get_koji_data):
+        get_koji_data.return_value = {
+            "repository": "repo",
+            "commit": "commit_1",
+            "target": "target_1",
+            "git_branch": "git_branch_1",
+            "arches": ["arch_1", "arch_1"]
+        }
+        pullspec_override_url = "https://localhost/api/2/pullspec_overrides/"
+        db_event = Event.create(db.session, "id1", "RHSA-1", TestingEvent)
+        db.session.commit()
+
+        bundle_data = {
+            "digest": {
+                "images": ["image1", "image2"],
+                "nvr": "nvr-1-1",
+                "auto_rebuild": True,
+                "osbs_pinning": True,
+                "pullspecs": [{
+                    'new': 'registry/repo/operator@sha256:123',
+                    'original': 'registry/repo/operator:v2.2.0',
+                    'pinned': True,
+                }],
+            }
+        }
+
+        ret_builds = self.handler._prepare_builds(db_event, bundle_data, ["digest"])
+
+        builds = ArtifactBuild.query.all()
+        self.assertEqual(builds, ret_builds)
+        submitted_build = builds[0]
+        self.assertEqual(submitted_build.bundle_pullspec_overrides,
+                         bundle_data["digest"]["pullspecs"])
+        self.assertEqual(submitted_build.state, ArtifactBuildState.PLANNED.value)
+        self.assertEqual(json.loads(submitted_build.build_args)["operator_csv_modifications_url"],
+                         pullspec_override_url + str(submitted_build.id))

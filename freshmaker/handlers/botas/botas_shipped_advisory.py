@@ -19,14 +19,17 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 import copy
+import json
+import koji
 
 from kobo.rpmlib import parse_nvr
 
 from freshmaker import db, conf, log
 from freshmaker.handlers import ContainerBuildHandler
 from freshmaker.events import BotasErrataShippedEvent
+from freshmaker.lightblue import ContainerImage
 from freshmaker.models import ArtifactBuild, ArtifactType, Event
-from freshmaker.types import EventState
+from freshmaker.types import EventState, ArtifactBuildState, RebuildReason
 from freshmaker.pyxis import Pyxis
 from freshmaker.kojiservice import KojiService
 from freshmaker.errata import Errata
@@ -45,8 +48,12 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             self._pyxis = pyxis
         else:
             if not conf.pyxis_server_url:
-                raise ValueError("'pyxis_server_url' parameter should be set")
+                raise ValueError("'PYXIS_SERVER_URL' parameter should be set")
             self._pyxis = Pyxis(conf.pyxis_server_url)
+
+        if not conf.freshmaker_root_url or "://" not in conf.freshmaker_root_url:
+            raise ValueError("'FRESHMAKER_ROOT_URL' parameter should be set to "
+                             "a valid URL")
 
     def can_handle(self, event):
         if (isinstance(event, BotasErrataShippedEvent) and
@@ -197,10 +204,10 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             # Fetch buildinfo
             buildinfo = koji_api.get_build(bundle_nvr)
             related_images = (
-                buildinfo.get("extra", {})
-                .get("image", {})
-                .get("operator_manifests", {})
-                .get("related_images", {})
+                buildinfo.get('extra', {})
+                .get('image', {})
+                .get('operator_manifests', {})
+                .get('related_images', {})
             )
             bundle_data['osbs_pinning'] = related_images.get('created_by_osbs', False)
             # Save the original pullspecs
@@ -251,12 +258,24 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                 # to rebuild list
                 to_rebuild_digests.add(digest)
 
-        # Skip that event because we can't proceed with processing it.
-        # TODO
-        # Now when we have bundle images' nvrs we can procceed with rebuilding it
-        msg = f"Skipping the rebuild of {len(to_rebuild_digests)} bundle images " \
-              "due to being blocked on further implementation for now."
-        db_event.transition(EventState.SKIPPED, msg)
+        if not to_rebuild_digests:
+            msg = f"No bundle images to rebuild for advisory {event.advisory.name}"
+            self.log_info(msg)
+            db_event.transition(EventState.SKIPPED, msg)
+            db.session.commit()
+            return []
+
+        builds = self._prepare_builds(db_event, bundles_by_digest,
+                                      to_rebuild_digests)
+
+        # Reset context to db_event.
+        self.set_context(db_event)
+
+        self.start_to_build_images(builds)
+        msg = f"Advisory {db_event.search_key}: Rebuilding " \
+              f"{len(db_event.builds.all())} bundle images."
+        db_event.transition(EventState.BUILDING, msg)
+
         return []
 
     def get_published_original_nvr(self, rebuilt_nvr):
@@ -348,3 +367,52 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                             block_build_nvr['version'] == build_nvr['version']:
                         nvrs_mapping[block_build] = build['nvr']
         return nvrs_mapping
+
+    def _prepare_builds(self, db_event, bundles_by_digest, to_rebuild_digests):
+        """
+        Prepare models.ArtifactBuild instance for every bundle that will be
+        rebuilt
+
+        :param models.Event db_event: database event that will contain builds
+        :param dict bundles_by_digest: mapping of bundle digest to bundle data
+        :param list to_rebuild_digests: digests of bundles to rebuild
+        :return: builds that already in database and ready to be submitted to brew
+        :rtype: list
+        """
+        builds = []
+        csv_mod_url = conf.freshmaker_root_url + "/api/2/pullspec_overrides/{}"
+        for digest in to_rebuild_digests:
+            bundle = bundles_by_digest[digest]
+            # Reset context to db_event for each iteration before
+            # the ArtifactBuild is created.
+            self.set_context(db_event)
+
+            rebuild_reason = RebuildReason.DIRECTLY_AFFECTED.value
+            bundle_name = koji.parse_NVR(bundle["nvr"])["name"]
+
+            build = self.record_build(
+                db_event, bundle_name, ArtifactType.IMAGE,
+                state=ArtifactBuildState.PLANNED.value,
+                original_nvr=bundle["nvr"],
+                rebuild_reason=rebuild_reason)
+
+            # Set context to particular build so logging shows this build
+            # in case of error.
+            self.set_context(build)
+
+            build.transition(ArtifactBuildState.PLANNED.value, "")
+
+            additional_data = ContainerImage.get_additional_data_from_koji(bundle["nvr"])
+            build.build_args = json.dumps({
+                "repository": additional_data["repository"],
+                "commit": additional_data["commit"],
+                "target": additional_data["target"],
+                "branch": additional_data["git_branch"],
+                "arches": additional_data["arches"],
+                "operator_csv_modifications_url": csv_mod_url.format(build.id),
+            })
+            build.bundle_pullspec_overrides = bundle["pullspecs"]
+
+            db.session.commit()
+            builds.append(build)
+        return builds
