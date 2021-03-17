@@ -184,7 +184,8 @@ class ContainerImage(dict):
             return
         self['multi_arch_rpm_manifest'][image_arch] = image_rpm_manifest
 
-    def _get_default_additional_data(self):
+    @staticmethod
+    def _get_default_additional_data():
         return {
             "repository": None,
             "commit": None,
@@ -197,8 +198,9 @@ class ContainerImage(dict):
             "generate_pulp_repos": True,
         }
 
+    @classmethod
     @region.cache_on_arguments()
-    def _get_additional_data_from_koji(self, nvr):
+    def get_additional_data_from_koji(cls, nvr):
         """
         Finds the build defined by `nvr` in Koji and returns dict with
         additional information about this build including "repository",
@@ -206,7 +208,7 @@ class ContainerImage(dict):
 
         In case of lookup error, the "error" will be set to error string.
         """
-        data = self._get_default_additional_data()
+        data = cls._get_default_additional_data()
 
         with koji_service(
                 conf.koji_profile, log, dry_run=conf.dry_run,
@@ -275,11 +277,12 @@ class ContainerImage(dict):
             if not conf.supply_arch_overrides:
                 data['arches'] = None
             else:
-                data['arches'] = self._get_arches_from_koji(session, build['build_id'])
+                data['arches'] = cls._get_arches_from_koji(session, build['build_id'])
 
         return data
 
-    def _get_arches_from_koji(self, koji_session, build_id):
+    @staticmethod
+    def _get_arches_from_koji(koji_session, build_id):
         archives = koji_session.list_archives(build_id=build_id)
         arches = [
             archive['extra']['image']['arch']
@@ -295,7 +298,7 @@ class ContainerImage(dict):
         """
         # Find the additional data for Container build in Koji.
         try:
-            data = self._get_additional_data_from_koji(self.nvr)
+            data = self.get_additional_data_from_koji(self.nvr)
         except KojiLookupError as e:
             err = "Cannot get data from Koji for build %s: %s." % (self.nvr, e)
             log.error(err)

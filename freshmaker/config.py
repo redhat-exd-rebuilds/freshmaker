@@ -420,7 +420,13 @@ class Config(object):
             'default': [],
             'desc': 'List of dictionaries with unpublished repos, containing '
                     '"registry" and "repository" keys that should not be ignored '
-                    'when searching for images to rebuild.'}
+                    'when searching for images to rebuild.'
+        },
+        'freshmaker_root_url': {
+            'type': str,
+            'default': '',
+            'desc': 'Root of the API URL of Freshmaker'
+        },
     }
 
     def __init__(self, conf_section_obj):

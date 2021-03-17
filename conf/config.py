@@ -240,6 +240,8 @@ class TestConfiguration(BaseConfiguration):
     LOG_LEVEL = 'debug'
     DEBUG = True
 
+    FRESHMAKER_ROOT_URL = "https://localhost"  # Root url of Freshmaker's endpoints
+
     SQLALCHEMY_DATABASE_URI = 'sqlite://'
 
     MESSAGING = 'in_memory'
