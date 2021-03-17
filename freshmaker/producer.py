@@ -31,7 +31,14 @@ from freshmaker.kojiservice import koji_service
 from freshmaker.events import BrewContainerTaskStateChangeEvent
 from freshmaker.consumer import work_queue_put
 
-from sqlalchemy.exc import StatementError
+
+try:
+    # SQLAlchemy 1.4
+    from sqlalchemy.exc import StatementError, PendingRollbackError
+    _sa_disconnect_exceptions = (StatementError, PendingRollbackError)
+except ImportError:
+    from sqlalchemy.exc import StatementError
+    _sa_disconnect_exceptions = (StatementError,)  # type: ignore
 
 
 class FreshmakerProducer(PollingProducer):
@@ -40,7 +47,7 @@ class FreshmakerProducer(PollingProducer):
     def poll(self):
         try:
             self.check_unfinished_koji_tasks(db.session)
-        except StatementError as ex:
+        except _sa_disconnect_exceptions as ex:
             db.session.rollback()
             log.error("Invalid request, session is rolled back: %s", ex.orig)
         except Exception:

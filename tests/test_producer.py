@@ -31,7 +31,7 @@ from freshmaker import db
 from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
 from freshmaker.models import ArtifactBuild, Event
 from freshmaker.types import EventState, ArtifactBuildState
-from freshmaker.producer import FreshmakerProducer
+from freshmaker.producer import FreshmakerProducer, _sa_disconnect_exceptions
 from tests import helpers
 
 
@@ -117,7 +117,6 @@ class TestCheckUnfinishedKojiTasks(helpers.ModelsTestCase):
     @patch('freshmaker.kojiservice.KojiService.get_task_info')
     @patch('freshmaker.consumer.get_global_consumer')
     def test_koji_invalid_request(self, global_consumer, get_task_info):
-        from sqlalchemy.exc import StatementError, InvalidRequestError
         from sqlalchemy import select
         self.build.build_id = -10
         consumer = self.create_consumer()
@@ -136,10 +135,8 @@ class TestCheckUnfinishedKojiTasks(helpers.ModelsTestCase):
         my_connection.invalidate()
 
         # check if it will raise Statement Error
-        with self.assertRaises(StatementError) as cm:
+        with self.assertRaises(_sa_disconnect_exceptions):
             producer.check_unfinished_koji_tasks(my_session)
-        # check if Statement Error is caused by InvalidRequestError
-        self.assertIsInstance(cm.exception.orig, InvalidRequestError)
 
         # rollback session, and rollback invalid transaction inside it
         my_session.rollback()
