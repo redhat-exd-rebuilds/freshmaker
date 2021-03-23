@@ -407,23 +407,40 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
     @patch('freshmaker.pyxis.Pyxis._pagination')
     def test_get_latest_bundles(self, page):
         page_copy = self.copy_call_args(page)
-        page_copy.side_effect = [[self.bundles[:3]], []]
+        # Ensure this one is ignored
+        bad_version_bundle = {
+            "channel_name": "test-v2.3",
+            "related_images": [
+                {
+                    "image": "registry/quay/quay-operator@sha256:ddd",
+                    "name": "quay-operator-annotation",
+                    "digest": "sha256:ddd"
+                },
+                {
+                    "image": "registry/quay/quay-security-r-operator@sha256:eee",
+                    "name": "container-security-operator",
+                    "digest": "sha256:eee"
+                }
+            ],
+            "version": "version_me"
+        }
+        page_copy.side_effect = [self.bundles[:3] + [bad_version_bundle], []]
 
         out = self.px.get_latest_bundles(self.indices)
-        expected_out = [self.bundles[:3]]
+        expected_out = self.bundles[:3]
 
         self.assertEqual(out, expected_out)
         page_copy.assert_has_calls([
             call('operators/bundles',
                  {'include': 'data.channel_name,data.version,'
                              'data.related_images,data.bundle_path_digest,'
-                             'data.bundle_path',
+                             'data.bundle_path,data.csv_name',
                   'filter': 'latest_in_channel==true&'
                             'source_index_container_path==path/to/registry:v4.5'}),
             call('operators/bundles',
                  {'include': 'data.channel_name,data.version,'
                              'data.related_images,data.bundle_path_digest,'
-                             'data.bundle_path',
+                             'data.bundle_path,data.csv_name',
                   'filter': 'latest_in_channel==true&'
                             'source_index_container_path==path/to/registry:v4.6'}),
         ])

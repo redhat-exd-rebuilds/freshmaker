@@ -20,9 +20,12 @@
 # SOFTWARE.
 import copy
 import json
-import koji
+from datetime import datetime
+import re
 
+import koji
 from kobo.rpmlib import parse_nvr
+import semver
 
 from freshmaker import db, conf, log
 from freshmaker.handlers import ContainerBuildHandler
@@ -133,8 +136,9 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         # by the highest semantic version
         all_bundles = self._pyxis.get_latest_bundles(index_images)
 
-        # A set of unique bundle digests
-        bundle_digests = set()
+        # A mapping of digests to bundle metadata. This metadata is used to
+        # for the CSV metadata updates.
+        bundle_mds_by_digest = {}
 
         # get bundle digests for original images
         bundle_digests_by_related_nvr = {}
@@ -148,7 +152,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
 
             for bundle in bundles:
                 bundle_digest = bundle['bundle_path_digest']
-                bundle_digests.add(bundle_digest)
+                bundle_mds_by_digest[bundle_digest] = bundle
                 bundle_digests_by_related_nvr.setdefault(image_nvr, []).append(bundle_digest)
 
         if not bundle_digests_by_related_nvr:
@@ -173,12 +177,15 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             'nvr': None,
             'auto_rebuild': False,
             'osbs_pinning': False,
+            # CSV modifications for the rebuilt bundle image
             'pullspecs': [],
+            'append': {},
+            'update': {},
         }
 
         # Get images for each bundle digest, a bundle digest can have multiple images
         # with different arches.
-        for digest in bundle_digests:
+        for digest in bundle_mds_by_digest:
             bundles = self._pyxis.get_images_by_digest(digest)
             # If no bundle image found, just skip this bundle digest
             if not bundles:
@@ -223,6 +230,10 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             # mechanism is used.
             if not (bundle_data['auto_rebuild'] and bundle_data['osbs_pinning']):
                 continue
+
+            csv_name = bundle_mds_by_digest[digest]['csv_name']
+            version = bundle_mds_by_digest[digest]['version']
+            bundle_data.update(self._get_csv_updates(csv_name, version))
 
             for pullspec in bundle_data['pullspecs']:
                 # A pullspec item example:
@@ -277,6 +288,103 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         db_event.transition(EventState.BUILDING, msg)
 
         return []
+
+    @classmethod
+    def _get_csv_updates(cls, csv_name, version):
+        """
+        Determine the CSV updates required for the bundle image.
+
+        :param str csv_name: the name field in the bundle's ClusterServiceVersion file
+        :param str version: the version of the bundle image being rebuilt
+        :return: a dictionary of the CSV updates needed
+        :rtype: dict
+        """
+        csv_modifications = {}
+        # Make sure that OLM will skip the version being rebuilt when upgrading to the rebuilt
+        # version
+        csv_modifications['append'] = {
+            'spec': {
+                'skips': [version],
+            }
+        }
+
+        new_version, fm_suffix = cls._get_rebuild_bundle_version(version)
+        new_csv_name = cls._get_csv_name(csv_name, version, new_version, fm_suffix)
+        csv_modifications['update'] = {
+            'metadata': {
+                # Update the name of the CSV to something uniquely identify the rebuild
+                'name': new_csv_name,
+                # Declare that this rebuild is a substitute of the bundle being rebuilt
+                'substitutes-for': version,
+            },
+            'spec': {
+                # Update the version of the rebuild to be unique and a newer version than the
+                # the version of the bundle being rebuilt
+                'version': new_version,
+            }
+        }
+
+        return csv_modifications
+
+    @classmethod
+    def _get_rebuild_bundle_version(cls, version):
+        """
+        Get a bundle version for the Freshmaker rebuild of the bundle image.
+
+        Examples:
+            1.2.3 => 1.2.3+0.$timestamp.patched (no build ID and not a rebuild)
+            1.2.3+48273 => 1.2.3+48273.0.$timestamp.patched (build ID and not a rebuild)
+            1.2.3+48273.0.1616457250.patched => 1.2.3+48273.0.$timestamp.patched (build ID and a rebuild)
+
+        :param str version: the version of the bundle image being rebuilt
+        :return: a tuple of the bundle version of the Freshmaker rebuild of the bundle image and
+            the suffix that was added by Freshmaker
+        :rtype: tuple(str, str)
+        """
+        parsed_version = semver.VersionInfo.parse(version)
+        # Strip off the microseconds of the timestamp
+        timestamp = int(datetime.utcnow().timestamp())
+        new_fm_suffix = f'0.{timestamp}.patched'
+        if parsed_version.build:
+            # Check if the bundle was a Freshmaker rebuild
+            fm_suffix_search = re.search(
+                r'(?P<fm_suffix>0\.\d+\.patched)$', parsed_version.build
+            )
+            if fm_suffix_search:
+                fm_suffix = fm_suffix_search.groupdict()['fm_suffix']
+                # Get the build without the Freshmaker suffix. This may include a build ID
+                # from the original build before Freshmaker rebuilt it or be empty.
+                build_wo_fm_suffix = parsed_version.build[:- len(fm_suffix)]
+                new_build = f"{build_wo_fm_suffix}{new_fm_suffix}"
+            else:
+                # This was not previously rebuilt by Freshmaker so just append the suffix
+                # to the existing build ID with '.' separating it.
+                new_build = f"{parsed_version.build}.{new_fm_suffix}"
+        else:
+            # If there is existing build ID, then make the Freshmaker suffix the build ID
+            new_build = new_fm_suffix
+
+        new_version = str(parsed_version.replace(build=new_build))
+
+        return new_version, new_fm_suffix
+
+    @staticmethod
+    def _get_csv_name(csv_name, version, rebuild_version, fm_suffix):
+        """
+        Get a bundle CSV name for the Freshmaker rebuild of the bundle image.
+
+        :param str csv_name: the name of the ClusterServiceVersion (CSV) file of the bundle image
+        :param str version: the version of the bundle image being rebuilt
+        :param str rebuild_version: the new version being assigned by Freshmaker for the rebuild
+        :param str fm_suffix: the portion of rebuild_version that was generated by Freshmaker
+        :return: the bundle ClusterServiceVersion (CSV) name of the Freshmaker rebuild of the bundle
+            image
+        :rtype: str
+        """
+        if version in csv_name:
+            return csv_name.replace(version, rebuild_version)
+        else:
+            return f'{csv_name}.{fm_suffix}'
 
     def get_published_original_nvr(self, rebuilt_nvr):
         """
@@ -411,7 +519,11 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                 "arches": additional_data["arches"],
                 "operator_csv_modifications_url": csv_mod_url.format(build.id),
             })
-            build.bundle_pullspec_overrides = bundle["pullspecs"]
+            build.bundle_pullspec_overrides = {
+                "append": bundle["append"],
+                "pullspecs": bundle["pullspecs"],
+                "update": bundle["update"],
+            }
 
             db.session.commit()
             builds.append(build)
