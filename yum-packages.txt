@@ -36,6 +36,7 @@ python3-rpm
 python3-setuptools
 python3-sqlalchemy
 python3-systemd
+python3-semver
 python3-tabulate
 python3-vcrpy
 systemd

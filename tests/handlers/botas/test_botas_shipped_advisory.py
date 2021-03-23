@@ -19,8 +19,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 import json
-
+from datetime import datetime
 from unittest.mock import patch, call, MagicMock
+
+import pytest
+import freezegun
 
 from freshmaker import db, conf
 from freshmaker.events import (
@@ -116,10 +119,21 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
                    {"bundle_path_digest": "original_2_digest"},
                    {"bundle_path_digest": "some_name_2-2-2_digest"}]
         bundles_with_related_images = {
-            "original_1_digest": [{
-                "bundle_path_digest": "bundle_with_related_images_1_digest"}],
-            "original_2_digest": [{
-                "bundle_path_digest": "bundle_with_related_images_2_digest"}]}
+            "original_1_digest": [
+                {
+                    "bundle_path_digest": "bundle_with_related_images_1_digest",
+                    "csv_name": "image.1.2.3",
+                    "version": "1.2.3",
+                },
+            ],
+            "original_2_digest": [
+                {
+                    "bundle_path_digest": "bundle_with_related_images_2_digest",
+                    "csv_name": "image.1.2.4",
+                    "version": "1.2.4",
+                },
+            ]
+        }
 
         image_by_digest = {
             "bundle_with_related_images_1_digest": {"brew": {"build": "bundle1_nvr-1-1"}},
@@ -180,35 +194,56 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         self.handler.start_to_build_images = MagicMock()
         db.session.commit()
 
-        self.handler.handle(event)
+        now = datetime(year=2020, month=12, day=25, hour=0, minute=0, second=0)
+        with freezegun.freeze_time(now):
+            self.handler.handle(event)
 
         self.assertEqual(db_event.state, EventState.BUILDING.value)
         get_build.assert_has_calls([call("bundle1_nvr-1-1"), call("bundle2_nvr-1-1")], any_order=True)
-        bundles_by_digest = \
-            {
-                'bundle_with_related_images_1_digest': {
-                    'images': [{'brew': {'build': 'bundle1_nvr-1-1'}}],
-                    'nvr': 'bundle1_nvr-1-1',
-                    'auto_rebuild': True,
-                    'osbs_pinning': True,
-                    'pullspecs': [{
-                        'new': 'registry/repo/operator1@some_name-1-12345_digest',
-                        'original': 'registry/repo/operator1:v2.2.0',
-                        'pinned': True
-                    }]
+        bundles_by_digest = {
+            "bundle_with_related_images_1_digest": {
+                "append": {"spec": {"skips": ["1.2.3"]}},
+                "auto_rebuild": True,
+                "images": [{"brew": {"build": "bundle1_nvr-1-1"}}],
+                "nvr": "bundle1_nvr-1-1",
+                "osbs_pinning": True,
+                "pullspecs": [
+                    {
+                        "new": "registry/repo/operator1@some_name-1-12345_digest",
+                        "original": "registry/repo/operator1:v2.2.0",
+                        "pinned": True,
+                    }
+                ],
+                "update": {
+                    "metadata": {
+                        "name": "image.1.2.3+0.1608854400.patched",
+                        "substitutes-for": "1.2.3",
+                    },
+                    "spec": {"version": "1.2.3+0.1608854400.patched"},
                 },
-                'bundle_with_related_images_2_digest': {
-                    'images': [{'brew': {'build': 'bundle2_nvr-1-1'}}],
-                    'nvr': 'bundle2_nvr-1-1',
-                    'auto_rebuild': True,
-                    'osbs_pinning': True,
-                    'pullspecs': [{
-                        'new': 'registry/repo/operator2@some_name_2-2-2_digest',
-                        'original': 'registry/repo/operator2:v2.2.0',
-                        'pinned': True
-                    }]
-                }
-            }
+            },
+            "bundle_with_related_images_2_digest": {
+                "append": {"spec": {"skips": ["1.2.4"]}},
+                "auto_rebuild": True,
+                "images": [{"brew": {"build": "bundle2_nvr-1-1"}}],
+                "nvr": "bundle2_nvr-1-1",
+                "osbs_pinning": True,
+                "pullspecs": [
+                    {
+                        "new": "registry/repo/operator2@some_name_2-2-2_digest",
+                        "original": "registry/repo/operator2:v2.2.0",
+                        "pinned": True,
+                    }
+                ],
+                "update": {
+                    "metadata": {
+                        "name": "image.1.2.4+0.1608854400.patched",
+                        "substitutes-for": "1.2.4",
+                    },
+                    "spec": {"version": "1.2.4+0.1608854400.patched"},
+                },
+            },
+        }
         self.handler._prepare_builds.assert_called_with(
             db_event, bundles_by_digest, {'bundle_with_related_images_1_digest', 'bundle_with_related_images_2_digest'})
 
@@ -294,6 +329,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
                     "bundle_path": "bundle-a/path",
                     "bundle_path_digest": "sha256:123123",
                     "channel_name": "streams-1.5.x",
+                    "csv_name": "amq-streams.1.5.3",
                     "related_images": [
                         {
                             "image": "foo@sha256:111",
@@ -307,6 +343,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
                     "bundle_path": "bundle-b/path",
                     "bundle_path_digest": "sha256:023023",
                     "channel_name": "4.5",
+                    "csv_name": "amq-streams.2.4.2",
                     "related_images": [
                         {
                             "image": "foo@sha256:111",
@@ -545,6 +582,18 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
                     'original': 'registry/repo/operator:v2.2.0',
                     'pinned': True,
                 }],
+                "append": {
+                    "spec": {"skips": ["2.2.0"]},
+                },
+                "update": {
+                    "metadata": {
+                        'name': "amq-streams.2.2.0+0.1608854400.patched",
+                        'substitutes-for': "2.2.0",
+                    },
+                    'spec': {
+                        'version': "2.2.0+0.1608854400.patched",
+                    }
+                },
             }
         }
 
@@ -553,8 +602,80 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         builds = ArtifactBuild.query.all()
         self.assertEqual(builds, ret_builds)
         submitted_build = builds[0]
-        self.assertEqual(submitted_build.bundle_pullspec_overrides,
-                         bundle_data["digest"]["pullspecs"])
+        expected_csv_modifications = {
+            "append": {
+                "spec": {"skips": ["2.2.0"]},
+            },
+            "pullspecs": [
+                {
+                    "new": "registry/repo/operator@sha256:123",
+                    "original": "registry/repo/operator:v2.2.0",
+                    "pinned": True,
+                }
+            ],
+            "update": {
+                "metadata": {
+                    "name": "amq-streams.2.2.0+0.1608854400.patched",
+                    "substitutes-for": "2.2.0",
+                },
+                "spec": {
+                    "version": "2.2.0+0.1608854400.patched",
+                }
+            },
+        }
+        self.assertEqual(submitted_build.bundle_pullspec_overrides, expected_csv_modifications)
         self.assertEqual(submitted_build.state, ArtifactBuildState.PLANNED.value)
         self.assertEqual(json.loads(submitted_build.build_args)["operator_csv_modifications_url"],
                          pullspec_override_url + str(submitted_build.id))
+
+
+@pytest.mark.parametrize(
+    "version, expected",
+    (
+        ("1.2.3", ("1.2.3+0.1608854400.patched", "0.1608854400.patched")),
+        ("1.2.3+beta3", ("1.2.3+beta3.0.1608854400.patched", "0.1608854400.patched")),
+        (
+            "1.2.3+beta3.0.1608853000.patched",
+            ("1.2.3+beta3.0.1608854400.patched", "0.1608854400.patched"),
+        ),
+    )
+)
+def test_get_rebuild_bundle_version(version, expected):
+    now = datetime(year=2020, month=12, day=25, hour=0, minute=0, second=0)
+    with freezegun.freeze_time(now):
+        assert HandleBotasAdvisory._get_rebuild_bundle_version(version) == expected
+
+
+def test_get_csv_name():
+    version = "1.2.3"
+    rebuild_version = "1.2.3+0.1608854400.patched"
+    fm_suffix = "0.1608854400.patched"
+    rv = HandleBotasAdvisory._get_csv_name("amq-streams.1.2.3", version, rebuild_version, fm_suffix)
+    assert rv == "amq-streams.1.2.3+0.1608854400.patched"
+
+    # If the version is not present in the CSV name (it's supposed to be), then Freshmaker
+    # will just append the suffix to make it unique
+    rv = HandleBotasAdvisory._get_csv_name("amq-streams.123", version, rebuild_version, fm_suffix)
+    assert rv == "amq-streams.123.0.1608854400.patched"
+
+
+@patch("freshmaker.handlers.botas.botas_shipped_advisory.HandleBotasAdvisory._get_csv_name")
+@patch("freshmaker.handlers.botas.botas_shipped_advisory.HandleBotasAdvisory._get_rebuild_bundle_version")
+def test_get_csv_updates(mock_grbv, mock_gcn):
+    mock_grbv.return_value = ("1.2.3+0.1608854400.patched", "0.1608854400.patched")
+    mock_gcn.return_value = "amq-streams.1.2.3+0.1608854400.patched"
+    rv = HandleBotasAdvisory._get_csv_updates("amq-streams.1.2.3", "1.2.3")
+    assert rv == {
+        "append": {
+            "spec": {"skips": ["1.2.3"]},
+        },
+        "update": {
+            "metadata": {
+                'name': "amq-streams.1.2.3+0.1608854400.patched",
+                'substitutes-for': "1.2.3",
+            },
+            'spec': {
+                'version': "1.2.3+0.1608854400.patched",
+            }
+        }
+    }

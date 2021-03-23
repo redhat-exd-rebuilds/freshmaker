@@ -3,6 +3,7 @@ import requests
 import urllib
 from datetime import datetime
 from requests_kerberos import HTTPKerberosAuth, OPTIONAL
+import semver
 
 from freshmaker import log, conf
 from freshmaker.utils import get_ocp_release_date
@@ -151,9 +152,8 @@ class Pyxis(object):
         :rtype: list
         """
         # we need 'bundle_path_digest' to find ContainerImage of that bundle
-        include_fields = ['data.channel_name', 'data.version',
-                          'data.related_images', 'data.bundle_path_digest',
-                          'data.bundle_path']
+        include_fields = ['data.channel_name', 'data.version', 'data.related_images',
+                          'data.bundle_path_digest', 'data.bundle_path', 'data.csv_name']
         request_params = {'include': ','.join(include_fields)}
 
         latest_bundles = []
@@ -164,7 +164,13 @@ class Pyxis(object):
 
             request_params['filter'] = \
                 f'latest_in_channel==true&source_index_container_path=={path}'
-            bundle_list = self._pagination('operators/bundles', request_params)
+            # Discard any bundles with invalid semantic versions since Freshmaker
+            # would not be able to modify the version appropriately.
+            bundle_list = [
+                bundle
+                for bundle in self._pagination('operators/bundles', request_params)
+                if semver.VersionInfo.isvalid(bundle["version"])
+            ]
 
             latest_bundles.extend(bundle_list)
 
