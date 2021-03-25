@@ -163,7 +163,7 @@ class Pyxis(object):
                 continue
 
             request_params['filter'] = \
-                f'latest_in_channel==true&source_index_container_path=={path}'
+                f'latest_in_channel==true%20and%20source_index_container_path=={path}'
             # Discard any bundles with invalid semantic versions since Freshmaker
             # would not be able to modify the version appropriately.
             bundle_list = [
