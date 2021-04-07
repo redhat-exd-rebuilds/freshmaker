@@ -459,3 +459,13 @@ class BotasErrataShippedEvent(ErrataBaseEvent):
 
     def __init__(self, msg_id, advisory, dry_run=False):
         super().__init__(msg_id, advisory, dry_run=dry_run)
+
+
+class ManualBundleRebuild(BaseEvent):
+    def __init__(self, msg_id, container_images, bundle_images, metadata=None,
+                 dry_run=False, requester=None):
+        super().__init__(msg_id, manual=True, dry_run=dry_run)
+        self.container_images = container_images
+        self.bundle_images = bundle_images
+        self.metadata = metadata
+        self.requester = requester

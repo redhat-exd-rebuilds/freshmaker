@@ -29,7 +29,7 @@ import semver
 
 from freshmaker import db, conf, log
 from freshmaker.handlers import ContainerBuildHandler
-from freshmaker.events import BotasErrataShippedEvent
+from freshmaker.events import BotasErrataShippedEvent, ManualBundleRebuild
 from freshmaker.lightblue import ContainerImage
 from freshmaker.models import ArtifactBuild, ArtifactType, Event
 from freshmaker.types import EventState, ArtifactBuildState, RebuildReason
@@ -44,6 +44,10 @@ class HandleBotasAdvisory(ContainerBuildHandler):
     BOTAS to SHIPPED_LIVE state
     """
     name = "HandleBotasAdvisory"
+    # This prefix should be added to event reason, when skipping the event.
+    # Because Release Driver checks event's reason for certain prefixes,
+    # to determine if there is an error in bundles processing.
+    _no_bundle_prefix = "No bundles to rebuild: "
 
     def __init__(self, pyxis=None):
         super().__init__()
@@ -57,10 +61,15 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         if not conf.freshmaker_root_url or "://" not in conf.freshmaker_root_url:
             raise ValueError("'FRESHMAKER_ROOT_URL' parameter should be set to "
                              "a valid URL")
+        # Currently processed event
+        self.event = None
 
     def can_handle(self, event):
         if (isinstance(event, BotasErrataShippedEvent) and
                 'docker' in event.advisory.content_types):
+            return True
+        # This handler can handle manual bundle rebuilds too
+        if isinstance(event, ManualBundleRebuild):
             return True
 
         return False
@@ -82,13 +91,41 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             self.log_info(msg)
             return []
 
+        if isinstance(event, ManualBundleRebuild):
+            bundles_to_rebuild = self._handle_manual_rebuild(db_event)
+        else:
+            bundles_to_rebuild = self._handle_auto_rebuild(db_event)
+
+        if not bundles_to_rebuild:
+            return []
+
+        builds = self._prepare_builds(db_event, bundles_to_rebuild)
+
+        # Reset context to db_event.
+        self.set_context(db_event)
+
+        self.start_to_build_images(builds)
+        msg = f"Advisory {db_event.search_key}: Rebuilding " \
+              f"{len(db_event.builds.all())} bundle images."
+        db_event.transition(EventState.BUILDING, msg)
+
+        return []
+
+    def _handle_auto_rebuild(self, db_event):
+        """
+        Handle auto rebuild for an advisory created by Botas
+
+        :param db_event: database event that represent rebuild event
+        :rtype: list
+        :return: list of advisories that should be rebuilt
+        """
         # Mapping of original build nvrs to rebuilt nvrs in advisory
         nvrs_mapping = self._create_original_to_rebuilt_nvrs_map()
 
         original_nvrs = nvrs_mapping.keys()
         self.log_info(
             "Orignial nvrs of build in the advisory #{0} are: {1}".format(
-                event.advisory.errata_id, " ".join(original_nvrs)))
+                self.event.advisory.errata_id, " ".join(original_nvrs)))
 
         # Get image manifest_list_digest for all original images, manifest_list_digest is used
         # in pullspecs in bundle's related images
@@ -237,9 +274,11 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             for pullspec in bundle_data['pullspecs']:
                 # A pullspec item example:
                 # {
-                #   'new': 'registry.exampe.io/repo/example-operator@sha256:<sha256-value>'
+                #   'new': 'registry.exampe.io/repo/example-operator@sha256:<sha256-value>',
                 #   'original': 'registry.example.io/repo/example-operator:v2.2.0',
-                #   'pinned': True
+                #   'pinned': True,
+                #   # value used for internal purpose during manual rebuilds, it's an old pullspec that was replaced
+                #   '_old': 'registry.exampe.io/repo/example-operator@sha256:<previous-sha256-value>,
                 # }
 
                 # A pullspec path is in format of "registry/repository@digest"
@@ -255,6 +294,9 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                 new_nvr = nvrs_mapping[old_nvr]
                 new_digest = rebuilt_digests_by_nvr[new_nvr]
 
+                # save pullspec that image had before rebuild
+                pullspec['_old'] = pullspec.get('new')
+
                 # Replace the old digest with new digest
                 pullspec_elems[1] = new_digest
                 new_pullspec = '@'.join(pullspec_elems)
@@ -269,24 +311,127 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                 to_rebuild_digests.add(digest)
 
         if not to_rebuild_digests:
-            msg = f"No bundle images to rebuild for advisory {event.advisory.name}"
+            msg = self._no_bundle_prefix + "No bundle images to rebuild for " \
+                                           f"advisory {self.event.advisory.name}"
             self.log_info(msg)
             db_event.transition(EventState.SKIPPED, msg)
             db.session.commit()
             return []
 
-        builds = self._prepare_builds(db_event, bundles_by_digest,
-                                      to_rebuild_digests)
+        bundles_to_rebuild = list(map(lambda x: bundles_by_digest[x],
+                                      to_rebuild_digests))
+        return bundles_to_rebuild
 
-        # Reset context to db_event.
-        self.set_context(db_event)
+    def _handle_manual_rebuild(self, db_event):
+        """
+        Handle manual rebuild submitted by Release Driver for an advisory created by Botas
 
-        self.start_to_build_images(builds)
-        msg = f"Advisory {db_event.search_key}: Rebuilding " \
-              f"{len(db_event.builds.all())} bundle images."
-        db_event.transition(EventState.BUILDING, msg)
+        :param db_event: database event that represents a rebuild event
+        :rtype: list
+        :return: list of advisories that should be rebuilt
+        """
+        old_to_new_pullspec_map = self._get_pullspecs_mapping()
 
-        return []
+        if not old_to_new_pullspec_map:
+            msg = self._no_bundle_prefix + 'None of the bundle images have ' \
+                                           'applicable pullspecs to replace'
+            log.warning(msg)
+            db_event.transition(EventState.SKIPPED, msg)
+            return []
+
+        # Unauthenticated koji session to fetch build info of bundles
+        koji_api = KojiService(conf.koji_profile)
+        rebuild_nvr_to_pullspecs_map = dict()
+        # compare replaced pullspecs with pullspecs in 'container_images' and
+        # create map for bundles that should be rebuilt with their nvrs
+        for container_image_nvr in self.event.container_images:
+            artifact_build = db.session.query(ArtifactBuild).filter(
+                ArtifactBuild.rebuilt_nvr == container_image_nvr,
+                ArtifactBuild.type == ArtifactType.IMAGE.value,
+            ).one_or_none()
+            pullspecs = []
+            # Try to find build in FM database, if it's not there check in Brew
+            if artifact_build:
+                pullspecs = artifact_build.bundle_pullspec_overrides["pullspecs"]
+            else:
+                # Fetch buildinfo from Koji
+                buildinfo = koji_api.get_build(container_image_nvr)
+                # Get the original pullspecs
+                pullspecs = (
+                    buildinfo.get('extra', {})
+                             .get('image', {})
+                             .get('operator_manifests', {})
+                             .get('related_images', {})
+                             .get('pullspecs', [])
+                )
+
+            for pullspec in pullspecs:
+                if pullspec.get('new') not in old_to_new_pullspec_map:
+                    continue
+                # use newer pullspecs in the image
+                pullspec['new'] = old_to_new_pullspec_map[pullspec['new']]
+                rebuild_nvr_to_pullspecs_map[container_image_nvr] = pullspecs
+
+        if not rebuild_nvr_to_pullspecs_map:
+            msg = self._no_bundle_prefix + 'None of the container images have ' \
+                                           'applicable pullspecs from the input bundle images'
+            log.info(msg)
+            db_event.transition(EventState.SKIPPED, msg)
+            return []
+
+        # list with metadata about every bundle to do rebuild
+        to_rebuild_bundles = []
+        # fill 'append' and 'update' fields for bundles to rebuild
+        for nvr, pullspecs in rebuild_nvr_to_pullspecs_map.items():
+            bundle_digest = self._pyxis.get_manifest_list_digest_by_nvr(nvr)
+            if bundle_digest is not None:
+                bundles = self._pyxis.get_bundles_by_digest(bundle_digest)
+                temp_bundle = bundles[0]
+                csv_updates = (self._get_csv_updates(temp_bundle['csv_name'],
+                                                     temp_bundle['version']))
+                to_rebuild_bundles.append({
+                    'nvr': nvr,
+                    'update': csv_updates['update'],
+                    'pullspecs': pullspecs,
+                })
+            else:
+                log.warning('Can\'t find manifest_list_digest for bundle '
+                            f'"{nvr}" in Pyxis')
+
+        if not to_rebuild_bundles:
+            msg = 'Can\'t find digests for any of the bundles to rebuild'
+            log.warning(msg)
+            db_event.transition(EventState.FAILED, msg)
+            return []
+
+        return to_rebuild_bundles
+
+    def _get_pullspecs_mapping(self):
+        """
+        Get map of all replaced pullspecs from 'bundle_images' provided in an event.
+
+        :rtype: dict
+        :return: map of all '_old' pullspecs that was replaced by 'new'
+            pullspecs in previous Freshmaker rebuilds
+        """
+        old_to_new_pullspec_map = dict()
+        for bundle_nvr in self.event.bundle_images:
+            artifact_build = db.session.query(ArtifactBuild).filter(
+                ArtifactBuild.rebuilt_nvr == bundle_nvr,
+                ArtifactBuild.type == ArtifactType.IMAGE.value,
+            ).one_or_none()
+            if artifact_build is None:
+                log.warning(
+                    f'Can\'t find build for a bundle image "{bundle_nvr}"')
+                continue
+            pullspec_overrides = artifact_build.bundle_pullspec_overrides
+            for pullspec in pullspec_overrides['pullspecs']:
+                old_pullspec = pullspec.get('_old', None)
+                if old_pullspec is None:
+                    continue
+                old_to_new_pullspec_map[old_pullspec] = pullspec['new']
+
+        return old_to_new_pullspec_map
 
     @classmethod
     def _get_csv_updates(cls, csv_name, version):
@@ -467,21 +612,19 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                         nvrs_mapping[block_build] = build['nvr']
         return nvrs_mapping
 
-    def _prepare_builds(self, db_event, bundles_by_digest, to_rebuild_digests):
+    def _prepare_builds(self, db_event, to_rebuild_bundles):
         """
         Prepare models.ArtifactBuild instance for every bundle that will be
         rebuilt
 
         :param models.Event db_event: database event that will contain builds
-        :param dict bundles_by_digest: mapping of bundle digest to bundle data
-        :param list to_rebuild_digests: digests of bundles to rebuild
+        :param list to_rebuild_bundles: bundles to rebuild
         :return: builds that already in database and ready to be submitted to brew
         :rtype: list
         """
         builds = []
         csv_mod_url = conf.freshmaker_root_url + "/api/2/pullspec_overrides/{}"
-        for digest in to_rebuild_digests:
-            bundle = bundles_by_digest[digest]
+        for bundle in to_rebuild_bundles:
             # Reset context to db_event for each iteration before
             # the ArtifactBuild is created.
             self.set_context(db_event)

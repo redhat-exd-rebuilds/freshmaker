@@ -465,6 +465,18 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
         expected_bundles = [self.bundles[0]]
         self.assertListEqual(new_bundles, expected_bundles)
 
+    @patch('freshmaker.pyxis.Pyxis._pagination')
+    def test_get_bundles_by_digest(self, page):
+        page.return_value = {"some_bundle"}
+        digest = "some_digest"
+
+        self.px.get_bundles_by_digest(digest)
+
+        page.assert_called_once_with("operators/bundles", {
+            "include": "data.version,data.csv_name",
+            "filter": "bundle_path_digest==some_digest"
+        })
+
     @patch('freshmaker.pyxis.requests.get')
     def test_get_images_by_digest(self, mock_get):
         image_1 = {

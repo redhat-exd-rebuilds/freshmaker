@@ -209,6 +209,21 @@ class Pyxis(object):
 
         return ret
 
+    def get_bundles_by_digest(self, digest):
+        """
+        Get bundles that have the specified digest in 'bundle_path_digest'.
+
+        :param str digest: digest of bundle image to search for
+        :return: list of bundles
+        :rtype: list
+        """
+        request_params = {
+            'include': ','.join(['data.version', 'data.csv_name']),
+            'filter': f'bundle_path_digest=={digest}'
+        }
+
+        return self._pagination('operators/bundles', request_params)
+
     def get_images_by_digest(self, digest):
         """
         Get images by image's digest (manifest_list_digest or manifest_schema2_digest)
