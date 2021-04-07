@@ -21,7 +21,7 @@
 
 import time
 from freshmaker.parsers import BaseParser
-from freshmaker.events import ManualRebuildWithAdvisoryEvent
+from freshmaker.events import ManualRebuildWithAdvisoryEvent, ManualBundleRebuild
 from freshmaker.errata import Errata, ErrataAdvisory
 
 
@@ -44,16 +44,21 @@ class FreshmakerManualRebuildParser(BaseParser):
             from the UMB message sent from Frontend to Backend.
         """
         msg_id = data.get('msg_id', "manual_rebuild_%s" % (str(time.time())))
-        errata_id = data.get('errata_id')
         dry_run = data.get('dry_run', False)
 
-        errata = Errata()
-        advisory = ErrataAdvisory.from_advisory_id(errata, errata_id)
+        if data.get('errata_id', None):
+            errata_id = data.get('errata_id')
+            errata = Errata()
+            advisory = ErrataAdvisory.from_advisory_id(errata, errata_id)
 
-        event = ManualRebuildWithAdvisoryEvent(
-            msg_id, advisory, data.get("container_images", []), data.get("metadata", None),
-            freshmaker_event_id=data.get('freshmaker_event_id'), manual=True,
-            dry_run=dry_run, requester=data.get('requester', None))
+            event = ManualRebuildWithAdvisoryEvent(
+                msg_id, advisory, data.get("container_images", []), data.get("metadata", None),
+                freshmaker_event_id=data.get('freshmaker_event_id'), manual=True,
+                dry_run=dry_run, requester=data.get('requester', None))
+        else:
+            event = ManualBundleRebuild(msg_id, data.get('container_images', []),
+                                        data.get('bundle_images'), data.get('metadata', None),
+                                        dry_run=dry_run, requester=data.get('requester', None))
 
         return event
 
