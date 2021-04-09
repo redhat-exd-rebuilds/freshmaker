@@ -117,6 +117,11 @@ class KojiLookupError(ValueError):
     pass
 
 
+class ExtraRepoNotConfiguredError(ValueError):
+    """ Extra repo required but missing in config """
+    pass
+
+
 class ContainerRepository(dict):
     """Represent a container repository"""
 
@@ -228,6 +233,15 @@ class ContainerImage(dict):
                         "Cannot find task_id or container_koji_task_id "
                         "in the Koji build %r" % build)
 
+            fs_koji_task_id = build.get('extra', {}).get('filesystem_koji_task_id')
+            if fs_koji_task_id:
+                parsed_nvr = koji.parse_NVR(nvr)
+                name_version = f'{parsed_nvr["name"]}-{parsed_nvr["version"]}'
+                if name_version not in conf.image_extra_repo:
+                    msg = (f'{name_version} is a base image, but extra image repo for it '
+                           f'is not specified in the Freshmaker configuration.')
+                    raise ExtraRepoNotConfiguredError(msg)
+
             # Get the list of ODCS composes used to build the image.
             extra_image = build.get("extra", {}).get("image", {})
             if extra_image.get("odcs", {}).get("compose_ids"):
@@ -304,6 +318,10 @@ class ContainerImage(dict):
             log.error(err)
             data = self._get_default_additional_data()
             data["error"] = err
+        except ExtraRepoNotConfiguredError as e:
+            log.error(e)
+            data = self._get_default_additional_data()
+            data["error"] = str(e)
 
         self.update(data)
 

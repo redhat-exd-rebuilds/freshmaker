@@ -30,11 +30,8 @@ from unittest.mock import call, patch, Mock
 
 import freshmaker
 
-from freshmaker.lightblue import ContainerImage
-from freshmaker.lightblue import ContainerRepository
-from freshmaker.lightblue import LightBlue
-from freshmaker.lightblue import LightBlueRequestError
-from freshmaker.lightblue import LightBlueSystemError
+from freshmaker.lightblue import ContainerImage, ContainerRepository, ExtraRepoNotConfiguredError
+from freshmaker.lightblue import LightBlue, LightBlueRequestError, LightBlueSystemError
 from freshmaker.utils import sorted_by_nvr
 from tests.test_handler import MyHandler
 from tests import helpers
@@ -347,6 +344,31 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
         self.assertEqual(self.dummy_image["commit"], "commit_hash1")
         self.assertEqual(self.dummy_image["target"], "target1")
         self.assertEqual(self.dummy_image["arches"], 'ppc64le s390x')
+
+    @patch('freshmaker.kojiservice.KojiService.get_build')
+    @patch('freshmaker.kojiservice.KojiService.get_task_request')
+    @patch('freshmaker.kojiservice.KojiService.list_archives')
+    def test_resolve_commit_no_extra_repo(
+            self, list_archives, get_task_request, get_build):
+        get_build.return_value = {
+            "build_id": 67890,
+            "task_id": 123456,
+            "source": "git://example.com/rpms/repo-1?#commit_hash1",
+            "extra": {
+                'filesystem_koji_task_id': 12345
+            }
+        }
+        get_task_request.return_value = [
+            "git://example.com/rpms/repo-1?#origin/master", "target1", {}]
+        list_archives.return_value = []
+
+        self.assertRaises(
+            ExtraRepoNotConfiguredError,
+            self.dummy_image.get_additional_data_from_koji, self.dummy_image.nvr
+        )
+
+        with patch.object(freshmaker.conf, 'image_extra_repo', new={'package-name-1-4': ''}):
+            self.dummy_image.get_additional_data_from_koji(self.dummy_image.nvr)
 
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')
