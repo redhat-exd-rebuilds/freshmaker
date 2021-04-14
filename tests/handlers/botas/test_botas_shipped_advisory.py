@@ -202,7 +202,6 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         get_build.assert_has_calls([call("bundle1_nvr-1-1"), call("bundle2_nvr-1-1")], any_order=True)
         bundles_by_digest = {
             "bundle_with_related_images_1_digest": {
-                "append": {"spec": {"skips": ["1.2.3"]}},
                 "auto_rebuild": True,
                 "images": [{"brew": {"build": "bundle1_nvr-1-1"}}],
                 "nvr": "bundle1_nvr-1-1",
@@ -217,13 +216,12 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
                 "update": {
                     "metadata": {
                         "name": "image.1.2.3+0.1608854400.patched",
-                        "substitutes-for": "1.2.3",
+                        "annotations": {"olm.substitutesFor": "1.2.3"},
                     },
                     "spec": {"version": "1.2.3+0.1608854400.patched"},
                 },
             },
             "bundle_with_related_images_2_digest": {
-                "append": {"spec": {"skips": ["1.2.4"]}},
                 "auto_rebuild": True,
                 "images": [{"brew": {"build": "bundle2_nvr-1-1"}}],
                 "nvr": "bundle2_nvr-1-1",
@@ -238,7 +236,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
                 "update": {
                     "metadata": {
                         "name": "image.1.2.4+0.1608854400.patched",
-                        "substitutes-for": "1.2.4",
+                        "annotations": {"olm.substitutesFor": "1.2.4"},
                     },
                     "spec": {"version": "1.2.4+0.1608854400.patched"},
                 },
@@ -582,13 +580,10 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
                     'original': 'registry/repo/operator:v2.2.0',
                     'pinned': True,
                 }],
-                "append": {
-                    "spec": {"skips": ["2.2.0"]},
-                },
                 "update": {
                     "metadata": {
                         'name': "amq-streams.2.2.0+0.1608854400.patched",
-                        'substitutes-for': "2.2.0",
+                        "annotations": {"olm.substitutesFor": "2.2.0"},
                     },
                     'spec': {
                         'version': "2.2.0+0.1608854400.patched",
@@ -603,9 +598,6 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         self.assertEqual(builds, ret_builds)
         submitted_build = builds[0]
         expected_csv_modifications = {
-            "append": {
-                "spec": {"skips": ["2.2.0"]},
-            },
             "pullspecs": [
                 {
                     "new": "registry/repo/operator@sha256:123",
@@ -616,7 +608,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
             "update": {
                 "metadata": {
                     "name": "amq-streams.2.2.0+0.1608854400.patched",
-                    "substitutes-for": "2.2.0",
+                    "annotations": {"olm.substitutesFor": "2.2.0"},
                 },
                 "spec": {
                     "version": "2.2.0+0.1608854400.patched",
@@ -666,13 +658,10 @@ def test_get_csv_updates(mock_grbv, mock_gcn):
     mock_gcn.return_value = "amq-streams.1.2.3+0.1608854400.patched"
     rv = HandleBotasAdvisory._get_csv_updates("amq-streams.1.2.3", "1.2.3")
     assert rv == {
-        "append": {
-            "spec": {"skips": ["1.2.3"]},
-        },
         "update": {
             "metadata": {
                 'name': "amq-streams.1.2.3+0.1608854400.patched",
-                'substitutes-for': "1.2.3",
+                "annotations": {"olm.substitutesFor": "1.2.3"}
             },
             'spec': {
                 'version': "1.2.3+0.1608854400.patched",

@@ -179,7 +179,6 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             'osbs_pinning': False,
             # CSV modifications for the rebuilt bundle image
             'pullspecs': [],
-            'append': {},
             'update': {},
         }
 
@@ -300,14 +299,6 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         :rtype: dict
         """
         csv_modifications = {}
-        # Make sure that OLM will skip the version being rebuilt when upgrading to the rebuilt
-        # version
-        csv_modifications['append'] = {
-            'spec': {
-                'skips': [version],
-            }
-        }
-
         new_version, fm_suffix = cls._get_rebuild_bundle_version(version)
         new_csv_name = cls._get_csv_name(csv_name, version, new_version, fm_suffix)
         csv_modifications['update'] = {
@@ -315,7 +306,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                 # Update the name of the CSV to something uniquely identify the rebuild
                 'name': new_csv_name,
                 # Declare that this rebuild is a substitute of the bundle being rebuilt
-                'substitutes-for': version,
+                'annotations': {'olm.substitutesFor': version}
             },
             'spec': {
                 # Update the version of the rebuild to be unique and a newer version than the
@@ -520,7 +511,6 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                 "operator_csv_modifications_url": csv_mod_url.format(build.id),
             })
             build.bundle_pullspec_overrides = {
-                "append": bundle["append"],
                 "pullspecs": bundle["pullspecs"],
                 "update": bundle["update"],
             }
