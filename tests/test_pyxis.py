@@ -435,13 +435,13 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                  {'include': 'data.channel_name,data.version,'
                              'data.related_images,data.bundle_path_digest,'
                              'data.bundle_path,data.csv_name',
-                  'filter': 'latest_in_channel==true%20and%20'
+                  'filter': 'latest_in_channel==true and '
                             'source_index_container_path==path/to/registry:v4.5'}),
             call('operators/bundles',
                  {'include': 'data.channel_name,data.version,'
                              'data.related_images,data.bundle_path_digest,'
                              'data.bundle_path,data.csv_name',
-                  'filter': 'latest_in_channel==true%20and%20'
+                  'filter': 'latest_in_channel==true and '
                             'source_index_container_path==path/to/registry:v4.6'}),
         ])
 
