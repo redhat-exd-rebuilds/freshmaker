@@ -431,8 +431,8 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         event = BotasErrataShippedEvent("test_msg_id", self.botas_advisory)
         self.botas_advisory._builds = {
             "product_name": {
-                "builds": [{"nvr": "some_name-2-2"},
-                           {"nvr": "some_name_two-2-2"}]
+                "builds": [{"some_name-2-2": {"nvr": "some_name-2-2"}},
+                           {"some_name_two-2-2": {"nvr": "some_name_two-2-2"}}]
             }
         }
         get_build.return_value = "some_name-1-0"
@@ -476,8 +476,8 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         event = BotasErrataShippedEvent("test_msg_id", self.botas_advisory)
         self.botas_advisory._builds = {
             "product_name": {
-                "builds": [{"nvr": "foo-1-2.123"},
-                           {"nvr": "bar-2-2.134"}]
+                "builds": [{"foo-1-2.123": {"nvr": "foo-1-2.123"}},
+                           {"bar-2-2.134": {"nvr": "bar-2-2.134"}}]
             }
         }
 
@@ -715,8 +715,8 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         self.handler.event = BotasErrataShippedEvent("test_msg_id", self.botas_advisory)
         self.botas_advisory._builds = {
             "product_name": {
-                "builds": [{"nvr": "some_name-2-12345"},
-                           {"nvr": "some_name_two-2-2"}]
+                "builds": [{"some_name-2-12345": {"nvr": "some_name-2-12345"}},
+                           {"some_name_two-2-2": {"nvr": "some_name_two-2-2"}}]
             }
         }
         self.get_blocking_advisories.return_value = {"some_name-1-1",
