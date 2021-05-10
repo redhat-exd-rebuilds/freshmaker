@@ -595,21 +595,24 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         # then get original NVR for every build
         for product_info in self.event.advisory.builds.values():
             for build in product_info['builds']:
+                # Each build is a one key/value pair, and key is the build NVR
+                build_nvr = next(iter(build))
+
                 # Search for the first build that triggered the chain of rebuilds
                 # for every shipped NVR to get original NVR from it
-                original_nvr = self.get_published_original_nvr(build['nvr'])
+                original_nvr = self.get_published_original_nvr(build_nvr)
                 if original_nvr is None:
                     continue
-                nvrs_mapping[original_nvr] = build['nvr']
-                build_nvr = parse_nvr(build['nvr'])
+                nvrs_mapping[original_nvr] = build_nvr
+                parsed_build_nvr = parse_nvr(build_nvr)
 
                 # Check builds from blocking advisories and add to the mapping
                 # all of them, that have overlapping package names
                 for block_build in blocking_advisories_builds:
                     block_build_nvr = parse_nvr(block_build)
-                    if block_build_nvr['name'] == build_nvr['name'] and \
-                            block_build_nvr['version'] == build_nvr['version']:
-                        nvrs_mapping[block_build] = build['nvr']
+                    if block_build_nvr['name'] == parsed_build_nvr['name'] and \
+                            block_build_nvr['version'] == parsed_build_nvr['version']:
+                        nvrs_mapping[block_build] = build_nvr
         return nvrs_mapping
 
     def _prepare_builds(self, db_event, to_rebuild_bundles):
