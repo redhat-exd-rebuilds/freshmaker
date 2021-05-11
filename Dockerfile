@@ -26,6 +26,8 @@ RUN \
     pip3 install . --no-deps
 
 RUN mkdir -p /usr/share/freshmaker && cp contrib/freshmaker.wsgi /usr/share/freshmaker/
+# Delete the default logging configuration
+RUN rm -f fedmsg.d/freshmaker-logging.py
 
 RUN \
     FRESHMAKER_CONFIG_FILE=/etc/freshmaker/config.py FRESHMAKER_CONFIG_SECTION=DevConfiguration freshmaker-manager --help &&\
