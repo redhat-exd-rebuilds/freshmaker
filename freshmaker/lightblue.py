@@ -1792,10 +1792,10 @@ class LightBlue(object):
             candidate_image_group = self.describe_image_group(image)
             if candidate_image_group != image_group:
                 log.debug(
-                    "The image %s did not have the correct image group (%s != %s)",
+                    "The image %s did not have the correct image group (`%s` != `%s`)",
                     image.nvr,
                     candidate_image_group,
-                    image,
+                    image_group,
                 )
                 continue
 
