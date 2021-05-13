@@ -356,12 +356,12 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                  ]
         my_request.assert_has_calls(calls)
 
-    @patch.object(conf, 'pyxis_index_image_organization', new='org')
+    @patch.object(conf, 'pyxis_index_image_organizations', new=['org1', 'org2'])
     @patch('freshmaker.pyxis.Pyxis._pagination')
     def test_get_operator_indices(self, page):
         self.px.get_operator_indices()
         page.assert_called_once_with(
-            'operators/indices', {'filter': 'organization==org'})
+            'operators/indices', {'filter': 'organization==org1 or organization==org2'})
 
     @patch.object(conf, "product_pages_api_url", new="http://pp.example.com/api")
     @patch("freshmaker.pyxis.Pyxis._pagination")

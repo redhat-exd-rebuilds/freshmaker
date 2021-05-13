@@ -405,10 +405,10 @@ class Config(object):
             'default': '',
             'desc': 'Server URL of Pyxis.'
         },
-        'pyxis_index_image_organization': {
-            'type': str,
-            'default': '',
-            'desc': 'Query Pyxis for index images only with this organization'
+        'pyxis_index_image_organizations': {
+            'type': list,
+            'default': [],
+            'desc': 'Query Pyxis for index images only with these organizations'
         },
         'product_pages_api_url': {
             'type': str,
