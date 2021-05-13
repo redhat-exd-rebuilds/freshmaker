@@ -115,9 +115,11 @@ class Pyxis(object):
     def get_operator_indices(self):
         """ Get all index images for organization(s)(configurable) from Pyxis """
         request_params = {}
-        organization = conf.pyxis_index_image_organization
-        if organization:
-            request_params["filter"] = "organization==" + organization
+        organizations = conf.pyxis_index_image_organizations
+        if organizations:
+            rsql = " or ".join(
+                [f"organization=={organization}" for organization in organizations])
+            request_params["filter"] = rsql
         indices = self._pagination("operators/indices", request_params)
 
         # Operator indices can be available in pyxis prior to the Openshift version
