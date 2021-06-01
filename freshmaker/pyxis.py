@@ -191,7 +191,10 @@ class Pyxis(object):
         # get manifest_list_digest of ContainerImage from Pyxis
         for image in self._pagination(f'images/nvr/{nvr}', request_params):
             for repo in image.get('repositories'):
-                if repo['published'] and 'manifest_list_digest' in repo:
+                # skip internal build registry
+                if repo['registry'] in conf.image_build_repository_registries:
+                    continue
+                if 'manifest_list_digest' in repo:
                     return repo['manifest_list_digest']
         return None
 

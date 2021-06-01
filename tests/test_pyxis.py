@@ -445,6 +445,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                             'source_index_container_path==path/to/registry:v4.6'}),
         ])
 
+    @patch.object(conf, 'image_build_repository_registries', new=['reg1'])
     @patch('freshmaker.pyxis.Pyxis._pagination')
     def test_get_manifest_list_digest_by_nvr(self, page):
         page.return_value = self.images
