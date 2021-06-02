@@ -207,7 +207,10 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         self.handler._create_original_to_rebuilt_nvrs_map = \
             MagicMock(return_value={"original_1": "some_name-1-12345",
                                     "original_2": "some_name_2-2-2"})
-        self.pyxis().get_manifest_list_digest_by_nvr.side_effect = lambda x: nvr_to_digest[x]
+
+        def gmldbn(nvr, must_be_published=True):
+            return nvr_to_digest[nvr]
+        self.pyxis().get_manifest_list_digest_by_nvr.side_effect = gmldbn
         self.pyxis().get_operator_indices.return_value = []
         self.pyxis().get_latest_bundles.return_value = bundles
         # return bundles for original images
@@ -336,8 +339,10 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
             db.session, db_event, "ed0", "image", 1234,
             rebuilt_nvr="container_image_1_nvr")
         build.bundle_pullspec_overrides = bundle_pullspec_overrides
-        self.pyxis().get_manifest_list_digest_by_nvr.side_effect = \
-            lambda nvr: digest_by_nvr[nvr]
+
+        def gmldbn(nvr, must_be_published=True):
+            return digest_by_nvr[nvr]
+        self.pyxis().get_manifest_list_digest_by_nvr.side_effect = gmldbn
         self.pyxis().get_bundles_by_digest.side_effect = \
             lambda digest: bundle_by_digest[digest]
         get_csv_updates.return_value = {"update": "csv_update_placeholder"}
@@ -440,7 +445,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         self.handler.handle(event)
         self.pyxis().get_manifest_list_digest_by_nvr.assert_has_calls([
             call("some_name-1-0"),
-            call("some_name_two-2-2"),
+            call("some_name_two-2-2", must_be_published=False),
         ], any_order=True)
 
     @patch.object(conf, 'dry_run', new=True)
@@ -493,7 +498,10 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
             "foo-1-2.123": "sha256:333",
             "bar-2-2.134": "sha256:444",
         }
-        self.pyxis().get_manifest_list_digest_by_nvr.side_effect = lambda x: digests_by_nvrs[x]
+
+        def gmldbn(nvr, must_be_published=True):
+            return digests_by_nvrs[nvr]
+        self.pyxis().get_manifest_list_digest_by_nvr.side_effect = gmldbn
 
         bundles_by_related_digest = {
             "sha256:111": [

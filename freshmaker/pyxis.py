@@ -178,11 +178,13 @@ class Pyxis(object):
 
         return latest_bundles
 
-    def get_manifest_list_digest_by_nvr(self, nvr):
+    def get_manifest_list_digest_by_nvr(self, nvr, must_be_published=True):
         """
         Get image's digest(manifest_list_digest field) by its NVR
 
         :param str nvr: NVR of ContainerImage to query Pyxis
+        :param bool must_be_published: determines if the image must be published to the repository
+            that the manifest list digest is retrieved from
         :return: digest of image or None if manifest_list_digest not exists
         :rtype: str or None
         """
@@ -190,8 +192,10 @@ class Pyxis(object):
 
         # get manifest_list_digest of ContainerImage from Pyxis
         for image in self._pagination(f'images/nvr/{nvr}', request_params):
-            for repo in image.get('repositories'):
-                if repo['published'] and 'manifest_list_digest' in repo:
+            for repo in image['repositories']:
+                if must_be_published and not repo['published']:
+                    continue
+                if 'manifest_list_digest' in repo:
                     return repo['manifest_list_digest']
         return None
 

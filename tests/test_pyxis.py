@@ -457,6 +457,36 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
             {'include': 'data.brew,data.repositories'}
         )
 
+    @patch('freshmaker.pyxis.Pyxis._pagination')
+    def test_get_manifest_list_digest_by_nvr_unpublished(self, page):
+        page.return_value = [
+            {
+                "brew": {
+                    "build": "s2i-1-2",
+                    "completion_date": "2020-08-12T11:31:39+00:00",
+                    "nvra": "s2i-1-2.arm64",
+                    "package": "s2i-core-container"
+                },
+                "repositories": [
+                    {
+                        "manifest_list_digest": "sha256:4444",
+                        "published": False,
+                        "registry": "reg4",
+                        "repository": "repo4",
+                        "tags": [{"name": "tag1"}]
+                    }
+                ]
+            }
+        ]
+        digest = self.px.get_manifest_list_digest_by_nvr('s2i-1-2', False)
+
+        expected_digest = 'sha256:4444'
+        self.assertEqual(digest, expected_digest)
+        page.assert_called_once_with(
+            'images/nvr/s2i-1-2',
+            {'include': 'data.brew,data.repositories'}
+        )
+
     def test_get_bundles_by_related_image_digest(self):
         digest = 'sha256:111'
         new_bundles = self.px.get_bundles_by_related_image_digest(
