@@ -153,7 +153,10 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         rebuilt_digests_by_nvr = {}
         rebuilt_nvrs = nvrs_mapping.values()
         for nvr in rebuilt_nvrs:
-            digest = self._pyxis.get_manifest_list_digest_by_nvr(nvr)
+            # Don't require that the manifest list digest be published in this case because
+            # there's a delay from after an advisory is shipped and when the published repositories
+            # entry is populated
+            digest = self._pyxis.get_manifest_list_digest_by_nvr(nvr, must_be_published=False)
             if digest:
                 rebuilt_digests_by_nvr[nvr] = digest
             else:
