@@ -427,6 +427,12 @@ class Config(object):
             'default': '',
             'desc': 'Root of the API URL of Freshmaker'
         },
+        'bundle_autorebuild_tag_exceptions': {
+            'type': list,
+            'default': [],
+            'desc': 'A list of bundle name-version entries that do not need to have an auto-rebuild '
+                    'tag to be rebuilt. This only applies to the HandleBotasAdvisory handler'
+        },
     }
 
     def __init__(self, conf_section_obj):

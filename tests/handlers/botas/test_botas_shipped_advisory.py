@@ -717,6 +717,32 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         has_auto_rebuild_tag = self.handler.image_has_auto_rebuild_tag(bundle_image)
         self.assertTrue(has_auto_rebuild_tag)
 
+    @patch.object(conf, 'bundle_autorebuild_tag_exceptions', new=['foo-operator-2.1'])
+    def test_image_has_auto_rebuild_tag_exception(self):
+        bundle_image = {
+            "brew": {
+                "build": "foo-operator-2.1-2",
+                "nvra": "foo-operator-2.1-2.amd64",
+                "package": "foo",
+            },
+            "repositories": [
+                {
+                    "content_advisory_ids": [],
+                    "manifest_list_digest": "sha256:12345",
+                    "manifest_schema2_digest": "sha256:23456",
+                    "published": False,
+                    "registry": "registry.example.com",
+                    "repository": "foo/foo-operator-bundle",
+                    "tags": [{"name": "2"}, {"name": "2.1"}],
+                }
+            ],
+        }
+
+        self.pyxis().get_auto_rebuild_tags.return_value = ["latest"]
+
+        has_auto_rebuild_tag = self.handler.image_has_auto_rebuild_tag(bundle_image)
+        self.assertTrue(has_auto_rebuild_tag)
+
     @patch("freshmaker.handlers.botas.botas_shipped_advisory.HandleBotasAdvisory.get_published_original_nvr")
     def test_create_original_to_rebuilt_nvrs_map(self, get_original_build):
         get_original_build.side_effect = ["original_1", "original_2"]
