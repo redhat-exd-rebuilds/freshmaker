@@ -142,7 +142,8 @@ class KojiService(object):
     def build_container(self, source_url, branch, target,
                         scratch=None, repo_urls=None, isolated=False,
                         release=None, koji_parent_build=None,
-                        arch_override=None, compose_ids=None):
+                        arch_override=None, compose_ids=None,
+                        operator_csv_modifications_url=None):
         """Build container by buildContainer
 
         :param str source_url: the container repository URL.
@@ -158,6 +159,8 @@ class KojiService(object):
             For details of these build options, please refer to
             ``PARAMS_SCHEMA`` defined inside ``BuildContainerTask`` in the
             koji-containerbuild plugin.
+        :param str operator_csv_modifications_url: a build option passed to ``buildContainer``.
+            This is necessary for bundle image rebuilds.
         :return: the container build task ID returned from ``buildContainer``.
         :rtype: int
         """
@@ -180,6 +183,8 @@ class KojiService(object):
             build_opts['arch_override'] = arch_override
         if release:
             build_opts['release'] = release
+        if operator_csv_modifications_url:
+            build_opts['operator_csv_modifications_url'] = operator_csv_modifications_url
 
         log.debug('Build from target: %s', build_target)
         log.debug('Build options: %s', build_opts)

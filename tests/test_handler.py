@@ -200,7 +200,8 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
         build_container.assert_called_once_with(
             'git://pkgs.devel.redhat.com/repo#hash', 'branch', 'target',
             arch_override='x86_64', compose_ids=[5, 6, 7, 8], isolated=True,
-            koji_parent_build=None, release='2.1234567', repo_urls=None)
+            koji_parent_build=None, release='2.1234567', repo_urls=None,
+            operator_csv_modifications_url=None)
 
     @patch("time.time")
     @patch("freshmaker.handlers.ContainerBuildHandler.build_container")
@@ -217,7 +218,8 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
         build_container.assert_called_once_with(
             'git://pkgs.devel.redhat.com/repo#hash', 'branch', 'target',
             arch_override='x86_64', compose_ids=[5, 6, 7, 8, 7300, 7301],
-            isolated=True, koji_parent_build=None, release='2.1234567', repo_urls=None)
+            isolated=True, koji_parent_build=None, release='2.1234567', repo_urls=None,
+            operator_csv_modifications_url=None)
 
     @patch("time.time")
     @patch("freshmaker.handlers.ContainerBuildHandler.build_container")
@@ -231,7 +233,8 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
         build_container.assert_called_once_with(
             'git://pkgs.devel.redhat.com/repo#hash', 'branch', 'target',
             arch_override='x86_64', compose_ids=[5, 6, 7, 8], isolated=True,
-            koji_parent_build=None, release='2.1234567', repo_urls=repo_urls)
+            koji_parent_build=None, release='2.1234567', repo_urls=repo_urls,
+            operator_csv_modifications_url=None)
 
     @patch("freshmaker.handlers.ContainerBuildHandler.build_container")
     def test_build_image_artifact_build_repo_urls_compose_not_ready(
