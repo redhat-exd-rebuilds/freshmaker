@@ -523,7 +523,10 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             # If there is existing build ID, then make the Freshmaker suffix the build ID
             new_build = new_fm_suffix
 
-        new_version = str(parsed_version.replace(build=new_build))
+        # Don't use the replace method in order to support semver 2.8.1
+        new_version_dict = parsed_version._asdict()
+        new_version_dict["build"] = new_build
+        new_version = str(semver.VersionInfo(**new_version_dict))
 
         return new_version, new_fm_suffix
 
