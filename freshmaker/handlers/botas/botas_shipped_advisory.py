@@ -225,7 +225,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             'auto_rebuild': False,
             'osbs_pinning': False,
             # CSV modifications for the rebuilt bundle image
-            'pullspecs': [],
+            'pullspec_replacements': [],
             'update': {},
         }
 
@@ -265,7 +265,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             )
             bundle_data['osbs_pinning'] = related_images.get('created_by_osbs', False)
             # Save the original pullspecs
-            bundle_data['pullspecs'] = related_images.get('pullspecs', [])
+            bundle_data['pullspec_replacements'] = related_images.get('pullspecs', [])
 
         # Digests of bundles to be rebuilt
         to_rebuild_digests = set()
@@ -288,7 +288,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             version = bundle_mds_by_digest[digest]['version']
             bundle_data.update(self._get_csv_updates(csv_name, version))
 
-            for pullspec in bundle_data['pullspecs']:
+            for pullspec in bundle_data['pullspec_replacements']:
                 # A pullspec item example:
                 # {
                 #   'new': 'registry.exampe.io/repo/example-operator@sha256:<sha256-value>',
@@ -375,7 +375,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             pullspecs = []
             # Try to find build in FM database, if it's not there check in Brew
             if artifact_build:
-                pullspecs = artifact_build.bundle_pullspec_overrides["pullspecs"]
+                pullspecs = artifact_build.bundle_pullspec_overrides["pullspec_replacements"]
             else:
                 # Fetch buildinfo from Koji
                 buildinfo = koji_api.get_build(container_image_nvr)
@@ -415,7 +415,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                 to_rebuild_bundles.append({
                     'nvr': nvr,
                     'update': csv_updates['update'],
-                    'pullspecs': pullspecs,
+                    'pullspec_replacements': pullspecs,
                 })
             else:
                 log.warning('Can\'t find manifest_list_digest for bundle '
@@ -448,7 +448,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                     f'Can\'t find build for a bundle image "{bundle_nvr}"')
                 continue
             pullspec_overrides = artifact_build.bundle_pullspec_overrides
-            for pullspec in pullspec_overrides['pullspecs']:
+            for pullspec in pullspec_overrides['pullspec_replacements']:
                 old_pullspec = pullspec.get('_old', None)
                 if old_pullspec is None:
                     continue
@@ -699,7 +699,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                 "operator_csv_modifications_url": csv_mod_url.format(build.id),
             })
             build.bundle_pullspec_overrides = {
-                "pullspecs": bundle["pullspecs"],
+                "pullspec_replacements": bundle["pullspec_replacements"],
                 "update": bundle["update"],
             }
 

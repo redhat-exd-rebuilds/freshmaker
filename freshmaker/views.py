@@ -782,8 +782,8 @@ class PullspecOverrideAPI(MethodView):
         if build:
             pullspec_overrides = build.bundle_pullspec_overrides
             # remove old pullspec from output, since it used only internally for manual rebuilds
-            if pullspec_overrides and "pullspecs" in pullspec_overrides:
-                for pullspec in pullspec_overrides["pullspecs"]:
+            if pullspec_overrides and "pullspec_replacements" in pullspec_overrides:
+                for pullspec in pullspec_overrides["pullspec_replacements"]:
                     if "_old" in pullspec:
                         del pullspec["_old"]
             return jsonify(pullspec_overrides), 200

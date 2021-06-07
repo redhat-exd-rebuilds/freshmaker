@@ -232,7 +232,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
                 "images": [{"brew": {"build": "bundle1_nvr-1-1"}}],
                 "nvr": "bundle1_nvr-1-1",
                 "osbs_pinning": True,
-                "pullspecs": [
+                "pullspec_replacements": [
                     {
                         "new": "registry/repo/operator1@some_name-1-12345_digest",
                         "original": "registry/repo/operator1:v2.2.0",
@@ -253,7 +253,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
                 "images": [{"brew": {"build": "bundle2_nvr-1-1"}}],
                 "nvr": "bundle2_nvr-1-1",
                 "osbs_pinning": True,
-                "pullspecs": [
+                "pullspec_replacements": [
                     {
                         "new": "registry/repo/operator2@some_name_2-2-2_digest",
                         "original": "registry/repo/operator2:v2.2.0",
@@ -305,7 +305,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
             }}
         }
         bundle_pullspec_overrides = {
-            "pullspecs": [{
+            "pullspec_replacements": [{
                 "new": "old_pullspec",
                 "original": "original_pullspec_3",
                 "pinned": True
@@ -354,7 +354,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
             {
                 "nvr": "container_image_1_nvr",
                 "update": "csv_update_placeholder",
-                "pullspecs": [{
+                "pullspec_replacements": [{
                     "new": "new_pullspec",
                     "original": "original_pullspec_3",
                     "pinned": True
@@ -363,7 +363,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
             {
                 "nvr": "container_image_2_nvr",
                 "update": "csv_update_placeholder",
-                "pullspecs": [
+                "pullspec_replacements": [
                     {
                         "new": "newer_pullspes",
                         "original": "original_pullspec",
@@ -397,7 +397,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
             db.session, db_event, "ed0", "image", 1234,
             rebuilt_nvr="bundle_image_1")
         build.bundle_pullspec_overrides = {
-            "pullspecs":
+            "pullspec_replacements":
                 [
                     {
                         "new": "some_pullspec",
@@ -783,7 +783,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
                 "nvr": "nvr-1-1",
                 "auto_rebuild": True,
                 "osbs_pinning": True,
-                "pullspecs": [{
+                "pullspec_replacements": [{
                     'new': 'registry/repo/operator@sha256:123',
                     'original': 'registry/repo/operator:v2.2.0',
                     'pinned': True,
@@ -806,7 +806,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         self.assertEqual(builds, ret_builds)
         submitted_build = builds[0]
         expected_csv_modifications = {
-            "pullspecs": [
+            "pullspec_replacements": [
                 {
                     "new": "registry/repo/operator@sha256:123",
                     "original": "registry/repo/operator:v2.2.0",
