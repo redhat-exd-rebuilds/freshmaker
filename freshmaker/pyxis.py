@@ -121,10 +121,12 @@ class Pyxis(object):
                 [f"organization=={organization}" for organization in organizations])
             request_params["filter"] = rsql
         indices = self._pagination("operators/indices", request_params)
+        log.debug("Found the following index images: %s", ", ".join(i["path"] for i in indices))
 
         # Operator indices can be available in pyxis prior to the Openshift version
         # is released, so we need to filter out such indices
         indices = list(filter(lambda x: self.ocp_is_released(x["ocp_version"]), indices))
+        log.info("Using the following GA index images: %s", ", ".join(i["path"] for i in indices))
         return indices
 
     @region.cache_on_arguments()
