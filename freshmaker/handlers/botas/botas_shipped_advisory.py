@@ -175,6 +175,10 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         # get latest bundle images per channel per index image filtered
         # by the highest semantic version
         all_bundles = self._pyxis.get_latest_bundles(index_images)
+        self.log_debug(
+            "There are %d bundles that are latest in a channel in the found index images",
+            len(all_bundles),
+        )
 
         # A mapping of digests to bundle metadata. This metadata is used to
         # for the CSV metadata updates.
@@ -200,6 +204,9 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             log.warning(msg)
             db_event.transition(EventState.SKIPPED, msg)
             return []
+        self.log_info(
+            "Found %d bundles with relevant related images", len(bundle_digests_by_related_nvr)
+        )
 
         # Mapping of bundle digest to bundle data
         # {
@@ -228,6 +235,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             bundles = self._pyxis.get_images_by_digest(digest)
             # If no bundle image found, just skip this bundle digest
             if not bundles:
+                self.log_warn('The bundle digest %r was not found in Pyxis. Skipping.', digest)
                 continue
 
             bundles_by_digest.setdefault(digest, copy.deepcopy(default_bundle_data))
@@ -268,6 +276,12 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             # Override pullspecs only when auto_rebuild is enabled and OSBS-pinning
             # mechanism is used.
             if not (bundle_data['auto_rebuild'] and bundle_data['osbs_pinning']):
+                self.log_info(
+                    'The bundle %r does not have auto-rebuild tags (%r) and/or OSBS pinning (%r)',
+                    bundle_data['nvr'],
+                    bundle_data['auto_rebuild'],
+                    bundle_data['osbs_pinning'],
+                )
                 continue
 
             csv_name = bundle_mds_by_digest[digest]['csv_name']
@@ -311,6 +325,12 @@ class HandleBotasAdvisory(ContainerBuildHandler):
 
                 # Once a pullspec in this bundle has been overrided, add this bundle
                 # to rebuild list
+                self.log_info(
+                    'Changing pullspec %r to %r in the bundle %r',
+                    pullspec['_old'],
+                    pullspec['new'],
+                    bundle_data['nvr'],
+                )
                 to_rebuild_digests.add(digest)
 
         if not to_rebuild_digests:
