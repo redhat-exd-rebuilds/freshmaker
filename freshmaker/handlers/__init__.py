@@ -441,7 +441,8 @@ class ContainerBuildHandler(BaseHandler):
     def build_container(self, scm_url, branch, target,
                         repo_urls=None, isolated=False,
                         release=None, koji_parent_build=None,
-                        arch_override=None, compose_ids=None):
+                        arch_override=None, compose_ids=None,
+                        operator_csv_modifications_url=None):
         """
         Build a container in Koji.
 
@@ -454,6 +455,7 @@ class ContainerBuildHandler(BaseHandler):
         :param str koji_parent_build: refer to ``KojiService.build_container``.
         :param str arch_override: refer to ``KojiService.build_container``.
         :param list[int] compose_ids: refer to ``KojiService.build_container``.
+        :param str operator_csv_modifications_url: refer to ``KojiService.build_container``.
         :return: task id returned from Koji buildContainer API.
         :rtype: int
         """
@@ -465,16 +467,19 @@ class ContainerBuildHandler(BaseHandler):
                      scm_url, release, koji_parent_build, target, arch_override,
                      compose_ids)
 
-            return service.build_container(scm_url,
-                                           branch,
-                                           target,
-                                           repo_urls=repo_urls,
-                                           isolated=isolated,
-                                           release=release,
-                                           koji_parent_build=koji_parent_build,
-                                           arch_override=arch_override,
-                                           scratch=conf.koji_container_scratch_build,
-                                           compose_ids=compose_ids)
+            return service.build_container(
+                scm_url,
+                branch,
+                target,
+                repo_urls=repo_urls,
+                isolated=isolated,
+                release=release,
+                koji_parent_build=koji_parent_build,
+                arch_override=arch_override,
+                scratch=conf.koji_container_scratch_build,
+                compose_ids=compose_ids,
+                operator_csv_modifications_url=operator_csv_modifications_url,
+            )
 
     @fail_artifact_build_on_handler_exception(allowlist=[ODCSComposeNotReady])
     def build_image_artifact_build(self, build, repo_urls=None):
@@ -563,7 +568,9 @@ class ContainerBuildHandler(BaseHandler):
             release=parse_NVR(build.rebuilt_nvr)["release"],
             koji_parent_build=parent,
             arch_override=arches,
-            compose_ids=compose_ids)
+            compose_ids=compose_ids,
+            operator_csv_modifications_url=args.get("operator_csv_modifications_url"),
+        )
 
     def odcs_get_compose(self, compose_id):
         """
