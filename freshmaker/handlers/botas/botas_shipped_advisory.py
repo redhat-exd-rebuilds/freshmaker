@@ -599,6 +599,18 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             tags = [t['name'] for t in repo.get('tags', [])]
             if set(auto_rebuild_tags) & set(tags):
                 return True
+
+        # It'd be more efficient to do this check first, but the exceptions are edge cases
+        # (e.g. testing) and it's best to not use it unless absolutely necessary
+        nvr = image['brew']['build']
+        parsed_nvr = parse_nvr(nvr)
+        nv = f'{parsed_nvr["name"]}-{parsed_nvr["version"]}'
+        if nv in conf.bundle_autorebuild_tag_exceptions:
+            self.log_info(
+                'The bundle %r has an exception for being tagged with an auto-rebuild tag', nvr
+            )
+            return True
+
         return False
 
     def _create_original_to_rebuilt_nvrs_map(self):
