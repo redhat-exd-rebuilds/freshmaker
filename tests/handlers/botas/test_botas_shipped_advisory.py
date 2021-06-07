@@ -824,6 +824,16 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
             },
         }
         self.assertEqual(submitted_build.bundle_pullspec_overrides, expected_csv_modifications)
+        expected_build_args = {
+            "repository": "repo",
+            "commit": "commit_1",
+            "target": "target_1",
+            "branch": "git_branch_1",
+            "arches": ["arch_1", "arch_1"],
+            "original_parent": None,
+            "operator_csv_modifications_url": "https://localhost/api/2/pullspec_overrides/1",
+        }
+        self.assertEqual(json.loads(submitted_build.build_args), expected_build_args)
         self.assertEqual(submitted_build.state, ArtifactBuildState.PLANNED.value)
         self.assertEqual(json.loads(submitted_build.build_args)["operator_csv_modifications_url"],
                          pullspec_override_url + str(submitted_build.id))

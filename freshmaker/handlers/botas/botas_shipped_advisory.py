@@ -692,6 +692,10 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                 "target": additional_data["target"],
                 "branch": additional_data["git_branch"],
                 "arches": additional_data["arches"],
+                # The build system always enforces that bundle images build from
+                # "scratch", so there is no parent image. See:
+                # https://osbs.readthedocs.io/en/latest/users.html?#operator-manifest-bundle-builds
+                "original_parent": None,
                 "operator_csv_modifications_url": csv_mod_url.format(build.id),
             })
             build.bundle_pullspec_overrides = {
