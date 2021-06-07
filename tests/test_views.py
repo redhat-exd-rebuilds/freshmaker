@@ -600,7 +600,7 @@ class TestViews(helpers.ModelsTestCase):
                                             "module", 1234)
         pullspecs = {
             'update': 'update_placeholder',
-            'pullspecs': [
+            'pullspec_replacements': [
                 {'new': 'registry.io/repo/example-operator@sha256:<sha256>',
                  'original': 'registry.io/repo/example-operator:v1.1.0',
                  'pinned': True,
@@ -612,7 +612,7 @@ class TestViews(helpers.ModelsTestCase):
         }
         expected_pullspecs = {
             'update': 'update_placeholder',
-            'pullspecs': [
+            'pullspec_replacements': [
                 {'new': 'registry.io/repo/example-operator@sha256:<sha256>',
                  'original': 'registry.io/repo/example-operator:v1.1.0',
                  'pinned': True},
