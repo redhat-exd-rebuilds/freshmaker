@@ -491,9 +491,9 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         Get a bundle version for the Freshmaker rebuild of the bundle image.
 
         Examples:
-            1.2.3 => 1.2.3+0.$timestamp.patched (no build ID and not a rebuild)
-            1.2.3+48273 => 1.2.3+48273.0.$timestamp.patched (build ID and not a rebuild)
-            1.2.3+48273.0.1616457250.patched => 1.2.3+48273.0.$timestamp.patched (build ID and a rebuild)
+            1.2.3 => 1.2.3+0.$timestamp.p (no build ID and not a rebuild)
+            1.2.3+48273 => 1.2.3+48273.0.$timestamp.p (build ID and not a rebuild)
+            1.2.3+48273.0.1616457250.p => 1.2.3+48273.0.$timestamp.p (build ID and a rebuild)
 
         :param str version: the version of the bundle image being rebuilt
         :return: a tuple of the bundle version of the Freshmaker rebuild of the bundle image and
@@ -503,11 +503,12 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         parsed_version = semver.VersionInfo.parse(version)
         # Strip off the microseconds of the timestamp
         timestamp = int(datetime.utcnow().timestamp())
-        new_fm_suffix = f'0.{timestamp}.patched'
+        new_fm_suffix = f'0.{timestamp}.p'
         if parsed_version.build:
-            # Check if the bundle was a Freshmaker rebuild
+            # Check if the bundle was a Freshmaker rebuild. Include .patched
+            # for backwards compatibility with the old suffix.
             fm_suffix_search = re.search(
-                r'(?P<fm_suffix>0\.\d+\.patched)$', parsed_version.build
+                r'(?P<fm_suffix>0\.\d+\.(?:p|patched))$', parsed_version.build
             )
             if fm_suffix_search:
                 fm_suffix = fm_suffix_search.groupdict()['fm_suffix']
