@@ -544,8 +544,13 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             image
         :rtype: str
         """
-        if version in csv_name:
-            return csv_name.replace(version, rebuild_version)
+        # The CSV name must be in the format of a valid DNS name, which means the + from the
+        # build ID must be replaced. In the event this was a previous Freshmaker rebuild, version
+        # may have a build ID that would be the DNS safe version in the CSV name.
+        dns_safe_version = version.replace('+', '-')
+        if dns_safe_version in csv_name:
+            dns_safe_rebuild_version = rebuild_version.replace('+', '-')
+            return csv_name.replace(dns_safe_version, dns_safe_rebuild_version)
         else:
             return f'{csv_name}.{fm_suffix}'
 

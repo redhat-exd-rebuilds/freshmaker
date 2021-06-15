@@ -242,7 +242,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
                 ],
                 "update": {
                     "metadata": {
-                        "name": "image.1.2.3+0.1608854400.p",
+                        "name": "image.1.2.3-0.1608854400.p",
                         "annotations": {"olm.substitutesFor": "1.2.3"},
                     },
                     "spec": {"version": "1.2.3+0.1608854400.p"},
@@ -263,7 +263,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
                 ],
                 "update": {
                     "metadata": {
-                        "name": "image.1.2.4+0.1608854400.p",
+                        "name": "image.1.2.4-0.1608854400.p",
                         "annotations": {"olm.substitutesFor": "1.2.4"},
                     },
                     "spec": {"version": "1.2.4+0.1608854400.p"},
@@ -866,24 +866,34 @@ def test_get_csv_name():
     rebuild_version = "1.2.3+0.1608854400.p"
     fm_suffix = "0.1608854400.p"
     rv = HandleBotasAdvisory._get_csv_name("amq-streams.1.2.3", version, rebuild_version, fm_suffix)
-    assert rv == "amq-streams.1.2.3+0.1608854400.p"
+    assert rv == "amq-streams.1.2.3-0.1608854400.p"
 
     # If the version is not present in the CSV name (it's supposed to be), then Freshmaker
     # will just append the suffix to make it unique
     rv = HandleBotasAdvisory._get_csv_name("amq-streams.123", version, rebuild_version, fm_suffix)
     assert rv == "amq-streams.123.0.1608854400.p"
 
+    # If this was a Freshmaker rebuild, the CSV name with have a dash instead of a plus for the
+    # build ID separator
+    rv = HandleBotasAdvisory._get_csv_name(
+        "amq-streams.1.2.3-0.1608843300.p",
+        "1.2.3+0.1608843300.p",
+        rebuild_version,
+        fm_suffix,
+    )
+    assert rv == "amq-streams.1.2.3-0.1608854400.p"
+
 
 @patch("freshmaker.handlers.botas.botas_shipped_advisory.HandleBotasAdvisory._get_csv_name")
 @patch("freshmaker.handlers.botas.botas_shipped_advisory.HandleBotasAdvisory._get_rebuild_bundle_version")
 def test_get_csv_updates(mock_grbv, mock_gcn):
     mock_grbv.return_value = ("1.2.3+0.1608854400.p", "0.1608854400.p")
-    mock_gcn.return_value = "amq-streams.1.2.3+0.1608854400.p"
+    mock_gcn.return_value = "amq-streams.1.2.3-0.1608854400.p"
     rv = HandleBotasAdvisory._get_csv_updates("amq-streams.1.2.3", "1.2.3")
     assert rv == {
         "update": {
             "metadata": {
-                'name': "amq-streams.1.2.3+0.1608854400.p",
+                'name': "amq-streams.1.2.3-0.1608854400.p",
                 "annotations": {"olm.substitutesFor": "1.2.3"}
             },
             'spec': {
