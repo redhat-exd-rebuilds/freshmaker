@@ -107,6 +107,16 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         self.assertTrue(db_event.state_reason.startswith(
             "This image rebuild is not allowed by internal policy."))
 
+    def test_handle_manual_isnt_allowed_by_internal_policy(self):
+        event = ManualBundleRebuild("test_msg_id", [], [])
+
+        self.handler.handle(event)
+        db_event = Event.get(db.session, message_id='test_msg_id')
+
+        self.assertEqual(db_event.state, EventState.SKIPPED.value)
+        self.assertTrue(db_event.state_reason.startswith(
+            "This image rebuild is not allowed by internal policy."))
+
     @patch("freshmaker.handlers.botas.botas_shipped_advisory.HandleBotasAdvisory.start_to_build_images")
     @patch("freshmaker.handlers.botas.botas_shipped_advisory.HandleBotasAdvisory._prepare_builds")
     @patch("freshmaker.handlers.botas.botas_shipped_advisory.HandleBotasAdvisory._handle_auto_rebuild")

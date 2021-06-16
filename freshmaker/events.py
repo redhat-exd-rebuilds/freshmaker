@@ -469,3 +469,6 @@ class ManualBundleRebuild(BaseEvent):
         self.bundle_images = bundle_images
         self.metadata = metadata
         self.requester = requester
+
+    def is_allowed(self, handler, **kwargs):
+        return super().is_allowed(handler, ArtifactType.IMAGE, **kwargs)
