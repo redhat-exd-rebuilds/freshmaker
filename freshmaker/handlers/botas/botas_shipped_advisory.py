@@ -426,6 +426,12 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             if bundle_digest is not None:
                 self.log_debug("The manifest list digest for %s is %s", nvr, bundle_digest)
                 bundles = self._pyxis.get_bundles_by_digest(bundle_digest)
+                if not bundles:
+                    self.log_error(
+                        "The manifest_list_digest %s is not available on the bundles API endpoint",
+                        bundle_digest,
+                    )
+                    continue
                 temp_bundle = bundles[0]
                 csv_updates = (self._get_csv_updates(temp_bundle['csv_name'],
                                                      temp_bundle['version']))
