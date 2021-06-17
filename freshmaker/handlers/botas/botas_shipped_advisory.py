@@ -375,8 +375,16 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             pullspecs = []
             # Try to find build in FM database, if it's not there check in Brew
             if artifact_build:
+                self.log_info(
+                    "%s in the container_images list was found in the database", container_image_nvr
+                )
                 pullspecs = artifact_build.bundle_pullspec_overrides["pullspec_replacements"]
             else:
+                self.log_info(
+                    "%s in the container_images list is not in the database. Searching in Brew "
+                    "instead.",
+                    container_image_nvr,
+                )
                 # Fetch buildinfo from Koji
                 buildinfo = koji_api.get_build(container_image_nvr)
                 # Get the original pullspecs
@@ -390,8 +398,15 @@ class HandleBotasAdvisory(ContainerBuildHandler):
 
             for pullspec in pullspecs:
                 if pullspec.get('new') not in old_to_new_pullspec_map:
+                    self.log_debug("The pullspec %s is not getting replaced", pullspec.get('new'))
                     continue
                 # use newer pullspecs in the image
+                self.log_info(
+                    "Replacing the pullspec %s with %s on %s",
+                    pullspec['new'],
+                    old_to_new_pullspec_map[pullspec['new']],
+                    container_image_nvr,
+                )
                 pullspec['new'] = old_to_new_pullspec_map[pullspec['new']]
                 rebuild_nvr_to_pullspecs_map[container_image_nvr] = pullspecs
 
@@ -406,8 +421,10 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         to_rebuild_bundles = []
         # fill 'append' and 'update' fields for bundles to rebuild
         for nvr, pullspecs in rebuild_nvr_to_pullspecs_map.items():
+            self.log_debug("Getting the manifest list digest for %s", nvr)
             bundle_digest = self._pyxis.get_manifest_list_digest_by_nvr(nvr)
             if bundle_digest is not None:
+                self.log_debug("The manifest list digest for %s is %s", nvr, bundle_digest)
                 bundles = self._pyxis.get_bundles_by_digest(bundle_digest)
                 temp_bundle = bundles[0]
                 csv_updates = (self._get_csv_updates(temp_bundle['csv_name'],
