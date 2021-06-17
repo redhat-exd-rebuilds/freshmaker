@@ -132,7 +132,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         original_digests_by_nvr = {}
         original_nvrs_by_digest = {}
         for nvr in original_nvrs:
-            digest = self._pyxis.get_manifest_list_digest_by_nvr(nvr)
+            digest, _ = self._pyxis.get_manifestv2_digests_by_nvr(nvr)
             if digest:
                 original_digests_by_nvr[nvr] = digest
                 original_nvrs_by_digest[digest] = nvr
@@ -156,7 +156,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             # Don't require that the manifest list digest be published in this case because
             # there's a delay from after an advisory is shipped and when the published repositories
             # entry is populated
-            digest = self._pyxis.get_manifest_list_digest_by_nvr(nvr, must_be_published=False)
+            digest, _ = self._pyxis.get_manifestv2_digests_by_nvr(nvr, must_be_published=False)
             if digest:
                 rebuilt_digests_by_nvr[nvr] = digest
             else:
@@ -406,9 +406,9 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         to_rebuild_bundles = []
         # fill 'append' and 'update' fields for bundles to rebuild
         for nvr, pullspecs in rebuild_nvr_to_pullspecs_map.items():
-            bundle_digest = self._pyxis.get_manifest_list_digest_by_nvr(nvr)
-            if bundle_digest is not None:
-                bundles = self._pyxis.get_bundles_by_digest(bundle_digest)
+            list_digest, v2_digest = self._pyxis.get_manifestv2_digests_by_nvr(nvr)
+            if list_digest is not None:
+                bundles = self._pyxis.get_bundles_by_digest(list_digest, v2_digest)
                 temp_bundle = bundles[0]
                 csv_updates = (self._get_csv_updates(temp_bundle['csv_name'],
                                                      temp_bundle['version']))

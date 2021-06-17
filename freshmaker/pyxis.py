@@ -188,15 +188,17 @@ class Pyxis(object):
 
         return latest_bundles
 
-    def get_manifest_list_digest_by_nvr(self, nvr, must_be_published=True):
+    def get_manifestv2_digests_by_nvr(self, nvr, must_be_published=True):
         """
-        Get image's digest(manifest_list_digest field) by its NVR
+        Get image's v2 digests (manifest_list_digest and manifest_schema2_digest fields) by its NVR
 
         :param str nvr: NVR of ContainerImage to query Pyxis
         :param bool must_be_published: determines if the image must be published to the repository
             that the manifest list digest is retrieved from
-        :return: digest of image or None if manifest_list_digest not exists
-        :rtype: str or None
+        :return: a tuple of the manifest list digest and the manifest v2 digest of the image.
+            if the values are not in Pyxis, ``None`` values will be in the tuple. The manifest
+            list digest is required for anything to be returned.
+        :rtype: tuple(str, str)
         """
         request_params = {'include': ','.join(['data.brew', 'data.repositories'])}
 
@@ -205,9 +207,16 @@ class Pyxis(object):
             for repo in image['repositories']:
                 if must_be_published and not repo['published']:
                     continue
-                if 'manifest_list_digest' in repo:
-                    return repo['manifest_list_digest']
-        return None
+                if 'manifest_list_digest' not in repo:
+                    continue
+
+                mld = repo['manifest_list_digest']
+                msd = None
+                if 'manifest_schema2_digest' in repo:
+                    msd = repo['manifest_schema2_digest']
+
+                return mld, msd
+        return None, None
 
     def get_bundles_by_related_image_digest(self, image_digest, bundles):
         """
@@ -225,17 +234,22 @@ class Pyxis(object):
 
         return ret
 
-    def get_bundles_by_digest(self, digest):
+    def get_bundles_by_digest(self, ml_digest, mv2_digest=None):
         """
         Get bundles that have the specified digest in 'bundle_path_digest'.
 
-        :param str digest: digest of bundle image to search for
+        :param str ml_digest: the manifest list digest of the bundle image to search for
+        :param str mv2_digest: the optional manifest v2 digest of the bundle image to search for
         :return: list of bundles
         :rtype: list
         """
+        pyxis_filter = f'bundle_path_digest=={ml_digest}'
+        if mv2_digest:
+            pyxis_filter += f' or bundle_path_digest=={mv2_digest}'
+
         request_params = {
             'include': ','.join(['data.version', 'data.csv_name']),
-            'filter': f'bundle_path_digest=={digest}'
+            'filter': pyxis_filter,
         }
 
         return self._pagination('operators/bundles', request_params)

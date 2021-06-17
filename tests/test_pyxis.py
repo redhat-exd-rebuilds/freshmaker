@@ -222,6 +222,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                 "repositories": [
                     {
                         "manifest_list_digest": "sha256:1111",
+                        "manifest_schema2_digest": "sha256:1234",
                         "published": False,
                         "registry": "reg1",
                         "repository": "repo1",
@@ -229,6 +230,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                     },
                     {
                         "manifest_list_digest": "sha256:1112",
+                        "manifest_schema2_digest": "sha256:1235",
                         "published": True,
                         "registry": "reg2",
                         "repository": "repo2",
@@ -246,6 +248,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                 "repositories": [
                     {
                         "manifest_list_digest": "sha256:2222",
+                        "manifest_schema2_digest": "sha256:1236",
                         "published": True,
                         "registry": "reg2",
                         "repository": "repo2",
@@ -263,6 +266,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                 "repositories": [
                     {
                         "manifest_list_digest": "sha256:3333",
+                        "manifest_schema2_digest": "sha256:1237",
                         "published": True,
                         "registry": "reg3",
                         "repository": "repo3",
@@ -280,6 +284,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                 "repositories": [
                     {
                         "manifest_list_digest": "sha256:4444",
+                        "manifest_schema2_digest": "sha256:1238",
                         "published": True,
                         "registry": "reg4",
                         "repository": "repo4",
@@ -446,19 +451,18 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
         ])
 
     @patch('freshmaker.pyxis.Pyxis._pagination')
-    def test_get_manifest_list_digest_by_nvr(self, page):
+    def test_get_manifestv2_digests_by_nvr(self, page):
         page.return_value = self.images
-        digest = self.px.get_manifest_list_digest_by_nvr('s2i-1-2')
+        digests = self.px.get_manifestv2_digests_by_nvr('s2i-1-2')
 
-        expected_digest = 'sha256:1112'
-        self.assertEqual(digest, expected_digest)
+        self.assertEqual(digests, ('sha256:1112', 'sha256:1235'))
         page.assert_called_once_with(
             'images/nvr/s2i-1-2',
             {'include': 'data.brew,data.repositories'}
         )
 
     @patch('freshmaker.pyxis.Pyxis._pagination')
-    def test_get_manifest_list_digest_by_nvr_unpublished(self, page):
+    def test_get_manifestv2_digests_by_nvr_unpublished(self, page):
         page.return_value = [
             {
                 "brew": {
@@ -470,6 +474,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                 "repositories": [
                     {
                         "manifest_list_digest": "sha256:4444",
+                        "manifest_schema2_digest": "sha256:1238",
                         "published": False,
                         "registry": "reg4",
                         "repository": "repo4",
@@ -478,10 +483,9 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                 ]
             }
         ]
-        digest = self.px.get_manifest_list_digest_by_nvr('s2i-1-2', False)
+        digests = self.px.get_manifestv2_digests_by_nvr('s2i-1-2', False)
 
-        expected_digest = 'sha256:4444'
-        self.assertEqual(digest, expected_digest)
+        self.assertEqual(digests, ('sha256:4444', "sha256:1238"))
         page.assert_called_once_with(
             'images/nvr/s2i-1-2',
             {'include': 'data.brew,data.repositories'}
@@ -505,6 +509,17 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
         page.assert_called_once_with("operators/bundles", {
             "include": "data.version,data.csv_name",
             "filter": "bundle_path_digest==some_digest"
+        })
+
+    @patch('freshmaker.pyxis.Pyxis._pagination')
+    def test_get_bundles_by_digest_with_v2_digest(self, page):
+        page.return_value = {"some_bundle"}
+
+        self.px.get_bundles_by_digest("some_digest", "some_digest2")
+
+        page.assert_called_once_with("operators/bundles", {
+            "include": "data.version,data.csv_name",
+            "filter": "bundle_path_digest==some_digest or bundle_path_digest==some_digest2"
         })
 
     @patch('freshmaker.pyxis.requests.get')

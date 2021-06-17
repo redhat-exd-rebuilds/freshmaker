@@ -219,8 +219,8 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
                                     "original_2": "some_name_2-2-2"})
 
         def gmldbn(nvr, must_be_published=True):
-            return nvr_to_digest[nvr]
-        self.pyxis().get_manifest_list_digest_by_nvr.side_effect = gmldbn
+            return nvr_to_digest[nvr], None
+        self.pyxis().get_manifestv2_digests_by_nvr.side_effect = gmldbn
         self.pyxis().get_operator_indices.return_value = []
         self.pyxis().get_latest_bundles.return_value = bundles
         # return bundles for original images
@@ -351,10 +351,10 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         build.bundle_pullspec_overrides = bundle_pullspec_overrides
 
         def gmldbn(nvr, must_be_published=True):
-            return digest_by_nvr[nvr]
-        self.pyxis().get_manifest_list_digest_by_nvr.side_effect = gmldbn
+            return digest_by_nvr[nvr], None
+        self.pyxis().get_manifestv2_digests_by_nvr.side_effect = gmldbn
         self.pyxis().get_bundles_by_digest.side_effect = \
-            lambda digest: bundle_by_digest[digest]
+            lambda digest, _: bundle_by_digest[digest]
         get_csv_updates.return_value = {"update": "csv_update_placeholder"}
         db.session.commit()
 
@@ -388,12 +388,12 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
             }
         ]
         self.assertCountEqual(bundles_to_rebuild, expected_bundles)
-        self.pyxis().get_manifest_list_digest_by_nvr.assert_has_calls(
+        self.pyxis().get_manifestv2_digests_by_nvr.assert_has_calls(
             [call("container_image_1_nvr"), call("container_image_2_nvr")],
             any_order=True)
         self.assertEqual(self.pyxis().get_bundles_by_digest.call_count, 2)
         self.pyxis().get_bundles_by_digest.assert_has_calls(
-            [call("container_image_1_digest"), call("container_image_2_digest")],
+            [call("container_image_1_digest", None), call("container_image_2_digest", None)],
             any_order=True)
 
     def test_get_pullspecs_mapping(self):
@@ -451,9 +451,10 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
             }
         }
         get_build.return_value = "some_name-1-0"
+        self.pyxis().get_manifestv2_digests_by_nvr.return_value = (MagicMock(), MagicMock())
 
         self.handler.handle(event)
-        self.pyxis().get_manifest_list_digest_by_nvr.assert_has_calls([
+        self.pyxis().get_manifestv2_digests_by_nvr.assert_has_calls([
             call("some_name-1-0"),
             call("some_name_two-2-2", must_be_published=False),
         ], any_order=True)
@@ -467,7 +468,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         }})
     def test_handle_no_digests_error(self):
         event = BotasErrataShippedEvent("test_msg_id", self.botas_advisory)
-        self.pyxis().get_manifest_list_digest_by_nvr.return_value = None
+        self.pyxis().get_manifestv2_digests_by_nvr.return_value = None, None
         self.botas_advisory._builds = {}
 
         self.handler.handle(event)
@@ -510,8 +511,8 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         }
 
         def gmldbn(nvr, must_be_published=True):
-            return digests_by_nvrs[nvr]
-        self.pyxis().get_manifest_list_digest_by_nvr.side_effect = gmldbn
+            return digests_by_nvrs[nvr], None
+        self.pyxis().get_manifestv2_digests_by_nvr.side_effect = gmldbn
 
         bundles_by_related_digest = {
             "sha256:111": [
