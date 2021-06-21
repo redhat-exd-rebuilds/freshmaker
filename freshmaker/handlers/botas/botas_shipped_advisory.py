@@ -497,7 +497,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                 # Update the name of the CSV to something uniquely identify the rebuild
                 'name': new_csv_name,
                 # Declare that this rebuild is a substitute of the bundle being rebuilt
-                'annotations': {'olm.substitutesFor': version}
+                'annotations': {'olm.substitutesFor': csv_name}
             },
             'spec': {
                 # Update the version of the rebuild to be unique and a newer version than the

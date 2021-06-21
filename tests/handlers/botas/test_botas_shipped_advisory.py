@@ -253,7 +253,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
                 "update": {
                     "metadata": {
                         "name": "image.1.2.3-0.1608854400.p",
-                        "annotations": {"olm.substitutesFor": "1.2.3"},
+                        "annotations": {"olm.substitutesFor": "image.1.2.3"},
                     },
                     "spec": {"version": "1.2.3+0.1608854400.p"},
                 },
@@ -274,7 +274,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
                 "update": {
                     "metadata": {
                         "name": "image.1.2.4-0.1608854400.p",
-                        "annotations": {"olm.substitutesFor": "1.2.4"},
+                        "annotations": {"olm.substitutesFor": "image.1.2.4"},
                     },
                     "spec": {"version": "1.2.4+0.1608854400.p"},
                 },
@@ -801,7 +801,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
                 "update": {
                     "metadata": {
                         'name': "amq-streams.2.2.0+0.1608854400.p",
-                        "annotations": {"olm.substitutesFor": "2.2.0"},
+                        "annotations": {"olm.substitutesFor": "image.2.2.0"},
                     },
                     'spec': {
                         'version': "2.2.0+0.1608854400.p",
@@ -826,7 +826,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
             "update": {
                 "metadata": {
                     "name": "amq-streams.2.2.0+0.1608854400.p",
-                    "annotations": {"olm.substitutesFor": "2.2.0"},
+                    "annotations": {"olm.substitutesFor": "image.2.2.0"},
                 },
                 "spec": {
                     "version": "2.2.0+0.1608854400.p",
@@ -904,7 +904,7 @@ def test_get_csv_updates(mock_grbv, mock_gcn):
         "update": {
             "metadata": {
                 'name': "amq-streams.1.2.3-0.1608854400.p",
-                "annotations": {"olm.substitutesFor": "1.2.3"}
+                "annotations": {"olm.substitutesFor": "amq-streams.1.2.3"}
             },
             'spec': {
                 'version': "1.2.3+0.1608854400.p",
