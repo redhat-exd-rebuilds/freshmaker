@@ -169,11 +169,16 @@ class Pyxis(object):
             request_params['filter'] = \
                 f'latest_in_channel==true and source_index_container_path=={path}'
 
-            def _isvalid(version):
+            def _isvalid(version, csv_name):
                 try:
                     semver.parse(version)
                     return True
                 except ValueError:
+                    log.error(
+                        'The bundle with the name %s has an invalid semver of %s',
+                        csv_name,
+                        version,
+                    )
                     return False
 
             # Discard any bundles with invalid semantic versions since Freshmaker
@@ -181,7 +186,7 @@ class Pyxis(object):
             bundle_list = [
                 bundle
                 for bundle in self._pagination('operators/bundles', request_params)
-                if _isvalid(bundle["version"])
+                if _isvalid(bundle["version"], bundle["csv_name"])
             ]
 
             latest_bundles.extend(bundle_list)

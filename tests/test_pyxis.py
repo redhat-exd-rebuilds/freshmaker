@@ -101,6 +101,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
         self.bundles = [
             {
                 "channel_name": "streams-1.5.x",
+                "csv_name": "streams.1.5.3",
                 "related_images": [
                     {
                         "image": "registry/amq7/amq-streams-r-operator@sha256:111",
@@ -127,6 +128,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
             },
             {
                 "channel_name": "streams-1.5.x",
+                "csv_name": "streams.1.5.4",
                 "related_images": [
                     {
                         "image": "registry/amq7/amq-streams-r-operator@sha256:555",
@@ -153,6 +155,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
             },
             {
                 "channel_name": "stable",
+                "csv_name": "streams.1.5.3",
                 "related_images": [
                     {
                         "image": "registry/amq7/amq--operator@sha256:999",
@@ -179,6 +182,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
             },
             {
                 "channel_name": "stable",
+                "csv_name": "streams.1.5.2",
                 "related_images": [
                     {
                         "image": "registry/tracing/j-operator:1.13.2",
@@ -195,6 +199,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
             },
             {
                 "channel_name": "quay-v3.3",
+                "csv_name": "quay.3.3.1",
                 "related_images": [
                     {
                         "image": "registry/quay/quay-operator@sha256:ddd",
@@ -410,6 +415,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
         # Ensure this one is ignored
         bad_version_bundle = {
             "channel_name": "test-v2.3",
+            "csv_name": "test_name.version_me",
             "related_images": [
                 {
                     "image": "registry/quay/quay-operator@sha256:ddd",
