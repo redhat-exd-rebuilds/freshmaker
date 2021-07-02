@@ -462,13 +462,33 @@ class BotasErrataShippedEvent(ErrataBaseEvent):
 
 
 class ManualBundleRebuild(BaseEvent):
-    def __init__(self, msg_id, container_images, bundle_images, metadata=None,
-                 dry_run=False, requester=None):
+    """
+    Event triggered when Release Driver requests manual rebuild
+    OR when manual rebuild of bundles requested by person
+    """
+    def __init__(self, msg_id, dry_run=False):
         super().__init__(msg_id, manual=True, dry_run=dry_run)
-        self.container_images = container_images
-        self.bundle_images = bundle_images
-        self.metadata = metadata
-        self.requester = requester
 
     def is_allowed(self, handler, **kwargs):
         return super().is_allowed(handler, ArtifactType.IMAGE, **kwargs)
+
+    @classmethod
+    def from_manual_rebuild_request(cls, msg_id, advisory,
+                                    freshmaker_event_id=None,
+                                    container_images=[], requester=None, **kwargs):
+        event = cls(msg_id, **kwargs)
+        event.advisory = advisory
+        event.freshmaker_event_id = freshmaker_event_id
+        event.container_images = container_images
+        event.requester = requester
+        return event
+
+    @classmethod
+    def from_release_driver_request(cls, msg_id, container_images, bundle_images,
+                                    metadata=None, requester=None, **kwargs):
+        event = cls(msg_id, **kwargs)
+        event.container_images = container_images
+        event.bundle_images = bundle_images
+        event.metadata = metadata
+        event.requester = requester
+        return event

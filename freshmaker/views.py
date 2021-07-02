@@ -525,17 +525,25 @@ class BuildAPI(MethodView):
 
         dependent_event = None
         if data.get('freshmaker_event_id'):
+            dependent_event_id = data.get('freshmaker_event_id')
             dependent_event = models.Event.get_by_event_id(
-                db.session, data.get('freshmaker_event_id'),
-            )
+                db.session, dependent_event_id)
+
+            if dependent_event is None:
+                return json_error(
+                    400,
+                    'Bad Request',
+                    f'There is no event with id {dependent_event_id}',
+                )
+
             # requesting a CVE rebuild, the event can not be an async build event which
             # is for non-CVE only
             async_build_event_type = models.EVENT_TYPES[events.FreshmakerAsyncManualBuildEvent]
             if dependent_event.event_type_id == async_build_event_type:
                 return json_error(
-                    400, 'Bad Request', 'The event (id={}) is an async build event, '
-                    'can not be used for this build.'.format(data.get('freshmaker_event_id')),
-                )
+                    400, 'Bad Request', f'The event (id={dependent_event_id}) is an async build'
+                                        ' event, can not be used for this build.')
+
             if not data.get('errata_id'):
                 data['errata_id'] = int(dependent_event.search_key)
             elif int(dependent_event.search_key) != data['errata_id']:
@@ -547,8 +555,7 @@ class BuildAPI(MethodView):
                 )
 
         # Use the shared code to parse the POST data and generate right
-        # event based on the data. Currently it generates just
-        # ManualRebuildWithAdvisoryEvent.
+        # event based on the data.
         parser = FreshmakerManualRebuildParser()
         db_event = _create_rebuild_event_from_request(db.session, parser, request)
 

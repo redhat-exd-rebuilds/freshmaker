@@ -174,6 +174,7 @@ class Config(object):
                 'freshmaker.handlers.koji:RebuildImagesOnODCSComposeDone',
                 'freshmaker.handlers.bob:RebuildImagesOnImageAdvisoryChange',
                 'freshmaker.handlers.koji:RebuildImagesOnAsyncManualBuild',
+                'freshmaker.handlers.botas:HandleBotasAdvisory'
             ],
             'desc': 'List of enabled handlers.'},
         'polling_interval': {

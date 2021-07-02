@@ -800,7 +800,7 @@ class TestManualTriggerRebuild(ViewBaseTest):
     @patch('freshmaker.messaging.publish')
     @patch('freshmaker.parsers.internal.manual_rebuild.time.time')
     @patch('freshmaker.views._validate_rebuild_request', return_value=None)
-    def test_manual_bundle_rebuild(self, validate, time, publish):
+    def test_release_driver_bundle_rebuild(self, validate, time, publish):
         time.return_value = 111
 
         with patch('freshmaker.models.datetime') as datetime_patch:
@@ -835,6 +835,59 @@ class TestManualTriggerRebuild(ViewBaseTest):
         publish.assert_called_once_with('manual.rebuild',
                                         {'msg_id': 'manual_rebuild_111',
                                          'bundle_images': ['bundle'],
+                                         'container_images': ['container_image'],
+                                         'requester': 'root'})
+
+    @patch('freshmaker.parsers.internal.manual_rebuild.ErrataAdvisory.from_advisory_id')
+    @patch('freshmaker.messaging.publish')
+    @patch('freshmaker.parsers.internal.manual_rebuild.time.time')
+    @patch('freshmaker.views._validate_rebuild_request', return_value=None)
+    def test_manually_triggered_bundle_rebuild(self, validate, time, publish,
+                                               from_advisory_id):
+        time.return_value = 111
+        # Create testing dependent event
+        dependent_event = models.Event.create(db.session, "msg_id", 123,
+                                              events.TestingEvent)
+        advisory = ErrataAdvisory(123, 'name', 'SHIPPED_LIVE', ['rpm'])
+        advisory._reporter = 'botas_123'
+        from_advisory_id.return_value = advisory
+        db.session.commit()
+
+        with patch('freshmaker.models.datetime') as datetime_patch:
+            datetime_patch.utcnow.return_value = datetime.datetime(2000, 1, 2,
+                                                                   3, 4, 5)
+            with self.test_request_context(user='root'):
+                resp = self.client.post(
+                    '/api/1/builds/',
+                    data=json.dumps({'errata_id': 123,
+                                     'freshmaker_event_id': dependent_event.id,
+                                     'container_images': ['container_image']}),
+                    content_type='application/json',
+                )
+
+        self.assertEqual(resp.json,
+                         {'builds': [],
+                          'depending_events': [],
+                          'depends_on_events': [1],
+                          'dry_run': False,
+                          'event_type_id': 16,
+                          'id': 2,
+                          'message_id': 'manual_rebuild_111',
+                          'requested_rebuilds': ['container_image'],
+                          'requester': 'root',
+                          'requester_metadata': {},
+                          'search_key': 'manual_rebuild_111',
+                          'state': 0,
+                          'state_name': 'INITIALIZED',
+                          'state_reason': None,
+                          'time_created': '2000-01-02T03:04:05Z',
+                          'time_done': None,
+                          'url': '/api/1/events/2'})
+
+        publish.assert_called_once_with('manual.rebuild',
+                                        {'msg_id': 'manual_rebuild_111',
+                                         'freshmaker_event_id': 1,
+                                         'errata_id': 123,
                                          'container_images': ['container_image'],
                                          'requester': 'root'})
 

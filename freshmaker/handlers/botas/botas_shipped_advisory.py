@@ -91,10 +91,12 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             self.log_info(msg)
             return []
 
-        if isinstance(event, ManualBundleRebuild):
-            bundles_to_rebuild = self._handle_manual_rebuild(db_event)
+        if isinstance(event, ManualBundleRebuild) and \
+                hasattr(event, 'bundle_images'):
+            bundles_to_rebuild = self._handle_release_driver_rebuild(db_event)
+        # automatic rebuild and manual bundle rebuild(triggered by post request)
         else:
-            bundles_to_rebuild = self._handle_auto_rebuild(db_event)
+            bundles_to_rebuild = self._handle_bundle_rebuild(db_event)
 
         if not bundles_to_rebuild:
             return []
@@ -111,15 +113,16 @@ class HandleBotasAdvisory(ContainerBuildHandler):
 
         return []
 
-    def _handle_auto_rebuild(self, db_event):
+    def _handle_bundle_rebuild(self, db_event):
         """
         Handle auto rebuild for an advisory created by Botas
+        OR manually triggered rebuild
 
         :param db_event: database event that represent rebuild event
         :rtype: list
         :return: list of advisories that should be rebuilt
         """
-        # Mapping of original build nvrs to rebuilt nvrs in advisory
+        # Mapping of operators' original build nvrs to rebuilt nvrs in advisory
         nvrs_mapping = self._create_original_to_rebuilt_nvrs_map()
 
         original_nvrs = nvrs_mapping.keys()
@@ -237,9 +240,26 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             if not bundles:
                 self.log_warn('The bundle digest %r was not found in Pyxis. Skipping.', digest)
                 continue
+            bundle_nvr = bundles[0]['brew']['build']
+
+            # If specific container images where requested to rebuild, process only them
+            if (isinstance(self.event, ManualBundleRebuild)
+                    and self.event.container_images                         # noqa: W503
+                    and bundle_nvr not in self.event.container_images):     # noqa: W503
+                self.log_debug("Ignoring '%s', because it's not in requested rebuilds"
+                               " (container_images in request)", bundle_nvr)
+                continue
+
+            # Filter out builds from dependent event that were rebuilt recently
+            done_build = db_event.get_artifact_build_from_event_dependencies(
+                bundle_nvr)
+            if done_build:
+                self.log_debug("Ignoring '%s' bundle, because it was already rebuilt"
+                               " in dependent event", bundle_nvr)
+                continue
 
             bundles_by_digest.setdefault(digest, copy.deepcopy(default_bundle_data))
-            bundles_by_digest[digest]['nvr'] = bundles[0]['brew']['build']
+            bundles_by_digest[digest]['nvr'] = bundle_nvr
             bundles_by_digest[digest]['images'] = bundles
 
         # Unauthenticated koji session to fetch build info of bundles
@@ -345,7 +365,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                                       to_rebuild_digests))
         return bundles_to_rebuild
 
-    def _handle_manual_rebuild(self, db_event):
+    def _handle_release_driver_rebuild(self, db_event):
         """
         Handle manual rebuild submitted by Release Driver for an advisory created by Botas
 
@@ -647,7 +667,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
 
     def _create_original_to_rebuilt_nvrs_map(self):
         """
-        Creates mapping of original build NVRs to rebuilt NVRs in advisory.
+        Creates mapping of original operator build NVRs to rebuilt NVRs in advisory.
         Including NVRs of the builds from the blocking advisories
 
         :rtype: dict
@@ -677,8 +697,8 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                 # all of them, that have overlapping package names
                 for block_build in blocking_advisories_builds:
                     block_build_nvr = parse_nvr(block_build)
-                    if block_build_nvr['name'] == parsed_build_nvr['name'] and \
-                            block_build_nvr['version'] == parsed_build_nvr['version']:
+                    if (block_build_nvr['name'] == parsed_build_nvr['name']
+                            and block_build_nvr['version'] == parsed_build_nvr['version']):     # noqa: W503
                         nvrs_mapping[block_build] = build_nvr
         return nvrs_mapping
 

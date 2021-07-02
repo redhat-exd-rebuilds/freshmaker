@@ -51,14 +51,31 @@ class FreshmakerManualRebuildParser(BaseParser):
             errata = Errata()
             advisory = ErrataAdvisory.from_advisory_id(errata, errata_id)
 
-            event = ManualRebuildWithAdvisoryEvent(
-                msg_id, advisory, data.get("container_images", []), data.get("metadata", None),
-                freshmaker_event_id=data.get('freshmaker_event_id'), manual=True,
-                dry_run=dry_run, requester=data.get('requester', None))
+            # Manually triggered rebuild of bundles, executed by POST request
+            if advisory.state == "SHIPPED_LIVE" and \
+                    advisory.reporter.startswith('botas'):
+                event = ManualBundleRebuild.from_manual_rebuild_request(
+                    msg_id,
+                    advisory,
+                    data.get('freshmaker_event_id', None),
+                    data.get('container_images', []),
+                    requester=data.get('requester', None),
+                    dry_run=dry_run)
+            else:
+                event = ManualRebuildWithAdvisoryEvent(
+                    msg_id,
+                    advisory,
+                    data.get("container_images", []),
+                    data.get("metadata", None),
+                    freshmaker_event_id=data.get('freshmaker_event_id'),
+                    dry_run=dry_run,
+                    requester=data.get('requester', None))
+        # Retriggered rebuild of bundles by Release Driver
         else:
-            event = ManualBundleRebuild(msg_id, data.get('container_images', []),
-                                        data.get('bundle_images'), data.get('metadata', None),
-                                        dry_run=dry_run, requester=data.get('requester', None))
+            event = ManualBundleRebuild.from_release_driver_request(
+                msg_id, data.get('container_images', []), data.get('bundle_images'),
+                data.get('metadata', None), dry_run=dry_run,
+                requester=data.get('requester', None))
 
         return event
 
