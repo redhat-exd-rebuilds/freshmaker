@@ -323,7 +323,7 @@
 </dd>
 </dl>
 <dl class="simple" id="build-build-id">
-<dt><em>build_id</em> - <code class="docutils literal notranslate"><span class="pre">(number)</span></code></dt><dd><p>The ID of Artifact Build. For container images (the only supported artifact at this moment), it’s task id in koji/brew build system.</p>
+<dt><em>build_id</em> - <code class="docutils literal notranslate"><span class="pre">(number)</span></code></dt><dd><p>The ID of Artifact Build. For container images (the only supported artifact at this moment), this is the Koji (or Brew) buildContainer task ID. If this field is null, Freshmaker did not submit a buildContainer task (due to some other failure), or Koji failed to return a task ID for some reason.</p>
 </dd>
 </dl>
 <dl class="simple" id="build-dep-on">
