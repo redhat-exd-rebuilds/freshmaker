@@ -550,9 +550,10 @@ class ArtifactBuild(FreshmakerBase):
 
     # Id of corresponding real build in external build system.
     # For container images (the only supported artifact at this moment),
-    # this is the id of image build task in koji/brew. It could be NULL,
-    # which means the image build task has not been submitted to build
-    # system (koji/brew), or freshmaker failed to submit the build task.
+    # this is the Koji (or Brew) buildContainer task ID. It could be NULL,
+    # which means Freshmaker did not submit a buildContainer task (due to
+    # some other failure), or Koji failed to return a task ID for some
+    # reason.
     build_id = db.Column(db.Integer)
 
     # Build args in json format.

@@ -179,7 +179,7 @@ The Freshmaker Artifact Build is always represented in the API request as JSON, 
 .. _build_build_id:
 
 *build_id* - ``(number)``
-    The ID of Artifact Build. For container images (the only supported artifact at this moment), it's task id in koji/brew build system.
+    The ID of Artifact Build. For container images (the only supported artifact at this moment), this is the Koji (or Brew) buildContainer task ID. If this field is null, Freshmaker did not submit a buildContainer task (due to some other failure), or Koji failed to return a task ID for some reason.
 
 .. _build_dep_on:
 
