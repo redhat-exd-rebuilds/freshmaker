@@ -548,10 +548,11 @@ class ArtifactBuild(FreshmakerBase):
     event_id = db.Column(db.Integer, db.ForeignKey('events.id'))
     event = relationship("Event", back_populates="builds")
 
-    # Id of corresponding real build in external build system. Currently, it
-    # could be ID of a build in MBS or Koji, maybe others in the future.
-    # build_id may be NULL, which means this build has not been built in
-    # external build system.
+    # Id of corresponding real build in external build system.
+    # For container images (the only supported artifact at this moment),
+    # this is the id of image build task in koji/brew. It could be NULL,
+    # which means the image build task has not been submitted to build
+    # system (koji/brew), or freshmaker failed to submit the build task.
     build_id = db.Column(db.Integer)
 
     # Build args in json format.
