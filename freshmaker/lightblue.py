@@ -36,6 +36,7 @@ from itertools import groupby
 
 from freshmaker import log, conf
 from freshmaker.kojiservice import koji_service
+from freshmaker.odcsclient import create_odcs_client
 from freshmaker.utils import sorted_by_nvr, is_pkg_modular
 import koji
 
@@ -148,6 +149,11 @@ class ContainerImage(dict):
         if arch and rpm_manifest:
             image['multi_arch_rpm_manifest'][arch] = rpm_manifest
 
+        image['multi_arch_content_sets'] = {}
+        content_sets = data.get('content_sets')
+        if arch and content_sets:
+            image['multi_arch_content_sets'][arch] = content_sets
+
         return image
 
     def __hash__(self):
@@ -185,9 +191,12 @@ class ContainerImage(dict):
             return
 
         image_rpm_manifest = image.get('rpm_manifest')
-        if not image_rpm_manifest:
-            return
-        self['multi_arch_rpm_manifest'][image_arch] = image_rpm_manifest
+        if image_rpm_manifest:
+            self['multi_arch_rpm_manifest'][image_arch] = image_rpm_manifest
+
+        image_content_sets = image.get('content_sets')
+        if image_content_sets:
+            self['multi_arch_content_sets'][image_arch] = image_content_sets
 
     @staticmethod
     def _get_default_additional_data():
@@ -325,6 +334,37 @@ class ContainerImage(dict):
 
         self.update(data)
 
+    def resolve_compose_sources(self):
+        """
+        Get source values of ODCS composes used in image build task
+
+        Populate image["compose_sources"] with a set of these values
+        """
+        compose_sources = self.get("compose_sources", None)
+        # This has been populated?
+        if compose_sources is not None:
+            return
+
+        odcs_client = create_odcs_client()
+        self["compose_sources"] = set()
+        compose_ids = self.get("odcs_compose_ids")
+        if not compose_ids:
+            return
+
+        for compose_id in compose_ids:
+            # Get odcs compose source value from odcs server
+            compose = odcs_client.get_compose(compose_id)
+            source = compose.get("source", "")
+            # NOTE: source is converted to list and then sorted before
+            # convert it back to string, so it can be easily compared
+            # later when check whether a compose source already exists
+            source = " ".join(sorted(source.split()))
+            if source:
+                self["compose_sources"].add(source)
+
+        log.info("Container image %s uses following compose sources: %r",
+                 self.nvr, self["compose_sources"])
+
     def resolve_content_sets(self, lb_instance, children=None):
         """
         Find out the content_sets this image uses and store it as
@@ -403,6 +443,7 @@ class ContainerImage(dict):
         """
         try:
             self.resolve_commit()
+            self.resolve_compose_sources()
             self.resolve_content_sets(lb_instance, children)
             self.resolve_published(lb_instance)
         except Exception as e:
