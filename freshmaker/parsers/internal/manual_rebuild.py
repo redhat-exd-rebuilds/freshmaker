@@ -60,6 +60,7 @@ class FreshmakerManualRebuildParser(BaseParser):
                     data.get('freshmaker_event_id', None),
                     data.get('container_images', []),
                     requester=data.get('requester', None),
+                    requester_metadata_json=data.get('requester_metadata_json', None),
                     dry_run=dry_run)
             else:
                 event = ManualRebuildWithAdvisoryEvent(
@@ -73,10 +74,13 @@ class FreshmakerManualRebuildParser(BaseParser):
         # Retriggered rebuild of bundles by Release Driver
         else:
             event = ManualBundleRebuild.from_release_driver_request(
-                msg_id, data.get('container_images', []), data.get('bundle_images'),
-                data.get('metadata', None), dry_run=dry_run,
-                requester=data.get('requester', None))
-
+                msg_id,
+                data.get('container_images', []),
+                data.get('bundle_images'),
+                requester=data.get('requester', None),
+                requester_metadata_json=data.get('requester_metadata_json', None),
+                dry_run=dry_run,
+            )
         return event
 
     def parse(self, topic, msg):

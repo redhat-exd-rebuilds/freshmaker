@@ -475,23 +475,31 @@ class ManualBundleRebuild(BaseEvent):
     @classmethod
     def from_manual_rebuild_request(cls, msg_id, advisory,
                                     freshmaker_event_id=None,
-                                    container_images=[], requester=None, **kwargs):
+                                    container_images=[],
+                                    requester=None,
+                                    requester_metadata_json=None,
+                                    **kwargs):
         event = cls(msg_id, **kwargs)
         event.advisory = advisory
         event.freshmaker_event_id = freshmaker_event_id
         event.container_images = container_images
         event.requester = requester
+        event.requester_metadata_json = requester_metadata_json
         return event
 
     @classmethod
-    def from_release_driver_request(cls, msg_id, container_images, bundle_images,
-                                    metadata=None, requester=None, **kwargs):
+    def from_release_driver_request(cls, msg_id,
+                                    container_images,
+                                    bundle_images,
+                                    requester=None,
+                                    requester_metadata_json=None,
+                                    **kwargs):
         event = cls(msg_id, **kwargs)
         event.advisory = None
         event.container_images = container_images
         event.bundle_images = bundle_images
-        event.metadata = metadata
         event.requester = requester
+        event.requester_metadata_json = requester_metadata_json
         return event
 
     @property

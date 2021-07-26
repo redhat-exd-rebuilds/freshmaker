@@ -520,8 +520,13 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         event = ManualBundleRebuild.from_release_driver_request(
             "test_msg_id",
             container_images=["container_image_1_nvr", "container_image_2_nvr"],
-            bundle_images=[])
+            bundle_images=[],
+            requester="release-driver",
+            requester_metadata_json={"rebuild_queue": []})
+
         db_event = Event.get_or_create_from_event(db.session, event)
+        self.assertEqual(json.loads(db_event.requester_metadata), {"rebuild_queue": []})
+
         self.handler.event = event
         get_build.side_effect = lambda nvr: build_by_nvr[nvr]
         build = ArtifactBuild.create(
