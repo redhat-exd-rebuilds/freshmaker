@@ -78,6 +78,9 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
             'target': 'docker-container-candidate',
             'git_branch': 'rhel-7.4',
             'content_sets': ['image_a_content_set_1', 'image_a_content_set_2'],
+            'multi_arch_content_sets': {
+                'x86_64': ['image_a_content_set_1', 'image_a_content_set_2']
+            },
             "arches": "x86_64",
             'brew': {
                 'build': 'image-a-1.0-2',
@@ -91,6 +94,7 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
             },
             "generate_pulp_repos": True,
             "odcs_compose_ids": None,
+            "compose_sources": set(),
             "published": False,
         })
         self.image_b = ContainerImage({
@@ -99,6 +103,9 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
             'target': 'docker-container-candidate',
             'git_branch': 'rhel-7.4',
             'content_sets': ['image_b_content_set_1', 'image_b_content_set_2'],
+            'multi_arch_content_sets': {
+                'x86_64': ['image_b_content_set_1', 'image_b_content_set_2']
+            },
             "arches": "x86_64",
             'brew': {
                 'build': 'image-b-1.0-1'
@@ -112,6 +119,7 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
             },
             "generate_pulp_repos": True,
             "odcs_compose_ids": None,
+            "compose_sources": set(),
             "published": False,
         })
         self.image_c = ContainerImage({
@@ -120,6 +128,9 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
             'target': 'docker-container-candidate',
             'git_branch': 'rhel-7.4',
             'content_sets': ['image_c_content_set_1', 'image_d_content_set_2'],
+            'multi_arch_content_sets': {
+                'x86_64': ['image_c_content_set_1', 'image_c_content_set_2']
+            },
             "arches": "x86_64",
             'brew': {
                 'build': 'image-c-0.2-9',
@@ -134,6 +145,7 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
             },
             "generate_pulp_repos": True,
             "odcs_compose_ids": None,
+            "compose_sources": set(),
             "published": False,
         })
         self.image_d = ContainerImage({
@@ -142,6 +154,9 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
             'target': 'docker-container-candidate',
             'git_branch': 'rhel-7.4',
             'content_sets': ['image_d_content_set_1', 'image_d_content_set_2'],
+            'multi_arch_content_sets': {
+                'x86_64': ['image_d_content_set_1', 'image_d_content_set_2']
+            },
             "arches": "x86_64",
             'brew': {
                 'build': 'image-d-2.14-1',
@@ -156,6 +171,7 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
             },
             "generate_pulp_repos": True,
             "odcs_compose_ids": None,
+            "compose_sources": set(),
             "published": False,
         })
         self.image_e = ContainerImage({
@@ -164,6 +180,9 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
             'target': 'docker-container-candidate',
             'git_branch': 'rhel-7.4',
             'content_sets': ['image_e_content_set_1', 'image_e_content_set_2'],
+            'multi_arch_content_sets': {
+                'x86_64': ['image_e_content_set_1', 'image_e_content_set_2']
+            },
             "arches": "x86_64",
             'brew': {
                 'build': 'image-e-1.0-1',
@@ -178,6 +197,7 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
             },
             "generate_pulp_repos": True,
             "odcs_compose_ids": None,
+            "compose_sources": set(),
             "published": False,
         })
         self.image_f = ContainerImage({
@@ -186,6 +206,9 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
             'target': 'docker-container-candidate',
             'git_branch': 'rhel-7.4',
             'content_sets': ['image_f_content_set_1', 'image_f_content_set_2'],
+            'multi_arch_content_sets': {
+                'x86_64': ['image_f_content_set_1', 'image_f_content_set_2']
+            },
             "arches": "x86_64",
             'brew': {
                 'build': 'image-f-0.2-1',
@@ -200,6 +223,7 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
             },
             "generate_pulp_repos": True,
             "odcs_compose_ids": None,
+            "compose_sources": set(),
             "published": False,
         })
         # For simplicify, mocking _find_images_to_rebuild to just return one
@@ -825,9 +849,11 @@ class TestBatches(helpers.ModelsTestCase):
             'git_branch': 'mybranch',
             "error": error,
             "content_sets": ["first-content-set"],
+            "multi_arch_content_sets": {'x86_64': ["first-content-set"]},
             "generate_pulp_repos": True,
             "arches": "x86_64",
             "odcs_compose_ids": [10, 11],
+            "compose_sources": {"first-content-set"},
             "published": False,
         }
         d.update(kwargs)
@@ -1029,6 +1055,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 },
                 "parent": None,
                 "content_sets": ["content-set-1"],
+                "multi_arch_content_sets": {"x86_64": ["content-set-1"]},
                 "repository": "repo-1",
                 "commit": "123456789",
                 "target": "target-candidate",
@@ -1037,6 +1064,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "generate_pulp_repos": True,
                 "arches": "x86_64",
                 "odcs_compose_ids": None,
+                "compose_sources": set(),
                 "published": False,
             })],
             [ContainerImage({
@@ -1073,6 +1101,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                     "error": None
                 }),
                 "content_sets": ["content-set-1"],
+                "multi_arch_content_sets": {"x86_64": ["content-set-1"]},
                 "repository": "repo-1",
                 "commit": "987654321",
                 "target": "target-candidate",
@@ -1081,6 +1110,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "generate_pulp_repos": True,
                 "arches": "x86_64",
                 "odcs_compose_ids": None,
+                "compose_sources": set(),
                 "published": False,
             })]
         ]
@@ -1160,6 +1190,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 },
                 "parent": None,
                 "content_sets": ["content-set-1"],
+                "multi_arch_content_sets": {"x86_64": ["content-set-1"]},
                 "repository": "repo-1",
                 "commit": "123456789",
                 "target": "target-candidate",
@@ -1168,6 +1199,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "generate_pulp_repos": False,
                 "arches": "x86_64",
                 "odcs_compose_ids": None,
+                "compose_sources": set(),
                 "published": False,
             })]
         ]
@@ -1200,6 +1232,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 },
                 "parent": None,
                 "content_sets": ["content-set-1"],
+                "multi_arch_content_sets": {"x86_64": ["content-set-1"]},
                 "repository": "repo-1",
                 "commit": "123456789",
                 "target": "target-candidate",
@@ -1208,6 +1241,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "arches": "x86_64",
                 "generate_pulp_repos": True,
                 "odcs_compose_ids": None,
+                "compose_sources": set(),
                 "published": False,
             })],
             [ContainerImage({
@@ -1244,6 +1278,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                     "error": None
                 }),
                 "content_sets": ["content-set-1"],
+                "multi_arch_content_sets": {"x86_64": ["content-set-1"]},
                 "repository": "repo-1",
                 "commit": "987654321",
                 "target": "target-candidate",
@@ -1252,6 +1287,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "arches": "x86_64",
                 "generate_pulp_repos": True,
                 "odcs_compose_ids": None,
+                "compose_sources": set(),
                 "published": False,
             })]
         ]
@@ -1276,6 +1312,46 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
         self.mock_prepare_pulp_repo.assert_has_calls([
             call(parent_build, ["content-set-1"])
         ])
+
+    def test_do_not_generate_duplicate_pulp_compose(self):
+        batches = [
+            [ContainerImage({
+                "brew": {
+                    "completion_date": "20170420T17:05:37.000-0400",
+                    "build": "rhel-server-docker-7.3-82",
+                    "package": "rhel-server-docker"
+                },
+                'parsed_data': {
+                    'layers': [
+                        'sha512:12345678980',
+                        'sha512:10987654321'
+                    ]
+                },
+                "parent": None,
+                "content_sets": ["content-set-1"],
+                "multi_arch_content_sets": {"x86_64": ["content-set-1"]},
+                "repository": "repo-1",
+                "commit": "123456789",
+                "target": "target-candidate",
+                "git_branch": "rhel-7",
+                "error": None,
+                "arches": "x86_64",
+                "generate_pulp_repos": True,
+                "odcs_compose_ids": None,
+                "compose_sources": {"content-set-1"},
+                "published": False,
+            })]
+        ]
+
+        handler = RebuildImagesOnRPMAdvisoryChange()
+        handler._record_batches(batches, self.mock_event)
+
+        query = db.session.query(ArtifactBuild)
+        build = query.filter(
+            ArtifactBuild.original_nvr == 'rhel-server-docker-7.3-82'
+        ).first()
+        self.assertFalse(build.composes)
+        self.mock_prepare_pulp_repo.assert_not_called()
 
     def test_no_parent(self):
         batches = [
@@ -1487,6 +1563,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 },
                 "parent": None,
                 "content_sets": ["content-set-1"],
+                "multi_arch_content_sets": {"x86_64": ["content-set-1"]},
                 "repository": "repo-1",
                 "commit": "123456789",
                 "target": "target-candidate",
@@ -1495,6 +1572,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "generate_pulp_repos": True,
                 "arches": "x86_64",
                 "odcs_compose_ids": None,
+                "compose_sources": set(),
                 "published": False,
             })],
             [ContainerImage({
@@ -1531,6 +1609,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                     "error": None
                 }),
                 "content_sets": ["content-set-1"],
+                "multi_arch_content_sets": {"x86_64": ["content-set-1"]},
                 "repository": "repo-1",
                 "commit": "987654321",
                 "target": "target-candidate",
@@ -1539,6 +1618,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "generate_pulp_repos": True,
                 "arches": "x86_64",
                 "odcs_compose_ids": None,
+                "compose_sources": set(),
                 "published": False,
             })]
         ]

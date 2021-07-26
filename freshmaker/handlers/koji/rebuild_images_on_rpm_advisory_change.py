@@ -303,26 +303,36 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                     # in a way that we have to pass all the ODCS composes to it or
                     # no ODCS compose at all.
                     if image["generate_pulp_repos"] or not image["published"]:
-                        # Check if the compose for these content_sets is
-                        # already cached and use it in this case.
-                        cache_key = " ".join(sorted(image["content_sets"]))
-                        if cache_key in odcs_cache:
-                            db_compose = odcs_cache[cache_key]
-                        else:
-                            compose = self.odcs.prepare_pulp_repo(
-                                build, image["content_sets"])
+                        # Add arch specific composes
+                        for arch_content_sets in image["multi_arch_content_sets"].values():
+                            cache_key = " ".join(sorted(arch_content_sets))
+                            if cache_key in image["compose_sources"]:
+                                # This compose has same 'source' value as one of existing
+                                # composes in original build, freshmaker doesn't need to
+                                # generate this compose, since that one will be renewed by
+                                # osbs automatically when it's included in 'compose_ids'
+                                # in build task params
+                                continue
 
-                            if build.state != ArtifactBuildState.FAILED.value:
-                                db_compose = Compose(odcs_compose_id=compose['id'])
-                                db.session.add(db_compose)
-                                db.session.commit()
-                                odcs_cache[cache_key] = db_compose
+                            # Check if the compose for these content_sets is
+                            # already cached and use it in this case.
+                            if cache_key in odcs_cache:
+                                db_compose = odcs_cache[cache_key]
                             else:
-                                db_compose = None
+                                compose = self.odcs.prepare_pulp_repo(
+                                    build, arch_content_sets)
+
+                                if build.state != ArtifactBuildState.FAILED.value:
+                                    db_compose = Compose(odcs_compose_id=compose['id'])
+                                    db.session.add(db_compose)
+                                    db.session.commit()
+                                    odcs_cache[cache_key] = db_compose
+                                else:
+                                    db_compose = None
+                                    db.session.commit()
+                            if db_compose:
+                                build.add_composes(db.session, [db_compose])
                                 db.session.commit()
-                        if db_compose:
-                            build.add_composes(db.session, [db_compose])
-                            db.session.commit()
 
                     # Unpublished images can contain unreleased RPMs, so generate
                     # the ODCS compose with all the RPMs in the image to allow
