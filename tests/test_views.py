@@ -876,7 +876,7 @@ class TestManualTriggerRebuild(ViewBaseTest):
                           'requested_rebuilds': ['container_image'],
                           'requester': 'root',
                           'requester_metadata': {},
-                          'search_key': 'manual_rebuild_111',
+                          'search_key': '123',
                           'state': 0,
                           'state_name': 'INITIALIZED',
                           'state_reason': None,

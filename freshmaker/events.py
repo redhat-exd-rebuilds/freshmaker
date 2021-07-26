@@ -487,8 +487,15 @@ class ManualBundleRebuild(BaseEvent):
     def from_release_driver_request(cls, msg_id, container_images, bundle_images,
                                     metadata=None, requester=None, **kwargs):
         event = cls(msg_id, **kwargs)
+        event.advisory = None
         event.container_images = container_images
         event.bundle_images = bundle_images
         event.metadata = metadata
         event.requester = requester
         return event
+
+    @property
+    def search_key(self):
+        if self.advisory:
+            return self.advisory.errata_id
+        return self.msg_id
