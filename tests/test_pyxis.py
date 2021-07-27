@@ -124,7 +124,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                         "digest": "sha256:444"
                     }
                 ],
-                "version": "1.5.3"
+                "version_original": "1.5.3"
             },
             {
                 "channel_name": "streams-1.5.x",
@@ -151,7 +151,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                         "digest": "sha256:888"
                     }
                 ],
-                "version": "1.5.4"
+                "version_original": "1.5.4"
             },
             {
                 "channel_name": "stable",
@@ -178,7 +178,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                         "digest": "sha256:ccc"
                     }
                 ],
-                "version": "1.5.3"
+                "version_original": "1.5.3"
             },
             {
                 "channel_name": "stable",
@@ -428,7 +428,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                     "digest": "sha256:eee"
                 }
             ],
-            "version": "version_me"
+            "version_original": "version_me"
         }
         page_copy.side_effect = [self.bundles[:3] + [bad_version_bundle], []]
 
@@ -438,13 +438,13 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
         self.assertEqual(out, expected_out)
         page_copy.assert_has_calls([
             call('operators/bundles',
-                 {'include': 'data.channel_name,data.version,'
+                 {'include': 'data.channel_name,data.version_original,'
                              'data.related_images,data.bundle_path_digest,'
                              'data.bundle_path,data.csv_name',
                   'filter': 'latest_in_channel==true and '
                             'source_index_container_path==path/to/registry:v4.5'}),
             call('operators/bundles',
-                 {'include': 'data.channel_name,data.version,'
+                 {'include': 'data.channel_name,data.version_original,'
                              'data.related_images,data.bundle_path_digest,'
                              'data.bundle_path,data.csv_name',
                   'filter': 'latest_in_channel==true and '
@@ -509,7 +509,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
         self.px.get_bundles_by_digest(digest)
 
         page.assert_called_once_with("operators/bundles", {
-            "include": "data.version,data.csv_name",
+            "include": "data.version_original,data.csv_name",
             "filter": "bundle_path_digest==some_digest"
         })
 

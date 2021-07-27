@@ -156,7 +156,7 @@ class Pyxis(object):
         :rtype: list
         """
         # we need 'bundle_path_digest' to find ContainerImage of that bundle
-        include_fields = ['data.channel_name', 'data.version', 'data.related_images',
+        include_fields = ['data.channel_name', 'data.version_original', 'data.related_images',
                           'data.bundle_path_digest', 'data.bundle_path', 'data.csv_name']
         request_params = {'include': ','.join(include_fields)}
 
@@ -186,7 +186,7 @@ class Pyxis(object):
             bundle_list = [
                 bundle
                 for bundle in self._pagination('operators/bundles', request_params)
-                if _isvalid(bundle["version"], bundle["csv_name"])
+                if _isvalid(bundle["version_original"], bundle["csv_name"])
             ]
 
             latest_bundles.extend(bundle_list)
@@ -239,7 +239,7 @@ class Pyxis(object):
         :rtype: list
         """
         request_params = {
-            'include': ','.join(['data.version', 'data.csv_name']),
+            'include': ','.join(['data.version_original', 'data.csv_name']),
             'filter': f'bundle_path_digest=={digest}'
         }
 
