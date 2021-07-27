@@ -165,14 +165,14 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
                 {
                     "bundle_path_digest": "bundle_with_related_images_1_digest",
                     "csv_name": "image.1.2.3",
-                    "version": "1.2.3",
+                    "version_original": "1.2.3",
                 },
             ],
             "original_2_digest": [
                 {
                     "bundle_path_digest": "bundle_with_related_images_2_digest",
                     "csv_name": "image.1.2.4",
-                    "version": "1.2.4",
+                    "version_original": "1.2.4",
                 },
             ]
         }
@@ -312,14 +312,14 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
                 {
                     "bundle_path_digest": "bundle_with_related_images_1_digest",
                     "csv_name": "image.1.2.3",
-                    "version": "1.2.3",
+                    "version_original": "1.2.3",
                 },
             ],
             "original_2_digest": [
                 {
                     "bundle_path_digest": "bundle_with_related_images_2_digest",
                     "csv_name": "image.1.2.4",
-                    "version": "1.2.4",
+                    "version_original": "1.2.4",
                 },
             ],
             # bundle ignored because of 'container_images'
@@ -327,7 +327,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
                 {
                     "bundle_path_digest": "bundle_with_related_images_3_digest",
                     "csv_name": "image.1.2.5",
-                    "version": "1.2.5",
+                    "version_original": "1.2.5",
                 },
             ],
             # bundle ignored because it was already built in dependent event
@@ -335,7 +335,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
                 {
                     "bundle_path_digest": "bundle_with_related_images_4_digest",
                     "csv_name": "image.1.2.6",
-                    "version": "1.2.6",
+                    "version_original": "1.2.6",
                 },
             ]
         }
@@ -508,12 +508,12 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
             "container_image_1_digest": [{
                 "bundle_path_digest": "bundle_1",
                 "csv_name": "image.1.2.5",
-                "version": "1.2.5",
+                "version_original": "1.2.5",
             }],
             "container_image_2_digest": [{
                 "bundle_path_digest": "bundle_2",
                 "csv_name": "image.1.2.5",
-                "version": "1.2.5",
+                "version_original": "1.2.5",
             }],
         }
 
@@ -711,7 +711,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
                             "digest": "sha256:111"
                         },
                     ],
-                    "version": "1.5.3"
+                    "version_original": "1.5.3"
                 },
                 {
                     "bundle_path": "bundle-b/path",
@@ -725,7 +725,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
                             "digest": "sha256:111"
                         },
                     ],
-                    "version": "2.4.2"
+                    "version_original": "2.4.2"
                 },
             ],
             "sha256:222": []

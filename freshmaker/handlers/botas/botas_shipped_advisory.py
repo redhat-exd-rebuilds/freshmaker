@@ -305,7 +305,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                 continue
 
             csv_name = bundle_mds_by_digest[digest]['csv_name']
-            version = bundle_mds_by_digest[digest]['version']
+            version = bundle_mds_by_digest[digest]['version_original']
             bundle_data.update(self._get_csv_updates(csv_name, version))
 
             for pullspec in bundle_data['pullspec_replacements']:
@@ -454,7 +454,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                     continue
                 temp_bundle = bundles[0]
                 csv_updates = (self._get_csv_updates(temp_bundle['csv_name'],
-                                                     temp_bundle['version']))
+                                                     temp_bundle['version_original']))
                 to_rebuild_bundles.append({
                     'nvr': nvr,
                     'update': csv_updates['update'],
