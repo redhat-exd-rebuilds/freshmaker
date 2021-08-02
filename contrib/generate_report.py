@@ -4,6 +4,7 @@ from __future__ import print_function
 import argparse
 import requests
 from requests_kerberos import HTTPKerberosAuth
+from requests import conf
 
 TEMPLATE = """
 On {freshmaker_date}, Freshmaker rebuilt {original_nvr} container image [1] as a result of Important/Critical RHSA advisory [2].
@@ -27,7 +28,7 @@ FRESHMAKER_URL = 'https://freshmaker.engineering.redhat.com/api/1/'
 
 def get_advisory(errata_id):
     krb_auth = HTTPKerberosAuth()
-    r = requests.get(ERRATA_URL + "erratum/%s" % str(errata_id), auth=krb_auth)
+    r = requests.get(ERRATA_URL + "erratum/%s" % str(errata_id), auth=krb_auth, timeout=conf.requests_timeout)
     r.raise_for_status()
     data = r.json()
     return data["errata"].values()[0]
@@ -35,7 +36,7 @@ def get_advisory(errata_id):
 
 def get_freshmaker_build(search_key, original_nvr):
     url = FRESHMAKER_URL + "events/?search_key=%s" % search_key
-    r = requests.get(url)
+    r = requests.get(url, timeout=conf.requests_timeout)
     r.raise_for_status()
     data = r.json()
     for build in data["items"][0]["builds"]:

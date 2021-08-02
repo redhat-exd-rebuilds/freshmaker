@@ -25,6 +25,7 @@ import json
 import requests
 
 from freshmaker.utils import retry
+from freshmaker import conf
 
 
 class Pulp(object):
@@ -40,7 +41,8 @@ class Pulp(object):
         r = requests.post(
             '{0}{1}'.format(self.rest_api_root, endpoint.lstrip('/')),
             post_data,
-            auth=(self.username, self.password))
+            auth=(self.username, self.password),
+            timeout=conf.requests_timeout)
         r.raise_for_status()
         return r.json()
 
@@ -48,7 +50,8 @@ class Pulp(object):
         r = requests.get(
             '{0}{1}'.format(self.rest_api_root, endpoint.lstrip('/')),
             params=kwargs,
-            auth=(self.username, self.password))
+            auth=(self.username, self.password),
+            timeout=conf.requests_timeout)
         r.raise_for_status()
         return r.json()
 

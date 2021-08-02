@@ -27,6 +27,7 @@ from unittest.mock import patch
 from requests import exceptions
 
 from freshmaker.pulp import Pulp
+from freshmaker import conf
 from tests import helpers
 
 
@@ -94,7 +95,8 @@ class TestPulp(helpers.FreshmakerTestCase):
                     'fields': ['notes'],
                 }
             }),
-            auth=(self.username, self.password))
+            auth=(self.username, self.password),
+            timeout=conf.requests_timeout)
 
         self.assertEqual(
             ['rhel-7-workstation-rpms',
@@ -155,7 +157,8 @@ class TestPulp(helpers.FreshmakerTestCase):
                     'fields': ['notes'],
                 }
             }),
-            auth=(self.username, self.password))
+            auth=(self.username, self.password),
+            timeout=conf.requests_timeout)
 
         self.assertEqual(['rhel-7-workstation-rpms', 'rhel-7-desktop-rpms'],
                          content_sets)
@@ -178,7 +181,8 @@ class TestPulp(helpers.FreshmakerTestCase):
         get.assert_called_once_with(
             '{}pulp/api/v2/repositories/foo-526/'.format(self.server_url),
             params={"distributors": True},
-            auth=(self.username, self.password))
+            auth=(self.username, self.password),
+            timeout=conf.requests_timeout)
 
         self.assertEqual(repo_name, "scl/foo-526")
 

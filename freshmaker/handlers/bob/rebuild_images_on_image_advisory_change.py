@@ -120,7 +120,7 @@ class RebuildImagesOnImageAdvisoryChange(ContainerBuildHandler):
                 self.log_info("DRY RUN: Skipping request to Bob.")
                 continue
 
-            r = requests.get(bob_url, headers=headers)
+            r = requests.get(bob_url, headers=headers, timeout=conf.requests_timeout)
             r.raise_for_status()
             resp = r.json()
             self.log_info("Response: %r", resp)

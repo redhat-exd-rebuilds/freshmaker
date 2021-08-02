@@ -27,7 +27,7 @@ from freshmaker.errata import ErrataAdvisory
 from freshmaker.events import (ErrataAdvisoryStateChangedEvent,
                                ManualRebuildWithAdvisoryEvent)
 from freshmaker.handlers.bob import RebuildImagesOnImageAdvisoryChange
-from freshmaker import models, db
+from freshmaker import models, db, conf
 from tests import helpers
 
 
@@ -114,10 +114,12 @@ class RebuildImagesOnImageAdvisoryChangeTest(helpers.ModelsTestCase):
         get_docker_repository_name.assert_any_call("foo-526")
         requests_get.assert_any_call(
             'http://localhost/update_children/scl/foo-526',
-            headers={'Authorization': 'Bearer x'})
+            headers={'Authorization': 'Bearer x'},
+            timeout=conf.requests_timeout)
         requests_get.assert_any_call(
             'http://localhost/update_children/scl/bar-526',
-            headers={'Authorization': 'Bearer x'})
+            headers={'Authorization': 'Bearer x'},
+            timeout=conf.requests_timeout)
 
         db.session.refresh(self.db_event)
 

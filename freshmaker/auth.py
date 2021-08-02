@@ -219,7 +219,7 @@ def get_user_info(token):
     headers = {
         'authorization': 'Bearer {0}'.format(token)
     }
-    r = requests.get(conf.auth_openidc_userinfo_uri, headers=headers)
+    r = requests.get(conf.auth_openidc_userinfo_uri, headers=headers, timeout=conf.requests_timeout)
     if r.status_code != 200:
         raise Unauthorized(
             'Cannot get user information from {0} endpoint.'.format(

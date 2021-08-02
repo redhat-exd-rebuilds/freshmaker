@@ -163,7 +163,7 @@ class Errata(object):
             r = requests.get(
                 *args,
                 auth=HTTPKerberosAuth(principal=conf.krb_auth_principal),
-                **kwargs)
+                **kwargs, timeout=conf.requests_timeout)
             r.raise_for_status()
         except requests.exceptions.RequestException as e:
             if e.response is not None and e.response.status_code == 401:
