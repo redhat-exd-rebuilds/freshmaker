@@ -581,9 +581,9 @@ class LightBlue(object):
                 record_mode=conf.vcrpy_mode,
             )
             with my_vcr.use_cassette(f'{self.event_id}.yml'):
-                response = requests.post(entity_url, **request_kwargs)
+                response = requests.post(entity_url, **request_kwargs, timeout=conf.requests_timeout)
         else:
-            response = requests.post(entity_url, **request_kwargs)
+            response = requests.post(entity_url, **request_kwargs, timeout=max(600, conf.requests_timeout * 5))
 
         status_code = response.status_code
 

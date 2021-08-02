@@ -151,6 +151,10 @@ class Config(object):
             'type': int,
             'default': 120,
             'desc': 'Global network timeout for read/write operations, in seconds.'},
+        'requests_timeout': {
+            'type': int,
+            'default': 120,
+            'desc': ' Global timeout for HTTP requests in Freshmaker.'},
         'net_retry_interval': {
             'type': int,
             'default': 30,

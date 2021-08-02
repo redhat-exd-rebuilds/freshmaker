@@ -29,6 +29,7 @@ from unittest import mock
 from unittest.mock import call, patch, Mock
 
 import freshmaker
+from freshmaker import conf
 
 from freshmaker.lightblue import ContainerImage, ContainerRepository, ExtraRepoNotConfiguredError
 from freshmaker.lightblue import LightBlue, LightBlueRequestError, LightBlueSystemError
@@ -878,7 +879,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             data=json.dumps(fake_request),
             verify=lb.verify_ssl,
             cert=(self.fake_cert_file, self.fake_private_key),
-            headers={'Content-Type': 'application/json'}
+            headers={'Content-Type': 'application/json'},
+            timeout=max(600, conf.requests_timeout * 5)
         )
         self.assertEqual(2, len(images))
 
@@ -950,7 +952,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             data=json.dumps(fake_request),
             verify=lb.verify_ssl,
             cert=(self.fake_cert_file, self.fake_private_key),
-            headers={'Content-Type': 'application/json'}
+            headers={'Content-Type': 'application/json'},
+            timeout=max(600, conf.requests_timeout * 5)
         )
         self.assertEqual(1, len(images))
         # Verify update_multi_arch is first called with the second image,
@@ -1023,7 +1026,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             data=json.dumps(fake_request),
             verify=lb.verify_ssl,
             cert=(self.fake_cert_file, self.fake_private_key),
-            headers={'Content-Type': 'application/json'}
+            headers={'Content-Type': 'application/json'},
+            timeout=max(600, conf.requests_timeout * 5)
         )
 
         self.assertEqual(2, len(repos))

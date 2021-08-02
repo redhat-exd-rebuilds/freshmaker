@@ -33,6 +33,7 @@ from datetime import date, timedelta, datetime
 import requests
 from requests_kerberos import HTTPKerberosAuth
 from tabulate import tabulate
+from freshmaker import conf
 
 # Disable InsecureRequestWarning
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
@@ -181,7 +182,7 @@ def _get_freshmaker_items(url, params, limit=None):
     ret_items = []
     while True:
         print("Getting messages from Freshmaker, page", params["page"])
-        r = requests.get(url, verify=False, params=params)
+        r = requests.get(url, verify=False, params=params, timeout=conf.requests_timeout)
         ret = r.json()
         items = ret["items"]
         if not items:
@@ -238,7 +239,7 @@ def get_freshmaker_events_by_ids(api_url, ids):
         print("Getting Freshmaker event id", i)
         url = '%s/api/1/events/%s' % (api_url, str(i))
 
-        r = requests.get(url, verify=False)
+        r = requests.get(url, verify=False, timeout=conf.requests_timeout)
         ret = r.json()
         if not "error" in ret:
             events += [ret]
@@ -265,7 +266,7 @@ def get_advisories_from_errata(errata_url, days=7):
     date_from = date.today() - timedelta(days)
     while True:
         print("Getting advisories from  Errata page", page)
-        r = requests.get(errata_url, auth=krb_auth, timeout=30, params={page: page})
+        r = requests.get(errata_url, auth=krb_auth, timeout=conf.requests_timeout, params={page: page})
         r.raise_for_status()
         data = r.json()
         if not data:
@@ -284,7 +285,7 @@ def get_errata_advisories_ignored_by_freshmaker(api_url, advisories):
     events = []
     for advisory in advisories:
         url = urllib.parse.urljoin(api_url, f'/api/1/events/?search_key={advisory}')
-        r = requests.get(url, timeout=30)
+        r = requests.get(url, timeout=conf.requests_timeout)
         r.raise_for_status()
         ret = r.json()
         if not ret["items"]:

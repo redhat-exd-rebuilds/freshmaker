@@ -282,11 +282,11 @@ class KojiService(object):
         cg_metadata_url = None
         try:
             cg_metadata_url = self.get_cg_metadata_url(buildinfo)
-            resp = requests.get(cg_metadata_url)
+            resp = requests.get(cg_metadata_url, timeout=conf.requests_timeout)
             # url is redirected
             if resp.history:
                 cg_metadata_url = resp.url
-            return requests.get(cg_metadata_url).json()
+            return requests.get(cg_metadata_url, timeout=conf.requests_timeout).json()
         except requests.ConnectionError:
             raise
         except Exception as e:

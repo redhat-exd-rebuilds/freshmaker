@@ -10,6 +10,7 @@ import sys
 import requests
 from requests_kerberos import HTTPKerberosAuth
 from tabulate import tabulate
+from freshmaker import conf
 
 from lightblue.service import LightBlueService
 from lightblue.entity import LightBlueEntity
@@ -88,7 +89,7 @@ def get_image_advisories_from_image_nvrs(grouped_images):
             if nvr in nvr_to_image_erratum:
                 continue
 
-            r = requests.get(ERRATA_URL + "build/" + nvr, auth=krb_auth)
+            r = requests.get(ERRATA_URL + "build/" + nvr, auth=krb_auth, timeout=conf.requests_timeout)
             r.raise_for_status()
             data = r.json()
             if not data['all_errata']:
@@ -102,7 +103,7 @@ def get_image_advisories_from_image_nvrs(grouped_images):
             msg = "[%i/%i]: %s" % (nvrs_checks, nvrs_to_check, errata_name)
             sys.stdout.write(msg + chr(8) * len(msg))
             sys.stdout.flush()
-            r = requests.get(ERRATA_URL + "erratum/%s/builds" % (errata_name), auth=krb_auth)
+            r = requests.get(ERRATA_URL + "erratum/%s/builds" % (errata_name), auth=krb_auth, timeout=conf.requests_timeout)
             r.raise_for_status()
             data = r.json()
             for builds_dict in data.values():
@@ -114,13 +115,13 @@ def get_image_advisories_from_image_nvrs(grouped_images):
 
 def is_content_advisory_rebuilt_by_freshmaker(errata_name):
     krb_auth = HTTPKerberosAuth()
-    r = requests.get(ERRATA_URL + "erratum/" + errata_name, auth=krb_auth)
+    r = requests.get(ERRATA_URL + "erratum/" + errata_name, auth=krb_auth, timeout=conf.requests_timeout)
     r.raise_for_status()
     data = r.json()
     errata_id = str(data["content"]["content"]["errata_id"])
 
     url = FRESHMAKER_URL + "events/?search_key=%s&per_page=1" % errata_id
-    r = requests.get(url)
+    r = requests.get(url, timeout=conf.requests_timeout)
     r.raise_for_status()
     data = r.json()
     if data["meta"]["total"] == 0:
