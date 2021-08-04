@@ -290,7 +290,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                     "target": image["target"],
                     "branch": image["git_branch"],
                     "arches": image["arches"],
-                    "renewed_odcs_compose_ids": image["odcs_compose_ids"],
+                    "renewed_odcs_compose_ids": image["original_odcs_compose_ids"],
                 })
 
                 db.session.commit()
@@ -303,24 +303,33 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                     # in a way that we have to pass all the ODCS composes to it or
                     # no ODCS compose at all.
                     if image["generate_pulp_repos"] or not image["published"]:
-                        # Add arch specific composes
-                        for arch_content_sets in image["multi_arch_content_sets"].values():
-                            cache_key = " ".join(sorted(arch_content_sets))
-                            if cache_key in image["compose_sources"]:
-                                # This compose has same 'source' value as one of existing
-                                # composes in original build, freshmaker doesn't need to
-                                # generate this compose, since that one will be renewed by
-                                # osbs automatically when it's included in 'compose_ids'
-                                # in build task params
+                        original_pulp_compose_sources = set()
+                        for compose_id in image["original_odcs_compose_ids"]:
+                            compose = self.odcs.get_compose(compose_id)
+                            source_type = compose.get("source_type")
+                            # source_type of pulp composes is 4
+                            if source_type != 4:
                                 continue
+                            source_value = compose.get("source", "")
+                            for source in source_value.split():
+                                original_pulp_compose_sources.add(source.strip())
 
-                            # Check if the compose for these content_sets is
+                        # Add content set to new_pulp_sources if it's not found
+                        # in original_pulp_compose_sources
+                        new_pulp_sources = set()
+                        for content_set in image["content_sets"]:
+                            if content_set not in original_pulp_compose_sources:
+                                new_pulp_sources.add(content_set)
+
+                        if new_pulp_sources:
+                            # Check if the compose for these new pulp sources is
                             # already cached and use it in this case.
+                            cache_key = " ".join(sorted(new_pulp_sources))
                             if cache_key in odcs_cache:
                                 db_compose = odcs_cache[cache_key]
                             else:
                                 compose = self.odcs.prepare_pulp_repo(
-                                    build, arch_content_sets)
+                                    build, list(new_pulp_sources))
 
                                 if build.state != ArtifactBuildState.FAILED.value:
                                     db_compose = Compose(odcs_compose_id=compose['id'])

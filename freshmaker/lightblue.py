@@ -36,7 +36,7 @@ from itertools import groupby
 
 from freshmaker import log, conf
 from freshmaker.kojiservice import koji_service
-from freshmaker.odcsclient import create_odcs_client
+from freshmaker.models import ArtifactBuild
 from freshmaker.utils import sorted_by_nvr, is_pkg_modular
 import koji
 
@@ -149,11 +149,6 @@ class ContainerImage(dict):
         if arch and rpm_manifest:
             image['multi_arch_rpm_manifest'][arch] = rpm_manifest
 
-        image['multi_arch_content_sets'] = {}
-        content_sets = data.get('content_sets')
-        if arch and content_sets:
-            image['multi_arch_content_sets'][arch] = content_sets
-
         return image
 
     def __hash__(self):
@@ -194,10 +189,6 @@ class ContainerImage(dict):
         if image_rpm_manifest:
             self['multi_arch_rpm_manifest'][image_arch] = image_rpm_manifest
 
-        image_content_sets = image.get('content_sets')
-        if image_content_sets:
-            self['multi_arch_content_sets'][image_arch] = image_content_sets
-
     @staticmethod
     def _get_default_additional_data():
         return {
@@ -207,9 +198,7 @@ class ContainerImage(dict):
             "git_branch": None,
             "error": None,
             "arches": None,
-            "odcs_compose_ids": None,
             "parent_image_builds": None,
-            "generate_pulp_repos": True,
         }
 
     @classmethod
@@ -251,11 +240,7 @@ class ContainerImage(dict):
                            f'is not specified in the Freshmaker configuration.')
                     raise ExtraRepoNotConfiguredError(msg)
 
-            # Get the list of ODCS composes used to build the image.
             extra_image = build.get("extra", {}).get("image", {})
-            if extra_image.get("odcs", {}).get("compose_ids"):
-                data["odcs_compose_ids"] = extra_image["odcs"]["compose_ids"]
-
             data["parent_build_id"] = extra_image.get("parent_build_id")
             data["parent_image_builds"] = extra_image.get("parent_image_builds")
 
@@ -334,36 +319,37 @@ class ContainerImage(dict):
 
         self.update(data)
 
-    def resolve_compose_sources(self):
+    def resolve_original_odcs_compose_ids(self):
         """
-        Get source values of ODCS composes used in image build task
+        Resolve the ODCS compose ids used in most original image
 
-        Populate image["compose_sources"] with a set of these values
+        Gets the ODCS compose ids by excluding the composes added by
+        freshmaker, and sets the "original_odcs_compose_ids" of this image
         """
-        compose_sources = self.get("compose_sources", None)
-        # This has been populated?
-        if compose_sources is not None:
+        # This has been populated, skip.
+        if self.get("original_odcs_compose_ids") is not None:
             return
 
-        odcs_client = create_odcs_client()
-        self["compose_sources"] = set()
-        compose_ids = self.get("odcs_compose_ids")
-        if not compose_ids:
-            return
+        self["generate_pulp_repos"] = True
+        self["original_odcs_compose_ids"] = []
+        # If this image was built by freshmaker, query database recursively to
+        # get the NVR of most original image which was not built by freshmaker
+        most_original_nvr = ArtifactBuild.get_most_original_nvr(self.nvr)
+        if most_original_nvr is None:
+            most_original_nvr = self.nvr
 
-        for compose_id in compose_ids:
-            # Get odcs compose source value from odcs server
-            compose = odcs_client.get_compose(compose_id)
-            source = compose.get("source", "")
-            # NOTE: source is converted to list and then sorted before
-            # convert it back to string, so it can be easily compared
-            # later when check whether a compose source already exists
-            source = " ".join(sorted(source.split()))
-            if source:
-                self["compose_sources"].add(source)
+        compose_ids = []
+        with koji_service(conf.koji_profile, log, dry_run=conf.dry_run, login=False) as session:
+            try:
+                compose_ids = session.get_odcs_compose_ids(most_original_nvr)
+            except Exception as e:
+                self["error"] = str(e)
+                log.error("Failed to resolve original odcs compose ids for %s", self.nvr)
+                return
 
-        log.info("Container image %s uses following compose sources: %r",
-                 self.nvr, self["compose_sources"])
+        self["original_odcs_compose_ids"] = compose_ids
+        log.info("Original ODCS compose ids of %s: %r (from %s)",
+                 self.nvr, self["original_odcs_compose_ids"], most_original_nvr)
 
     def resolve_content_sets(self, lb_instance, children=None):
         """
@@ -443,7 +429,7 @@ class ContainerImage(dict):
         """
         try:
             self.resolve_commit()
-            self.resolve_compose_sources()
+            self.resolve_original_odcs_compose_ids()
             self.resolve_content_sets(lb_instance, children)
             self.resolve_published(lb_instance)
         except Exception as e:

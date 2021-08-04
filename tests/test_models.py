@@ -209,6 +209,25 @@ class TestModels(helpers.ModelsTestCase):
             'depends_on_events': [],
         })
 
+    def test_get_most_original_nvr(self):
+        event = Event.create(db.session, "test_msg_id", "test", events.TestingEvent)
+        ArtifactBuild.create(
+            db.session, event, "ubi", "image", 1234,
+            original_nvr="ubi-2-1", rebuilt_nvr="ubi-2-1.1580000001"
+        )
+        ArtifactBuild.create(
+            db.session, event, "ubi", "image", 1235,
+            original_nvr="ubi-2-1.1580000001", rebuilt_nvr="ubi-2-1.1580000002"
+        )
+        ArtifactBuild.create(
+            db.session, event, "ubi", "image", 1236,
+            original_nvr="ubi-2-1.1580000002", rebuilt_nvr="ubi-2-1.1580000003"
+        )
+        db.session.commit()
+        db.session.expire_all()
+        nvr = ArtifactBuild.get_most_original_nvr("ubi-2-1.1580000003")
+        self.assertEqual(nvr, "ubi-2-1")
+
 
 class TestFindDependentEvents(helpers.ModelsTestCase):
     """Test Event.find_dependent_events"""

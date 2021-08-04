@@ -31,6 +31,7 @@ from koji import parse_NVR # noqa
 from kobo import rpmlib
 
 import contextlib
+import dogpile.cache
 import re
 import requests
 import freshmaker.utils
@@ -49,6 +50,7 @@ class KojiService(object):
 
     As a wrapper of Koji API, new APIs could be added as well.
     """
+    region = dogpile.cache.make_region().configure(conf.dogpile_cache_backend)
 
     # Used to generate incremental task id in dry run mode.
     _FAKE_TASK_ID = 0
@@ -205,11 +207,13 @@ class KojiService(object):
     def cancel_build(self, build_id):
         return self.session.cancelBuild(build_id)
 
+    @region.cache_on_arguments()
     def get_build_rpms(self, build_nvr, arches=None):
         build_info = self.session.getBuild(build_nvr)
         return self.session.listRPMs(buildID=build_info['id'],
                                      arches=arches)
 
+    @region.cache_on_arguments()
     def get_build(self, buildinfo):
         """
         Return information about a build.
@@ -219,6 +223,7 @@ class KojiService(object):
         """
         return self.session.getBuild(buildinfo)
 
+    @region.cache_on_arguments()
     def get_build_id(self, build_nvr):
         return self.session.findBuildID(build_nvr)
 
@@ -297,6 +302,7 @@ class KojiService(object):
                 log.error("Unable to load CG metadata for build (%r): %s", str(e))
             raise
 
+    @region.cache_on_arguments()
     def get_rpms_in_container(self, buildinfo):
         """
         Get rpms in a koji container build.
@@ -314,6 +320,21 @@ class KojiService(object):
                 components = out['components']
                 rpms = set([rpmlib.make_nvr(rpm) for rpm in components if rpm['type'] == 'rpm'])
         return rpms
+
+    @region.cache_on_arguments()
+    def get_odcs_compose_ids(self, build_nvr):
+        """
+        Get ODCS compose ids used in image build task
+
+        Return a list of compose ids
+        """
+        build = self.get_build(build_nvr)
+        # Get the list of ODCS composes used to build the image.
+        extra_image = build.get("extra", {}).get("image", {})
+        compose_ids = extra_image.get("odcs", {}).get("compose_ids")
+        if not compose_ids:
+            compose_ids = []
+        return compose_ids
 
 
 @contextlib.contextmanager
