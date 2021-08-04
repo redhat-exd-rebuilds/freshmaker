@@ -197,6 +197,15 @@ class FreshmakerODCSClient(object):
                         "latest is %r), skipping this tag",
                         nvr, tag, latest_build[0]['nvr'])
 
+    def get_compose(self, compose_id):
+        """ Get compose info from ODCS
+
+        :param int compose_id: id of compose
+        :return: a dict of compose info
+        :rtype: dict
+        """
+        return create_odcs_client().get_compose(compose_id)
+
     def prepare_yum_repos_for_rebuilds(self, db_event):
         repo_urls = []
         db_composes = []
