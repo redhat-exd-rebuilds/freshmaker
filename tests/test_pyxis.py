@@ -452,6 +452,15 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
         ])
 
     @patch('freshmaker.pyxis.Pyxis._pagination')
+    def test_get_latest_bundles_returns_unique_bundles(self, page):
+        page_copy = self.copy_call_args(page)
+        # self.bundles[0] exists in two indices
+        page_copy.side_effect = [self.bundles[:3] + self.bundles[:1], []]
+
+        out = self.px.get_latest_bundles(self.indices)
+        self.assertEqual(out, self.bundles[:3])
+
+    @patch('freshmaker.pyxis.Pyxis._pagination')
     def test_get_manifest_list_digest_by_nvr(self, page):
         page.return_value = self.images
         digest = self.px.get_manifest_list_digest_by_nvr('s2i-1-2')
