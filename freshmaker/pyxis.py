@@ -181,15 +181,14 @@ class Pyxis(object):
                     )
                     return False
 
-            # Discard any bundles with invalid semantic versions since Freshmaker
-            # would not be able to modify the version appropriately.
-            bundle_list = [
-                bundle
-                for bundle in self._pagination('operators/bundles', request_params)
-                if _isvalid(bundle["version_original"], bundle["csv_name"])
-            ]
-
-            latest_bundles.extend(bundle_list)
+            for bundle in self._pagination('operators/bundles', request_params):
+                # Discard any bundles with invalid semantic versions since Freshmaker
+                # would not be able to modify the version appropriately.
+                if not _isvalid(bundle["version_original"], bundle["csv_name"]):
+                    continue
+                if bundle in latest_bundles:
+                    continue
+                latest_bundles.append(bundle)
 
         return latest_bundles
 
