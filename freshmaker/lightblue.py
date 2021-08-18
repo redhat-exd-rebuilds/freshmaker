@@ -1554,7 +1554,7 @@ class LightBlue(object):
     def find_images_to_rebuild(
             self, rpm_nvrs, content_sets, published=True,
             release_categories=conf.lightblue_release_categories,
-            filter_fnc=None, leaf_container_images=None):
+            filter_fnc=None, leaf_container_images=None, skip_nvrs=None):
         """
         Find images to rebuild through image build layers
 
@@ -1581,10 +1581,15 @@ class LightBlue(object):
             consider for the rebuild. If not set, all images found in
             Lightblue will be considered for rebuild. Note that `published`
             is not respected when `leaf_container_images` are used.
+        :param list skip_nvrs: List of NVRs of images to be skipped.
         """
         images = self.find_images_with_packages_from_content_set(
             rpm_nvrs, content_sets, filter_fnc, published,
             release_categories, leaf_container_images=leaf_container_images)
+
+        # Not skip images when rebuild images are requested explicitly
+        if skip_nvrs and not leaf_container_images:
+            images = [img for img in images if img["brew"]["build"] not in skip_nvrs]
 
         rpm_names = [koji.parse_NVR(rpm_nvr)["name"] for rpm_nvr in rpm_nvrs]
 

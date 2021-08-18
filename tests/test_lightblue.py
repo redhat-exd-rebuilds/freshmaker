@@ -1759,6 +1759,110 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             mock.ANY, expected_directly_affected_nvrs, ["dummy-1-1"], ["dummy"]
         )
 
+    @patch('freshmaker.lightblue.LightBlue.find_images_with_packages_from_content_set')
+    @patch('freshmaker.lightblue.LightBlue.find_parent_images_with_package')
+    @patch('freshmaker.lightblue.LightBlue._filter_out_already_fixed_published_images')
+    @patch('os.path.exists')
+    def test_skip_nvrs_when_find_rebuild_images(
+        self,
+        exists,
+        _filter_out_already_fixed_published_images,
+        find_parent_images_with_package,
+        find_images_with_packages_from_content_set
+    ):
+        exists.return_value = True
+
+        image_a = ContainerImage.create({
+            'brew': {'package': 'image-a', 'build': 'image-a-v-r1'},
+            'repositories': [{"repository": "foo/bar"}],
+            'repository': 'repo-1',
+            'commit': 'image-a-commit'
+        })
+        image_b = ContainerImage.create({
+            'brew': {'package': 'image-b', 'build': 'image-b-v-r1'},
+            'repositories': [{"repository": "foo/bar"}],
+            'repository': 'repo-1',
+            'commit': 'image-b-commit',
+            'parent': image_a,
+        })
+        image_c = ContainerImage.create({
+            'brew': {'package': 'image-c', 'build': 'image-c-v-r1'},
+            'repositories': [{"repository": "foo/bar"}],
+            'repository': 'repo-1',
+            'commit': 'image-c-commit',
+            'parent': image_b,
+        })
+
+        leaf_image1 = ContainerImage.create({
+            'brew': {'build': 'leaf-image-1-1'},
+            'parsed_data': {'layers': ['fake layer']},
+            'repositories': [{"repository": "foo/bar"}],
+            'repository': 'repo-1',
+            'commit': 'leaf-image1-commit',
+        })
+        leaf_image2 = ContainerImage.create({
+            'brew': {'build': 'leaf-image-2-1'},
+            'parsed_data': {'layers': ['fake layer']},
+            'repositories': [{"repository": "foo/bar"}],
+            'repository': 'repo-1',
+            'commit': 'leaf-image2-commit',
+        })
+        leaf_image3 = ContainerImage.create({
+            'brew': {'build': 'leaf-image-3-1'},
+            'parsed_data': {'layers': ['fake layer']},
+            'repositories': [{"repository": "foo/bar"}],
+            'repository': 'repo-1',
+            'commit': 'leaf-image3-commit',
+        })
+        images = [leaf_image1, leaf_image2, leaf_image3]
+
+        for image in images:
+            image["rpm_manifest"] = [{
+                "rpms": [
+                    {"name": "dummy"}
+                ]
+            }]
+            image["directly_affected"] = True
+
+        find_images_with_packages_from_content_set.return_value = images
+
+        find_parent_images_with_package.side_effect = [
+            [image_a],                        # parents of leaf_image1
+            [image_b, image_a],               # parents of leaf_image2
+            [image_c, image_a],               # parents of leaf_image3
+        ]
+        lb = LightBlue(server_url=self.fake_server_url,
+                       cert=self.fake_cert_file,
+                       private_key=self.fake_private_key)
+        batches = lb.find_images_to_rebuild(
+            ["dummy-1-1"], ["dummy"], skip_nvrs=["leaf-image-3-1"]
+        )
+
+        # Each of batch is sorted for assertion easily
+        expected_batches = [
+            [image_a],
+            [leaf_image1, image_b],
+            [leaf_image2]
+        ]
+
+        expected_batches_nvrs = [
+            {image.nvr for image in batch}
+            for batch in expected_batches
+        ]
+        returned_batches_nvrs = [
+            {image.nvr for image in batch}
+            for batch in batches
+        ]
+
+        self.assertEqual(expected_batches_nvrs, returned_batches_nvrs)
+        expected_directly_affected_nvrs = {
+            "leaf-image-1-1", "leaf-image-2-1"
+        }
+
+        _filter_out_already_fixed_published_images.assert_called_once_with(
+            mock.ANY, expected_directly_affected_nvrs, ["dummy-1-1"], ["dummy"]
+        )
+
     @patch('freshmaker.lightblue.ArtifactBuild.get_most_original_nvr')
     @patch("freshmaker.lightblue.ContainerImage.resolve_published")
     @patch("freshmaker.lightblue.LightBlue.get_images_by_nvrs")
