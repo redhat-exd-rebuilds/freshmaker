@@ -475,7 +475,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             ['httpd-2.4-11.el7'], ['content-set-1', 'pulp_repo_x86_64'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
             published=True, release_categories=conf.lightblue_release_categories,
-            leaf_container_images=None)
+            leaf_container_images=None, skip_nvrs=None)
 
     @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'RebuildImagesOnRPMAdvisoryChange': {
@@ -493,7 +493,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             ['content-set-1', 'pulp_repo_x86_64'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
             published=True, release_categories=conf.lightblue_release_categories,
-            leaf_container_images=None)
+            leaf_container_images=None, skip_nvrs=None)
 
     @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'RebuildImagesOnRPMAdvisoryChange': {
@@ -512,7 +512,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             ['httpd-2.4-11.el7'], ['content-set-1', 'pulp_repo_x86_64'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
             published=None, release_categories=None,
-            leaf_container_images=None)
+            leaf_container_images=None, skip_nvrs=None)
 
     @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'RebuildImagesOnRPMAdvisoryChange': {
@@ -529,7 +529,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             ['httpd-2.4-11.el7'], ['content-set-1', 'pulp_repo_x86_64'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
             published=True, release_categories=conf.lightblue_release_categories,
-            leaf_container_images=None)
+            leaf_container_images=None, skip_nvrs=None)
 
     @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'RebuildImagesOnRPMAdvisoryChange': {
@@ -547,7 +547,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             ['httpd-2.4-11.el7'], ['content-set-1', 'pulp_repo_x86_64'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
             published=True, release_categories=conf.lightblue_release_categories,
-            leaf_container_images=["foo", "bar"])
+            leaf_container_images=["foo", "bar"], skip_nvrs=None)
 
     @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
         'RebuildImagesOnRPMAdvisoryChange': {
@@ -566,7 +566,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             ['content-set-1', 'pulp_repo_x86_64'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
             published=True, release_categories=conf.lightblue_release_categories,
-            leaf_container_images=None)
+            leaf_container_images=None, skip_nvrs=None)
 
 
 class TestAllowBuild(helpers.ModelsTestCase):

@@ -34,7 +34,7 @@ from freshmaker.pulp import Pulp
 from freshmaker.errata import Errata
 from freshmaker.types import (
     ArtifactType, ArtifactBuildState, EventState, RebuildReason)
-from freshmaker.models import Event, Compose
+from freshmaker.models import Event, Compose, ArtifactBuild
 
 
 class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
@@ -84,9 +84,20 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
             self.log_info(msg)
             return []
 
+        # By default, freshmaker skips images which have already been rebuilt
+        # in events of this advisory, this default behavior can be changed by
+        # changing "skip_rebuilt" to False in metadata of manual rebuild requests,
+        # for example:
+        #   curl -X POST -d '{"errata_id": 123, "metadata": {"skip_rebuilt": false}}' <url>
+        skip_nvrs = None
+        if db_event.requester_metadata_json.get("skip_rebuilt", True):
+            skip_nvrs = ArtifactBuild.get_rebuilt_original_nvrs_by_search_key(
+                db.session, db_event.search_key
+            )
+
         # Get and record all images to rebuild based on the current
         # ErrataAdvisoryRPMsSignedEvent event.
-        batches = self._find_images_to_rebuild(db_event.search_key)
+        batches = self._find_images_to_rebuild(db_event.search_key, skip_nvrs=skip_nvrs)
         builds = self._record_batches(batches, event)
 
         if not builds:
@@ -384,7 +395,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
             return True
         return False
 
-    def _find_images_to_rebuild(self, errata_id):
+    def _find_images_to_rebuild(self, errata_id, skip_nvrs=None):
         """
         Finds docker rebuild images from each build added to specific Errata
         advisory.
@@ -393,6 +404,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
         leaf images through the docker build dependency chain.
 
         :param int errata_id: Errata ID.
+        :param list skip_nvrs: List of NVRs of images to be skipped.
         """
         errata = Errata()
         errata_id = int(errata_id)
@@ -449,5 +461,6 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
             affected_nvrs, content_sets,
             filter_fnc=self._filter_out_not_allowed_builds,
             published=published, release_categories=release_categories,
-            leaf_container_images=leaf_container_images)
+            leaf_container_images=leaf_container_images,
+            skip_nvrs=skip_nvrs)
         return batches
