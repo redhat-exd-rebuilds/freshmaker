@@ -228,6 +228,25 @@ class TestModels(helpers.ModelsTestCase):
         nvr = ArtifactBuild.get_most_original_nvr("ubi-2-1.1580000003")
         self.assertEqual(nvr, "ubi-2-1")
 
+    def test_get_rebuilt_original_nvrs_by_search_key(self):
+        event = Event.create(db.session, "test_msg_id", "12345", events.TestingEvent)
+        ArtifactBuild.create(db.session, event, "foo", "image", 1001,
+                             state="done",
+                             original_nvr="foo-2-20", rebuilt_nvr="foo-2-20.1582020101",
+                             rebuild_reason=RebuildReason.DIRECTLY_AFFECTED.value)
+        ArtifactBuild.create(db.session, event, "bar", "image", 1002,
+                             state="done",
+                             original_nvr="bar-3-30", rebuilt_nvr="bar-3-30.1582020135",
+                             rebuild_reason=RebuildReason.DIRECTLY_AFFECTED.value)
+        ArtifactBuild.create(db.session, event, "qux", "image", 1003,
+                             state="failed",
+                             original_nvr="qux-1-11", rebuilt_nvr="qux-1-11.1582020218",
+                             rebuild_reason=RebuildReason.DIRECTLY_AFFECTED.value)
+        db.session.commit()
+        db.session.expire_all()
+        nvrs = ArtifactBuild.get_rebuilt_original_nvrs_by_search_key(db.session, "12345")
+        self.assertEqual(sorted(nvrs), ["bar-3-30", "foo-2-20"])
+
 
 class TestFindDependentEvents(helpers.ModelsTestCase):
     """Test Event.find_dependent_events"""
