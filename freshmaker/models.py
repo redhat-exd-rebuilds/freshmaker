@@ -769,6 +769,19 @@ class ArtifactBuild(FreshmakerBase):
         """Check if composes this build has have been done in ODCS"""
         return all((rel.compose.finished for rel in self.composes))
 
+    @classmethod
+    def get_rebuilt_original_nvrs_by_search_key(cls, session, search_key, directly_affected=True):
+        """Get NVRs of original images which have been rebuilt successfully in events"""
+        builds = (
+            session.query(cls)
+            .filter(cls.event.has(search_key=search_key))
+            .filter(cls.state == ArtifactBuildState.DONE.value)
+        )
+        if directly_affected:
+            builds = builds.filter(cls.rebuild_reason == RebuildReason.DIRECTLY_AFFECTED.value)
+
+        return list({b.original_nvr for b in builds.all()})
+
 
 class Compose(FreshmakerBase):
     __tablename__ = 'composes'
