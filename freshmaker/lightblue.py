@@ -38,6 +38,7 @@ from freshmaker import log, conf
 from freshmaker.kojiservice import koji_service
 from freshmaker.models import ArtifactBuild
 from freshmaker.utils import sorted_by_nvr, is_pkg_modular
+from freshmaker.utils import retry
 import koji
 
 
@@ -968,6 +969,7 @@ class LightBlue(object):
 
         return request
 
+    @retry(wait_on=requests.exceptions.ConnectionError, logger=log)
     def find_images_with_included_rpms(
             self, content_sets, rpm_nvrs, repositories, published=True,
             include_rpm_manifest=True):
