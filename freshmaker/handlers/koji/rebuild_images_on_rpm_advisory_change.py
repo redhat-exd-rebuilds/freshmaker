@@ -302,6 +302,8 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                     "branch": image["git_branch"],
                     "arches": image["arches"],
                     "renewed_odcs_compose_ids": image["original_odcs_compose_ids"],
+                    "flatpak": image.get("flatpak", False),
+                    "isolated": image.get("isolated", True),
                 })
 
                 db.session.commit()

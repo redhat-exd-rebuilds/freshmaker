@@ -298,6 +298,20 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
 
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')
+    def test_resolve_commit_flatpak(self, get_task_request, get_build):
+        get_build.return_value = {
+            "task_id": 123456,
+            "extra": {"image": {"flatpak": True, "isolated": False}},
+        }
+        get_task_request.return_value = [
+            "git://example.com/rpms/repo-1?#commit_hash1", "target1", {}]
+
+        self.dummy_image.resolve_commit()
+        self.assertEqual(self.dummy_image.get("flatpak"), True)
+        self.assertEqual(self.dummy_image.get("isolated"), False)
+
+    @patch('freshmaker.kojiservice.KojiService.get_build')
+    @patch('freshmaker.kojiservice.KojiService.get_task_request')
     @patch('freshmaker.kojiservice.KojiService.list_archives')
     def test_resolve_commit_prefer_build_source(
             self, list_archives, get_task_request, get_build):
@@ -1302,6 +1316,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                  "original_odcs_compose_ids": [],
                                  "parent_build_id": None,
                                  "parent_image_builds": None,
+                                 "flatpak": False,
+                                 "isolated": True,
                                  "published": True,
                                  "brew": {
                                      "completion_date": u"20170421T04:27:51.000-0400",
@@ -1414,6 +1430,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                  "original_odcs_compose_ids": [],
                                  "parent_build_id": None,
                                  "parent_image_builds": None,
+                                 "flatpak": False,
+                                 "isolated": True,
                                  "multi_arch_rpm_manifest": {},
                                  "published": True,
                                  "brew": {

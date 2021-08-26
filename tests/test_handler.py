@@ -199,9 +199,9 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
         handler.build_image_artifact_build(self.build_1)
         build_container.assert_called_once_with(
             'git://pkgs.devel.redhat.com/repo#hash', 'branch', 'target',
-            arch_override='x86_64', compose_ids=[5, 6, 7, 8], isolated=True,
-            koji_parent_build=None, release='2.1234567', repo_urls=None,
-            operator_csv_modifications_url=None)
+            arch_override='x86_64', compose_ids=[5, 6, 7, 8], flatpak=False,
+            isolated=True, koji_parent_build=None, release='2.1234567',
+            repo_urls=None, operator_csv_modifications_url=None)
 
     @patch("time.time")
     @patch("freshmaker.handlers.ContainerBuildHandler.build_container")
@@ -217,7 +217,7 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
         handler.build_image_artifact_build(self.build_1)
         build_container.assert_called_once_with(
             'git://pkgs.devel.redhat.com/repo#hash', 'branch', 'target',
-            arch_override='x86_64', compose_ids=[5, 6, 7, 8, 7300, 7301],
+            arch_override='x86_64', compose_ids=[5, 6, 7, 8, 7300, 7301], flatpak=False,
             isolated=True, koji_parent_build=None, release='2.1234567', repo_urls=None,
             operator_csv_modifications_url=None)
 
@@ -232,8 +232,36 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
         repo_urls = ['http://localhost/x.repo']
         build_container.assert_called_once_with(
             'git://pkgs.devel.redhat.com/repo#hash', 'branch', 'target',
-            arch_override='x86_64', compose_ids=[5, 6, 7, 8], isolated=True,
-            koji_parent_build=None, release='2.1234567', repo_urls=repo_urls,
+            arch_override='x86_64', compose_ids=[5, 6, 7, 8], flatpak=False,
+            isolated=True, koji_parent_build=None, release='2.1234567',
+            repo_urls=repo_urls, operator_csv_modifications_url=None)
+
+    @patch("time.time")
+    @patch("freshmaker.handlers.ContainerBuildHandler.build_container")
+    def test_build_image_artifact_build_flatpak(
+            self, build_container, time):
+        time.return_value = 1234567.1234
+        handler = MyHandler()
+        flatpak_build = ArtifactBuild.create(
+            db.session, self.event, 'flatpak-build-1', ArtifactType.IMAGE,
+            state=ArtifactBuildState.PLANNED,
+            original_nvr="foo-1-2")
+        build_args = json.loads(self.build_1.build_args)
+        build_args.update({
+            "flatpak": True,
+            "isolated": False,
+            "renewed_odcs_compose_ids": [7300],
+        })
+        flatpak_build.build_args = json.dumps(build_args)
+        db.session.add(
+            ArtifactBuildCompose(build_id=flatpak_build.id, compose_id=self.compose_1.id))
+
+        handler.build_image_artifact_build(flatpak_build)
+        build_container.assert_called_once_with(
+            'git://pkgs.devel.redhat.com/repo#hash', 'branch', 'target',
+            arch_override='x86_64', compose_ids=[5, 7300],
+            flatpak=True, isolated=False, koji_parent_build=None,
+            release='2.1234567', repo_urls=None,
             operator_csv_modifications_url=None)
 
     @patch("freshmaker.handlers.ContainerBuildHandler.build_container")

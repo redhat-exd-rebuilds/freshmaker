@@ -142,7 +142,7 @@ class KojiService(object):
         return task_id
 
     def build_container(self, source_url, branch, target,
-                        scratch=None, repo_urls=None, isolated=False,
+                        scratch=None, repo_urls=None, flatpak=False, isolated=False,
                         release=None, koji_parent_build=None,
                         arch_override=None, compose_ids=None,
                         operator_csv_modifications_url=None):
@@ -153,6 +153,7 @@ class KojiService(object):
         :param str branch: a build option passed to ``buildContainer``.
         :param bool scratch: a build option passed to ``buildContainer``.
         :param list[str] repo_urls: a build option passed to ``buildContainer``.
+        :param bool flatpak: a build option passed to ``buildContainer``.
         :param bool isolated: a build option passed to ``buildContainer``.
         :param str release: a build option passed to ``buildContainer``.
         :param str koji_parent_build: a build option passed to ``buildContainer``.
@@ -177,6 +178,8 @@ class KojiService(object):
             build_opts['yum_repourls'] = repo_urls
         if compose_ids:
             build_opts['compose_ids'] = compose_ids
+        if flatpak:
+            build_opts['flatpak'] = True
         if isolated:
             build_opts['isolated'] = True
         if koji_parent_build:
