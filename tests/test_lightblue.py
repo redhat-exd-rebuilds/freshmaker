@@ -1893,16 +1893,22 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             "Couldn't find parent image some-original-nvr-7.6-252.1561619826. "
             "Lightblue data is probably incomplete"))
 
+    @patch('freshmaker.lightblue.ArtifactBuild.get_most_original_nvr')
     @patch("freshmaker.lightblue.LightBlue.get_images_by_nvrs")
     @patch('freshmaker.lightblue.LightBlue.find_images_with_packages_from_content_set')
     @patch('freshmaker.lightblue.LightBlue.find_parent_images_with_package')
     @patch('freshmaker.lightblue.LightBlue._filter_out_already_fixed_published_images')
+    @patch('freshmaker.kojiservice.KojiService.get_build')
+    @patch('freshmaker.kojiservice.KojiService.get_task_request')
     @patch('os.path.exists')
     def test_parent_images_with_package_using_field_parent_brew_build_parent_empty(
-            self, exists, _filter_out_already_fixed_published_images,
+            self, exists, koji_task_request, koji_get_build,
+            _filter_out_already_fixed_published_images,
             find_parent_images_with_package, find_images_with_packages_from_content_set,
-            cont_images):
+            cont_images, get_most_original_nvr):
         exists.return_value = True
+        koji_task_request.side_effect = self.fake_koji_task_requests
+        koji_get_build.side_effect = self.fake_koji_builds
 
         image_a = ContainerImage.create({
             "brew": {"package": "image-a", "build": "image-a-v-r1"},
@@ -1929,15 +1935,18 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         self.assertEqual(len(ret), 1)
         self.assertIsNotNone(ret[0][0].get("parent"))
 
+    @patch('freshmaker.lightblue.ArtifactBuild.get_most_original_nvr')
     @patch("freshmaker.lightblue.LightBlue.get_images_by_nvrs")
     @patch('freshmaker.lightblue.LightBlue.find_images_with_packages_from_content_set')
     @patch('freshmaker.lightblue.LightBlue.find_parent_images_with_package')
     @patch('freshmaker.lightblue.LightBlue._filter_out_already_fixed_published_images')
+    @patch('freshmaker.kojiservice.KojiService.get_build')
+    @patch('freshmaker.kojiservice.KojiService.get_task_request')
     @patch('os.path.exists')
     def test_dedupe_dependency_images_with_all_repositories(
-            self, exists, _filter_out_already_fixed_published_images,
+            self, exists, koji_task_request, koji_get_build, _filter_out_already_fixed_published_images,
             find_parent_images_with_package, find_images_with_packages_from_content_set,
-            get_images_by_nvrs):
+            get_images_by_nvrs, get_most_original_nvr):
         exists.return_value = True
 
         vulnerable_rpm_name = 'oh-noes'
@@ -1955,6 +1964,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                 ]
             }]
         }
+        koji_task_request.side_effect = self.fake_koji_task_requests
+        koji_get_build.side_effect = self.fake_koji_builds
 
         directly_affected_ubi_image = ContainerImage.create(copy.deepcopy(ubi_image_template))
 
@@ -2146,10 +2157,13 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                             {'field': 'rpm_manifest.*.rpms.*.srpm_name', 'include': True, 'recursive': True}],
              'objectType': 'containerImage'})
 
+    @patch('freshmaker.lightblue.ArtifactBuild.get_most_original_nvr')
     @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @patch('freshmaker.kojiservice.KojiService.get_build')
+    @patch('freshmaker.kojiservice.KojiService.get_task_request')
     def test_content_sets_of_multiarch_images_to_rebuild(
-            self, find_images, find_repos):
+            self, koji_task_request, koji_get_build, find_images, find_repos, get_most_original_nvr):
         new_images = [
             {
                 'brew': {
@@ -2205,6 +2219,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         new_images = [ContainerImage.create(i) for i in new_images]
         find_repos.return_value = self.fake_repositories_with_content_sets
         find_images.return_value = self.fake_container_images + new_images
+        koji_task_request.side_effect = self.fake_koji_task_requests
+        koji_get_build.side_effect = self.fake_koji_builds
         right_content_sets = [["dummy-content-set-1", "dummy-content-set-2"],
                               ["dummy-content-set-1"],
                               ["content-set-1", "content-set-2"],
