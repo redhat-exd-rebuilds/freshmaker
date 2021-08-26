@@ -439,7 +439,7 @@ class ContainerBuildHandler(BaseHandler):
     """Handler for building containers"""
 
     def build_container(self, scm_url, branch, target,
-                        repo_urls=None, isolated=False,
+                        repo_urls=None, flatpak=False, isolated=False,
                         release=None, koji_parent_build=None,
                         arch_override=None, compose_ids=None,
                         operator_csv_modifications_url=None):
@@ -450,6 +450,7 @@ class ContainerBuildHandler(BaseHandler):
         :param str branch: refer to ``KojiService.build_container``.
         :param str target: refer to ``KojiService.build_container``.
         :param list[str] repo_urls: refer to ``KojiService.build_container``.
+        :param bool flatpak: refer to ``KojiService.build_container``.
         :param bool isolated: refer to ``KojiService.build_container``.
         :param str release: refer to ``KojiService.build_container``.
         :param str koji_parent_build: refer to ``KojiService.build_container``.
@@ -472,6 +473,7 @@ class ContainerBuildHandler(BaseHandler):
                 branch,
                 target,
                 repo_urls=repo_urls,
+                flatpak=flatpak,
                 isolated=isolated,
                 release=release,
                 koji_parent_build=koji_parent_build,
@@ -544,6 +546,9 @@ class ContainerBuildHandler(BaseHandler):
         else:
             parent = args["original_parent"]
 
+        flatpak = args.get("flatpak", False)
+        isolated = args.get("isolated", True)
+
         # If set to None, then OSBS defaults to using the arches
         # of the build tag associated with the target.
         arches = args.get("arches")
@@ -582,7 +587,8 @@ class ContainerBuildHandler(BaseHandler):
         return self.build_container(
             scm_url, branch, target,
             repo_urls=repo_urls,
-            isolated=True,
+            flatpak=flatpak,
+            isolated=isolated,
             release=parse_NVR(build.rebuilt_nvr)["release"],
             koji_parent_build=parent,
             arch_override=arches,

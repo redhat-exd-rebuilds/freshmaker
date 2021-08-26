@@ -367,15 +367,18 @@ class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
 
                 image.resolve(lb)
                 build.transition(state, state_reason)
-                build_args = {}
-                build_args["repository"] = image['repository']
-                build_args["commit"] = image["commit"]
-                build_args["target"] = (
+                build_target = (
                     self.event.brew_target if self.event.brew_target else image["target"])
-                build_args["branch"] = image["git_branch"]
-                build_args["original_parent"] = parent_nvr
-                build_args["arches"] = image["arches"]
-                build.build_args = json.dumps(build_args)
+                build.build_args = json.dumps({
+                    "repository": image["repository"],
+                    "commit": image["commit"],
+                    "original_parent": parent_nvr,
+                    "target": build_target,
+                    "branch": image["git_branch"],
+                    "arches": image["arches"],
+                    "flatpak": image.get("flatpak", False),
+                    "isolated": image.get("isolated", True),
+                })
                 db.session.commit()
 
                 builds[nvr] = build
