@@ -332,6 +332,7 @@ class ManualRebuildWithAdvisoryEvent(ErrataAdvisoryRPMsSignedEvent):
         """
         super(ManualRebuildWithAdvisoryEvent, self).__init__(
             msg_id, advisory, **kwargs)
+        self.manual = True
         self.container_images = container_images
         self.requester_metadata_json = requester_metadata_json
         self.requester = requester
