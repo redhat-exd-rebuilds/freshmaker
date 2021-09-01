@@ -809,10 +809,10 @@ class TestManualTriggerRebuild(ViewBaseTest):
                 resp = self.client.post(
                     '/api/1/builds/',
                     data=json.dumps({'bundle_images': ['bundle'],
-                                     'container_images': ['container_image']}),
+                                     'container_images': ['container_image'],
+                                     }),
                     content_type='application/json',
                 )
-
         self.assertEqual(resp.json,
                          {'builds': [],
                           'depending_events': [],
@@ -861,7 +861,8 @@ class TestManualTriggerRebuild(ViewBaseTest):
                     '/api/1/builds/',
                     data=json.dumps({'errata_id': 123,
                                      'freshmaker_event_id': dependent_event.id,
-                                     'container_images': ['container_image']}),
+                                     'container_images': ['container_image'],
+                                     'force': True}),
                     content_type='application/json',
                 )
 
@@ -889,7 +890,8 @@ class TestManualTriggerRebuild(ViewBaseTest):
                                          'freshmaker_event_id': 1,
                                          'errata_id': 123,
                                          'container_images': ['container_image'],
-                                         'requester': 'root'})
+                                         'requester': 'root',
+                                         'force': True})
 
     @patch('freshmaker.messaging.publish')
     @patch('freshmaker.parsers.internal.manual_rebuild.ErrataAdvisory.'
@@ -1011,6 +1013,7 @@ class TestManualTriggerRebuild(ViewBaseTest):
             'errata_id': 103,
             'container_images': ['foo-1-1'],
             'freshmaker_event_id': 1,
+            'force': True,
         }
         with self.test_request_context(user='root'):
             resp = self.client.post('/api/1/builds/', json=payload, content_type='application/json')
@@ -1024,7 +1027,7 @@ class TestManualTriggerRebuild(ViewBaseTest):
             'manual.rebuild',
             {'msg_id': 'manual_rebuild_123', u'errata_id': 103,
              'container_images': ["foo-1-1"], 'freshmaker_event_id': 1,
-             'requester': 'root'})
+             'requester': 'root', 'force': True})
 
     @patch('freshmaker.messaging.publish')
     @patch('freshmaker.parsers.internal.manual_rebuild.ErrataAdvisory.'
@@ -1043,6 +1046,7 @@ class TestManualTriggerRebuild(ViewBaseTest):
         payload = {
             'container_images': ['foo-1-1'],
             'freshmaker_event_id': 1,
+            'force': True,
         }
         with self.test_request_context(user='root'):
             resp = self.client.post('/api/1/builds/', json=payload, content_type='application/json')
@@ -1161,6 +1165,41 @@ class TestManualTriggerRebuild(ViewBaseTest):
         self.assertEqual(
             resp.json['message'],
             'The event (id=1) is an async build event, can not be used for this build.')
+
+    @patch('freshmaker.messaging.publish')
+    @patch('freshmaker.parsers.internal.manual_rebuild.ErrataAdvisory.'
+           'from_advisory_id')
+    @patch('freshmaker.parsers.internal.manual_rebuild.time.time')
+    @patch('freshmaker.models.Event.add_event_dependency')
+    def test_dependent_manual_rebuild_in_building_state(self, add_dependency, time,
+                                                        from_advisory_id, publish):
+        models.Event.create(db.session,
+                            "2017-00000000-0000-0000-0000-000000000003",
+                            "103", events.TestingEvent)
+        db.session.commit()
+        time.return_value = 123
+        from_advisory_id.return_value = ErrataAdvisory(
+            103, 'name', 'REL_PREP', ['rpm'])
+
+        payload = {
+            'errata_id': 103,
+            'container_images': ['foo-1-1'],
+            'freshmaker_event_id': 1,
+        }
+        with self.test_request_context(user='root'):
+            resp = self.client.post('/api/1/builds/', json=payload, content_type='application/json')
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json['message'],
+                         'Events triggered by advisory 103 are running: [1]. If you want to rebuild it anyway, use "force": true option.')
+
+    def test_manual_rebuild_invalid_type_force(self):
+        payload = {'force': '123'}
+        with self.test_request_context(user='root'):
+            resp = self.client.post('/api/1/builds/', json=payload, content_type='application/json')
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json['message'], '"force" must be a boolean.')
 
 
 class TestAsyncBuild(ViewBaseTest):

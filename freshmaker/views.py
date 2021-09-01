@@ -399,6 +399,9 @@ def _validate_rebuild_request(request):
     if not isinstance(data.get('dry_run', False), bool):
         return json_error(400, 'Bad Request', '"dry_run" must be a boolean.')
 
+    if not isinstance(data.get('force', False), bool):
+        return json_error(400, 'Bad Request', '"force" must be a boolean.')
+
     return None
 
 
@@ -553,6 +556,20 @@ class BuildAPI(MethodView):
                     'The provided "errata_id" doesn\'t match the Advisory ID associated with the '
                     'input "freshmaker_event_id".',
                 )
+
+        if data.get("errata_id") or data.get("freshmaker_event_id"):
+            running_events = (
+                models.Event.query.filter(models.Event.search_key == str(data['errata_id'])).filter(
+                    models.Event.state.in_(
+                        [EventState.INITIALIZED.value, EventState.BUILDING.value])).all())
+
+            if running_events and not data.get('force', False):
+                event_ids = [e.id for e in running_events]
+                return json_error(
+                    400,
+                    'Bad Request',
+                    f'Events triggered by advisory {data["errata_id"]} are running: {event_ids}. '
+                    f'If you want to rebuild it anyway, use "force": true option.')
 
         # Use the shared code to parse the POST data and generate right
         # event based on the data.
