@@ -39,6 +39,14 @@ class RebuildImagesOnODCSComposeDone(ContainerBuildHandler):
     def can_handle(self, event):
         if not isinstance(event, ODCSComposeStateChangeEvent):
             return False
+
+        compose_id = event.compose['id']
+
+        # check db to see whether this compose exists in db
+        found_compose = Compose.query.filter_by(odcs_compose_id=compose_id).first()  # db.session.query(ArtifactBuild).filter_by(odcs_compose_id=compose_id).first()
+
+        if not found_compose:
+            return False
         return event.compose['state'] == COMPOSE_STATES['done']
 
     @fail_event_on_handler_exception
@@ -47,8 +55,6 @@ class RebuildImagesOnODCSComposeDone(ContainerBuildHandler):
             self.force_dry_run()
 
         compose_id = event.compose['id']
-        if Compose.query.filter_by(odcs_compose_id=compose_id).first() is None:
-            return
 
         self.log_info('ODCS compose %s finished', compose_id)
 

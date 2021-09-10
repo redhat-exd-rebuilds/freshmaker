@@ -92,9 +92,10 @@ class ConsumerTest(helpers.ConsumerBaseTest):
                 return int(float(v))
         return None
 
+    @mock.patch("freshmaker.handlers.internal.UpdateDBOnODCSComposeFail.can_handle")
     @mock.patch("freshmaker.handlers.internal.UpdateDBOnODCSComposeFail.handle")
     @mock.patch("freshmaker.consumer.get_global_consumer")
-    def test_consumer_processing_message(self, global_consumer, handle):
+    def test_consumer_processing_message(self, global_consumer, handle, handler_can_handle):
         """
         Tests that consumer parses the message, forwards the event
         to proper handler and is able to get the further work from
@@ -103,6 +104,8 @@ class ConsumerTest(helpers.ConsumerBaseTest):
         consumer = self.create_consumer()
         global_consumer.return_value = consumer
         handle.return_value = [freshmaker.events.TestingEvent("ModuleBuilt handled")]
+
+        handler_can_handle.return_value = True
 
         prev_counter_value = self._get_monitor_value("messaging_rx_processed_ok_total")
 

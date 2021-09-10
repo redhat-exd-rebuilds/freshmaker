@@ -38,19 +38,19 @@ class TestRebuildImagesOnParentImageBuild(helpers.ModelsTestCase):
         events.BaseEvent.register_parser(BrewTaskStateChangeParser)
         self.handler = RebuildImagesOnParentImageBuild()
 
-    def test_can_handle_brew_container_task_closed_event(self):
+    def test_can_not_handle_brew_container_task_closed_event(self):
         """
         Tests handler can handle brew build container task closed event.
         """
         event = self.get_event_from_msg(get_fedmsg('brew_container_task_closed'))
-        self.assertTrue(self.handler.can_handle(event))
+        self.assertFalse(self.handler.can_handle(event))
 
-    def test_can_handle_brew_container_task_failed_event(self):
+    def test_can_not_handle_brew_container_task_failed_event(self):
         """
         Tests handler can handle brew build container task failed event.
         """
         event = self.get_event_from_msg(get_fedmsg('brew_container_task_failed'))
-        self.assertTrue(self.handler.can_handle(event))
+        self.assertFalse(self.handler.can_handle(event))
 
     @mock.patch('freshmaker.handlers.ContainerBuildHandler.build_image_artifact_build')
     @mock.patch('freshmaker.handlers.ContainerBuildHandler.get_repo_urls')

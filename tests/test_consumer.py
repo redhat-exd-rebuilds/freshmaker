@@ -32,10 +32,10 @@ from tests import helpers
 
 
 class ConsumerTest(helpers.ConsumerBaseTest):
-
+    @mock.patch("freshmaker.handlers.internal.UpdateDBOnODCSComposeFail.can_handle")
     @mock.patch("freshmaker.handlers.internal.UpdateDBOnODCSComposeFail.handle")
     @mock.patch("freshmaker.consumer.get_global_consumer")
-    def test_consumer_processing_message(self, global_consumer, handle):
+    def test_consumer_processing_message(self, global_consumer, handle, handler_can_handle):
         """
         Tests that consumer parses the message, forwards the event
         to proper handler and is able to get the further work from
@@ -44,6 +44,8 @@ class ConsumerTest(helpers.ConsumerBaseTest):
         consumer = self.create_consumer()
         global_consumer.return_value = consumer
         handle.return_value = [freshmaker.events.TestingEvent("ModuleBuilt handled")]
+
+        handler_can_handle.return_value = True
 
         msg = self._compose_state_change_msg()
         consumer.consume(msg)
@@ -116,17 +118,20 @@ class ConsumerTest(helpers.ConsumerBaseTest):
         for topic in topics:
             self.assertIn(mock.call(topic, callback), consumer.hub.subscribe.call_args_list)
 
+    @mock.patch("freshmaker.handlers.internal.UpdateDBOnODCSComposeFail.can_handle")
     @mock.patch("freshmaker.handlers.internal.UpdateDBOnODCSComposeFail.handle",
                 autospec=True)
     @mock.patch("freshmaker.consumer.get_global_consumer")
     def test_consumer_mark_event_as_failed_on_exception(
-            self, global_consumer, handle):
+            self, global_consumer, handle, handler_can_handle):
         """
         Tests that Consumer.consume marks the DB Event as failed in case there
         is an error in a handler.
         """
         consumer = self.create_consumer()
         global_consumer.return_value = consumer
+
+        handler_can_handle.return_value = True
 
         @fail_event_on_handler_exception
         def mocked_handle(cls, msg):
