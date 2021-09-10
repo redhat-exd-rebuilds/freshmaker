@@ -42,7 +42,20 @@ class RebuildImagesOnParentImageBuild(ContainerBuildHandler):
     name = 'RebuildImagesOnParentImageBuild'
 
     def can_handle(self, event):
-        return isinstance(event, BrewContainerTaskStateChangeEvent)
+        if not isinstance(event, BrewContainerTaskStateChangeEvent):
+            return False
+
+        build_id = event.task_id
+
+        # check db to see whether this build exists in db
+        found_build = db.session.query(ArtifactBuild).filter_by(
+            type=ArtifactType.IMAGE.value,
+            build_id=build_id
+        ).first()
+
+        if not found_build:
+            return False
+        return True
 
     @fail_event_on_handler_exception
     def handle(self, event):
@@ -61,13 +74,12 @@ class RebuildImagesOnParentImageBuild(ContainerBuildHandler):
             build_id=build_id
         ).first()
 
-        if found_build is not None:
-            self.set_context(found_build)
-            if found_build.event.state not in [EventState.INITIALIZED.value,
-                                               EventState.BUILDING.value]:
-                return
-            self.update_db_build_state(build_id, found_build, event)
-            self.rebuild_dependent_containers(found_build)
+        self.set_context(found_build)
+        if found_build.event.state not in [EventState.INITIALIZED.value,
+                                           EventState.BUILDING.value]:
+            return
+        self.update_db_build_state(build_id, found_build, event)
+        self.rebuild_dependent_containers(found_build)
 
     @fail_artifact_build_on_handler_exception()
     def update_db_build_state(self, build_id, found_build, event):
