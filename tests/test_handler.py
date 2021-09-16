@@ -30,7 +30,7 @@ from requests.exceptions import HTTPError
 import freshmaker
 
 from freshmaker import db
-from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
+from freshmaker.events import ErrataAdvisoryRPMsSignedEvent, BotasErrataShippedEvent
 from freshmaker.handlers import ContainerBuildHandler, ODCSComposeNotReady
 from freshmaker.models import (
     ArtifactBuild, ArtifactBuildState, ArtifactBuildCompose,
@@ -541,3 +541,22 @@ class TestStartToBuildImages(helpers.ModelsTestCase):
         self.assertEqual(build.state, ArtifactBuildState.FAILED.value)
         self.assertEqual(build2.state, ArtifactBuildState.BUILD.value)
         self.assertEqual(len(db.session.query(ArtifactBuild).all()), 2)
+
+    @patch('freshmaker.kojiservice.KojiService.get_ocp_versions_range')
+    def test_start_to_build_invalid_bundle_image(self, mock_get_ocp):
+        mock_get_ocp.return_value = 'v4.7,v4.8'
+
+        db_event = Event.get_or_create(
+            db.session, 'msg1', 'current_event', BotasErrataShippedEvent)
+        build = ArtifactBuild.create(
+            db.session, db_event, 'foobar-2-123',
+            'image', state=ArtifactBuildState.PLANNED.value
+        )
+        build.build_args = json.dumps({'repo': 'foobar'})
+        build.original_nvr = 'foobar-2-123'
+        db.session.commit()
+        handler = MyHandler()
+        handler.build_image_artifact_build(build)
+
+        self.assertEqual(build.state, ArtifactBuildState.FAILED.value)
+        self.assertTrue('invalid openshift versions range' in build.state_reason)

@@ -236,8 +236,8 @@ class KojiService(object):
     def get_task_info(self, task_id):
         return self.session.getTaskInfo(task_id)
 
-    def list_archives(self, build_id):
-        return self.session.listArchives(build_id)
+    def list_archives(self, build_id, archive_type=None):
+        return self.session.listArchives(build_id, type=archive_type)
 
     def get_container_build_id_from_task(self, task_id):
         """
@@ -335,6 +335,33 @@ class KojiService(object):
         if not compose_ids:
             compose_ids = []
         return compose_ids
+
+    @region.cache_on_arguments()
+    def get_ocp_versions_range(self, build_nvr):
+        """
+        Get bundle image's OpenShift versions range value
+
+        :param str build_nvr: NVR of image build.
+        :return: OpenShift versions range of image.
+        :rtype: str
+        """
+        ocp_versions_range = None
+
+        build = self.get_build(build_nvr)
+        archives = self.list_archives(build["id"], archive_type="image")
+        for archive in archives:
+            try:
+                ocp_versions_range = archive["extra"]["docker"]["config"]["config"]["Labels"][
+                    "com.redhat.openshift.versions"
+                ]
+            except KeyError:
+                continue
+            # different arches should have same metadata, stop checking
+            # when ocp_version_range has been fetched
+            if ocp_versions_range is not None:
+                break
+
+        return ocp_versions_range
 
 
 @contextlib.contextmanager

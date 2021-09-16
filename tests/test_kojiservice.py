@@ -48,3 +48,42 @@ def test_build_container_csv_mods(mock_koji):
             "scratch": False,
         },
     )
+
+
+@mock.patch("freshmaker.kojiservice.koji")
+def test_get_ocp_versions_range(mock_koji):
+    mock_session = mock.Mock()
+    mock_session.getBuild.return_value = {"id": 123}
+    archives = [{
+        "arch": "x86_64",
+        "btype": "image",
+        "extra": {
+            "docker": {
+                "config": {
+                    "architecture": "amd64",
+                    "config": {
+                        "Hostname": "c4b105e29878",
+                        "Labels": {
+                            "architecture": "x86_64",
+                            "com.redhat.component": "foobar-bundle-container",
+                            "com.redhat.delivery.backport": "true",
+                            "com.redhat.delivery.operator.bundle": "true",
+                            "com.redhat.openshift.versions": "v4.5,v4.6"
+                        }
+                    },
+                    "os": "linux"
+                },
+                "id": "sha256:123"
+            },
+            "image": {
+                "arch": "x86_64"
+            }
+        },
+        "type_name": "tar"
+    }]
+
+    mock_session.listArchives.return_value = archives
+    mock_koji.ClientSession.return_value = mock_session
+
+    svc = kojiservice.KojiService()
+    assert svc.get_ocp_versions_range('foobar-2-123') == "v4.5,v4.6"

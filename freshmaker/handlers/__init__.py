@@ -27,12 +27,12 @@ import re
 import copy
 from functools import wraps
 
-from freshmaker import conf, log, db, models
+from freshmaker import conf, log, db, models, events
 from freshmaker.kojiservice import koji_service, parse_NVR
 from freshmaker.models import ArtifactBuildState
 from freshmaker.types import EventState
 from freshmaker.models import ArtifactBuild, Event
-from freshmaker.utils import get_rebuilt_nvr
+from freshmaker.utils import get_rebuilt_nvr, is_valid_ocp_versions_range
 from freshmaker.errors import UnprocessableEntity, ProgrammingError
 from freshmaker.odcsclient import create_odcs_client, FreshmakerODCSClient
 from freshmaker.odcsclient import COMPOSE_STATES
@@ -510,6 +510,24 @@ class ContainerBuildHandler(BaseHandler):
                 "Container image does not have original_nvr set.")
             return
 
+        # If this is a bundle rebuild, check original build's OpenShift versions
+        # range, if its value is invalid, the build system can still rebuild it,
+        # but the rebuilt image will be an invalid bundle image, so we just fail
+        # it before submitting the build task.
+        build_bundle_event_types = (events.BotasErrataShippedEvent, events.ManualBundleRebuild)
+        # check ocp versions range of
+        if build.event.event_type in build_bundle_event_types:
+            with koji_service(
+                    profile=conf.koji_profile, logger=log,
+                    dry_run=self.dry_run, login=False
+            ) as service:
+                ocp_versions_range = service.get_ocp_versions_range(build.original_nvr)
+                if ocp_versions_range and not is_valid_ocp_versions_range(ocp_versions_range):
+                    build.transition(
+                        ArtifactBuildState.FAILED.value,
+                        "Original image has invalid openshift versions range")
+                    return
+
         args = json.loads(build.build_args)
         scm_url = "%s/%s#%s" % (conf.git_base_url, args["repository"],
                                 args["commit"])
@@ -635,6 +653,8 @@ class ContainerBuildHandler(BaseHandler):
                 build.transition(
                     ArtifactBuildState.FAILED.value,
                     "An unknown error occurred.")
+            elif build.state == ArtifactBuildState.FAILED.value:
+                log.debug(f"Build {build.id} failed: {build.state_reason}")
             elif not build.build_id:
                 build.transition(
                     ArtifactBuildState.FAILED.value,

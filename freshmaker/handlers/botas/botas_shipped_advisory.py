@@ -107,9 +107,12 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         self.set_context(db_event)
 
         self.start_to_build_images(builds)
-        msg = f"Advisory {db_event.search_key}: Rebuilding " \
-              f"{len(db_event.builds.all())} bundle images."
-        db_event.transition(EventState.BUILDING, msg)
+        if all([b.state == ArtifactBuildState.FAILED.value for b in builds]):
+            db_event.transition(EventState.FAILED, "All bundle rebuilds failed")
+        else:
+            msg = f"Advisory {db_event.search_key}: Rebuilding " \
+                  f"{len(db_event.builds.all())} bundle images."
+            db_event.transition(EventState.BUILDING, msg)
 
         return []
 
