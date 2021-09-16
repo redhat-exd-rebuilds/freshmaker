@@ -217,3 +217,23 @@ def get_ocp_release_date(ocp_version):
     if not resp.ok:
         resp.raise_for_status()
     return resp.json()[0]['date_finish']
+
+
+def is_valid_ocp_versions_range(ocp_versions_range):
+    """ Check if an ocp_versions_range string is valid
+
+    :param str ocp_versions_range: the OpenShift versions range value
+    :return: True if the OpenShift versions range is valid, otherwise False
+    :rtype: bool
+    """
+    # Commas are generally not allowed in ocp versions range, and should not be used.
+    # For historical reasons, there are two special values that are currently allowed
+    # to contain commas, "v4.5,v4.6" and "v4.6,v4.5".
+    valid_commas_ranges = ["v4.5,v4.6", "v4.6,v4.5"]
+    if (
+        "," in ocp_versions_range and
+        ocp_versions_range.replace(" ", "") not in valid_commas_ranges
+    ):
+        return False
+
+    return True

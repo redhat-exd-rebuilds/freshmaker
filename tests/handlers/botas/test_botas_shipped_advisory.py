@@ -829,6 +829,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         }
         mock_koji.return_value.get_build.side_effect = lambda x: koji_builds[x]
         self.handler._prepare_builds = MagicMock()
+        self.handler._prepare_builds.return_value = [MagicMock()]
         self.handler.start_to_build_images = MagicMock()
 
         self.handler.handle(event)

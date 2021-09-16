@@ -26,7 +26,7 @@ import pytest
 
 from freshmaker import conf
 from freshmaker.models import ArtifactType
-from freshmaker.utils import get_rebuilt_nvr, sorted_by_nvr
+from freshmaker.utils import get_rebuilt_nvr, sorted_by_nvr, is_valid_ocp_versions_range
 from tests import helpers
 
 
@@ -38,6 +38,16 @@ def test_get_rebuilt_nvr(mock_time, rebuilt_nvr_release_suffix):
     with patch.object(conf, "rebuilt_nvr_release_suffix", new=rebuilt_nvr_release_suffix):
         rebuilt_nvr = get_rebuilt_nvr(ArtifactType.IMAGE.value, nvr)
     assert rebuilt_nvr == expected
+
+
+def test_is_valid_ocp_versions_range():
+    assert is_valid_ocp_versions_range("v4.8")
+    assert is_valid_ocp_versions_range("=v4.8")
+    assert is_valid_ocp_versions_range("v4.7-v4.8")
+    assert is_valid_ocp_versions_range("v4.5,v4.6")
+    assert is_valid_ocp_versions_range("v4.6,v4.5")
+    assert is_valid_ocp_versions_range("v4.5, v4.6")
+    assert not is_valid_ocp_versions_range("v4.7,v4.8")
 
 
 class TestSortedByNVR(helpers.FreshmakerTestCase):
