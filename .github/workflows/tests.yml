@@ -14,15 +14,9 @@ jobs:
       RPM_PY_SYS: true
     steps:
       - uses: actions/checkout@v2
-      - name: Install dependencies
-        run: sudo apt-get -y install koji-client libkrb5-dev libldap2-dev libsasl2-dev librpm-dev rpm 
       - name: Setup Python
         uses: actions/setup-python@v2
         with:
           python-version: 3.7
-      - name: Upgrade pip
-        run: pip install --upgrade pip
-      - name: Install Tox
-        run: pip install tox
-      - name: Run Tox
-        run: tox
+      - name: Execute tests
+        uses: ./.github/actions/tests
