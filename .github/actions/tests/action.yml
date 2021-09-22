@@ -1,0 +1,7 @@
+# Container action
+
+name: 'Test actions'
+description: 'To use Freshmaker prod image to run tests'
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
