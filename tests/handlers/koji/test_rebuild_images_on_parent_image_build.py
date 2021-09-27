@@ -262,6 +262,33 @@ class TestRebuildImagesOnParentImageBuild(helpers.ModelsTestCase):
         self.assertEqual(build.state, ArtifactBuildState.FAILED.value)
         self.assertRegex(build.state_reason, r"The following RPMs in container build.*")
 
+    @mock.patch('freshmaker.kojiservice.KojiService')
+    @mock.patch('freshmaker.errata.Errata.get_binary_rpm_nvrs')
+    def test_mark_manual_build_failed_when_container_has_not_latest_rpms_from_advisory(
+            self, get_binary_rpm_nvrs, KojiService):
+        """
+        Tests when the build gets marked as FAILED in case of a manual rebuild with images with unmatched versions
+        (rpms in images and rpms in advisory).
+        """
+        get_binary_rpm_nvrs.return_value = set(['foo-1.2.1-23.el7'])
+
+        koji_service = KojiService.return_value
+        koji_service.get_build_rpms.return_value = [
+            {'build_id': 634904, 'nvr': 'foo-1.2.1-23.el7', 'name': 'foo'},
+            {'build_id': 634904, 'nvr': 'foo-1.1.1-22.el7', 'name': 'foo'},
+        ]
+        koji_service.get_rpms_in_container.return_value = set(
+            ['foo-1.2.1-22.el7']
+        )
+
+        e1 = models.Event.create(db.session, "test_msg_id", "2018001", events.ManualRebuildWithAdvisoryEvent)
+        event = self.get_event_from_msg(get_fedmsg('brew_container_task_closed'))
+        build = models.ArtifactBuild.create(db.session, e1, 'test-product-docker', ArtifactType.IMAGE, event.task_id)
+
+        self.handler.handle(event)
+        self.assertEqual(build.state, ArtifactBuildState.FAILED.value)
+        self.assertRegex(build.state_reason, r"The following RPMs in container build.*")
+
     @mock.patch('freshmaker.handlers.ContainerBuildHandler.build_image_artifact_build')
     @mock.patch('freshmaker.handlers.ContainerBuildHandler.get_repo_urls')
     @mock.patch('freshmaker.handlers.koji.rebuild_images_on_parent_image_build.'

@@ -27,7 +27,8 @@ from freshmaker import log
 from freshmaker import db
 from freshmaker.errata import Errata
 from freshmaker.events import (
-    BrewContainerTaskStateChangeEvent, ErrataAdvisoryRPMsSignedEvent)
+    BrewContainerTaskStateChangeEvent, ErrataAdvisoryRPMsSignedEvent,
+    ManualRebuildWithAdvisoryEvent)
 from freshmaker.models import ArtifactBuild, EVENT_TYPES
 from freshmaker.handlers import (ContainerBuildHandler,
                                  fail_artifact_build_on_handler_exception,
@@ -87,7 +88,9 @@ class RebuildImagesOnParentImageBuild(ContainerBuildHandler):
         if event.new_state == 'CLOSED':
             # if build is triggered by an advisory, verify the container
             # contains latest RPMs from the advisory
-            if found_build.event.event_type_id == EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent]:
+            if found_build.event.event_type_id in (
+                    EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
+                    EVENT_TYPES[ManualRebuildWithAdvisoryEvent]):
                 errata_id = found_build.event.search_key
                 # build_id is actually task id in build system, find out the actual build first
                 with koji_service(
