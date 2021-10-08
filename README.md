@@ -106,3 +106,11 @@ Run the tests:
 ```bash
 pytest tests/
 ```
+
+In order to generate the requirements you need pip-tools:
+
+```bash
+python -m pip install pip-tools
+```
+
+more info available at: https://github.com/jazzband/pip-tools/
