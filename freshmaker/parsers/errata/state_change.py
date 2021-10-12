@@ -20,14 +20,25 @@
 # SOFTWARE.
 
 from freshmaker.parsers import BaseParser
-from freshmaker.events import ErrataAdvisoryStateChangedEvent, BotasErrataShippedEvent
+from freshmaker.events import (
+    BotasErrataShippedEvent,
+    ErrataAdvisoryStateChangedEvent,
+    FlatpakModuleAdvisoryReadyEvent,
+)
 from freshmaker.errata import Errata, ErrataAdvisory
 
 
 class ErrataAdvisoryStateChangedParser(BaseParser):
     """
-    Parser parsing errata.activity.status.
-    If event produced by BOTAS we will generate specific type of event
+    Parses errata.activity.status messages (advisory changes state).
+
+    Creates BotasErrataShippedEvent if BOTAS-created advisory is moved to
+    SHIPPED_LIVE.
+
+    Creates FlatpakModuleAdvisoryReadyEvent if a new flatpak advisory can be
+    created for module security advisory.
+
+    Creates ErrataAdvisoryStateChangedEvent in other cases.
     """
 
     name = "ErrataAdvisoryStateChangedParser"
@@ -37,10 +48,10 @@ class ErrataAdvisoryStateChangedParser(BaseParser):
         return any([topic.endswith(s) for s in self.topic_suffixes])
 
     def parse(self, topic, msg):
-        msg_id = msg.get('msg_id')
-        inner_msg = msg.get('msg')
-        errata_id = int(inner_msg.get('errata_id'))
-        new_state = inner_msg.get('to')
+        msg_id = msg.get("msg_id")
+        inner_msg = msg.get("msg")
+        errata_id = int(inner_msg.get("errata_id"))
+        new_state = inner_msg.get("to")
 
         errata = Errata()
         advisory = ErrataAdvisory.from_advisory_id(errata, errata_id)
@@ -51,8 +62,10 @@ class ErrataAdvisoryStateChangedParser(BaseParser):
 
         # If advisory created by BOTAS and it's shipped,
         # then return BotasErrataShippedEvent event
-        if advisory.state == "SHIPPED_LIVE" and advisory.reporter.startswith('botas'):
-            event = BotasErrataShippedEvent(msg_id, advisory)
-        else:
-            event = ErrataAdvisoryStateChangedEvent(msg_id, advisory)
-        return event
+        if advisory.state == "SHIPPED_LIVE" and advisory.reporter.startswith("botas"):
+            return BotasErrataShippedEvent(msg_id, advisory)
+
+        if advisory.is_flatpak_module_advisory_ready():
+            return FlatpakModuleAdvisoryReadyEvent(msg_id, advisory)
+
+        return ErrataAdvisoryStateChangedEvent(msg_id, advisory)

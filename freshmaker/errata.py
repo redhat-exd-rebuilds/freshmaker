@@ -124,6 +124,26 @@ class ErrataAdvisory(object):
             product_data["product"]["short_name"], cve_list,
             has_hightouch_bug)
 
+    def is_flatpak_module_advisory_ready(self):
+        """ Returns True only if a Flatpaks can be rebuilt from module advisory.
+
+        Flatpaks can be rebuilt only if all of the following are true:
+        - Advisory must contain modules.
+        - Advisory is in QE state.
+        - All attached builds are only shipped to hidden pulp repositories.
+        - All attached builds are signed.
+        """
+        errata = Errata()
+        return (
+            self.state == "QE" and
+            "module" in self.content_types and
+            all(
+                "-hidden-" in repo_id
+                for repo_id in errata.get_pulp_repository_ids(self.errata_id)
+            ) and
+            errata.builds_signed(self.errata_id)
+        )
+
 
 class Errata(object):
     """ Interface to Errata. """
