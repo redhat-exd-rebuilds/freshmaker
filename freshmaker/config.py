@@ -165,6 +165,7 @@ class Config(object):
                 'freshmaker.parsers.koji:FreshmakerAsyncManualbuildParser',
                 'freshmaker.parsers.internal:FreshmakerManualRebuildParser',
                 'freshmaker.parsers.brew:BrewTaskStateChangeParser',
+                'freshmaker.parsers.errata:ErrataAdvisorySigningChangedParser',
                 'freshmaker.parsers.errata:ErrataAdvisoryStateChangedParser',
                 'freshmaker.parsers.odcs:ComposeStateChangeParser',
             ],

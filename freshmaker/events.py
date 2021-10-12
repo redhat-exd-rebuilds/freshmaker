@@ -303,6 +303,12 @@ class ErrataAdvisoryStateChangedEvent(ErrataBaseEvent):
     """
 
 
+class FlatpakModuleAdvisoryReadyEvent(ErrataBaseEvent):
+    """
+    Represents change of module Errata Advisory ready for building flatpaks.
+    """
+
+
 class ErrataAdvisoryRPMsSignedEvent(ErrataBaseEvent):
     """
     Event when all RPMs in Errata advisory are signed.

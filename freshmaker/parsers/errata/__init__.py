@@ -19,4 +19,5 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from .signing_change import ErrataAdvisorySigningChangedParser  # noqa
 from .state_change import ErrataAdvisoryStateChangedParser  # noqa
