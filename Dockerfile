@@ -1,5 +1,4 @@
-# TODO: Upgrade to a more recent fedora version
-FROM quay.io/fedora/fedora:32-x86_64
+FROM quay.io/fedora/fedora:34-x86_64
 
 LABEL \
     name="Freshmaker application" \
@@ -8,7 +7,7 @@ LABEL \
 
 
 # Use Copr repo for python3-rhmsg package
-RUN dnf install -y 'dnf-command(copr)' && dnf copr enable -y qwan/python-rhmsg
+RUN dnf install -y 'dnf-command(copr)' && dnf copr enable -y rlim/python3-rhmsg
 
 COPY yum-packages.txt /tmp/yum-packages.txt
 
