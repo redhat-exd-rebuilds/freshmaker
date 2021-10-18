@@ -200,8 +200,6 @@ class ContainerImage(dict):
             "error": None,
             "arches": None,
             "parent_image_builds": None,
-            "flatpak": False,
-            "isolated": True,
         }
 
     @classmethod
@@ -246,11 +244,13 @@ class ContainerImage(dict):
             extra_image = build.get("extra", {}).get("image", {})
             data["parent_build_id"] = extra_image.get("parent_build_id")
             data["parent_image_builds"] = extra_image.get("parent_image_builds")
-            data["flatpak"] = extra_image.get("flatpak", False)
 
-            isolated = extra_image.get("isolated")
-            if isolated is not None:
-                data["isolated"] = isolated
+            flatpak = extra_image.get("flatpak", False)
+            if flatpak:
+                data["flatpak"] = flatpak
+                isolated = extra_image.get("isolated")
+                if isolated is not None:
+                    data["isolated"] = isolated
 
             brew_task = session.get_task_request(
                 build['task_id'])

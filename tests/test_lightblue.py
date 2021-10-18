@@ -1316,8 +1316,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                  "original_odcs_compose_ids": [],
                                  "parent_build_id": None,
                                  "parent_image_builds": None,
-                                 "flatpak": False,
-                                 "isolated": True,
                                  "published": True,
                                  "brew": {
                                      "completion_date": u"20170421T04:27:51.000-0400",
@@ -1430,8 +1428,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                  "original_odcs_compose_ids": [],
                                  "parent_build_id": None,
                                  "parent_image_builds": None,
-                                 "flatpak": False,
-                                 "isolated": True,
                                  "multi_arch_rpm_manifest": {},
                                  "published": True,
                                  "brew": {
