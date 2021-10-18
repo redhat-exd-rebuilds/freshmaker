@@ -184,7 +184,8 @@ class KojiService(object):
             build_opts['isolated'] = True
         if koji_parent_build:
             build_opts['koji_parent_build'] = koji_parent_build
-        if arch_override:
+        # arch-override is only allowed for isolated or scratch builds
+        if arch_override and (isolated or scratch):
             build_opts['arch_override'] = arch_override
         if release:
             build_opts['release'] = release

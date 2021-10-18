@@ -237,9 +237,9 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
             repo_urls=repo_urls, operator_csv_modifications_url=None)
 
     @patch("time.time")
-    @patch("freshmaker.handlers.ContainerBuildHandler.build_container")
-    def test_build_image_artifact_build_flatpak(
-            self, build_container, time):
+    @patch("freshmaker.kojiservice.KojiService.session")
+    @patch.object(freshmaker.conf, 'koji_container_scratch_build', new=False)
+    def test_build_image_artifact_build_flatpak(self, koji_session, time):
         time.return_value = 1234567.1234
         handler = MyHandler()
         flatpak_build = ArtifactBuild.create(
@@ -257,12 +257,15 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
             ArtifactBuildCompose(build_id=flatpak_build.id, compose_id=self.compose_1.id))
 
         handler.build_image_artifact_build(flatpak_build)
-        build_container.assert_called_once_with(
-            'git://pkgs.devel.redhat.com/repo#hash', 'branch', 'target',
-            arch_override='x86_64', compose_ids=[5, 7300],
-            flatpak=True, isolated=False, koji_parent_build=None,
-            release='2.1234567', repo_urls=None,
-            operator_csv_modifications_url=None)
+        koji_session.buildContainer.assert_called_once_with(
+            'git://pkgs.devel.redhat.com/repo#hash', 'target', {
+                'scratch': False,
+                'git_branch': 'branch',
+                'compose_ids': [5, 7300],
+                'flatpak': True,
+                'release': '2.1234567'
+            }
+        )
 
     @patch("freshmaker.handlers.ContainerBuildHandler.build_container")
     def test_build_image_artifact_build_repo_urls_compose_not_ready(
