@@ -547,7 +547,6 @@ class ContainerBuildHandler(BaseHandler):
             parent = args["original_parent"]
 
         flatpak = args.get("flatpak", False)
-        isolated = args.get("isolated", True)
 
         # If set to None, then OSBS defaults to using the arches
         # of the build tag associated with the target.
@@ -588,7 +587,7 @@ class ContainerBuildHandler(BaseHandler):
             scm_url, branch, target,
             repo_urls=repo_urls,
             flatpak=flatpak,
-            isolated=isolated,
+            isolated=True,
             release=parse_NVR(build.rebuilt_nvr)["release"],
             koji_parent_build=parent,
             arch_override=arches,

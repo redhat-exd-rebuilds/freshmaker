@@ -260,7 +260,7 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
         build_container.assert_called_once_with(
             'git://pkgs.devel.redhat.com/repo#hash', 'branch', 'target',
             arch_override='x86_64', compose_ids=[5, 7300],
-            flatpak=True, isolated=False, koji_parent_build=None,
+            flatpak=True, isolated=True, koji_parent_build=None,
             release='2.1234567', repo_urls=None,
             operator_csv_modifications_url=None)
 

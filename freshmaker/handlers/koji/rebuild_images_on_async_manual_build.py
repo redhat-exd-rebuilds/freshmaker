@@ -377,7 +377,6 @@ class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
                     "branch": image["git_branch"],
                     "arches": image["arches"],
                     "flatpak": image.get("flatpak", False),
-                    "isolated": image.get("isolated", True),
                 })
                 db.session.commit()
 
