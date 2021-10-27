@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from freshmaker.errata import ErrataAdvisory
 from freshmaker.events import FlatpakModuleAdvisoryReadyEvent
+from freshmaker.handlers.koji import RebuildFlatpakApplicationOnModuleReady
 from tests import helpers
 
 
@@ -33,6 +34,7 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
         self.from_advisory_id = self._patch("freshmaker.errata.ErrataAdvisory.from_advisory_id")
         self.advisory = ErrataAdvisory(123, "RHSA-123", "QE", ["module"], "Critical")
         self.from_advisory_id.return_value = self.advisory
+        self.handler = RebuildFlatpakApplicationOnModuleReady()
 
     def tearDown(self):
         self.consumer = self.create_consumer()
@@ -52,6 +54,7 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
         event = self.consumer.get_abstracted_msg(msg)
         self.assertIsInstance(event, FlatpakModuleAdvisoryReadyEvent)
         self.assertEqual("fake-msg-id", event.msg_id)
+        self.assertEqual(self.handler.can_handle(event), True)
 
     def test_no_event_from_signing_message_in_new_files(self):
         advisory = ErrataAdvisory(123, "RHSA-123", "NEW_FILES", ["module"], "Critical")
@@ -69,6 +72,7 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
         }
         event = self.consumer.get_abstracted_msg(msg)
         self.assertEqual(event, None)
+        self.assertEqual(self.handler.can_handle(event), False)
 
     def test_no_event_from_signing_message_for_rpm(self):
         advisory = ErrataAdvisory(123, "RHSA-123", "NEW_FILES", ["rpm"], "Critical")
@@ -135,3 +139,4 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
         event = self.consumer.get_abstracted_msg(msg)
         self.assertIsInstance(event, FlatpakModuleAdvisoryReadyEvent)
         self.assertEqual("fake-msg-id", event.msg_id)
+        self.assertEqual(self.handler.can_handle(event), True)

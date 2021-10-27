@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2017  Red Hat, Inc.
+# Copyright (c) 2021  Red Hat, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -18,9 +18,15 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+#
+# Written by Valerij Maljulin <vmaljuli@redhat.com>
 
-from .rebuild_images_on_odcs_compose_done import RebuildImagesOnODCSComposeDone  # noqa
-from .rebuild_images_on_parent_image_build import RebuildImagesOnParentImageBuild  # noqa
-from .rebuild_images_on_rpm_advisory_change import RebuildImagesOnRPMAdvisoryChange  # noqa
-from .rebuild_images_on_async_manual_build import RebuildImagesOnAsyncManualBuild  # noqa
-from .rebuild_flatpak_application_on_module_ready import RebuildFlatpakApplicationOnModuleReady  # noqa
+from freshmaker.handlers import ContainerBuildHandler
+from freshmaker.events import FlatpakModuleAdvisoryReadyEvent
+
+
+class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
+    name = 'RebuildFlatpakApplicationOnModuleReady'
+
+    def can_handle(self, event):
+        return isinstance(event, FlatpakModuleAdvisoryReadyEvent)
