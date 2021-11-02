@@ -87,3 +87,58 @@ def test_get_ocp_versions_range(mock_koji):
 
     svc = kojiservice.KojiService()
     assert svc.get_ocp_versions_range('foobar-2-123') == "v4.5,v4.6"
+
+
+@mock.patch("freshmaker.kojiservice.koji")
+@mock.patch("freshmaker.kojiservice.requests.get")
+@mock.patch("freshmaker.kojiservice.ZipFile")
+@mock.patch("freshmaker.kojiservice.BytesIO")
+@mock.patch("freshmaker.kojiservice.yaml")
+def test_get_bundle_csv_success(
+    mock_yaml, mock_bytesio, mock_zipfile, mock_get, mock_koji
+):
+    mock_session = mock.Mock()
+    mock_session.getBuild.return_value = {
+        "id": 123,
+        "nvr": "foobar-bundle-container-2.0-123",
+        "extra": {"operator_manifests_archive": "operator_manifests.zip"}
+    }
+    mock_koji.ClientSession.return_value = mock_session
+    mock_get.return_value = mock.Mock(ok=True)
+    mock_zipfile.return_value.namelist.return_value = [
+        "foobar-v2.0-opr-1.clusterserviceversion.yaml",
+        "foobar_crd.yaml",
+        "foobar_artemisaddress_crd.yaml",
+        "foobar_artemisscaledown_crd.yaml"
+    ]
+    mock_yaml.safe_load.return_value = {
+        "apiVersion": "operators.coreos.com/v1alpha1",
+        "kind": "ClusterServiceVersion",
+        "spec": {"version": "2.0-opr-1"},
+        "metadata": {"name": "foobar-2.0-opr-1"}
+    }
+
+    svc = kojiservice.KojiService()
+    csv = svc.get_bundle_csv("foobar-bundle-container-2.0-123")
+    assert csv["metadata"]["name"] == "foobar-2.0-opr-1"
+    assert csv["spec"]["version"] == "2.0-opr-1"
+
+
+@mock.patch("freshmaker.kojiservice.log")
+@mock.patch("freshmaker.kojiservice.koji")
+@mock.patch("freshmaker.kojiservice.requests.get")
+def test_get_bundle_csv_unavailable(mock_get, mock_koji, mock_log):
+    mock_session = mock.Mock()
+    mock_session.getBuild.return_value = {
+        "id": 123,
+        "nvr": "foobar-bundle-container-2.0-123",
+        "extra": {}
+    }
+    mock_koji.ClientSession.return_value = mock_session
+
+    svc = kojiservice.KojiService()
+    csv = svc.get_bundle_csv("foobar-bundle-container-2.0-123")
+    assert csv is None
+    mock_log.error.assert_any_call(
+        "Operator manifests archive is unavaiable for build %s", "foobar-bundle-container-2.0-123"
+    )
