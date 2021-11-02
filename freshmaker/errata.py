@@ -495,6 +495,28 @@ class Errata(object):
 
         return list(nvrs)
 
+    def get_cve_affected_build_nvrs(self, errata_id, only_modules=False):
+        """ Get module build NVRs which are affected by the CVEs in errata
+
+        :param errata_id: Errata advisory ID, e.g. 25713.
+        :type errata_id: str or int
+        :param only_modules: only return module builds NVR if True.
+        :type only_modules: bool
+        :return: a list of strings each of them is a build NVR
+        :rtype: list
+        """
+        data = self._errata_rest_get(f"/erratum/{errata_id}/builds_by_cve")
+        nvrs = set()
+        for data_by_product in data.values():
+            for product_data in data_by_product.values():
+                for build in product_data.get("builds", []):
+                    for build_info in build.values():
+                        if only_modules and not build_info.get("is_module"):
+                            continue
+                        nvrs.add(build_info.get("nvr"))
+
+        return list(nvrs)
+
     def get_blocking_advisories_builds(self, errata_id):
         """ Get all advisories that block given advisory id, and fetch all builds from it
 
