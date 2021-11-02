@@ -29,11 +29,14 @@ import koji
 # and in freshmaker.handler do "from freshmaker.kojiservice import parse_NVR".
 from koji import parse_NVR # noqa
 from kobo import rpmlib
+from io import BytesIO
+from zipfile import ZipFile
 
 import contextlib
 import dogpile.cache
 import re
 import requests
+import yaml
 import freshmaker.utils
 from freshmaker import log, conf, db
 from freshmaker.consumer import work_queue_put
@@ -366,6 +369,42 @@ class KojiService(object):
                 break
 
         return ocp_versions_range
+
+    @freshmaker.utils.retry(wait_on=(requests.Timeout, requests.ConnectionError), logger=log)
+    def get_bundle_csv(self, build_nvr):
+        """
+        Return CSV(cluster service version) data of operator bundle build
+
+        :param str build_nvr: NVR of operator bundle build.
+        :return: CSV data or None when build is not bundle nor CSV data doesn't exist
+        :rtype: dict or None
+        """
+        try:
+            build_info = self.get_build(build_nvr)
+            manifest_name = build_info.get('extra', {}).get('operator_manifests_archive')
+            if not manifest_name:
+                log.error("Operator manifests archive is unavaiable for build %s", build_nvr)
+                return None
+
+            build_url = koji.PathInfo(topdir=self.topurl).build(build_info).rstrip("/")
+            manifest_url = f"{build_url}/files/operator-manifests/{manifest_name}"
+            resp = requests.get(manifest_url)
+        except Exception as e:
+            log.error("Unable to get bundle CSV for build %s: %s", build_nvr, str(e))
+            raise
+
+        if not resp.ok:
+            log.error("Unable to get bundle CSV for build %s: %s", build_nvr, resp.reason)
+            return None
+
+        zipfile = ZipFile(BytesIO(resp.content))
+        files = zipfile.namelist()
+        csv_files = [fn for fn in files if fn.endswith('.clusterserviceversion.yaml')]
+        if not csv_files:
+            log.error("CSV file not found in operator manifest of build %s", build_nvr)
+            return None
+        csv_data = yaml.safe_load(zipfile.open(csv_files[0]))
+        return csv_data
 
 
 @contextlib.contextmanager
