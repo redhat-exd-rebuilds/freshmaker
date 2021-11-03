@@ -403,8 +403,9 @@ class KojiService(object):
         if not csv_files:
             log.error("CSV file not found in operator manifest of build %s", build_nvr)
             return None
-        csv_data = yaml.safe_load(zipfile.open(csv_files[0]))
-        return csv_data
+
+        with zipfile.open(csv_files[0]) as f:
+            return yaml.safe_load(f)
 
 
 @contextlib.contextmanager
