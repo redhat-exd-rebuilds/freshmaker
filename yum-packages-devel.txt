@@ -1,0 +1,9 @@
+fedora-packager
+gcc
+krb5-devel
+openldap-devel
+python-devel
+
+# pygobject dependencies
+cairo-gobject-devel
+gobject-introspection-devel

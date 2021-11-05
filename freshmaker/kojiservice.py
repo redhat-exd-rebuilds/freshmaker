@@ -37,11 +37,16 @@ import dogpile.cache
 import re
 import requests
 import yaml
-import freshmaker.utils
-from freshmaker import log, conf, db
-from freshmaker.consumer import work_queue_put
-from freshmaker.events import BrewContainerTaskStateChangeEvent
-from freshmaker.models import ArtifactBuild
+
+import gi
+gi.require_version('Modulemd', '2.0')  # noqa E402
+from gi.repository import Modulemd  # noqa E402
+
+import freshmaker.utils  # noqa
+from freshmaker import log, conf, db  # noqa
+from freshmaker.consumer import work_queue_put  # noqa
+from freshmaker.events import BrewContainerTaskStateChangeEvent  # noqa
+from freshmaker.models import ArtifactBuild  # noqa
 
 
 class KojiService(object):
@@ -406,6 +411,30 @@ class KojiService(object):
 
         with zipfile.open(csv_files[0]) as f:
             return yaml.safe_load(f)
+
+    @region.cache_on_arguments()
+    def get_modulemd(self, build_nvr):
+        """
+        Get Modulemd.ModuleStreamV2 instance through build NVR
+        which can be used to get module's name, stream, etc.
+
+        :param str build_nvr: NVR of module build.
+        :return: Modulemd.ModuleStreamV2 instance.
+        """
+        mmd = None
+        build = self.get_build(build_nvr)
+        try:
+            modulemd_str = build["extra"]["typeinfo"]["module"]["modulemd_str"]
+        except KeyError:
+            return None
+
+        if modulemd_str:
+            try:
+                _, mmd = Modulemd.read_packager_string(modulemd_str, None, None)
+                return mmd
+            except Exception as e:
+                log.error("Read packager string failed for NVR %s: %s", build_nvr, str(e))
+                return None
 
 
 @contextlib.contextmanager
