@@ -142,3 +142,37 @@ def test_get_bundle_csv_unavailable(mock_get, mock_koji, mock_log):
     mock_log.error.assert_any_call(
         "Operator manifests archive is unavaiable for build %s", "foobar-bundle-container-2.0-123"
     )
+
+
+@mock.patch("freshmaker.kojiservice.koji")
+def test_get_modulemd(mock_koji):
+    mock_session = mock.Mock()
+    build = {'build_id': 1850907,
+             'epoch': None,
+             'extra': {'typeinfo': {'module': {'modulemd_str': '---\ndocument: modulemd\nversion: 2\ndata:\n  name: ghc\n  stream: "9.2"\n  version: 3620211101111632\n  context: d099bf28\n  summary: Haskell GHC 9.2\n  description: >-\n    This module provides the Glasgow Haskell Compiler version 9.2.1\n',
+                                               'name': 'ghc',
+                                               'stream': '9.2',
+                                               'module_build_service_id': 13274,
+                                               'version': '3620211101111632',
+                                               'context': 'd099bf28',
+                                               'content_koji_tag': 'module-ghc-9.2-3620211101111632-d099bf28'
+                                               }
+                                    }
+                       },
+             'id': 1850907,
+             'name': 'ghc',
+             'nvr': 'ghc-9.2-3620211101111632.d099bf28',
+             'package_id': 1853,
+             'package_name': 'ghc',
+             }
+
+    mock_session.getBuild.return_value = build
+
+    mock_koji.ClientSession.return_value = mock_session
+
+    svc = kojiservice.KojiService()
+    mmd = svc.get_modulemd("ghc-9.2-3620211101111632.d099bf28")
+    module_name = mmd.get_module_name()
+    module_stream = mmd.get_stream_name()
+    assert module_name == "ghc"
+    assert module_stream == "9.2"

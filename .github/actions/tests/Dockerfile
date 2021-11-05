@@ -7,7 +7,8 @@ LABEL \
 
 USER 0
 
-RUN dnf install -y python-devel fedora-packager gcc krb5-devel openldap-devel
+RUN dnf install -y python-devel fedora-packager gcc krb5-devel openldap-devel gobject-introspection-devel cairo-gobject-devel
+
 RUN pip install --upgrade pip
 RUN pip install python-ldap tox
 

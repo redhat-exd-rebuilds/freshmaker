@@ -24,3 +24,4 @@ prometheus_client
 defusedxml
 rpm-py-installer
 semver
+pygobject
