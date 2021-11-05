@@ -89,6 +89,12 @@ Install the dependencies with:
 python3 setup.py develop
 ```
 
+Install required rpm packages:
+
+```bash
+dnf install $(sed 's/#.*//' yum-packages-devel.txt)
+```
+
 Install the requirements:
 
 ```bash
