@@ -42,6 +42,28 @@ from freshmaker.utils import retry
 import koji
 
 
+class ImageGroup:
+    def __init__(self, image, lightblue):
+        parsed_nvr = koji.parse_NVR(image.nvr)
+        repositories = image.get_registry_repositories(lightblue)
+        self.name = parsed_nvr["name"]
+        self.version = parsed_nvr["version"]
+        self.repos = {x["repository"] for x in repositories}
+
+    def __eq__(self, other):
+        return all(
+            [self.name == other.name and self.version == other.version and self.repos == other.repos]
+        )
+
+    def __str__(self):
+        return "%s-%s-%s" % (self.name, self.version, sorted(self.repos))
+
+    def issubset(self, other):
+        return all(
+            [self.name == other.name and self.version == other.version and self.repos.issubset(other.repos)]
+        )
+
+
 class LightBlueError(Exception):
     """Base class representing errors from LightBlue server"""
 
@@ -1400,8 +1422,7 @@ class LightBlue(object):
             # Constructs the temporary dicts as described above.
             for image_id, images in enumerate(to_rebuild):
                 for parent_id, image in enumerate(images):
-                    image_group = self.describe_image_group(image)
-
+                    image_group = str(self.describe_image_group(image))
                     image_group_to_nvrs.setdefault(image_group, [])
                     if image.nvr not in image_group_to_nvrs[image_group]:
                         image_group_to_nvrs[image_group].append(image.nvr)
@@ -1500,13 +1521,10 @@ class LightBlue(object):
     # Cache to avoid multiple calls. We want one call per nvr, not one per arch
     @region.cache_on_arguments(to_str=lambda image: image.nvr)
     def describe_image_group(self, image):
-        # Also include the sorted names of repositories in the image group
-        # to handle the case when different releases of single name-version are
-        # included in different container repositories.
-        repositories = image.get_registry_repositories(self)
-        repository_key = sorted([r["repository"] for r in repositories])
-        parsed_nvr = koji.parse_NVR(image.nvr)
-        return "%s-%s-%s" % (parsed_nvr["name"], parsed_nvr["version"], repository_key)
+        """
+        Takes an image as an arguement and returns the Name-Version-[Repo]
+        """
+        return ImageGroup(image, self)
 
     def _images_to_rebuild_to_batches(self, to_rebuild, directly_affected_nvrs):
         """
@@ -1757,7 +1775,7 @@ class LightBlue(object):
 
         :param str name: the name of the original image to base the search on
         :param str version: the version of the original image to base the search on
-        :param str image_group: the image group of the original image determined by the
+        :param instance image_group: the image group of the original image determined by the
             ``describe_image_group`` method
         :param Iterable rpm_nvrs: the set of binary RPM NVRs that are present or are older than what
             is present in the image
@@ -1831,7 +1849,7 @@ class LightBlue(object):
             # If it's not on the same repositories or the regex matched something unexpected, then
             # skip it
             candidate_image_group = self.describe_image_group(image)
-            if candidate_image_group != image_group:
+            if not image_group.issubset(candidate_image_group):
                 log.debug(
                     "The image %s did not have the correct image group (`%s` != `%s`)",
                     image.nvr,
