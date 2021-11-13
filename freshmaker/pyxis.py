@@ -273,3 +273,50 @@ class Pyxis(object):
         params = {'include': 'auto_rebuild_tags'}
         repo = self._get(f"repositories/registry/{registry}/repository/{repository}", params)
         return repo.get('auto_rebuild_tags', [])
+
+    def get_image_metadata_by_nvr(self, nvr):
+        """
+        Get image metadata by its brew's NVR
+
+        :param str nvr: brew NVR of image
+        :return: bundle images metadata
+        :rtype: list
+        """
+        include_fields = ['data.repositories.registry', 'data.repositories.repository',
+                          'data.repositories.tags.name']
+        params = {'include': ','.join(include_fields)}
+        data = self._get(f"images/nvr/{nvr}", params)
+        metadata = list()
+        try:
+            for dat in data['data']:
+                for repo in dat['repositories']:
+                    temp = dict()
+                    temp['_id'] = repo['_id']
+                    temp['registry'] = repo['registry']
+                    temp['repository'] = repo['repository']
+                    temp['tags'] = [tag['name'] for tag in repo['tags']]
+                    metadata.append(temp)
+        except KeyError:
+            return None
+
+        return metadata
+
+    def get_rebuild_image_id(self, nvr):
+        """
+        Get image id which can be rebuilt.
+
+        :param str nvr: brew NVR of image
+        :return: image id
+        :rtype: str or None
+        """
+        metadata = self.get_image_metadata_by_nvr(nvr)
+        if metadata:
+            for md in metadata:
+                registry = md.get('registry')
+                repository = md.get('repository')
+                tags = md.get('tags')
+                auto_rebuild_tags = self.get_auto_rebuild_tags(registry, repository)
+                intersection = set(tags).intersection(set(auto_rebuild_tags))
+                if intersection:
+                    return md.get('_id')
+        return None

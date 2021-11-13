@@ -564,3 +564,109 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
 
         tags = self.px.get_auto_rebuild_tags('registry.example.com', 'foo/foo-operator-bundle')
         self.assertListEqual(tags, ['2.3', 'latest'])
+
+    @patch('freshmaker.pyxis.requests.get')
+    def test_get_image_metadata_by_nvr(self, mock_get):
+        mock_get.return_value = Mock(ok=True)
+        mock_get.return_value.json.return_value = {
+            'data': [{'_links': {},
+                      'repositories': [{'_links': {},
+                                        '_id': '087721b',
+                                        'registry': 'registry.access.redhat.com',
+                                        'repository': 'rhel8/thunderbird-flatpak',
+                                        'tags': [{'_links': {}, 'name': 'flatpak-8040020210719090808.1'}]
+                                        },
+                                       {'_links': {},
+                                        '_id': '087721c',
+                                        'registry': 'registry-proxy.engineering.redhat.com',
+                                        'repository': 'rh-osbs/thunderbird',
+                                        'tags': [{'_links': {}, 'name': 'flatpak-8040020210719090808.1'},
+                                                 {'_links': {}, 'name': 'rhel-8.4.0-z-containers-candidate-35976-20210719181035-s390x'}]
+                                        }
+                                       ]
+                      }]}
+
+        metadata = self.px.get_image_metadata_by_nvr('thunderbird-flatpak-container-flatpak-8040020210719090808.1')
+        expected_data = [{'_id': '087721b',
+                          'registry': 'registry.access.redhat.com',
+                          'repository': 'rhel8/thunderbird-flatpak',
+                          'tags': ['flatpak-8040020210719090808.1']
+                          },
+                         {'_id': '087721c',
+                          'registry': 'registry-proxy.engineering.redhat.com',
+                          'repository': 'rh-osbs/thunderbird',
+                          'tags': ['flatpak-8040020210719090808.1',
+                                   'rhel-8.4.0-z-containers-candidate-35976-20210719181035-s390x'
+                                   ]
+                          }
+                         ]
+        self.assertListEqual(metadata, expected_data)
+
+    @patch('freshmaker.pyxis.requests.get')
+    def test_can_rebuild_image(self, mock_get):
+        fake_responses = [Mock(ok=True), Mock(ok=True)]
+        fake_responses[0].json.return_value = {
+            'data': [{'_links': {},
+                      'repositories': [{'_links': {},
+                                        '_id': '087721b',
+                                        'registry': 'registry.access.redhat.com',
+                                        'repository': 'rhel8/thunderbird-flatpak',
+                                        'tags': [{'_links': {}, 'name': 'flatpak-8040020210719090808.1'}]
+                                        },
+                                       {'_links': {},
+                                        '_id': '087721c',
+                                        'registry': 'registry-proxy.engineering.redhat.com',
+                                        'repository': 'rh-osbs/thunderbird',
+                                        'tags': [{'_links': {}, 'name': 'flatpak-8040020210719090808.1'},
+                                                 {'_links': {}, 'name': 'rhel-8.4.0-z-containers-candidate-35976-20210719181035-s390x'}]
+                                        }
+                                       ]
+                      }]}
+        fake_responses[1].json.return_value = {
+            '_links': {},
+            'auto_rebuild_tags': [
+                'flatpak-8040020210719090808.1',
+                'latest'
+            ]
+        }
+        mock_get.side_effect = fake_responses
+        rebuild_image_id = self.px.get_rebuild_image_id('thunderbird-flatpak-container-flatpak-8040020210719090808.1')
+        self.assertEqual(rebuild_image_id, '087721b')
+
+    @patch('freshmaker.pyxis.requests.get')
+    def test_cannot_rebuild_image(self, mock_get):
+        fake_responses = [Mock(ok=True), Mock(ok=True), Mock(ok=True)]
+        fake_responses[0].json.return_value = {
+            'data': [{'_links': {},
+                      'repositories': [{'_links': {},
+                                        '_id': '087721b',
+                                        'registry': 'registry.access.redhat.com',
+                                        'repository': 'rhel8/thunderbird-flatpak',
+                                        'tags': [{'_links': {}, 'name': 'flatpak-8040020210719090808.1'}]
+                                        },
+                                       {'_links': {},
+                                        '_id': '087721c',
+                                        'registry': 'registry-proxy.engineering.redhat.com',
+                                        'repository': 'rh-osbs/thunderbird',
+                                        'tags': [{'_links': {}, 'name': 'flatpak-8040020210719090808.1'},
+                                                 {'_links': {}, 'name': 'rhel-8.4.0-z-containers-candidate-35976-20210719181035-s390x'}]
+                                        }
+                                       ]
+                      }]}
+        fake_responses[1].json.return_value = {
+            '_links': {},
+            'auto_rebuild_tags': [
+                '2.0',
+                'latest'
+            ]
+        }
+        fake_responses[2].json.return_value = {
+            '_links': {},
+            'auto_rebuild_tags': [
+                '2.0',
+                'latest'
+            ]
+        }
+        mock_get.side_effect = fake_responses
+        rebuild_image_id = self.px.get_rebuild_image_id('thunderbird-flatpak-container-flatpak-8040020210719090808.1')
+        self.assertEqual(rebuild_image_id, None)
