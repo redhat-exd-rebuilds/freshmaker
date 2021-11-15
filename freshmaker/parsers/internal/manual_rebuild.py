@@ -21,7 +21,7 @@
 
 import time
 from freshmaker.parsers import BaseParser
-from freshmaker.events import ManualRebuildWithAdvisoryEvent, ManualBundleRebuild
+from freshmaker.events import ManualRebuildWithAdvisoryEvent, ManualBundleRebuildEvent
 from freshmaker.errata import Errata, ErrataAdvisory
 
 
@@ -46,42 +46,25 @@ class FreshmakerManualRebuildParser(BaseParser):
         msg_id = data.get('msg_id', "manual_rebuild_%s" % (str(time.time())))
         dry_run = data.get('dry_run', False)
 
-        if data.get('errata_id', None):
-            errata_id = data.get('errata_id')
-            errata = Errata()
-            advisory = ErrataAdvisory.from_advisory_id(errata, errata_id)
+        errata_id = data.get('errata_id')
+        errata = Errata()
+        advisory = ErrataAdvisory.from_advisory_id(errata, errata_id)
 
-            # Manually triggered rebuild of bundles, executed by POST request
-            if advisory.state == "SHIPPED_LIVE" and \
-                    advisory.reporter.startswith('botas'):
-                event = ManualBundleRebuild.from_manual_rebuild_request(
-                    msg_id,
-                    advisory,
-                    data.get('freshmaker_event_id', None),
-                    data.get('container_images', []),
-                    requester=data.get('requester', None),
-                    requester_metadata_json=data.get('requester_metadata_json', None),
-                    dry_run=dry_run)
-            else:
-                event = ManualRebuildWithAdvisoryEvent(
-                    msg_id,
-                    advisory,
-                    data.get("container_images", []),
-                    data.get("metadata", None),
-                    freshmaker_event_id=data.get('freshmaker_event_id'),
-                    dry_run=dry_run,
-                    requester=data.get('requester', None))
-        # Retriggered rebuild of bundles by Release Driver
+        # Generate bundle manual rebuild event if advisory is reported by Botas
+        if advisory.state == "SHIPPED_LIVE" and advisory.reporter.startswith('botas'):
+            klass = ManualBundleRebuildEvent
         else:
-            event = ManualBundleRebuild.from_release_driver_request(
-                msg_id,
-                data.get('container_images', []),
-                data.get('bundle_images'),
-                requester=data.get('requester', None),
-                requester_metadata_json=data.get('requester_metadata_json', None),
-                dry_run=dry_run,
-            )
-        return event
+            klass = ManualRebuildWithAdvisoryEvent
+
+        return klass(
+            msg_id,
+            advisory,
+            data.get("container_images", []),
+            requester_metadata_json=data.get("metadata"),
+            freshmaker_event_id=data.get('freshmaker_event_id'),
+            requester=data.get('requester'),
+            dry_run=dry_run
+        )
 
     def parse(self, topic, msg):
         inner_msg = msg.get('msg')

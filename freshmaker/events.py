@@ -468,49 +468,23 @@ class BotasErrataShippedEvent(ErrataBaseEvent):
         super().__init__(msg_id, advisory, dry_run=dry_run)
 
 
-class ManualBundleRebuild(BaseEvent):
+class ManualBundleRebuildEvent(ErrataBaseEvent):
     """
     Event triggered when Release Driver requests manual rebuild
     OR when manual rebuild of bundles requested by person
     """
-    def __init__(self, msg_id, dry_run=False):
-        super().__init__(msg_id, manual=True, dry_run=dry_run)
-
-    def is_allowed(self, handler, **kwargs):
-        return super().is_allowed(handler, ArtifactType.IMAGE, **kwargs)
-
-    @classmethod
-    def from_manual_rebuild_request(cls, msg_id, advisory,
-                                    freshmaker_event_id=None,
-                                    container_images=[],
-                                    requester=None,
-                                    requester_metadata_json=None,
-                                    **kwargs):
-        event = cls(msg_id, **kwargs)
-        event.advisory = advisory
-        event.freshmaker_event_id = freshmaker_event_id
-        event.container_images = container_images
-        event.requester = requester
-        event.requester_metadata_json = requester_metadata_json
-        return event
-
-    @classmethod
-    def from_release_driver_request(cls, msg_id,
-                                    container_images,
-                                    bundle_images,
-                                    requester=None,
-                                    requester_metadata_json=None,
-                                    **kwargs):
-        event = cls(msg_id, **kwargs)
-        event.advisory = None
-        event.container_images = container_images
-        event.bundle_images = bundle_images
-        event.requester = requester
-        event.requester_metadata_json = requester_metadata_json
-        return event
+    def __init__(self, msg_id, advisory, container_images,
+                 requester_metadata_json=None, freshmaker_event_id=None,
+                 requester=None, dry_run=False, **kwargs):
+        super().__init__(
+            msg_id, advisory,
+            freshmaker_event_id=freshmaker_event_id, dry_run=dry_run, **kwargs
+        )
+        self.manual = True
+        self.container_images = container_images
+        self.requester_metadata_json = requester_metadata_json
+        self.requester = requester
 
     @property
     def search_key(self):
-        if self.advisory:
-            return self.advisory.errata_id
-        return self.msg_id
+        return str(self.advisory.errata_id)

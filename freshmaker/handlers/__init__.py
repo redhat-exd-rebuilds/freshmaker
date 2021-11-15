@@ -516,7 +516,7 @@ class ContainerBuildHandler(BaseHandler):
         # range, if its value is invalid, the build system can still rebuild it,
         # but the rebuilt image will be an invalid bundle image, so we just fail
         # it before submitting the build task.
-        build_bundle_event_types = (events.BotasErrataShippedEvent, events.ManualBundleRebuild)
+        build_bundle_event_types = (events.BotasErrataShippedEvent, events.ManualBundleRebuildEvent)
         # check ocp versions range of
         if build.event.event_type in build_bundle_event_types:
             with koji_service(

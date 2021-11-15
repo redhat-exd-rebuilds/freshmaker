@@ -22,6 +22,7 @@
 
 import functools
 import requests
+import semver
 import subprocess
 import sys
 import tempfile
@@ -237,3 +238,17 @@ def is_valid_ocp_versions_range(ocp_versions_range):
         return False
 
     return True
+
+
+def is_valid_semver(version_string):
+    """ Check if version string is a valid semantic version
+
+    :param str version_string: version string
+    :return: True if version string is a valid semantic version, other False
+    :rtype: bool
+    """
+    try:
+        semver.parse(version_string)
+        return True
+    except ValueError:
+        return False

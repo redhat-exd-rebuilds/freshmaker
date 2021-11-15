@@ -3,10 +3,9 @@ import requests
 import urllib
 from datetime import datetime
 from requests_kerberos import HTTPKerberosAuth, OPTIONAL
-import semver
 
 from freshmaker import log, conf
-from freshmaker.utils import get_ocp_release_date
+from freshmaker.utils import get_ocp_release_date, is_valid_semver
 
 
 class PyxisRequestError(Exception):
@@ -129,6 +128,10 @@ class Pyxis(object):
         log.info("Using the following GA index images: %s", ", ".join(i["path"] for i in indices))
         return indices
 
+    def get_index_paths(self):
+        """ Get paths of index images """
+        return [i["path"] for i in self.get_operator_indices() if i.get("path")]
+
     @region.cache_on_arguments()
     def ocp_is_released(self, ocp_version):
         """ Check if ocp_version is released by comparing the GA date with current date
@@ -147,54 +150,44 @@ class Pyxis(object):
 
         return datetime.now() > datetime.strptime(ga_date_str, "%Y-%m-%d")
 
-    def get_latest_bundles(self, index_images):
-        """
-        Get latest bundle images per channel per index image
+    def get_bundles_by_related_image_digest(self, digest, index_paths=None, latest=True):
+        """ Get bundles which include a related image with the specified digest
 
-        :param list index_images: list of index images to get bundle images for
-        :return: latest bundle images per channel per index image
+        :param str digest: digest value of related image
+        :param list index_paths: list of index image paths
+        :param bool latest: only latest in channel when specified
+        :return: list of bundle images
         :rtype: list
         """
-        # we need 'bundle_path_digest' to find ContainerImage of that bundle
+        related_bundles = []
         include_fields = ['data.channel_name', 'data.version_original', 'data.related_images',
                           'data.bundle_path_digest', 'data.bundle_path', 'data.csv_name']
         request_params = {'include': ','.join(include_fields)}
 
-        latest_bundles = []
-        for index_image in index_images:
-            path = index_image.get('path', '')
-            if not path:
+        filters = [f"related_images.digest=={digest}"]
+        if latest:
+            filters.append("latest_in_channel==true")
+        if index_paths:
+            index_paths = ",".join(index_paths)
+            filters.append(f"source_index_container_path=in=({index_paths})")
+        request_params['filter'] = " and ".join(filters)
+
+        bundles = self._pagination('operators/bundles', request_params)
+        for bundle in bundles:
+            csv_name = bundle["csv_name"]
+            version = bundle["version_original"]
+            if not is_valid_semver(version):
+                log.error("Bundle %s has an invalid semver: %s", csv_name, version)
                 continue
+            if bundle in related_bundles:
+                continue
+            related_bundles.append(bundle)
 
-            request_params['filter'] = \
-                f'latest_in_channel==true and source_index_container_path=={path}'
-
-            def _isvalid(version, csv_name):
-                try:
-                    semver.parse(version)
-                    return True
-                except ValueError:
-                    log.error(
-                        'The bundle with the name %s has an invalid semver of %s',
-                        csv_name,
-                        version,
-                    )
-                    return False
-
-            for bundle in self._pagination('operators/bundles', request_params):
-                # Discard any bundles with invalid semantic versions since Freshmaker
-                # would not be able to modify the version appropriately.
-                if not _isvalid(bundle["version_original"], bundle["csv_name"]):
-                    continue
-                if bundle in latest_bundles:
-                    continue
-                latest_bundles.append(bundle)
-
-        return latest_bundles
+        return related_bundles
 
     def get_manifest_list_digest_by_nvr(self, nvr, must_be_published=True):
         """
-        Get image's digest(manifest_list_digest field) by its NVR
+        Get image's manifest list digest by its NVR
 
         :param str nvr: NVR of ContainerImage to query Pyxis
         :param bool must_be_published: determines if the image must be published to the repository
@@ -213,21 +206,26 @@ class Pyxis(object):
                     return repo['manifest_list_digest']
         return None
 
-    def get_bundles_by_related_image_digest(self, image_digest, bundles):
+    def get_manifest_schema2_digest_by_nvr(self, nvr, must_be_published=True):
         """
-        Get bundles that have the specified image digest in related images.
+        Get image's manifest schema2 digest by its NVR
 
-        :param str image_digest: digest of related image
-        :param list bundles: list of bundles to search from
-        :return: list of bundles
-        :rtype: list
+        :param str nvr: NVR of ContainerImage to query Pyxis
+        :param bool must_be_published: determines if the image must be published to the repository
+            that the manifest list digest is retrieved from
+        :return: digest of image or None if manifest_schema2_digest not exists
+        :rtype: str or None
         """
-        ret = []
-        for bundle in bundles:
-            if any(image_digest == img.get('digest') for img in bundle.get('related_images', [])):
-                ret.append(bundle)
+        request_params = {'include': ','.join(['data.brew', 'data.repositories'])}
 
-        return ret
+        # get manifest_schema2_digest of ContainerImage from Pyxis
+        for image in self._pagination(f'images/nvr/{nvr}', request_params):
+            for repo in image['repositories']:
+                if must_be_published and not repo['published']:
+                    continue
+                if 'manifest_schema2_digest' in repo:
+                    return repo['manifest_schema2_digest']
+        return None
 
     def get_bundles_by_digest(self, digest):
         """
@@ -243,6 +241,20 @@ class Pyxis(object):
         }
 
         return self._pagination('operators/bundles', request_params)
+
+    def get_bundles_by_nvr(self, nvr):
+        """
+        Get bundles by image NVR.
+
+        :param str nvr: NVR of bundle image
+        :return: list of bundles
+        :rtype: list
+        """
+        # Bundle path digest is manifest schema2 digest
+        digest = self.get_manifest_schema2_digest_by_nvr(nvr, must_be_published=False)
+        if not digest:
+            return []
+        return self.get_bundles_by_digest(digest)
 
     def get_images_by_digest(self, digest):
         """
@@ -261,6 +273,17 @@ class Pyxis(object):
                           'filter': q_filter}
         return self._pagination('images', request_params)
 
+    def get_images_by_nvr(self, nvr):
+        """
+        Get images by image's NVR
+
+        :param str nvr: NVR of image
+        :return: images
+        :rtype: list
+        """
+        request_params = {"include": "data.architecture,data.brew,data.repositories"}
+        return self._pagination(f'images/nvr/{nvr}', request_params)
+
     def get_auto_rebuild_tags(self, registry, repository):
         """
         Get auto rebuild tags of a repository.
@@ -273,3 +296,21 @@ class Pyxis(object):
         params = {'include': 'auto_rebuild_tags'}
         repo = self._get(f"repositories/registry/{registry}/repository/{repository}", params)
         return repo.get('auto_rebuild_tags', [])
+
+    def is_bundle(self, nvr):
+        """
+        Check if image with given nvr is an operator bundle.
+
+        :param str nvr: image NVR
+        :return: True if image is a bundle image, otherwise False
+        :rtype: bool
+        """
+        request_params = {"include": "data.parsed_data.labels"}
+        images = self._pagination(f'images/nvr/{nvr}', request_params)
+        if not images:
+            return False
+
+        for label in images[0].get("parsed_data", {}).get("labels", []):
+            if label["name"] == "com.redhat.delivery.operator.bundle" and label["value"] == "true":
+                return True
+        return False

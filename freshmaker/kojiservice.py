@@ -407,6 +407,29 @@ class KojiService(object):
         with zipfile.open(csv_files[0]) as f:
             return yaml.safe_load(f)
 
+    @freshmaker.utils.retry(wait_on=(requests.Timeout, requests.ConnectionError), logger=log)
+    def get_bundle_related_images(self, build_nvr):
+        """
+        Return related images in bundle
+
+        :param str build_nvr: NVR of operator bundle build.
+        :return: related images in bundle build metadata
+        :rtype: dict
+        """
+        try:
+            buildinfo = self.get_build(build_nvr)
+            related_images = (
+                buildinfo.get('extra', {})
+                .get('image', {})
+                .get('operator_manifests', {})
+                .get('related_images', {})
+            )
+        except Exception as e:
+            log.error("Unable to get related images in build %s: %s", build_nvr, str(e))
+            raise
+
+        return related_images
+
 
 @contextlib.contextmanager
 def koji_service(profile=None, logger=None, login=True, dry_run=False):

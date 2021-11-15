@@ -29,7 +29,7 @@ import semver
 
 from freshmaker import db, conf, log
 from freshmaker.handlers import ContainerBuildHandler
-from freshmaker.events import BotasErrataShippedEvent, ManualBundleRebuild
+from freshmaker.events import BotasErrataShippedEvent, ManualBundleRebuildEvent
 from freshmaker.lightblue import ContainerImage
 from freshmaker.models import ArtifactBuild, ArtifactType, Event
 from freshmaker.types import EventState, ArtifactBuildState, RebuildReason
@@ -43,11 +43,8 @@ class HandleBotasAdvisory(ContainerBuildHandler):
     Handles event that was created by transition of an advisory filed by
     BOTAS to SHIPPED_LIVE state
     """
+
     name = "HandleBotasAdvisory"
-    # This prefix should be added to event reason, when skipping the event.
-    # Because Release Driver checks event's reason for certain prefixes,
-    # to determine if there is an error in bundles processing.
-    _no_bundle_prefix = "No bundles to rebuild: "
 
     def __init__(self, pyxis=None):
         super().__init__()
@@ -59,17 +56,15 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             self._pyxis = Pyxis(conf.pyxis_server_url)
 
         if not conf.freshmaker_root_url or "://" not in conf.freshmaker_root_url:
-            raise ValueError("'FRESHMAKER_ROOT_URL' parameter should be set to "
-                             "a valid URL")
+            raise ValueError("'FRESHMAKER_ROOT_URL' parameter should be set to a valid URL")
         # Currently processed event
         self.event = None
 
     def can_handle(self, event):
-        if (isinstance(event, BotasErrataShippedEvent) and
-                'docker' in event.advisory.content_types):
+        if isinstance(event, BotasErrataShippedEvent) and "docker" in event.advisory.content_types:
             return True
         # This handler can handle manual bundle rebuilds too
-        if isinstance(event, ManualBundleRebuild):
+        if isinstance(event, ManualBundleRebuildEvent):
             return True
 
         return False
@@ -79,59 +74,83 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             self.force_dry_run()
         self.event = event
 
-        db_event = Event.get_or_create_from_event(db.session, event)
+        self.db_event = Event.get_or_create_from_event(db.session, event)
 
-        self.set_context(db_event)
+        self.set_context(self.db_event)
 
         # Check if event is allowed by internal policies
         if not self.event.is_allowed(self):
-            msg = ("This image rebuild is not allowed by internal policy. "
-                   f"message_id: {event.msg_id}")
-            db_event.transition(EventState.SKIPPED, msg)
-            self.log_info(msg)
+            msg = f"This event is not allowed by internal policy. message_id: {event.msg_id}"
+            log.info(msg)
+            self.db_event.transition(EventState.SKIPPED, msg)
             return []
 
-        if isinstance(event, ManualBundleRebuild) and \
-                hasattr(event, 'bundle_images'):
-            bundles_to_rebuild = self._handle_release_driver_rebuild(db_event)
-        # automatic rebuild and manual bundle rebuild(triggered by post request)
-        else:
-            bundles_to_rebuild = self._handle_bundle_rebuild(db_event)
-
+        bundles_to_rebuild, reason = self._get_bundles_to_rebuild()
         if not bundles_to_rebuild:
+            msg = reason or f"No bundles to rebuild for advisory {self.event.advisory.errata_id}"
+            log.info(msg)
+            self.db_event.transition(EventState.SKIPPED, msg)
             return []
 
-        builds = self._prepare_builds(db_event, bundles_to_rebuild)
+        builds = self._prepare_builds(bundles_to_rebuild)
 
         # Reset context to db_event.
-        self.set_context(db_event)
+        self.set_context(self.db_event)
 
         self.start_to_build_images(builds)
         if all([b.state == ArtifactBuildState.FAILED.value for b in builds]):
-            db_event.transition(EventState.FAILED, "All bundle rebuilds failed")
+            self.db_event.transition(EventState.FAILED, "All bundle rebuilds failed")
         else:
-            msg = f"Advisory {db_event.search_key}: Rebuilding " \
-                  f"{len(db_event.builds.all())} bundle images."
-            db_event.transition(EventState.BUILDING, msg)
+            msg = (
+                f"Advisory {self.db_event.search_key}: Rebuilding "
+                f"{len(self.db_event.builds.all())} bundle images."
+            )
+            self.db_event.transition(EventState.BUILDING, msg)
 
         return []
 
-    def _handle_bundle_rebuild(self, db_event):
-        """
-        Handle auto rebuild for an advisory created by Botas
-        OR manually triggered rebuild
+    def _get_bundles_to_rebuild(self):
+        """ Get the impacted bundle to rebuild
 
-        :param db_event: database event that represent rebuild event
-        :rtype: list
-        :return: list of advisories that should be rebuilt
+        :return: a tuple of bundles and reason
+        :rtype: tuple ([dict], str)
         """
-        # Mapping of operators' original build nvrs to rebuilt nvrs in advisory
+        # This returns a tuple of two elements, the first one is a list of bundles,
+        # each bundle is a dict with keys of bundle NVR, pullspec_replacements and
+        # CSV update data. The second one is a reason string, which will be set
+        # when no bundle is found for rebuild.
+        #
+        # Example bundle dict:
+        #   {
+        #       "nvr": "foobar-bundle-1-123",
+        #       "pullspec_replacements": [
+        #           {
+        #               "new": "registry/repo/foobar@sha256:value",
+        #               "original": "registry/repo/foobar:v2.2.0",
+        #               "pinned": True,
+        #           }
+        #       ],
+        #       "update": {
+        #           "metadata": {
+        #               "name": "foobar.1-123.1608854400.p",
+        #               "annotations": {"olm.substitutesFor": "foobar-1.2.3"},
+        #           },
+        #           "spec": {"version": "1.2.3+0.1608854400.p"},
+        #       }
+        #   }
+
+        # Mapping of original operator/operand build NVRs to rebuilt NVRs in advisory
         nvrs_mapping = self._create_original_to_rebuilt_nvrs_map()
 
         original_nvrs = nvrs_mapping.keys()
-        self.log_info(
-            "Orignial nvrs of build in the advisory #{0} are: {1}".format(
-                self.event.advisory.errata_id, " ".join(original_nvrs)))
+        if not original_nvrs:
+            return None, "Can't find any published original builds for images in advisory."
+
+        log.info(
+            "Orignial NVRs of build in advisory %s are: %s",
+            self.event.advisory.errata_id,
+            " ".join(original_nvrs),
+        )
 
         # Get image manifest_list_digest for all original images, manifest_list_digest is used
         # in pullspecs in bundle's related images
@@ -149,10 +168,10 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                 )
 
         if not original_digests_by_nvr:
-            msg = f"None of the original images have digests in Pyxis: {','.join(original_nvrs)}"
-            log.warning(msg)
-            db_event.transition(EventState.SKIPPED, msg)
-            return []
+            return (
+                None,
+                f"None of the original images have digests in Pyxis: {','.join(original_nvrs)}",
+            )
 
         # Get image manifest_list_digest for all rebuilt images, manifest_list_digest is used
         # in pullspecs of bundle's related images
@@ -172,335 +191,171 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                 )
 
         if not rebuilt_digests_by_nvr:
-            msg = f"None of the rebuilt images have digests in Pyxis: {','.join(rebuilt_nvrs)}"
-            log.warning(msg)
-            db_event.transition(EventState.SKIPPED, msg)
-            return []
+            return [], f"None of the rebuilt images have digests in Pyxis: {','.join(rebuilt_nvrs)}"
 
-        index_images = self._pyxis.get_operator_indices()
-        # get latest bundle images per channel per index image filtered
-        # by the highest semantic version
-        all_bundles = self._pyxis.get_latest_bundles(index_images)
-        self.log_debug(
-            "There are %d bundles that are latest in a channel in the found index images",
-            len(all_bundles),
-        )
+        bundle_nvrs = []
+        if hasattr(self.event, "container_images") and self.event.container_images:
+            # For bundles specified explicitly in manual request, consider them as
+            # impacted at this moment, will check related images later to determine
+            # whether they're impacted by the advisory
+            for bundle_nvr in self.event.container_images:
+                if not self._pyxis.is_bundle(bundle_nvr):
+                    log.error("Image %s is not an operator bundle, skip it.", bundle_nvr)
+                    continue
+                bundle_nvrs.append(bundle_nvr)
+        else:
+            # Get impacted bundles from Pyxis, they include the digests of original
+            # images in related images
+            bundle_nvrs = self._get_impacted_bundles(original_digests_by_nvr.values())
 
-        # A mapping of digests to bundle metadata. This metadata is used to
-        # for the CSV metadata updates.
-        bundle_mds_by_digest = {}
+        if not bundle_nvrs:
+            return None, f"No bundle image is impacted by {self.event.advisory.errata_id}, skip."
 
-        # get bundle digests for original images
-        bundle_digests_by_related_nvr = {}
-        for image_nvr, image_digest in original_digests_by_nvr.items():
-            bundles = self._pyxis.get_bundles_by_related_image_digest(
-                image_digest, all_bundles
-            )
-            if not bundles:
-                log.info(f"No latest bundle image with the related image of {image_nvr}")
-                continue
-
-            for bundle in bundles:
-                bundle_digest = bundle['bundle_path_digest']
-                bundle_mds_by_digest[bundle_digest] = bundle
-                bundle_digests_by_related_nvr.setdefault(image_nvr, []).append(bundle_digest)
-
-        if not bundle_digests_by_related_nvr:
-            msg = "None of the original images have related bundles, skip."
-            log.warning(msg)
-            db_event.transition(EventState.SKIPPED, msg)
-            return []
-        self.log_info(
-            "Found %d bundles with relevant related images", len(bundle_digests_by_related_nvr)
-        )
-
-        # Mapping of bundle digest to bundle data
-        # {
-        #     digest: {
-        #         "images": [image_amd64, image_aarch64],
-        #         "nvr": NVR,
-        #         "auto_rebuild": True/False,
-        #         "osbs_pinning": True/False,
-        #         "pullspecs": [...],
-        #     }
-        # }
-        bundles_by_digest = {}
-        default_bundle_data = {
-            'images': [],
-            'nvr': None,
-            'auto_rebuild': False,
-            'osbs_pinning': False,
-            # CSV modifications for the rebuilt bundle image
-            'pullspec_replacements': [],
-            'update': {},
-        }
-
-        # Get images for each bundle digest, a bundle digest can have multiple images
-        # with different arches.
-        for digest in bundle_mds_by_digest:
-            bundles = self._pyxis.get_images_by_digest(digest)
-            # If no bundle image found, just skip this bundle digest
-            if not bundles:
-                self.log_warn('The bundle digest %r was not found in Pyxis. Skipping.', digest)
-                continue
-            bundle_nvr = bundles[0]['brew']['build']
-
-            # If specific container images where requested to rebuild, process only them
-            if (isinstance(self.event, ManualBundleRebuild)
-                    and self.event.container_images                         # noqa: W503
-                    and bundle_nvr not in self.event.container_images):     # noqa: W503
-                self.log_debug("Ignoring '%s', because it's not in requested rebuilds"
-                               " (container_images in request)", bundle_nvr)
-                continue
-
-            # Filter out builds from dependent event that were rebuilt recently
-            done_build = db_event.get_artifact_build_from_event_dependencies(
-                bundle_nvr)
+        for bundle_nvr in bundle_nvrs[:]:
+            # Filter out builds from dependent event that were rebuilt successfully before
+            done_build = self.db_event.get_artifact_build_from_event_dependencies(bundle_nvr)
             if done_build:
-                self.log_debug("Ignoring '%s' bundle, because it was already rebuilt"
-                               " in dependent event", bundle_nvr)
-                continue
+                log.debug(
+                    "Ignoring bundle %s, because it was already rebuilt in dependent events",
+                    bundle_nvr,
+                )
+                bundle_nvrs.remove(bundle_nvr)
 
-            bundles_by_digest.setdefault(digest, copy.deepcopy(default_bundle_data))
-            bundles_by_digest[digest]['nvr'] = bundle_nvr
-            bundles_by_digest[digest]['images'] = bundles
+        if not bundle_nvrs:
+            return None, "All bundles have been rebuilt successfully by dependent events, skip."
 
         # Unauthenticated koji session to fetch build info of bundles
         koji_api = KojiService(conf.koji_profile)
 
-        # For each bundle, check whether it should be rebuilt by comparing the
-        # auto_rebuild_tags of repository and bundle's tags
-        for digest, bundle_data in bundles_by_digest.items():
-            bundle_nvr = bundle_data['nvr']
-
-            # Images are for different arches, just check against the first image
-            image = bundle_data['images'][0]
-            if self.image_has_auto_rebuild_tag(image):
-                bundle_data['auto_rebuild'] = True
-
-            # Fetch buildinfo
-            buildinfo = koji_api.get_build(bundle_nvr)
-            related_images = (
-                buildinfo.get('extra', {})
-                .get('image', {})
-                .get('operator_manifests', {})
-                .get('related_images', {})
-            )
-            bundle_data['osbs_pinning'] = related_images.get('created_by_osbs', False)
-            # Save the original pullspecs
-            bundle_data['pullspec_replacements'] = related_images.get('pullspecs', [])
-
-        # Digests of bundles to be rebuilt
-        to_rebuild_digests = set()
-
-        # Now for each bundle, replace the original digest with rebuilt
-        # digest (override pullspecs)
-        for digest, bundle_data in bundles_by_digest.items():
-            # Override pullspecs only when auto_rebuild is enabled and OSBS-pinning
-            # mechanism is used.
-            if not (bundle_data['auto_rebuild'] and bundle_data['osbs_pinning']):
-                self.log_info(
-                    'The bundle %r does not have auto-rebuild tags (%r) and/or OSBS pinning (%r)',
-                    bundle_data['nvr'],
-                    bundle_data['auto_rebuild'],
-                    bundle_data['osbs_pinning'],
-                )
+        bundles_by_nvr = {}
+        for bundle_nvr in bundle_nvrs:
+            images = self._pyxis.get_images_by_nvr(bundle_nvr)
+            if not images:
+                log.warning("Image %s is not found in Pyxis, ignore it.", bundle_nvr)
                 continue
 
-            csv_name = bundle_mds_by_digest[digest]['csv_name']
-            version = bundle_mds_by_digest[digest]['version_original']
-            bundle_data.update(self._get_csv_updates(csv_name, version))
+            if not self.image_has_auto_rebuild_tag(images[0]):
+                log.warning("Image %s is not tagged with auto-rebuild tags", bundle_nvr)
+                continue
 
-            for pullspec in bundle_data['pullspec_replacements']:
-                # A pullspec item example:
-                # {
-                #   'new': 'registry.exampe.io/repo/example-operator@sha256:<sha256-value>',
-                #   'original': 'registry.example.io/repo/example-operator:v2.2.0',
-                #   'pinned': True,
-                #   # value used for internal purpose during manual rebuilds, it's an old pullspec that was replaced
-                #   '_old': 'registry.exampe.io/repo/example-operator@sha256:<previous-sha256-value>,
-                # }
+            related_images = koji_api.get_bundle_related_images(bundle_nvr)
+            if not related_images.get("created_by_osbs", False):
+                log.warning("Image %s is not using OSBS pinning, skip it.")
+                continue
 
+            pullspecs = related_images.get("pullspecs", [])
+            if not pullspecs:
+                log.warning("Image %s doesn't have pullspecs data in brew, skip it")
+                continue
+
+            pullspec_replacements = copy.deepcopy(pullspecs)
+            pullspec_updated = False
+            for pullspec in pullspec_replacements:
                 # A pullspec path is in format of "registry/repository@digest"
-                pullspec_elems = pullspec.get('new').split('@')
+                pullspec_elems = pullspec.get("new").split("@")
                 old_digest = pullspec_elems[1]
-
                 if old_digest not in original_nvrs_by_digest:
                     # This related image is not one of the original images
                     continue
 
-                # This related image is one of our original images
                 old_nvr = original_nvrs_by_digest[old_digest]
                 new_nvr = nvrs_mapping[old_nvr]
                 new_digest = rebuilt_digests_by_nvr[new_nvr]
 
-                # save pullspec that image had before rebuild
-                pullspec['_old'] = pullspec.get('new')
+                old_pullspec = pullspec.get("new")
 
                 # Replace the old digest with new digest
                 pullspec_elems[1] = new_digest
-                new_pullspec = '@'.join(pullspec_elems)
-                pullspec['new'] = new_pullspec
+                new_pullspec = "@".join(pullspec_elems)
+                pullspec["new"] = new_pullspec
                 # Always set pinned to True when it was replaced by Freshmaker
                 # since it indicates that the pullspec was modified from the
                 # original pullspec
-                pullspec['pinned'] = True
+                pullspec["pinned"] = True
 
-                # Once a pullspec in this bundle has been overrided, add this bundle
-                # to rebuild list
-                self.log_info(
-                    'Changing pullspec %r to %r in the bundle %r',
-                    pullspec['_old'],
-                    pullspec['new'],
-                    bundle_data['nvr'],
+                log.info(
+                    "Bundle %s: changing pullspec %r to %r", bundle_nvr, old_pullspec, new_pullspec
                 )
-                to_rebuild_digests.add(digest)
+                pullspec_updated = True
 
-        if not to_rebuild_digests:
-            msg = self._no_bundle_prefix + "No bundle images to rebuild for " \
-                                           f"advisory {self.event.advisory.name}"
-            self.log_info(msg)
-            db_event.transition(EventState.SKIPPED, msg)
-            db.session.commit()
-            return []
+            if pullspec_updated:
+                bundles_by_nvr[bundle_nvr] = {"pullspec_replacements": pullspec_replacements}
 
-        bundles_to_rebuild = list(map(lambda x: bundles_by_digest[x],
-                                      to_rebuild_digests))
-        return bundles_to_rebuild
+        if not bundles_by_nvr:
+            return None, f"No bundle image is impacted by {self.event.advisory.errata_id}, skip."
 
-    def _handle_release_driver_rebuild(self, db_event):
-        """
-        Handle manual rebuild submitted by Release Driver for an advisory created by Botas
-
-        :param db_event: database event that represents a rebuild event
-        :rtype: list
-        :return: list of advisories that should be rebuilt
-        """
-        old_to_new_pullspec_map = self._get_pullspecs_mapping()
-
-        if not old_to_new_pullspec_map:
-            msg = self._no_bundle_prefix + 'None of the bundle images have ' \
-                                           'applicable pullspecs to replace'
-            log.warning(msg)
-            db_event.transition(EventState.SKIPPED, msg)
-            return []
-
-        # Unauthenticated koji session to fetch build info of bundles
-        koji_api = KojiService(conf.koji_profile)
-        rebuild_nvr_to_pullspecs_map = dict()
-        # compare replaced pullspecs with pullspecs in 'container_images' and
-        # create map for bundles that should be rebuilt with their nvrs
-        for container_image_nvr in self.event.container_images:
-            artifact_build = db.session.query(ArtifactBuild).filter(
-                ArtifactBuild.rebuilt_nvr == container_image_nvr,
-                ArtifactBuild.type == ArtifactType.IMAGE.value,
-            ).one_or_none()
-            pullspecs = []
-            # Try to find build in FM database, if it's not there check in Brew
-            if artifact_build:
-                self.log_info(
-                    "%s in the container_images list was found in the database", container_image_nvr
-                )
-                pullspecs = artifact_build.bundle_pullspec_overrides["pullspec_replacements"]
-            else:
-                self.log_info(
-                    "%s in the container_images list is not in the database. Searching in Brew "
-                    "instead.",
-                    container_image_nvr,
-                )
-                # Fetch buildinfo from Koji
-                buildinfo = koji_api.get_build(container_image_nvr)
-                # Get the original pullspecs
-                pullspecs = (
-                    buildinfo.get('extra', {})
-                             .get('image', {})
-                             .get('operator_manifests', {})
-                             .get('related_images', {})
-                             .get('pullspecs', [])
-                )
-
-            for pullspec in pullspecs:
-                if pullspec.get('new') not in old_to_new_pullspec_map:
-                    self.log_debug("The pullspec %s is not getting replaced", pullspec.get('new'))
-                    continue
-                # use newer pullspecs in the image
-                self.log_info(
-                    "Replacing the pullspec %s with %s on %s",
-                    pullspec['new'],
-                    old_to_new_pullspec_map[pullspec['new']],
-                    container_image_nvr,
-                )
-                pullspec['new'] = old_to_new_pullspec_map[pullspec['new']]
-                rebuild_nvr_to_pullspecs_map[container_image_nvr] = pullspecs
-
-        if not rebuild_nvr_to_pullspecs_map:
-            msg = self._no_bundle_prefix + 'None of the container images have ' \
-                                           'applicable pullspecs from the input bundle images'
-            log.info(msg)
-            db_event.transition(EventState.SKIPPED, msg)
-            return []
-
-        # list with metadata about every bundle to do rebuild
-        to_rebuild_bundles = []
-        # fill 'append' and 'update' fields for bundles to rebuild
-        for nvr, pullspecs in rebuild_nvr_to_pullspecs_map.items():
-            self.log_debug("Getting the manifest list digest for %s", nvr)
-            bundle_digest = self._pyxis.get_manifest_list_digest_by_nvr(nvr)
-            if bundle_digest is not None:
-                self.log_debug("The manifest list digest for %s is %s", nvr, bundle_digest)
-                bundles = self._pyxis.get_bundles_by_digest(bundle_digest)
-                if not bundles:
-                    self.log_error(
-                        "The manifest_list_digest %s is not available on the bundles API endpoint",
-                        bundle_digest,
-                    )
-                    continue
-                temp_bundle = bundles[0]
-                csv_updates = (self._get_csv_updates(temp_bundle['csv_name'],
-                                                     temp_bundle['version_original']))
-                to_rebuild_bundles.append({
-                    'nvr': nvr,
-                    'update': csv_updates['update'],
-                    'pullspec_replacements': pullspecs,
-                })
-            else:
-                log.warning('Can\'t find manifest_list_digest for bundle '
-                            f'"{nvr}" in Pyxis')
-
-        if not to_rebuild_bundles:
-            msg = 'Can\'t find digests for any of the bundles to rebuild'
-            log.warning(msg)
-            db_event.transition(EventState.FAILED, msg)
-            return []
-
-        return to_rebuild_bundles
-
-    def _get_pullspecs_mapping(self):
-        """
-        Get map of all replaced pullspecs from 'bundle_images' provided in an event.
-
-        :rtype: dict
-        :return: map of all '_old' pullspecs that was replaced by 'new'
-            pullspecs in previous Freshmaker rebuilds
-        """
-        old_to_new_pullspec_map = dict()
-        for bundle_nvr in self.event.bundle_images:
-            artifact_build = db.session.query(ArtifactBuild).filter(
-                ArtifactBuild.rebuilt_nvr == bundle_nvr,
-                ArtifactBuild.type == ArtifactType.IMAGE.value,
-            ).one_or_none()
-            if artifact_build is None:
-                log.warning(
-                    f'Can\'t find build for a bundle image "{bundle_nvr}"')
+        bundles_to_rebuild = []
+        for bundle_nvr, bundle_data in bundles_by_nvr.items():
+            bundle_data["nvr"] = bundle_nvr
+            csv_name, version = self._get_bundle_csv_name_and_version(bundle_nvr)
+            if not (csv_name and version):
+                log.error("CSV data is missing for bundle %s, skip it.", bundle_nvr)
                 continue
-            pullspec_overrides = artifact_build.bundle_pullspec_overrides
-            for pullspec in pullspec_overrides['pullspec_replacements']:
-                old_pullspec = pullspec.get('_old', None)
-                if old_pullspec is None:
-                    continue
-                old_to_new_pullspec_map[old_pullspec] = pullspec['new']
+            bundle_data.update(self._get_csv_updates(csv_name, version))
+            bundles_to_rebuild.append(bundle_data)
+        if not bundles_to_rebuild:
+            return (
+                None,
+                f"CSV data is not available for impacted bundles: {','.join(bundles_by_nvr.keys())}, skip.",
+            )
 
-        return old_to_new_pullspec_map
+        return bundles_to_rebuild, None
+
+    def _get_impacted_bundles(self, related_digests):
+        """
+        Get impacted bundles which include the related digests (in related_images)
+
+        :param list related_digests: list of digests
+        :param list bundle_nvrs: list of bundle NVRs
+        :return: list of impacted bundle NVRs
+        :rtype: list
+        """
+        impacted_bundles = set()
+        index_paths = self._pyxis.get_index_paths()
+        for digest in related_digests:
+            bundles = self._pyxis.get_bundles_by_related_image_digest(digest, index_paths)
+            if not bundles:
+                log.info("No latest bundle found with the related digest: %s", digest)
+                continue
+            for bundle in bundles:
+                bundle_images = self._pyxis.get_images_by_digest(bundle["bundle_path_digest"])
+                if not bundle_images:
+                    log.error(
+                        "Image not found with bundle path digest: %s, ignore it.",
+                        bundle["bundle_path_digest"],
+                    )
+                impacted_bundles.add(bundle_images[0]["brew"]["build"])
+
+        return list(impacted_bundles)
+
+    def _get_bundle_csv_name_and_version(self, bundle_nvr):
+        """
+        Get bundle image's CSV name and version
+
+        :param str bundle_nvr: NVR of bundle image
+        :return: a tuple of bundle image's CSV name and version
+        :rtype: tuple
+        """
+        csv_name = version = None
+        bundles = self._pyxis.get_bundles_by_nvr(bundle_nvr)
+        if bundles:
+            csv_name = bundles[0]["csv_name"]
+            version = bundles[0]["version_original"]
+        else:
+            # Bundle data not in Pyxis, probably this is an unreleased bundle,
+            # try to get the data from brew
+            log.debug(
+                "Can't find bundle data of %s in Pyxis, trying to find that in brew.", bundle_nvr
+            )
+            koji_api = KojiService(conf.koji_profile)
+            csv_data = koji_api.get_bundle_csv(bundle_nvr)
+            # this should not happen
+            if not csv_data:
+                log.error("Bundle data of %s is not available in brew.", bundle_nvr)
+            else:
+                csv_name = csv_data["metadata"]["name"]
+                version = csv_data["spec"]["version"]
+        return (csv_name, version)
 
     @classmethod
     def _get_csv_updates(cls, csv_name, version):
@@ -515,18 +370,18 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         csv_modifications = {}
         new_version, fm_suffix = cls._get_rebuild_bundle_version(version)
         new_csv_name = cls._get_csv_name(csv_name, version, new_version, fm_suffix)
-        csv_modifications['update'] = {
-            'metadata': {
+        csv_modifications["update"] = {
+            "metadata": {
                 # Update the name of the CSV to something uniquely identify the rebuild
-                'name': new_csv_name,
+                "name": new_csv_name,
                 # Declare that this rebuild is a substitute of the bundle being rebuilt
-                'annotations': {'olm.substitutesFor': csv_name}
+                "annotations": {"olm.substitutesFor": csv_name},
             },
-            'spec': {
+            "spec": {
                 # Update the version of the rebuild to be unique and a newer version than the
                 # the version of the bundle being rebuilt
-                'version': new_version,
-            }
+                "version": new_version,
+            },
         }
 
         return csv_modifications
@@ -549,18 +404,18 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         parsed_version = semver.VersionInfo.parse(version)
         # Strip off the microseconds of the timestamp
         timestamp = int(datetime.utcnow().timestamp())
-        new_fm_suffix = f'0.{timestamp}.p'
+        new_fm_suffix = f"0.{timestamp}.p"
         if parsed_version.build:
             # Check if the bundle was a Freshmaker rebuild. Include .patched
             # for backwards compatibility with the old suffix.
             fm_suffix_search = re.search(
-                r'(?P<fm_suffix>0\.\d+\.(?:p|patched))$', parsed_version.build
+                r"(?P<fm_suffix>0\.\d+\.(?:p|patched))$", parsed_version.build
             )
             if fm_suffix_search:
-                fm_suffix = fm_suffix_search.groupdict()['fm_suffix']
+                fm_suffix = fm_suffix_search.groupdict()["fm_suffix"]
                 # Get the build without the Freshmaker suffix. This may include a build ID
                 # from the original build before Freshmaker rebuilt it or be empty.
-                build_wo_fm_suffix = parsed_version.build[:- len(fm_suffix)]
+                build_wo_fm_suffix = parsed_version.build[: -len(fm_suffix)]
                 new_build = f"{build_wo_fm_suffix}{new_fm_suffix}"
             else:
                 # This was not previously rebuilt by Freshmaker so just append the suffix
@@ -593,12 +448,12 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         # The CSV name must be in the format of a valid DNS name, which means the + from the
         # build ID must be replaced. In the event this was a previous Freshmaker rebuild, version
         # may have a build ID that would be the DNS safe version in the CSV name.
-        dns_safe_version = version.replace('+', '-')
+        dns_safe_version = version.replace("+", "-")
         if dns_safe_version in csv_name:
-            dns_safe_rebuild_version = rebuild_version.replace('+', '-')
+            dns_safe_rebuild_version = rebuild_version.replace("+", "-")
             return csv_name.replace(dns_safe_version, dns_safe_rebuild_version)
         else:
-            return f'{csv_name}.{fm_suffix}'
+            return f"{csv_name}.{fm_suffix}"
 
     def get_published_original_nvr(self, rebuilt_nvr):
         """
@@ -611,23 +466,25 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         """
         original_nvr = None
         # artifact build should be only one in database, or raise an error
-        artifact_build = db.session.query(ArtifactBuild).filter(
-            ArtifactBuild.rebuilt_nvr == rebuilt_nvr,
-            ArtifactBuild.type == ArtifactType.IMAGE.value,
-        ).one_or_none()
+        artifact_build = (
+            db.session.query(ArtifactBuild)
+            .filter(
+                ArtifactBuild.rebuilt_nvr == rebuilt_nvr,
+                ArtifactBuild.type == ArtifactType.IMAGE.value,
+            )
+            .one_or_none()
+        )
         # recursively search for original artifact build
         if artifact_build is not None:
             original_nvr = artifact_build.original_nvr
 
             # check if image is published
-            request_params = {'include': 'data.repositories',
-                              'page_size': 1}
-            images = self._pyxis._pagination(f'images/nvr/{original_nvr}',
-                                             request_params)
+            request_params = {"include": "data.repositories", "page_size": 1}
+            images = self._pyxis._pagination(f"images/nvr/{original_nvr}", request_params)
             if not images:
                 return None
             # stop recursion if the image is published in some repo
-            if any(repo['published'] for repo in images[0].get('repositories')):
+            if any(repo["published"] for repo in images[0].get("repositories")):
                 return original_nvr
 
             next_nvr = self.get_published_original_nvr(original_nvr)
@@ -637,32 +494,32 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         return original_nvr
 
     def image_has_auto_rebuild_tag(self, image):
-        """ Check if image has a tag enabled for auto rebuild.
+        """Check if image has a tag enabled for auto rebuild.
 
         :param dict image: Dict representation of an image entity in Pyxis.
         :rtype: bool
         :return: True if image has a tag enabled for auto rebuild in repository, otherwise False.
         """
-        for repo in image['repositories']:
+        for repo in image["repositories"]:
             # Skip unpublished repository
-            if not repo['published']:
+            if not repo["published"]:
                 continue
 
             auto_rebuild_tags = self._pyxis.get_auto_rebuild_tags(
-                repo['registry'], repo['repository']
+                repo["registry"], repo["repository"]
             )
-            tags = [t['name'] for t in repo.get('tags', [])]
+            tags = [t["name"] for t in repo.get("tags", [])]
             if set(auto_rebuild_tags) & set(tags):
                 return True
 
         # It'd be more efficient to do this check first, but the exceptions are edge cases
         # (e.g. testing) and it's best to not use it unless absolutely necessary
-        nvr = image['brew']['build']
+        nvr = image["brew"]["build"]
         parsed_nvr = parse_nvr(nvr)
         nv = f'{parsed_nvr["name"]}-{parsed_nvr["version"]}'
         if nv in conf.bundle_autorebuild_tag_exceptions:
             self.log_info(
-                'The bundle %r has an exception for being tagged with an auto-rebuild tag', nvr
+                "The bundle %r has an exception for being tagged with an auto-rebuild tag", nvr
             )
             return True
 
@@ -679,12 +536,13 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         nvrs_mapping = {}
 
         # Get builds from all blocking advisories
-        blocking_advisories_builds = \
-            Errata().get_blocking_advisories_builds(self.event.advisory.errata_id)
+        blocking_advisories_builds = Errata().get_blocking_advisories_builds(
+            self.event.advisory.errata_id
+        )
         # Get builds NVRs from the advisory attached to the message/event and
         # then get original NVR for every build
         for product_info in self.event.advisory.builds.values():
-            for build in product_info['builds']:
+            for build in product_info["builds"]:
                 # Each build is a one key/value pair, and key is the build NVR
                 build_nvr = next(iter(build))
 
@@ -700,17 +558,18 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                 # all of them, that have overlapping package names
                 for block_build in blocking_advisories_builds:
                     block_build_nvr = parse_nvr(block_build)
-                    if (block_build_nvr['name'] == parsed_build_nvr['name']
-                            and block_build_nvr['version'] == parsed_build_nvr['version']):     # noqa: W503
+                    if (
+                        block_build_nvr["name"] == parsed_build_nvr["name"]
+                        and block_build_nvr["version"] == parsed_build_nvr["version"]  # noqa: W503
+                    ):
                         nvrs_mapping[block_build] = build_nvr
         return nvrs_mapping
 
-    def _prepare_builds(self, db_event, to_rebuild_bundles):
+    def _prepare_builds(self, to_rebuild_bundles):
         """
         Prepare models.ArtifactBuild instance for every bundle that will be
         rebuilt
 
-        :param models.Event db_event: database event that will contain builds
         :param list to_rebuild_bundles: bundles to rebuild
         :return: builds that already in database and ready to be submitted to brew
         :rtype: list
@@ -720,16 +579,19 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         for bundle in to_rebuild_bundles:
             # Reset context to db_event for each iteration before
             # the ArtifactBuild is created.
-            self.set_context(db_event)
+            self.set_context(self.db_event)
 
             rebuild_reason = RebuildReason.DIRECTLY_AFFECTED.value
             bundle_name = koji.parse_NVR(bundle["nvr"])["name"]
 
             build = self.record_build(
-                db_event, bundle_name, ArtifactType.IMAGE,
+                self.db_event,
+                bundle_name,
+                ArtifactType.IMAGE,
                 state=ArtifactBuildState.PLANNED.value,
                 original_nvr=bundle["nvr"],
-                rebuild_reason=rebuild_reason)
+                rebuild_reason=rebuild_reason,
+            )
 
             # Set context to particular build so logging shows this build
             # in case of error.
@@ -738,18 +600,20 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             build.transition(ArtifactBuildState.PLANNED.value, "")
 
             additional_data = ContainerImage.get_additional_data_from_koji(bundle["nvr"])
-            build.build_args = json.dumps({
-                "repository": additional_data["repository"],
-                "commit": additional_data["commit"],
-                "target": additional_data["target"],
-                "branch": additional_data["git_branch"],
-                "arches": additional_data["arches"],
-                # The build system always enforces that bundle images build from
-                # "scratch", so there is no parent image. See:
-                # https://osbs.readthedocs.io/en/latest/users.html?#operator-manifest-bundle-builds
-                "original_parent": None,
-                "operator_csv_modifications_url": csv_mod_url.format(build.id),
-            })
+            build.build_args = json.dumps(
+                {
+                    "repository": additional_data["repository"],
+                    "commit": additional_data["commit"],
+                    "target": additional_data["target"],
+                    "branch": additional_data["git_branch"],
+                    "arches": additional_data["arches"],
+                    # The build system always enforces that bundle images build from
+                    # "scratch", so there is no parent image. See:
+                    # https://osbs.readthedocs.io/en/latest/users.html?#operator-manifest-bundle-builds
+                    "original_parent": None,
+                    "operator_csv_modifications_url": csv_mod_url.format(build.id),
+                }
+            )
             build.bundle_pullspec_overrides = {
                 "pullspec_replacements": bundle["pullspec_replacements"],
                 "update": bundle["update"],

@@ -378,23 +378,18 @@ def _validate_rebuild_request(request):
                 400, 'Bad Request', 'The provided "freshmaker_event_id" is invalid.',
             )
 
-    if 'errata_id' in data and 'bundle_images' in data:
-        return json_error(400, 'Bad Request', '"errata_id" and "bundle_images" '
-                                              'can\'t be in the same request.')
-
     for key in ('dist_git_branch', 'brew_target'):
         if data.get(key) and not isinstance(data[key], str):
             return json_error(400, 'Bad Request', f'"{key}" must be a string.')
 
-    for key in ('container_images', 'bundle_images'):
-        temp_list = data.get(key, [])
-        if (
-            not isinstance(temp_list, list) or
-            any(not isinstance(elem, str) for elem in temp_list)
-        ):
-            return json_error(
-                400, 'Bad Request', f'"{key}" must be an array of strings.',
-            )
+    container_images = data.get('container_images', [])
+    if (
+        not isinstance(container_images, list) or
+        any(not isinstance(image, str) for image in container_images)
+    ):
+        return json_error(
+            400, 'Bad Request', '"container_images" must be an array of strings.',
+        )
 
     if not isinstance(data.get('dry_run', False), bool):
         return json_error(400, 'Bad Request', '"dry_run" must be a boolean.')
@@ -477,19 +472,8 @@ class BuildAPI(MethodView):
             Content-Type: application/json
 
             {
-                "errata_id": 12345
-            }
-
-        **Sample request**:
-
-        .. sourcecode:: http
-
-            POST /api/1/builds HTTP/1.1
-            Accept: application/json
-            Content-Type: application/json
-
-            {
-                "bundle_images": ["app-bundle-1.0-1.11111"],
+                "errata_id": 12345,
+                "container_images": ["foobar-1.2-234"]
             }
 
 
@@ -505,8 +489,6 @@ class BuildAPI(MethodView):
             this event will be reused in the newly created event instead of
             building all the artifacts from scratch. If errata_id is not
             provided, it will be inherited from this Freshmaker event.
-        :jsonparam list bundle_images: list of images to search Freshmaker
-            database for rebuild events with them
         :statuscode 200: A new event was created.
         :statuscode 400: The provided input is invalid.
         """
@@ -515,15 +497,11 @@ class BuildAPI(MethodView):
             return error
 
         data = request.get_json(force=True)
-        if (
-            not data.get('errata_id') and not data.get('freshmaker_event_id') and
-            not data.get('bundle_images')
-        ):
+        if not data.get('errata_id') and not data.get('freshmaker_event_id'):
             return json_error(
                 400,
                 'Bad Request',
-                'You must at least provide "errata_id" or "freshmaker_event_id"'
-                ' or "bundle_images" in the request.',
+                'You must at least provide "errata_id" or "freshmaker_event_id" in the request.'
             )
 
         dependent_event = None
@@ -805,11 +783,6 @@ class PullspecOverrideAPI(MethodView):
         build = models.ArtifactBuild.query.filter_by(id=id).first()
         if build:
             pullspec_overrides = build.bundle_pullspec_overrides
-            # remove old pullspec from output, since it used only internally for manual rebuilds
-            if pullspec_overrides and "pullspec_replacements" in pullspec_overrides:
-                for pullspec in pullspec_overrides["pullspec_replacements"]:
-                    if "_old" in pullspec:
-                        del pullspec["_old"]
             return jsonify(pullspec_overrides), 200
         else:
             return json_error(404, "Not Found", "No such bundle build")
