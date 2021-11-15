@@ -39,4 +39,5 @@ python3-systemd
 python3-semver
 python3-tabulate
 python3-vcrpy
+python3-json-logger
 systemd

@@ -11,7 +11,7 @@ config = dict(
         formatters={
             'bare': {
                 'datefmt': '%Y-%m-%d %H:%M:%S',
-                'format': '[%(asctime)s][%(name)10s %(levelname)7s] %(message)s',
+                'format': '[%(asctime)s][%(name)10s %(levelname)7s] %(message)s'
             },
         },
         loggers=dict(
