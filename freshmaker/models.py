@@ -47,7 +47,7 @@ from freshmaker.events import (
     ErrataAdvisoryStateChangedEvent, FreshmakerManualRebuildEvent,
     ODCSComposeStateChangeEvent, ManualRebuildWithAdvisoryEvent,
     FreshmakerAsyncManualBuildEvent, BotasErrataShippedEvent,
-    ManualBundleRebuild,
+    ManualBundleRebuildEvent,
     FlatpakModuleAdvisoryReadyEvent,
 )
 
@@ -68,7 +68,7 @@ EVENT_TYPES = {
     ManualRebuildWithAdvisoryEvent: 13,
     FreshmakerAsyncManualBuildEvent: 14,
     BotasErrataShippedEvent: 15,
-    ManualBundleRebuild: 16,
+    ManualBundleRebuildEvent: 16,
     FlatpakModuleAdvisoryReadyEvent: 17,
 }
 

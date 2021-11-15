@@ -603,8 +603,7 @@ class TestViews(helpers.ModelsTestCase):
             'pullspec_replacements': [
                 {'new': 'registry.io/repo/example-operator@sha256:<sha256>',
                  'original': 'registry.io/repo/example-operator:v1.1.0',
-                 'pinned': True,
-                 '_old': 'some_digest'},
+                 'pinned': True},
                 {'new': 'registry.io/repo/2example-operator@sha256:<sha256>',
                  'original': 'registry.io/repo/2example-operator:v2.2.0',
                  'pinned': True}
@@ -796,47 +795,6 @@ class TestManualTriggerRebuild(ViewBaseTest):
             'manual.rebuild',
             {'msg_id': 'manual_rebuild_123', u'errata_id': 1,
              'requester': 'root'})
-
-    @patch('freshmaker.messaging.publish')
-    @patch('freshmaker.parsers.internal.manual_rebuild.time.time')
-    @patch('freshmaker.views._validate_rebuild_request', return_value=None)
-    def test_release_driver_bundle_rebuild(self, validate, time, publish):
-        time.return_value = 111
-
-        with patch('freshmaker.models.datetime') as datetime_patch:
-            datetime_patch.utcnow.return_value = datetime.datetime(2000, 1, 2, 3, 4, 5)
-            with self.test_request_context(user='root'):
-                resp = self.client.post(
-                    '/api/1/builds/',
-                    data=json.dumps({'bundle_images': ['bundle'],
-                                     'container_images': ['container_image'],
-                                     }),
-                    content_type='application/json',
-                )
-        self.assertEqual(resp.json,
-                         {'builds': [],
-                          'depending_events': [],
-                          'depends_on_events': [],
-                          'dry_run': False,
-                          'event_type_id': 16,
-                          'id': 1,
-                          'message_id': 'manual_rebuild_111',
-                          'requested_rebuilds': ['container_image'],
-                          'requester': 'root',
-                          'requester_metadata': {},
-                          'search_key': 'manual_rebuild_111',
-                          'state': 0,
-                          'state_name': 'INITIALIZED',
-                          'state_reason': None,
-                          'time_created': '2000-01-02T03:04:05Z',
-                          'time_done': None,
-                          'url': '/api/1/events/1'})
-
-        publish.assert_called_once_with('manual.rebuild',
-                                        {'msg_id': 'manual_rebuild_111',
-                                         'bundle_images': ['bundle'],
-                                         'container_images': ['container_image'],
-                                         'requester': 'root'})
 
     @patch('freshmaker.parsers.internal.manual_rebuild.ErrataAdvisory.from_advisory_id')
     @patch('freshmaker.messaging.publish')
@@ -1094,20 +1052,7 @@ class TestManualTriggerRebuild(ViewBaseTest):
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(
             resp.json['message'],
-            'You must at least provide "errata_id" or "freshmaker_event_id" or "bundle_images" in the request.',
-        )
-
-    def test_manual_rebuild_errata_id_with_bundle_images(self):
-        payload = {'container_images': ['foo-1-1'],
-                   'bundle_images': ['images'],
-                   'errata_id': 123}
-        with self.test_request_context(user='root'):
-            resp = self.client.post('/api/1/builds/', json=payload, content_type='application/json')
-
-        self.assertEqual(resp.status_code, 400)
-        self.assertEqual(
-            resp.json['message'],
-            '"errata_id" and "bundle_images" can\'t be in the same request.',
+            'You must at least provide "errata_id" or "freshmaker_event_id" in the request.',
         )
 
     def test_manual_rebuild_invalid_type_errata_id(self):

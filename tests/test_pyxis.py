@@ -227,6 +227,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                 "repositories": [
                     {
                         "manifest_list_digest": "sha256:1111",
+                        "manifest_schema2_digest": "sha256:11111111",
                         "published": False,
                         "registry": "reg1",
                         "repository": "repo1",
@@ -234,6 +235,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                     },
                     {
                         "manifest_list_digest": "sha256:1112",
+                        "manifest_schema2_digest": "sha256:11112222",
                         "published": True,
                         "registry": "reg2",
                         "repository": "repo2",
@@ -251,6 +253,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                 "repositories": [
                     {
                         "manifest_list_digest": "sha256:2222",
+                        "manifest_schema2_digest": "sha256:22224444",
                         "published": True,
                         "registry": "reg2",
                         "repository": "repo2",
@@ -268,6 +271,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                 "repositories": [
                     {
                         "manifest_list_digest": "sha256:3333",
+                        "manifest_schema2_digest": "sha256:33336666",
                         "published": True,
                         "registry": "reg3",
                         "repository": "repo3",
@@ -285,6 +289,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                 "repositories": [
                     {
                         "manifest_list_digest": "sha256:4444",
+                        "manifest_schema2_digest": "sha256:44448888",
                         "published": True,
                         "registry": "reg4",
                         "repository": "repo4",
@@ -362,11 +367,26 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
         my_request.assert_has_calls(calls)
 
     @patch.object(conf, 'pyxis_index_image_organizations', new=['org1', 'org2'])
+    @patch('freshmaker.pyxis.Pyxis.ocp_is_released', return_value=True)
     @patch('freshmaker.pyxis.Pyxis._pagination')
-    def test_get_operator_indices(self, page):
-        self.px.get_operator_indices()
+    def test_get_operator_indices(self, page, is_released):
+        page.return_value = self.indices
+        indices = self.px.get_operator_indices()
         page.assert_called_once_with(
             'operators/indices', {'filter': 'organization==org1 or organization==org2'})
+        self.assertEqual(len(indices), 3)
+
+    @patch.object(conf, 'pyxis_index_image_organizations', new=['org1', 'org2'])
+    @patch('freshmaker.pyxis.Pyxis.ocp_is_released', return_value=True)
+    @patch('freshmaker.pyxis.Pyxis._pagination')
+    def test_get_index_paths(self, page, is_released):
+        page.return_value = self.indices
+        paths = self.px.get_index_paths()
+        page.assert_called_once_with(
+            'operators/indices', {'filter': 'organization==org1 or organization==org2'})
+        self.assertEqual(len(paths), 2)
+        self.assertTrue('path/to/registry:v4.5' in paths)
+        self.assertTrue('path/to/registry:v4.6' in paths)
 
     @patch.object(conf, "product_pages_api_url", new="http://pp.example.com/api")
     @patch("freshmaker.pyxis.Pyxis._pagination")
@@ -410,55 +430,17 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
         assert "4.8" not in [i["ocp_version"] for i in indices]
 
     @patch('freshmaker.pyxis.Pyxis._pagination')
-    def test_get_latest_bundles(self, page):
-        page_copy = self.copy_call_args(page)
-        # Ensure this one is ignored
-        bad_version_bundle = {
-            "channel_name": "test-v2.3",
-            "csv_name": "test_name.version_me",
-            "related_images": [
-                {
-                    "image": "registry/quay/quay-operator@sha256:ddd",
-                    "name": "quay-operator-annotation",
-                    "digest": "sha256:ddd"
-                },
-                {
-                    "image": "registry/quay/quay-security-r-operator@sha256:eee",
-                    "name": "container-security-operator",
-                    "digest": "sha256:eee"
-                }
-            ],
-            "version_original": "version_me"
+    def test_get_bundles_by_related_image_digest(self, page):
+        self.px.get_bundles_by_related_image_digest(
+            'sha256:111', ["path/to/registry:v4.5", "path/to/registry:v4.6"]
+        )
+        request_params = {
+            "include": "data.channel_name,data.version_original,data.related_images,"
+            "data.bundle_path_digest,data.bundle_path,data.csv_name",
+            "filter": "related_images.digest==sha256:111 and latest_in_channel==true and "
+            "source_index_container_path=in=(path/to/registry:v4.5,path/to/registry:v4.6)",
         }
-        page_copy.side_effect = [self.bundles[:3] + [bad_version_bundle], []]
-
-        out = self.px.get_latest_bundles(self.indices)
-        expected_out = self.bundles[:3]
-
-        self.assertEqual(out, expected_out)
-        page_copy.assert_has_calls([
-            call('operators/bundles',
-                 {'include': 'data.channel_name,data.version_original,'
-                             'data.related_images,data.bundle_path_digest,'
-                             'data.bundle_path,data.csv_name',
-                  'filter': 'latest_in_channel==true and '
-                            'source_index_container_path==path/to/registry:v4.5'}),
-            call('operators/bundles',
-                 {'include': 'data.channel_name,data.version_original,'
-                             'data.related_images,data.bundle_path_digest,'
-                             'data.bundle_path,data.csv_name',
-                  'filter': 'latest_in_channel==true and '
-                            'source_index_container_path==path/to/registry:v4.6'}),
-        ])
-
-    @patch('freshmaker.pyxis.Pyxis._pagination')
-    def test_get_latest_bundles_returns_unique_bundles(self, page):
-        page_copy = self.copy_call_args(page)
-        # self.bundles[0] exists in two indices
-        page_copy.side_effect = [self.bundles[:3] + self.bundles[:1], []]
-
-        out = self.px.get_latest_bundles(self.indices)
-        self.assertEqual(out, self.bundles[:3])
+        page.assert_called_once_with('operators/bundles', request_params)
 
     @patch('freshmaker.pyxis.Pyxis._pagination')
     def test_get_manifest_list_digest_by_nvr(self, page):
@@ -502,13 +484,17 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
             {'include': 'data.brew,data.repositories'}
         )
 
-    def test_get_bundles_by_related_image_digest(self):
-        digest = 'sha256:111'
-        new_bundles = self.px.get_bundles_by_related_image_digest(
-            digest, self.bundles)
+    @patch('freshmaker.pyxis.Pyxis._pagination')
+    def test_get_manifest_schema2_digest_by_nvr(self, page):
+        page.return_value = self.images
+        digest = self.px.get_manifest_schema2_digest_by_nvr('s2i-1-2')
 
-        expected_bundles = [self.bundles[0]]
-        self.assertListEqual(new_bundles, expected_bundles)
+        expected_digest = 'sha256:11112222'
+        self.assertEqual(digest, expected_digest)
+        page.assert_called_once_with(
+            'images/nvr/s2i-1-2',
+            {'include': 'data.brew,data.repositories'}
+        )
 
     @patch('freshmaker.pyxis.Pyxis._pagination')
     def test_get_bundles_by_digest(self, page):
@@ -520,6 +506,25 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
         page.assert_called_once_with("operators/bundles", {
             "include": "data.version_original,data.csv_name",
             "filter": "bundle_path_digest==some_digest"
+        })
+
+    @patch('freshmaker.pyxis.Pyxis.get_manifest_schema2_digest_by_nvr')
+    @patch('freshmaker.pyxis.Pyxis._pagination')
+    def test_get_bundles_by_nvr(self, page, get_digest):
+        get_digest.return_value = "some_digest"
+
+        self.px.get_bundles_by_nvr("some-nvr")
+
+        page.assert_called_once_with("operators/bundles", {
+            "include": "data.version_original,data.csv_name",
+            "filter": "bundle_path_digest==some_digest"
+        })
+
+    @patch('freshmaker.pyxis.Pyxis._pagination')
+    def test_get_images_by_nvr(self, page):
+        self.px.get_images_by_nvr("some-nvr")
+        page.assert_called_once_with("images/nvr/some-nvr", {
+            "include": "data.architecture,data.brew,data.repositories"
         })
 
     @patch('freshmaker.pyxis.requests.get')
@@ -564,3 +569,32 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
 
         tags = self.px.get_auto_rebuild_tags('registry.example.com', 'foo/foo-operator-bundle')
         self.assertListEqual(tags, ['2.3', 'latest'])
+
+    @patch('freshmaker.pyxis.Pyxis._pagination')
+    def test_is_bundle_true(self, page):
+        page.return_value = [{
+            "parsed_data": {
+                "labels": [
+                    {"name": "architecture", "value": "x86_64"},
+                    {"name": "com.redhat.delivery.operator.bundle", "value": "true"},
+                    {"name": "com.redhat.openshift.versions", "value": "v4.6"},
+                    {"name": "version", "value": "2.11.0"},
+                ]
+            },
+        }]
+        is_bundle = self.px.is_bundle("foobar-bundle-1-234")
+        self.assertTrue(is_bundle)
+
+    @patch('freshmaker.pyxis.Pyxis._pagination')
+    def test_is_bundle_false(self, page):
+        page.return_value = [{
+            "parsed_data": {
+                "labels": [
+                    {"name": "architecture", "value": "x86_64"},
+                    {"name": "com.redhat.openshift.versions", "value": "v4.6"},
+                    {"name": "version", "value": "2.11.0"},
+                ]
+            },
+        }]
+        is_bundle = self.px.is_bundle("foobar-bundle-1-234")
+        self.assertFalse(is_bundle)
