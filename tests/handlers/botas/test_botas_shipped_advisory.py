@@ -953,3 +953,21 @@ def test_get_csv_updates(mock_grbv, mock_gcn):
             }
         }
     }
+
+
+@patch("freshmaker.handlers.botas.botas_shipped_advisory.HandleBotasAdvisory._get_csv_name")
+@patch("freshmaker.handlers.botas.botas_shipped_advisory.HandleBotasAdvisory._get_rebuild_bundle_version")
+def test_get_csv_updates_without_olm_substitutes(mock_grbv, mock_gcn):
+    mock_grbv.return_value = ("1.2.3+0.1608854400.p", "0.1608854400.p")
+    mock_gcn.return_value = "amq-streams.1.2.3-0.1608854400.p"
+    rv = HandleBotasAdvisory._get_csv_updates("amq-streams.1.2.3", "1.2.3", olm_substitutes=False)
+    assert rv == {
+        "update": {
+            "metadata": {
+                'name': "amq-streams.1.2.3-0.1608854400.p",
+            },
+            'spec': {
+                'version': "1.2.3+0.1608854400.p",
+            }
+        }
+    }

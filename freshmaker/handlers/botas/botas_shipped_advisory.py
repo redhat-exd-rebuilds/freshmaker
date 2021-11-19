@@ -284,6 +284,9 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         if not bundles_by_nvr:
             return None, f"No bundle image is impacted by {self.event.advisory.errata_id}, skip."
 
+        # Add olm.substitutesFor annotation by default, unless it's disabled in manual
+        # request metadata.
+        olm_substitutes = self.db_event.requester_metadata_json.get("olm_substitutes", True)
         bundles_to_rebuild = []
         for bundle_nvr, bundle_data in bundles_by_nvr.items():
             bundle_data["nvr"] = bundle_nvr
@@ -291,7 +294,9 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             if not (csv_name and version):
                 log.error("CSV data is missing for bundle %s, skip it.", bundle_nvr)
                 continue
-            bundle_data.update(self._get_csv_updates(csv_name, version))
+            bundle_data.update(
+                self._get_csv_updates(csv_name, version, olm_substitutes=olm_substitutes)
+            )
             bundles_to_rebuild.append(bundle_data)
         if not bundles_to_rebuild:
             return (
@@ -358,12 +363,13 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         return (csv_name, version)
 
     @classmethod
-    def _get_csv_updates(cls, csv_name, version):
+    def _get_csv_updates(cls, csv_name, version, olm_substitutes=True):
         """
         Determine the CSV updates required for the bundle image.
 
         :param str csv_name: the name field in the bundle's ClusterServiceVersion file
         :param str version: the version of the bundle image being rebuilt
+        :param bool olm_substitutes: add `olm.substitutesFor` annotation if True
         :return: a dictionary of the CSV updates needed
         :rtype: dict
         """
@@ -374,8 +380,6 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             "metadata": {
                 # Update the name of the CSV to something uniquely identify the rebuild
                 "name": new_csv_name,
-                # Declare that this rebuild is a substitute of the bundle being rebuilt
-                "annotations": {"olm.substitutesFor": csv_name},
             },
             "spec": {
                 # Update the version of the rebuild to be unique and a newer version than the
@@ -383,6 +387,11 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                 "version": new_version,
             },
         }
+        if olm_substitutes:
+            # Declare that this rebuild is a substitute of the bundle being rebuilt
+            csv_modifications["update"]["metadata"]["annotations"] = {
+                "olm.substitutesFor": csv_name
+            }
 
         return csv_modifications
 
