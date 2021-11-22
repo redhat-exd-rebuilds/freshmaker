@@ -2,9 +2,12 @@
 
 from unittest.mock import patch
 
+from freshmaker import db
 from freshmaker.errata import ErrataAdvisory
 from freshmaker.events import FlatpakModuleAdvisoryReadyEvent
 from freshmaker.handlers.koji import RebuildFlatpakApplicationOnModuleReady
+from freshmaker.models import Event
+from freshmaker.types import EventState
 from tests import helpers
 
 
@@ -35,6 +38,9 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
         self.advisory = ErrataAdvisory(123, "RHSA-123", "QE", ["module"], "Critical")
         self.from_advisory_id.return_value = self.advisory
         self.handler = RebuildFlatpakApplicationOnModuleReady()
+        self.mock_get_auto_rebuild_image_list = self._patch('freshmaker.handlers.koji.RebuildFlatpakApplicationOnModuleReady._get_auto_rebuild_image_list')
+        self.mock_filter_images_with_higher_rpm_nvr = self._patch('freshmaker.handlers.koji.RebuildFlatpakApplicationOnModuleReady._filter_images_with_higher_rpm_nvr')
+        self.event = FlatpakModuleAdvisoryReadyEvent("123", self.advisory)
 
     def tearDown(self):
         self.consumer = self.create_consumer()
@@ -140,3 +146,26 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
         self.assertIsInstance(event, FlatpakModuleAdvisoryReadyEvent)
         self.assertEqual("fake-msg-id", event.msg_id)
         self.assertEqual(self.handler.can_handle(event), True)
+
+    def test_event_state_updated_when_no_auto_rebuild_images(self):
+        self.mock_get_auto_rebuild_image_list.return_value = []
+        handler = RebuildFlatpakApplicationOnModuleReady()
+        handler.handle(self.event)
+
+        db_event = Event.get(db.session, message_id='123')
+        self.assertEqual(db_event.state, EventState.SKIPPED.value)
+        self.assertEqual(
+            db_event.state_reason,
+            "There is no auto rebuild image can be rebuilt. message_id: 123")
+
+    def test_event_state_updated_when_no_images_with_higher_rpm_nvr(self):
+        self.mock_get_auto_rebuild_image_list.return_value = ["image-foo-bar"]
+        self.mock_filter_images_with_higher_rpm_nvr.return_value = []
+        handler = RebuildFlatpakApplicationOnModuleReady()
+        handler.handle(self.event)
+
+        db_event = Event.get(db.session, message_id='123')
+        self.assertEqual(db_event.state, EventState.SKIPPED.value)
+        self.assertEqual(
+            db_event.state_reason,
+            "There is no image with higher rpm nvr can be rebuilt. message_id: 123")
