@@ -253,15 +253,12 @@ class Errata(object):
         get_advisory_cdn_docker_file_list
         :param int errata_id: Errata advisory ID.
         :rtype: dict
-        :return: Dict of advisory builds with repo and tag config:
+        :return: Dict of repos and tags config:
             {
-                'build_NVR': {
-                    'cdn_repo1': [
-                        'tag1',
-                        'tag2'
-                    ],
-                    ...
-                },
+                'cdn_repo1': [
+                    'tag1',
+                    'tag2'
+                ],
                 ...
             }
         """
@@ -276,15 +273,11 @@ class Errata(object):
                         "returned None.")
             return None
 
-        repo_tags = dict()
-        for build_nvr in response:
-            if build_nvr not in repo_tags:
-                repo_tags[build_nvr] = dict()
-            repos = response[build_nvr]['docker']['target']['repos']
-            for repo in repos:
-                tags = repos[repo]['tags']
-                repo_tags[build_nvr][repo] = tags
-        return repo_tags
+        return {
+            repo: repo_data['tags']
+            for build_data in response.values()
+            for repo, repo_data in build_data['docker']['target']['external_repos'].items()
+        }
 
     def advisories_from_event(self, event):
         """

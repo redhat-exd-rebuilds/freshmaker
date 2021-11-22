@@ -304,18 +304,6 @@ class Config(object):
             'type': str,
             'default': '',
             'desc': 'Password to login Pulp.'},
-        'pulp_docker_server_url': {
-            'type': str,
-            'default': '',
-            'desc': 'Server URL of Pulp Docker.'},
-        'pulp_docker_username': {
-            'type': str,
-            'default': '',
-            'desc': 'Username to login Pulp Docker.'},
-        'pulp_docker_password': {
-            'type': str,
-            'default': '',
-            'desc': 'Password to login Pulp Docker.'},
         'bob_server_url': {
             'type': str,
             'default': '',

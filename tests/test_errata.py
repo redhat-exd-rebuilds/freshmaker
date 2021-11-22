@@ -545,7 +545,7 @@ class TestErrata(helpers.FreshmakerTestCase):
                 'foo-container-1-1': {
                     'docker': {
                         'target': {
-                            'repos': {
+                            'external_repos': {
                                 'foo-526': {'tags': ['5.26', 'latest']}
                             }
                         }
@@ -554,7 +554,33 @@ class TestErrata(helpers.FreshmakerTestCase):
             }
             repo_tags = self.errata.get_docker_repo_tags(28484)
 
-            expected = {'foo-container-1-1': {'foo-526': ['5.26', 'latest']}}
+            expected = {'foo-526': ['5.26', 'latest']}
+            self.assertEqual(repo_tags, expected)
+
+        with patch.object(self.errata, "xmlrpc") as xmlrpc:
+            xmlrpc.get_advisory_cdn_docker_file_list.return_value = {
+                'foo-container-1-1': {
+                    'docker': {
+                        'target': {
+                            'external_repos': {
+                                'foo-526': {'tags': ['5.26', 'latest']}
+                            }
+                        }
+                    }
+                },
+                'bar-container-1-1': {
+                    'docker': {
+                        'target': {
+                            'external_repos': {
+                                'bar-526': {'tags': ['5.27', 'latest']}
+                            }
+                        }
+                    }
+                }
+            }
+            repo_tags = self.errata.get_docker_repo_tags(28484)
+
+            expected = {'bar-526': ['5.27', 'latest'], 'foo-526': ['5.26', 'latest']}
             self.assertEqual(repo_tags, expected)
 
     def test_get_docker_repo_tags_xmlrpc_exception(self):
