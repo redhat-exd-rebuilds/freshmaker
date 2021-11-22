@@ -26,7 +26,6 @@ import requests
 from freshmaker import conf, db
 from freshmaker.models import Event
 from freshmaker.errata import Errata
-from freshmaker.pulp import Pulp
 from freshmaker.events import (
     ErrataAdvisoryStateChangedEvent, ManualRebuildWithAdvisoryEvent)
 from freshmaker.handlers import ContainerBuildHandler, fail_event_on_handler_exception
@@ -84,29 +83,15 @@ class RebuildImagesOnImageAdvisoryChange(ContainerBuildHandler):
             db.session.commit()
             return
 
-        # Use the Pulp to get the Docker repository name from the CDN repository
-        # name and store it into `docker_repos` dict.
-        pulp = Pulp(conf.pulp_docker_server_url, conf.pulp_docker_username,
-                    conf.pulp_docker_password)
-        # {docker_repository_name: [list, of, docker, tags], ...}
-        docker_repos = {}
-        for per_build_repo_tags in repo_tags.values():
-            for cdn_repo, docker_repo_tags in per_build_repo_tags.items():
-                docker_repo = pulp.get_docker_repository_name(cdn_repo)
-                if not docker_repo:
-                    self.log_error("No Docker repo found for CDN repo %r", cdn_repo)
-                    continue
-                docker_repos[docker_repo] = docker_repo_tags
-
         self.log_info("Found following Docker repositories updated by the advisory: %r",
-                      docker_repos.keys())
+                      repo_tags.keys())
 
         # Count the number of impacted builds to show them in state reason
         # when moving the Event to COMPLETE.
         num_impacted = None
 
         # Submit rebuild request to Bob :).
-        for repo_name in docker_repos.keys():
+        for repo_name in repo_tags.keys():
             self.log_info("Requesting Bob rebuild of %s", repo_name)
 
             parent_build = self.record_build(
@@ -134,7 +119,7 @@ class RebuildImagesOnImageAdvisoryChange(ContainerBuildHandler):
                         state=ArtifactBuildState.DONE.value, dep_on=parent_build)
 
         msg = "Advisory %s: Informed Bob about update of %d image repositories." % (
-            db_event.search_key, len(docker_repos))
+            db_event.search_key, len(repo_tags))
         if num_impacted is not None:
             msg += " Bob is rebuilding %d impacted external image repositories." % (
                 num_impacted)

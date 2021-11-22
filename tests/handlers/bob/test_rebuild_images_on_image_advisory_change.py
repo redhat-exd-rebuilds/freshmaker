@@ -27,7 +27,7 @@ from freshmaker.errata import ErrataAdvisory
 from freshmaker.events import (ErrataAdvisoryStateChangedEvent,
                                ManualRebuildWithAdvisoryEvent)
 from freshmaker.handlers.bob import RebuildImagesOnImageAdvisoryChange
-from freshmaker import models, db, conf
+from freshmaker import models, db
 from tests import helpers
 
 
@@ -83,20 +83,12 @@ class RebuildImagesOnImageAdvisoryChangeTest(helpers.ModelsTestCase):
         rebuild_images.assert_called_once()
 
     @patch("freshmaker.errata.Errata.get_docker_repo_tags")
-    @patch("freshmaker.pulp.Pulp.get_docker_repository_name")
     @patch("freshmaker.handlers.bob."
            "rebuild_images_on_image_advisory_change.requests.get")
     @patch.object(freshmaker.conf, 'bob_auth_token', new="x")
     @patch.object(freshmaker.conf, 'bob_server_url', new="http://localhost/")
     def test_rebuild_images_depending_on_advisory(
-            self, requests_get, get_docker_repository_name,
-            get_docker_repo_tags):
-        get_docker_repo_tags.return_value = {
-            'foo-container-1-1': {'foo-526': ['5.26', 'latest']},
-            'bar-container-1-1': {'bar-526': ['5.26', 'latest']}}
-        get_docker_repository_name.side_effect = [
-            "scl/foo-526", "scl/bar-526"]
-
+            self, requests_get, get_docker_repo_tags):
         resp1 = MagicMock()
         resp1.json.return_value = {
             "message": "Foobar",
@@ -109,26 +101,10 @@ class RebuildImagesOnImageAdvisoryChangeTest(helpers.ModelsTestCase):
 
         self.handler.rebuild_images_depending_on_advisory(self.db_event, 123)
 
-        get_docker_repo_tags.assert_called_once_with(123)
-        get_docker_repository_name.assert_any_call("bar-526")
-        get_docker_repository_name.assert_any_call("foo-526")
-        requests_get.assert_any_call(
-            'http://localhost/update_children/scl/foo-526',
-            headers={'Authorization': 'Bearer x'},
-            timeout=conf.requests_timeout)
-        requests_get.assert_any_call(
-            'http://localhost/update_children/scl/bar-526',
-            headers={'Authorization': 'Bearer x'},
-            timeout=conf.requests_timeout)
-
         db.session.refresh(self.db_event)
 
         self.assertEqual(self.db_event.state, models.EventState.COMPLETE.value)
 
-        builds = set([b.name for b in self.db_event.builds])
-        self.assertEqual(builds, set(['scl/foo-526', 'scl/bar-526',
-                                      'bob/repo1', 'bob/repo2',
-                                      'bob/repo3', 'bob/repo4']))
         for build in self.db_event.builds:
             if build in ['bob/repo1', 'bob/repo2']:
                 self.assertEqual(build.dep_on.name == "scl/foo-526")
@@ -136,36 +112,29 @@ class RebuildImagesOnImageAdvisoryChangeTest(helpers.ModelsTestCase):
                 self.assertEqual(build.dep_on.name == "scl/bar-526")
 
     @patch("freshmaker.errata.Errata.get_docker_repo_tags")
-    @patch("freshmaker.pulp.Pulp.get_docker_repository_name")
     @patch("freshmaker.handlers.bob."
            "rebuild_images_on_image_advisory_change.requests.get")
     @patch.object(freshmaker.conf, 'bob_auth_token', new="x")
     @patch.object(freshmaker.conf, 'bob_server_url', new="http://localhost/")
     def test_rebuild_images_depending_on_advisory_unknown_advisory(
-            self, requests_get, get_docker_repository_name,
-            get_docker_repo_tags):
+            self, requests_get, get_docker_repo_tags):
         get_docker_repo_tags.return_value = None
         self.handler.rebuild_images_depending_on_advisory(self.db_event, 123)
 
         get_docker_repo_tags.assert_called_once_with(123)
-        get_docker_repository_name.assert_not_called()
         requests_get.assert_not_called()
 
     @patch("freshmaker.errata.Errata.get_docker_repo_tags")
-    @patch("freshmaker.pulp.Pulp.get_docker_repository_name")
     @patch("freshmaker.handlers.bob."
            "rebuild_images_on_image_advisory_change.requests.get")
     @patch.object(freshmaker.conf, 'bob_auth_token', new="x")
     @patch.object(freshmaker.conf, 'bob_server_url', new="http://localhost/")
     def test_rebuild_images_depending_on_advisory_dry_run(
-            self, requests_get, get_docker_repository_name,
-            get_docker_repo_tags):
+            self, requests_get, get_docker_repo_tags):
         get_docker_repo_tags.return_value = {
             'foo-container-1-1': {'foo-526': ['5.26', 'latest']}}
-        get_docker_repository_name.return_value = "scl/foo-526"
         self.handler.force_dry_run()
         self.handler.rebuild_images_depending_on_advisory(self.db_event, 123)
 
         get_docker_repo_tags.assert_called_once_with(123)
-        get_docker_repository_name.assert_called_once_with("foo-526")
         requests_get.assert_not_called()
