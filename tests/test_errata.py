@@ -181,6 +181,39 @@ class MockedErrataAPI(object):
             }
         }
 
+        self.builds_list_with_sig_key = {
+            "PRODUCT1": {
+                "name": "PRODUCT1",
+                "description": "Product 1",
+                "builds": [
+                    {
+                        "pkg1-4.18.0-305.10.2.rt7.83.el8_4": {
+                            "nvr": "pkg1-4.18.0-305.10.2.rt7.83.el8_4",
+                            "nevr": "pkg1-0:4.18.0-305.10.2.rt7.83.el8_4",
+                            "id": 1000,
+                            "is_module": False,
+                            "is_signed": True
+                        },
+                        "pkg2-4.18.0-305.10.2.rt7.83.el8_4": {
+                            "nvr": "pkg2-4.18.0-305.10.2.rt7.83.el8_4",
+                            "nevr": "pkg2-0:4.18.0-305.10.2.rt7.83.el8_4",
+                            "id": 1001,
+                            "is_module": False,
+                            "is_signed": True
+                        }
+                    }
+                ],
+                "sig_key": {
+                    "name": "releasekey",
+                    "keyid": "abcdef01"
+                },
+                "container_sig_key": {
+                    "name": "releasekey",
+                    "keyid": "abcdef01"
+                }
+            }
+        }
+
         self.blocking_errata_for = ["28484"]
 
     def errata_rest_get(self, endpoint):
@@ -189,6 +222,8 @@ class MockedErrataAPI(object):
             return self.builds[nvr]
         elif endpoint.find("builds_by_cve") != -1:
             return self.builds_by_cve
+        elif endpoint.endswith("builds_list?with_sig_key=1"):
+            return self.builds_list_with_sig_key
         elif endpoint.find("erratum/") != -1:
             return self.advisory_rest_json
 
@@ -307,14 +342,16 @@ class TestErrata(helpers.FreshmakerTestCase):
     @patch.object(Errata, "_errata_http_get")
     def test_builds_signed_some_unsigned(self, errata_http_get, errata_rest_get):
         mocked_errata = MockedErrataAPI(errata_rest_get, errata_http_get)
-        mocked_errata.builds["libntirpc-1.4.3-4.el7rhgs"]["rpms_signed"] = False
+        builds = mocked_errata.builds_list_with_sig_key["PRODUCT1"]["builds"][0]
+        builds["pkg1-4.18.0-305.10.2.rt7.83.el8_4"]["is_signed"] = False
         self.assertFalse(self.errata.builds_signed(28484))
 
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
     def test_builds_signed_missing_data(self, errata_http_get, errata_rest_get):
         mocked_errata = MockedErrataAPI(errata_rest_get, errata_http_get)
-        mocked_errata.builds["libntirpc-1.4.3-4.el7rhgs"] = {}
+        builds = mocked_errata.builds_list_with_sig_key["PRODUCT1"]["builds"][0]
+        builds["pkg1-4.18.0-305.10.2.rt7.83.el8_4"] = {}
         self.assertFalse(self.errata.builds_signed(28484))
 
     @patch('freshmaker.errata.requests.get')

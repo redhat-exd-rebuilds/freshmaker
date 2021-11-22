@@ -227,6 +227,9 @@ class Errata(object):
     def _get_attached_builds(self, errata_id):
         return self._errata_http_get(f"advisory/{errata_id}/builds.json")
 
+    def _get_builds_by_product(self, errata_id):
+        return self._errata_rest_get(f"/erratum/{errata_id}/builds_list?with_sig_key=1")
+
     @region.cache_on_arguments()
     def _advisories_from_nvr(self, nvr):
         """
@@ -311,22 +314,13 @@ class Errata(object):
         :return: True if all builds in advisory are signed.
         :rtype: bool
         """
-        builds_per_product = self._get_attached_builds(errata_id)
-
-        # Store NVRs of all builds in advisory to nvrs set.
-        nvrs = set()
-        for builds in builds_per_product.values():
-            for build in builds:
-                nvrs.update(set(build.keys()))
-
-        # For each NVR, check that all the rpms are signed.
-        for nvr in nvrs:
-            log.info("Checking whether the build %s is signed", str(nvr))
-            build = self._errata_rest_get("build/%s" % str(nvr))
-            if "rpms_signed" not in build or not build["rpms_signed"]:
-                return False
-
-        return True
+        data_by_product = self._get_builds_by_product(errata_id)
+        return all(
+            build_info.get("is_signed") is True
+            for product_data in data_by_product.values()
+            for build in product_data.get("builds", [])
+            for build_info in build.values()
+        )
 
     def _rhel_release_from_product_version(self, errata_id, product_version):
         """
