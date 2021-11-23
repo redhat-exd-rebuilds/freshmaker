@@ -229,7 +229,9 @@ class HandleBotasAdvisory(ContainerBuildHandler):
 
         bundles_by_nvr = {}
         for bundle_nvr in bundle_nvrs:
-            images = self._pyxis.get_images_by_nvr(bundle_nvr)
+            images = self._pyxis.get_images_by_nvr(bundle_nvr, ["data.architecture",
+                                                                "data.brew",
+                                                                "data.repositories"])
             if not images:
                 log.warning("Image %s is not found in Pyxis, ignore it.", bundle_nvr)
                 continue

@@ -244,7 +244,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         # return bundles for original operator images
         self.pyxis().get_bundles_by_related_image_digest.side_effect = lambda x, y: bundles_with_related_images[x]
         self.pyxis().get_images_by_digest.side_effect = lambda x: [image_by_digest[x]]
-        self.pyxis().get_images_by_nvr.side_effect = lambda x: [image_by_nvr[x]]
+        self.pyxis().get_images_by_nvr.side_effect = lambda x, y: [image_by_nvr[x]]
         self.handler.image_has_auto_rebuild_tag = MagicMock(return_value=True)
         get_build = self.patcher.patch("freshmaker.kojiservice.KojiService.get_build")
         get_build.side_effect = lambda x: builds[x]
@@ -431,7 +431,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         # return bundles for original operator images
         self.pyxis().get_bundles_by_related_image_digest.side_effect = lambda x, y: bundles_with_related_images[x]
         self.pyxis().get_images_by_digest.side_effect = lambda x: [image_by_digest[x]]
-        self.pyxis().get_images_by_nvr.side_effect = lambda x: [image_by_nvr[x]]
+        self.pyxis().get_images_by_nvr.side_effect = lambda x, y: [image_by_nvr[x]]
         self.pyxis().is_bundle.return_value = True
         # ignore bundle because it was already built in dependent event
         get_dependent_event_build.side_effect = lambda x: True if x == 'bundle4_nvr-1-1' else False
@@ -565,7 +565,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
             "foo-a-bundle-2.1-2": {"brew": {"build": "foo-a-bundle-2.1-2"}},
             "foo-b-bundle-3.1-2": {"brew": {"build": "foo-b-bundle-3.1-2"}},
         }
-        self.pyxis().get_images_by_nvr.side_effect = lambda x: [image_by_nvr[x]]
+        self.pyxis().get_images_by_nvr.side_effect = lambda x, y: [image_by_nvr[x]]
 
         def gmldbn(nvr, must_be_published=True):
             return digests_by_nvrs[nvr]

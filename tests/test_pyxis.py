@@ -522,7 +522,11 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
 
     @patch('freshmaker.pyxis.Pyxis._pagination')
     def test_get_images_by_nvr(self, page):
-        self.px.get_images_by_nvr("some-nvr")
+        include_fields = ["data.architecture",
+                          "data.brew",
+                          "data.repositories"
+                          ]
+        self.px.get_images_by_nvr("some-nvr", include_fields)
         page.assert_called_once_with("images/nvr/some-nvr", {
             "include": "data.architecture,data.brew,data.repositories"
         })
