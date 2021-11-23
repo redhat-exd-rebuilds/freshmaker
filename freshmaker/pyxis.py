@@ -273,15 +273,18 @@ class Pyxis(object):
                           'filter': q_filter}
         return self._pagination('images', request_params)
 
-    def get_images_by_nvr(self, nvr):
+    def get_images_by_nvr(self, nvr, include=None):
         """
         Get images by image's NVR
 
         :param str nvr: NVR of image
+        :param list include: included fields in image data.
         :return: images
         :rtype: list
         """
         request_params = {"include": "data.architecture,data.brew,data.repositories"}
+        if include:
+            request_params = {'include': ','.join(include)}
         return self._pagination(f'images/nvr/{nvr}', request_params)
 
     def get_auto_rebuild_tags(self, registry, repository):
@@ -313,4 +316,20 @@ class Pyxis(object):
         for label in images[0].get("parsed_data", {}).get("labels", []):
             if label["name"] == "com.redhat.delivery.operator.bundle" and label["value"] == "true":
                 return True
+        return False
+
+    def image_is_tagged_auto_rebuild(self, nvr):
+        include = ["data.repositories.registry", "data.repositories.repository",
+                   "data.repositories.tags.name", "data.repositories.published"]
+        images = self.get_images_by_nvr(nvr, include=include)
+        if images:
+            # Only use item 0 for getting necessary metadata as the difference between
+            # different items are the arches info, the metadata we want are the same.
+            image = images[0]
+            for repo in image['repositories']:
+                if not repo['published']:
+                    continue
+                auto_rebuild_tags = self.get_auto_rebuild_tags(repo['registry'], repo['repository'])
+                if set(tag['name'] for tag in repo['tags']) & set(auto_rebuild_tags):
+                    return True
         return False

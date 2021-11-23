@@ -598,3 +598,37 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
         }]
         is_bundle = self.px.is_bundle("foobar-bundle-1-234")
         self.assertFalse(is_bundle)
+
+    @patch('freshmaker.pyxis.Pyxis.get_auto_rebuild_tags')
+    @patch('freshmaker.pyxis.Pyxis._pagination')
+    def test_image_is_tagged_auto_rebuild(self, page, get_auto_rebuild_tags):
+        page.return_value = [
+            {'_links': {},
+             'repositories': [{'_links': {},
+                               'published': True,
+                               'registry': 'some.registry.com',
+                               'repository': 'product1/thunderbird-flatpak',
+                               'tags': [{'_links': {}, 'name': 'flatpak-8040020210719090808.1'}],
+                               }]
+             }]
+        get_auto_rebuild_tags.return_value = ['flatpak-8040020210719090808.1',
+                                              'latest'
+                                              ]
+        is_tagged_auto_rebuild = self.px.image_is_tagged_auto_rebuild('thunderbird-flatpak-container-flatpak-8040020210719090808.1')
+        self.assertEqual(is_tagged_auto_rebuild, True)
+
+    @patch('freshmaker.pyxis.Pyxis.get_auto_rebuild_tags')
+    @patch('freshmaker.pyxis.Pyxis._pagination')
+    def test_image_is_not_tagged_auto_rebuild(self, page, get_auto_rebuild_tags):
+        page.return_value = [
+            {'_links': {},
+             'repositories': [{'_links': {},
+                               'published': True,
+                               'registry': 'some.registry.com',
+                               'repository': 'product1/thunderbird-flatpak',
+                               'tags': [{'_links': {}, 'name': 'flatpak-8040020210719090808.1'}],
+                               }]
+             }]
+        get_auto_rebuild_tags.return_value = ['latest']
+        is_tagged_auto_rebuild = self.px.image_is_tagged_auto_rebuild('thunderbird-flatpak-container-flatpak-8040020210719090808.1')
+        self.assertEqual(is_tagged_auto_rebuild, False)
