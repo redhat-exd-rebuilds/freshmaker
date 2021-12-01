@@ -1,6 +1,8 @@
 name: Docs
 
 on:
+  pull_request:
+
   push:
     branches:
       - master
@@ -12,21 +14,26 @@ jobs:
       RPM_PY_SYS: true
     steps:
       - uses: actions/checkout@v2
-      - name: Install dependencies
-        run: sudo apt-get -y install koji-client libkrb5-dev libldap2-dev libsasl2-dev librpm-dev rpm 
-      - name: Setup Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - name: Upgrade pip
-        run: pip install --upgrade pip
-      - name: Install Tox
-        run: pip install tox
-      - name: Build docs
-        run: tox -e docs
+
       - name: Disable Jekyll
-        run: touch docs/_build/html/.nojekyll
+        if: github.ref == 'refs/heads/master'
+        shell: bash
+        run: mkdir -p docs/_build/html/ && touch docs/_build/html/.nojekyll
+
+      - name: Get package list
+        id: packages
+        shell: bash
+        run: |
+          echo ::set-output name=packages::$(sed 's/#.*//' yum-packages-devel.txt)
+
+      - name: Build docs
+        uses: fedora-python/tox-github-action@master
+        with:
+          dnf_install: --repo fedora ${{ steps.packages.outputs.packages }}
+          tox_env: docs
+
       - name: Deploy docs
+        if: github.ref == 'refs/heads/master'
         uses: JamesIves/github-pages-deploy-action@4.1.0
         with:
           branch: gh-pages
