@@ -25,3 +25,4 @@ defusedxml
 rpm-py-installer
 semver
 pygobject
+python-json-logger

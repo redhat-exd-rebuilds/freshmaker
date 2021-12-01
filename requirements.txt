@@ -151,6 +151,8 @@ python-fedora==1.1.1
     # via
     #   -r requirements.in
     #   odcs
+python-json-logger==2.0.2
+    # via -r requirements.in
 python-ldap==3.3.1
     # via pyldap
 pytz==2021.3
