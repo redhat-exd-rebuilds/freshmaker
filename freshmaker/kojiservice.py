@@ -404,7 +404,8 @@ class KojiService(object):
 
         zipfile = ZipFile(BytesIO(resp.content))
         files = zipfile.namelist()
-        csv_files = [fn for fn in files if fn.endswith('.clusterserviceversion.yaml')]
+        csv_suffixes = (".clusterserviceversion.yaml", ".csv.yaml")
+        csv_files = [fn for fn in files if fn.endswith(csv_suffixes)]
         if not csv_files:
             log.error("CSV file not found in operator manifest of build %s", build_nvr)
             return None
