@@ -274,9 +274,6 @@ class ContainerImage(dict):
             flatpak = extra_image.get("flatpak", False)
             if flatpak:
                 data["flatpak"] = flatpak
-                isolated = extra_image.get("isolated")
-                if isolated is not None:
-                    data["isolated"] = isolated
 
             brew_task = session.get_task_request(
                 build['task_id'])
