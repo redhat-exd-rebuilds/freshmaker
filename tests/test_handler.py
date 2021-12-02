@@ -249,7 +249,6 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
         build_args = json.loads(self.build_1.build_args)
         build_args.update({
             "flatpak": True,
-            "isolated": False,
             "renewed_odcs_compose_ids": [7300],
         })
         flatpak_build.build_args = json.dumps(build_args)
@@ -263,6 +262,8 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
                 'git_branch': 'branch',
                 'compose_ids': [5, 7300],
                 'flatpak': True,
+                'isolated': True,
+                'arch_override': 'x86_64',
                 'release': '2.1234567'
             }
         )

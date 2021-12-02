@@ -308,7 +308,7 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
 
         self.dummy_image.resolve_commit()
         self.assertEqual(self.dummy_image.get("flatpak"), True)
-        self.assertEqual(self.dummy_image.get("isolated"), False)
+        self.assertEqual(self.dummy_image.get("isolated"), None)
 
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')
