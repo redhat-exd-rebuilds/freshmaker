@@ -403,6 +403,31 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
         self.assertEqual(self.dummy_image["generate_pulp_repos"], True)
         self.assertEqual(self.dummy_image["original_odcs_compose_ids"], [7300, 7301])
 
+    @patch('freshmaker.kojiservice.KojiService.get_build')
+    def test_resolve_original_odcs_compose_ids_without_dependency_builds(self, get_build):
+        image = ContainerImage.create({
+            '_id': '1233829',
+            'brew': {
+                'build': 'package-name-1-4-12.10'
+            },
+            'repository': 'repo-1',
+            'git_branch': 'branch',
+            'commit': 'commit_hash1',
+        })
+        get_build.return_value = {
+            "task_id": 123456,
+            'extra': {
+                'image': {
+                    'odcs': {
+                        'compose_ids': [7300, 7301]
+                    }
+                }
+            }
+        }
+
+        image.resolve_original_odcs_compose_ids(False)
+        self.assertEqual(image["original_odcs_compose_ids"], [7300, 7301])
+
     def test_resolve_content_sets_already_included_in_lb_response(self):
         image = ContainerImage.create({
             '_id': '1233829',

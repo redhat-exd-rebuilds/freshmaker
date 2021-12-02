@@ -454,7 +454,16 @@ class KojiService(object):
             return None
 
         try:
-            _, mmd = Modulemd.read_packager_string(modulemd_str, None, None)
+            # There is a chicken-egg problem with overrides.
+            # With the overrides, read_packager_string's gtype in return value will be stripped.
+            # If no overrides installed, it returns _ResultTuple. Reference from:
+            # https://github.com/fedora-modularity/libmodulemd/blob/main/modulemd/tests/ModulemdTests/common.py#L116-L129
+            if not (
+                "_overrides_module" in dir(Modulemd) and hasattr(gi.overrides.Modulemd, "read_packager_string")
+            ):
+                _, mmd = Modulemd.read_packager_string(modulemd_str, None, None)
+            else:
+                mmd = Modulemd.read_packager_string(modulemd_str, None, None)
             return mmd
         except Exception as e:
             log.error("Read packager string failed for NVR %s: %s", build_nvr, str(e))
