@@ -51,16 +51,20 @@ class ImageGroup:
         self.repos = {x["repository"] for x in repositories}
 
     def __eq__(self, other):
-        return all(
-            [self.name == other.name and self.version == other.version and self.repos == other.repos]
+        return (
+            self.name == other.name and
+            self.version == other.version and
+            self.repos == other.repos
         )
 
     def __str__(self):
         return "%s-%s-%s" % (self.name, self.version, sorted(self.repos))
 
     def issubset(self, other):
-        return all(
-            [self.name == other.name and self.version == other.version and self.repos.issubset(other.repos)]
+        return (
+            self.name == other.name and
+            self.version == other.version and
+            self.repos.issubset(other.repos)
         )
 
 
