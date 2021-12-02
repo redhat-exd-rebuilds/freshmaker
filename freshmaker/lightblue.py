@@ -350,29 +350,35 @@ class ContainerImage(dict):
 
         self.update(data)
 
-    def resolve_original_odcs_compose_ids(self):
+    def resolve_original_odcs_compose_ids(self, from_most_original_build=True):
         """
-        Resolve the ODCS compose ids used in most original image
+        Resolve the ODCS compose ids.
 
         Gets the ODCS compose ids by excluding the composes added by
         freshmaker, and sets the "original_odcs_compose_ids" of this image
+
+        :param bool from_most_original_build: If True, resolve the ODCS compose
+            ids used in most original image
         """
         # This has been populated, skip.
         if self.get("original_odcs_compose_ids") is not None:
             return
 
-        self["generate_pulp_repos"] = True
         self["original_odcs_compose_ids"] = []
-        # If this image was built by freshmaker, query database recursively to
-        # get the NVR of most original image which was not built by freshmaker
-        most_original_nvr = ArtifactBuild.get_most_original_nvr(self.nvr)
-        if most_original_nvr is None:
-            most_original_nvr = self.nvr
+
+        original_nvr = self.nvr
+        if from_most_original_build:
+            self["generate_pulp_repos"] = True
+            # If this image was built by freshmaker, query database recursively to
+            # get the NVR of most original image which was not built by freshmaker
+            original_nvr = ArtifactBuild.get_most_original_nvr(self.nvr)
+            if original_nvr is None:
+                original_nvr = self.nvr
 
         compose_ids = []
         with koji_service(conf.koji_profile, log, dry_run=conf.dry_run, login=False) as session:
             try:
-                compose_ids = session.get_odcs_compose_ids(most_original_nvr)
+                compose_ids = session.get_odcs_compose_ids(original_nvr)
             except Exception as e:
                 self["error"] = str(e)
                 log.error("Failed to resolve original odcs compose ids for %s", self.nvr)
@@ -380,7 +386,7 @@ class ContainerImage(dict):
 
         self["original_odcs_compose_ids"] = compose_ids
         log.info("Original ODCS compose ids of %s: %r (from %s)",
-                 self.nvr, self["original_odcs_compose_ids"], most_original_nvr)
+                 self.nvr, self["original_odcs_compose_ids"], original_nvr)
 
     def resolve_content_sets(self, lb_instance, children=None):
         """

@@ -22,7 +22,7 @@
 #
 from unittest import mock
 
-from freshmaker import kojiservice
+from freshmaker import kojiservice  # noqa E402
 
 
 @mock.patch("freshmaker.kojiservice.koji")
@@ -54,39 +54,39 @@ def test_build_container_csv_mods(mock_koji):
 def test_get_ocp_versions_range(mock_koji):
     mock_session = mock.Mock()
     mock_session.getBuild.return_value = {"id": 123}
-    archives = [{
-        "arch": "x86_64",
-        "btype": "image",
-        "extra": {
-            "docker": {
-                "config": {
-                    "architecture": "amd64",
+    archives = [
+        {
+            "arch": "x86_64",
+            "btype": "image",
+            "extra": {
+                "docker": {
                     "config": {
-                        "Hostname": "c4b105e29878",
-                        "Labels": {
-                            "architecture": "x86_64",
-                            "com.redhat.component": "foobar-bundle-container",
-                            "com.redhat.delivery.backport": "true",
-                            "com.redhat.delivery.operator.bundle": "true",
-                            "com.redhat.openshift.versions": "v4.5,v4.6"
-                        }
+                        "architecture": "amd64",
+                        "config": {
+                            "Hostname": "c4b105e29878",
+                            "Labels": {
+                                "architecture": "x86_64",
+                                "com.redhat.component": "foobar-bundle-container",
+                                "com.redhat.delivery.backport": "true",
+                                "com.redhat.delivery.operator.bundle": "true",
+                                "com.redhat.openshift.versions": "v4.5,v4.6",
+                            },
+                        },
+                        "os": "linux",
                     },
-                    "os": "linux"
+                    "id": "sha256:123",
                 },
-                "id": "sha256:123"
+                "image": {"arch": "x86_64"},
             },
-            "image": {
-                "arch": "x86_64"
-            }
-        },
-        "type_name": "tar"
-    }]
+            "type_name": "tar",
+        }
+    ]
 
     mock_session.listArchives.return_value = archives
     mock_koji.ClientSession.return_value = mock_session
 
     svc = kojiservice.KojiService()
-    assert svc.get_ocp_versions_range('foobar-2-123') == "v4.5,v4.6"
+    assert svc.get_ocp_versions_range("foobar-2-123") == "v4.5,v4.6"
 
 
 @mock.patch("freshmaker.kojiservice.koji")
@@ -101,7 +101,7 @@ def test_get_bundle_csv_success(
     mock_session.getBuild.return_value = {
         "id": 123,
         "nvr": "foobar-bundle-container-2.0-123",
-        "extra": {"operator_manifests_archive": "operator_manifests.zip"}
+        "extra": {"operator_manifests_archive": "operator_manifests.zip"},
     }
     mock_koji.ClientSession.return_value = mock_session
     mock_get.return_value = mock.Mock(ok=True)
@@ -109,13 +109,13 @@ def test_get_bundle_csv_success(
         "foobar-v2.0-opr-1.clusterserviceversion.yaml",
         "foobar_crd.yaml",
         "foobar_artemisaddress_crd.yaml",
-        "foobar_artemisscaledown_crd.yaml"
+        "foobar_artemisscaledown_crd.yaml",
     ]
     mock_yaml.safe_load.return_value = {
         "apiVersion": "operators.coreos.com/v1alpha1",
         "kind": "ClusterServiceVersion",
         "spec": {"version": "2.0-opr-1"},
-        "metadata": {"name": "foobar-2.0-opr-1"}
+        "metadata": {"name": "foobar-2.0-opr-1"},
     }
 
     svc = kojiservice.KojiService()
@@ -136,7 +136,7 @@ def test_get_bundle_csv_from_csv_dot_yaml(
     mock_session.getBuild.return_value = {
         "id": 123,
         "nvr": "foobar-bundle-container-2.0-123",
-        "extra": {"operator_manifests_archive": "operator_manifests.zip"}
+        "extra": {"operator_manifests_archive": "operator_manifests.zip"},
     }
     mock_koji.ClientSession.return_value = mock_session
     mock_get.return_value = mock.Mock(ok=True)
@@ -144,13 +144,13 @@ def test_get_bundle_csv_from_csv_dot_yaml(
         "foobar-v2.0-opr-1.csv.yaml",
         "foobar_crd.yaml",
         "foobar_artemisaddress_crd.yaml",
-        "foobar_artemisscaledown_crd.yaml"
+        "foobar_artemisscaledown_crd.yaml",
     ]
     mock_yaml.safe_load.return_value = {
         "apiVersion": "operators.coreos.com/v1alpha1",
         "kind": "ClusterServiceVersion",
         "spec": {"version": "2.0-opr-1"},
-        "metadata": {"name": "foobar-2.0-opr-1"}
+        "metadata": {"name": "foobar-2.0-opr-1"},
     }
 
     svc = kojiservice.KojiService()
@@ -167,7 +167,7 @@ def test_get_bundle_csv_unavailable(mock_get, mock_koji, mock_log):
     mock_session.getBuild.return_value = {
         "id": 123,
         "nvr": "foobar-bundle-container-2.0-123",
-        "extra": {}
+        "extra": {},
     }
     mock_koji.ClientSession.return_value = mock_session
 
@@ -175,31 +175,36 @@ def test_get_bundle_csv_unavailable(mock_get, mock_koji, mock_log):
     csv = svc.get_bundle_csv("foobar-bundle-container-2.0-123")
     assert csv is None
     mock_log.error.assert_any_call(
-        "Operator manifests archive is unavaiable for build %s", "foobar-bundle-container-2.0-123"
+        "Operator manifests archive is unavaiable for build %s",
+        "foobar-bundle-container-2.0-123",
     )
 
 
 @mock.patch("freshmaker.kojiservice.koji")
 def test_get_modulemd(mock_koji):
     mock_session = mock.Mock()
-    build = {'build_id': 1850907,
-             'epoch': None,
-             'extra': {'typeinfo': {'module': {'modulemd_str': '---\ndocument: modulemd\nversion: 2\ndata:\n  name: ghc\n  stream: "9.2"\n  version: 3620211101111632\n  context: d099bf28\n  summary: Haskell GHC 9.2\n  description: >-\n    This module provides the Glasgow Haskell Compiler version 9.2.1\n',
-                                               'name': 'ghc',
-                                               'stream': '9.2',
-                                               'module_build_service_id': 13274,
-                                               'version': '3620211101111632',
-                                               'context': 'd099bf28',
-                                               'content_koji_tag': 'module-ghc-9.2-3620211101111632-d099bf28'
-                                               }
-                                    }
-                       },
-             'id': 1850907,
-             'name': 'ghc',
-             'nvr': 'ghc-9.2-3620211101111632.d099bf28',
-             'package_id': 1853,
-             'package_name': 'ghc',
-             }
+    build = {
+        "build_id": 1850907,
+        "epoch": None,
+        "extra": {
+            "typeinfo": {
+                "module": {
+                    "modulemd_str": '---\ndocument: modulemd\nversion: 2\ndata:\n  name: ghc\n  stream: "9.2"\n  version: 3620211101111632\n  context: d099bf28\n  summary: Haskell GHC 9.2\n  description: >-\n    This module provides the Glasgow Haskell Compiler version 9.2.1\n',
+                    "name": "ghc",
+                    "stream": "9.2",
+                    "module_build_service_id": 13274,
+                    "version": "3620211101111632",
+                    "context": "d099bf28",
+                    "content_koji_tag": "module-ghc-9.2-3620211101111632-d099bf28",
+                }
+            }
+        },
+        "id": 1850907,
+        "name": "ghc",
+        "nvr": "ghc-9.2-3620211101111632.d099bf28",
+        "package_id": 1853,
+        "package_name": "ghc",
+    }
 
     mock_session.getBuild.return_value = build
 
