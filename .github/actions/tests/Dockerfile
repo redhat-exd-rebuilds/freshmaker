@@ -7,8 +7,8 @@ LABEL \
 
 USER 0
 
-RUN dnf install -y python-devel fedora-packager gcc krb5-devel openldap-devel gobject-introspection-devel cairo-gobject-devel tox
-RUN sed -i 's/test-requirements/yum-packages.txt/g' tox.ini
+RUN dnf install -y tox $(sed 's/#.*//' yum-packages.txt yum-packages-devel.txt)
+RUN echo > test-requirements.txt
 
 RUN pip install --upgrade pip
 RUN pip install python-ldap tox
