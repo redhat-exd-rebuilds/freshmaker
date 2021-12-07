@@ -99,6 +99,7 @@ class KojiService(object):
                                                self.config)
         return self._session
 
+    @freshmaker.utils.retry(wait_on=koji.AuthError, logger=log)
     def krb_login(self):
         # No need to login on dry run, this makes dry run much faster.
         if not self.dry_run:
