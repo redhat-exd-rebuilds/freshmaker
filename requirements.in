@@ -17,6 +17,7 @@ requests
 requests-kerberos
 odcs[client]
 dogpile.cache
+python-ldap>=3.4.0
 pyldap
 koji
 tabulate
