@@ -140,6 +140,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         #   }
 
         # Mapping of original operator/operand build NVRs to rebuilt NVRs in advisory
+        log.debug("Getting NVR mapping of original images to rebuilt images")
         nvrs_mapping = self._create_original_to_rebuilt_nvrs_map()
 
         original_nvrs = nvrs_mapping.keys()
@@ -157,6 +158,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         original_digests_by_nvr = {}
         original_nvrs_by_digest = {}
         for nvr in original_nvrs:
+            log.debug("Getting manifest_list_digest of image: %s", nvr)
             digest = self._pyxis.get_manifest_list_digest_by_nvr(nvr)
             if digest:
                 original_digests_by_nvr[nvr] = digest
@@ -181,6 +183,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             # Don't require that the manifest list digest be published in this case because
             # there's a delay from after an advisory is shipped and when the published repositories
             # entry is populated
+            log.debug("Getting manifest_list_digest of image: %s", nvr)
             digest = self._pyxis.get_manifest_list_digest_by_nvr(nvr, must_be_published=False)
             if digest:
                 rebuilt_digests_by_nvr[nvr] = digest
@@ -318,6 +321,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         impacted_bundles = set()
         index_paths = self._pyxis.get_index_paths()
         for digest in related_digests:
+            log.debug("Finding bundles by related image digest: %s", digest)
             bundles = self._pyxis.get_bundles_by_related_image_digest(digest, index_paths)
             if not bundles:
                 log.info("No latest bundle found with the related digest: %s", digest)
@@ -329,7 +333,9 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                         "Image not found with bundle path digest: %s, ignore it.",
                         bundle["bundle_path_digest"],
                     )
-                impacted_bundles.add(bundle_images[0]["brew"]["build"])
+                bundle_nvr = bundle_images[0]["brew"]["build"]
+                log.debug("Found impacted bundle: %s", bundle_nvr)
+                impacted_bundles.add(bundle_nvr)
 
         return list(impacted_bundles)
 
@@ -555,6 +561,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                 # Each build is a one key/value pair, and key is the build NVR
                 build_nvr = next(iter(build))
 
+                log.debug("Getting published original image of %s", build_nvr)
                 # Search for the first build that triggered the chain of rebuilds
                 # for every shipped NVR to get original NVR from it
                 original_nvr = self.get_published_original_nvr(build_nvr)
