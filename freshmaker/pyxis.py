@@ -206,41 +206,43 @@ class Pyxis(object):
                     return repo['manifest_list_digest']
         return None
 
-    def get_manifest_schema2_digest_by_nvr(self, nvr, must_be_published=True):
+    def get_manifest_schema2_digests_by_nvr(self, nvr, must_be_published=True):
         """
-        Get image's manifest schema2 digest by its NVR
+        Get image's manifest schema2 digests by its NVR
 
         :param str nvr: NVR of ContainerImage to query Pyxis
         :param bool must_be_published: determines if the image must be published to the repository
             that the manifest list digest is retrieved from
-        :return: digest of image or None if manifest_schema2_digest not exists
-        :rtype: str or None
+        :return: a list of image manifest schema2 digests
+        :rtype: list
         """
         request_params = {'include': ','.join(['data.brew', 'data.repositories'])}
 
-        # get manifest_schema2_digest of ContainerImage from Pyxis
+        digests = set()
+        # Each arch has a manifest schema2 digest, they're different
         for image in self._pagination(f'images/nvr/{nvr}', request_params):
             for repo in image['repositories']:
                 if must_be_published and not repo['published']:
                     continue
                 if 'manifest_schema2_digest' in repo:
-                    return repo['manifest_schema2_digest']
-        return None
+                    digests.add(repo['manifest_schema2_digest'])
+        return list(digests)
 
-    def get_bundles_by_digest(self, digest):
+    def get_bundles_by_digests(self, digests):
         """
-        Get bundles that have the specified digest in 'bundle_path_digest'.
+        Get bundles that have any of the specified digests in 'bundle_path_digest'.
 
-        :param str digest: digest of bundle image to search for
+        :param list digests: list of bundle path digests
         :return: list of bundles
         :rtype: list
         """
-        request_params = {
+        q_filter = " or ".join([f"bundle_path_digest=={digest}" for digest in digests])
+        params = {
             'include': ','.join(['data.version_original', 'data.csv_name']),
-            'filter': f'bundle_path_digest=={digest}'
+            'filter': q_filter
         }
 
-        return self._pagination('operators/bundles', request_params)
+        return self._pagination('operators/bundles', params)
 
     def get_bundles_by_nvr(self, nvr):
         """
@@ -251,10 +253,14 @@ class Pyxis(object):
         :rtype: list
         """
         # Bundle path digest is manifest schema2 digest
-        digest = self.get_manifest_schema2_digest_by_nvr(nvr, must_be_published=False)
-        if not digest:
+        # TODO:
+        # if all bundles have amd64 image, and only the digest from
+        # amd64 image is used by bundle path, then we can just get the
+        # amd64 digest instead of digests from all avaiable arches
+        digests = self.get_manifest_schema2_digests_by_nvr(nvr, must_be_published=False)
+        if not digests:
             return []
-        return self.get_bundles_by_digest(digest)
+        return self.get_bundles_by_digests(digests)
 
     def get_images_by_digest(self, digest):
         """
