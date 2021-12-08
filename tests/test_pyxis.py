@@ -487,31 +487,33 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
     @patch('freshmaker.pyxis.Pyxis._pagination')
     def test_get_manifest_schema2_digest_by_nvr(self, page):
         page.return_value = self.images
-        digest = self.px.get_manifest_schema2_digest_by_nvr('s2i-1-2')
+        digests = self.px.get_manifest_schema2_digests_by_nvr('s2i-1-2')
 
-        expected_digest = 'sha256:11112222'
-        self.assertEqual(digest, expected_digest)
+        expected_digests = [
+            'sha256:22224444', 'sha256:33336666', 'sha256:11112222', 'sha256:44448888'
+        ]
+        self.assertEqual(set(digests), set(expected_digests))
         page.assert_called_once_with(
             'images/nvr/s2i-1-2',
             {'include': 'data.brew,data.repositories'}
         )
 
     @patch('freshmaker.pyxis.Pyxis._pagination')
-    def test_get_bundles_by_digest(self, page):
+    def test_get_bundles_by_digests(self, page):
         page.return_value = {"some_bundle"}
-        digest = "some_digest"
+        digests = ["digest1", "digest2"]
 
-        self.px.get_bundles_by_digest(digest)
+        self.px.get_bundles_by_digests(digests)
 
         page.assert_called_once_with("operators/bundles", {
             "include": "data.version_original,data.csv_name",
-            "filter": "bundle_path_digest==some_digest"
+            "filter": "bundle_path_digest==digest1 or bundle_path_digest==digest2"
         })
 
-    @patch('freshmaker.pyxis.Pyxis.get_manifest_schema2_digest_by_nvr')
+    @patch('freshmaker.pyxis.Pyxis.get_manifest_schema2_digests_by_nvr')
     @patch('freshmaker.pyxis.Pyxis._pagination')
-    def test_get_bundles_by_nvr(self, page, get_digest):
-        get_digest.return_value = "some_digest"
+    def test_get_bundles_by_nvr(self, page, get_digests):
+        get_digests.return_value = ["some_digest"]
 
         self.px.get_bundles_by_nvr("some-nvr")
 
