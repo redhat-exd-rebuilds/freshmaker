@@ -197,10 +197,14 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             return [], f"None of the rebuilt images have digests in Pyxis: {','.join(rebuilt_nvrs)}"
 
         bundle_nvrs = []
+        check_auto_rebuild_tags = True
         if hasattr(self.event, "container_images") and self.event.container_images:
             # For bundles specified explicitly in manual request, consider them as
             # impacted at this moment, will check related images later to determine
             # whether they're impacted by the advisory
+            # These specified container images can be unpublished, so don't check
+            # the auto rebuild tags
+            check_auto_rebuild_tags = False
             for bundle_nvr in self.event.container_images:
                 if not self._pyxis.is_bundle(bundle_nvr):
                     log.error("Image %s is not an operator bundle, skip it.", bundle_nvr)
@@ -237,7 +241,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                 log.warning("Image %s is not found in Pyxis, ignore it.", bundle_nvr)
                 continue
 
-            if not self.image_has_auto_rebuild_tag(images[0]):
+            if check_auto_rebuild_tags and not self.image_has_auto_rebuild_tag(images[0]):
                 log.warning("Image %s is not tagged with auto-rebuild tags", bundle_nvr)
                 continue
 
