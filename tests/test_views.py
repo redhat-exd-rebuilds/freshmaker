@@ -1355,6 +1355,20 @@ class TestPatchAPI(ViewBaseTest):
         assert resp.status_code == 403
         assert resp.json['message'] == 'You must be an admin to cancel someone else\'s event.'
 
+    def test_patch_event_cancel_with_noauth(self):
+        event = models.Event.create(
+            db.session,
+            '2017-00000000-0000-0000-0000-000000000003',
+            '123',
+            events.TestingEvent,
+            requester='tom_hanks',
+        )
+        db.session.commit()
+
+        with self.test_request_context(user=None, auth_backend='noauth'):
+            resp = self.client.patch(f'/api/1/events/{event.id}', json={'action': 'cancel'})
+        assert resp.status_code == 200
+
     def test_patch_event_not_allowed(self):
         with self.test_request_context(user='john_smith'):
             resp = self.client.patch('/api/1/events/1', json={'action': 'cancel'})

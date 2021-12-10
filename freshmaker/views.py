@@ -332,11 +332,12 @@ class EventAPI(MethodView):
         if not event:
             return json_error(400, "Not Found", "No such event found.")
 
-        if event.requester != g.user.username and not user_has_role("admin"):
+        username = g.user.username if conf.auth_backend != "noauth" else None
+        if username and event.requester != g.user.username and not user_has_role("admin"):
             return json_error(
                 403, "Forbidden", "You must be an admin to cancel someone else's event.")
 
-        msg = "Event id %s requested for canceling by user %s" % (event.id, g.user.username)
+        msg = "Event id %s requested for canceling by user %s" % (event.id, username)
         log.info(msg)
 
         event.transition(EventState.CANCELED, msg)
@@ -416,7 +417,8 @@ def _create_rebuild_event_from_request(db_session, parser, request):
     # to client sending this POST request. The client can then use the ID
     # to check for the event status.
     db_event = models.Event.get_or_create_from_event(db_session, event)
-    db_event.requester = g.user.username
+    if conf.auth_backend != "noauth":
+        db_event.requester = g.user.username
     db_event.requested_rebuilds = " ".join(event.container_images)
     if hasattr(event, 'requester_metadata_json') and event.requester_metadata_json:
         db_event.requester_metadata = json.dumps(event.requester_metadata_json)
