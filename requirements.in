@@ -10,7 +10,7 @@ pyOpenSSL
 python-fedora
 sqlalchemy
 Flask>=1.0.3
-Flask-Migrate
+Flask-Migrate<3
 Flask-SQLAlchemy
 Flask-Login
 requests
