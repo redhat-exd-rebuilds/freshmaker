@@ -51,7 +51,7 @@ flask==2.0.2
     #   flask-sqlalchemy
 flask-login==0.5.0
     # via -r requirements.in
-flask-migrate==3.1.0
+flask-migrate==2.7.0
     # via -r requirements.in
 flask-sqlalchemy==2.5.1
     # via
@@ -73,11 +73,6 @@ idna==3.2
     # via
     #   hyperlink
     #   requests
-importlib-metadata==4.8.2
-    # via
-    #   click
-    #   sqlalchemy
-    #   stevedore
 incremental==21.3.0
     # via twisted
 itsdangerous==2.0.1
@@ -221,18 +216,13 @@ txws==0.9.1
 txzmq==1.0.0
     # via moksha.hub
 typing-extensions==3.10.0.2
-    # via
-    #   arrow
-    #   importlib-metadata
-    #   twisted
+    # via twisted
 urllib3==1.26.7
     # via
     #   python-fedora
     #   requests
 werkzeug==2.0.2
     # via flask
-zipp==3.6.0
-    # via importlib-metadata
 zope.interface==5.4.0
     # via twisted
 
