@@ -5,12 +5,30 @@ from unittest.mock import patch
 
 from freshmaker import db
 from freshmaker.errata import ErrataAdvisory
-from freshmaker.events import FlatpakModuleAdvisoryReadyEvent
+from freshmaker.events import (
+    FlatpakApplicationManualBuildEvent,
+    FlatpakModuleAdvisoryReadyEvent,
+)
 from freshmaker.handlers.koji import RebuildFlatpakApplicationOnModuleReady
 from freshmaker.lightblue import ContainerImage
 from freshmaker.models import Event
 from freshmaker.types import EventState
 from tests import helpers
+
+
+def _mock_image(image_nvr):
+    image_name = image_nvr.rsplit("-", 2)[0]
+    d = {
+        "brew": {"build": image_nvr},
+        "repository": image_name + "_repo",
+        "commit": image_name + "_123",
+        "target": "t1",
+        "git_branch": "mybranch",
+        "arches": "x86_64",
+        "original_odcs_compose_ids": [10, 11],
+        "directly_affected": True,
+    }
+    return ContainerImage(d)
 
 
 @patch(
@@ -21,8 +39,8 @@ from tests import helpers
     ],
 )
 class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
-    def _patch(self, to_patch):
-        patcher = patch(to_patch, autospec=True)
+    def _patch(self, to_patch, **kwargs):
+        patcher = patch(to_patch, autospec=True, **kwargs)
         self.addCleanup(patcher.stop)
         return patcher.start()
 
@@ -45,12 +63,29 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
         self.advisory = ErrataAdvisory(123, "RHSA-123", "QE", ["module"], "Critical")
         self.from_advisory_id.return_value = self.advisory
         self.handler = RebuildFlatpakApplicationOnModuleReady()
-        self.mock_get_auto_rebuild_image_mapping = self._patch(
-            "freshmaker.handlers.koji.RebuildFlatpakApplicationOnModuleReady._get_auto_rebuild_image_mapping"
+
+        self.mock_image_modules_mapping = self._patch(
+            "freshmaker.handlers.koji.RebuildFlatpakApplicationOnModuleReady._image_modules_mapping",
+            return_value={"image-foo-bar": {"module-foo-bar"}}
         )
-        self.mock_filter_images_with_higher_rpm_nvr = self._patch(
-            "freshmaker.handlers.koji.RebuildFlatpakApplicationOnModuleReady._filter_images_with_higher_rpm_nvr"
+
+        self.mock_lb = self._patch(
+            "freshmaker.handlers.koji.rebuild_flatpak_application_on_module_ready.LightBlue"
         )
+        self.mock_lb.return_value.get_images_by_nvrs.side_effect = lambda images, rpm_nvrs: [
+            _mock_image(image) for image in images
+        ]
+
+        self.mock_pyxis = self._patch(
+            "freshmaker.handlers.koji.rebuild_flatpak_application_on_module_ready.Pyxis"
+        )
+        self.mock_pyxis.return_value.image_is_tagged_auto_rebuild.return_value = True
+
+        self.mock_errata = self._patch(
+            "freshmaker.handlers.koji.rebuild_flatpak_application_on_module_ready.Errata"
+        )
+        self.mock_errata.return_value.get_cve_affected_build_nvrs.return_value = []
+
         self.event = FlatpakModuleAdvisoryReadyEvent("123", self.advisory)
 
     def tearDown(self):
@@ -159,38 +194,26 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
         self.assertEqual(self.handler.can_handle(event), True)
 
     def test_event_state_updated_when_no_auto_rebuild_images(self):
-        get_cve_affected_build_nvrs = self._patch(
-            "freshmaker.errata.Errata.get_cve_affected_build_nvrs"
-        )
-        get_cve_affected_build_nvrs.return_value = []
-        self.mock_get_auto_rebuild_image_mapping.return_value = {}
-        handler = RebuildFlatpakApplicationOnModuleReady()
-        handler.handle(self.event)
+        self.mock_pyxis.return_value.image_is_tagged_auto_rebuild.return_value = False
+        self.handler.handle(self.event)
 
         db_event = Event.get(db.session, message_id="123")
         self.assertEqual(db_event.state, EventState.SKIPPED.value)
         self.assertEqual(
             db_event.state_reason,
-            "Images are not enabled for auto rebuild.  message_id: 123",
+            "No images impacted by the advisory are enabled for auto rebuild. message_id: 123",
         )
 
     def test_event_state_updated_when_no_images_with_higher_rpm_nvr(self):
-        get_cve_affected_build_nvrs = self._patch(
-            "freshmaker.errata.Errata.get_cve_affected_build_nvrs"
-        )
-        get_cve_affected_build_nvrs.return_value = []
-        self.mock_get_auto_rebuild_image_mapping.return_value = {
-            "module-foo-bar": "image-foo-bar"
-        }
-        self.mock_filter_images_with_higher_rpm_nvr.return_value = []
-        handler = RebuildFlatpakApplicationOnModuleReady()
-        handler.handle(self.event)
+        self.mock_lb.return_value.get_images_by_nvrs.side_effect = lambda images, rpm_nvrs: []
+        self.mock_pyxis.return_value.image_is_tagged_auto_rebuild.return_value = True
+        self.handler.handle(self.event)
 
         db_event = Event.get(db.session, message_id="123")
         self.assertEqual(db_event.state, EventState.SKIPPED.value)
         self.assertEqual(
             db_event.state_reason,
-            "No images are impacted by the advisory.  message_id: 123",
+            "Images are no longer impacted by the advisory. message_id: 123",
         )
 
     @patch("freshmaker.odcsclient.create_odcs_client")
@@ -292,19 +315,6 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
             {"name:stream:9823933", "nodejs:14:8040020211213111158"},
         )
 
-    def _mock_image(self, build):
-        d = {
-            "brew": {"build": build + "-1-1.25"},
-            "repository": build + "_repo",
-            "commit": build + "_123",
-            "target": "t1",
-            "git_branch": "mybranch",
-            "arches": "x86_64",
-            "original_odcs_compose_ids": [10, 11],
-            "directly_affected": True,
-        }
-        return ContainerImage(d)
-
     @patch("freshmaker.odcsclient.create_odcs_client")
     def test_record_builds(self, create_odcs_client):
         """
@@ -331,11 +341,6 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
         odcs.new_compose.side_effect = composes
         odcs.get_compose.return_value = {}
 
-        get_cve_affected_build_nvrs = self._patch(
-            "freshmaker.errata.Errata.get_cve_affected_build_nvrs"
-        )
-        get_cve_affected_build_nvrs.return_value = []
-
         get_build = self._patch("freshmaker.kojiservice.KojiService.get_build")
         get_build.return_value = {
             "extra": {
@@ -347,14 +352,10 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
             },
         }
 
-        self.mock_get_auto_rebuild_image_mapping.return_value = {
+        self.mock_image_modules_mapping.return_value = {
             "build%s-1-1.25" % build_id: [] for build_id in range(1, 3)
         }
-        self.mock_filter_images_with_higher_rpm_nvr.return_value = [
-            self._mock_image("build%s" % build_id) for build_id in range(1, 3)
-        ]
-        handler = RebuildFlatpakApplicationOnModuleReady()
-        handler.handle(self.event)
+        self.handler.handle(self.event)
 
         # Check that the images have proper data in proper db columns.
         e = db.session.query(Event).filter(Event.id == 1).one()
@@ -363,3 +364,59 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
             self.assertEqual(args["repository"], build.name + "_repo")
             self.assertEqual(args["commit"], build.name + "_123")
             self.assertEqual(args["renewed_odcs_compose_ids"], [10, 11])
+
+    def test_manual_event_can_handle(self):
+        event = FlatpakApplicationManualBuildEvent(
+            "123", self.advisory, container_images=[])
+        self.assertEqual(event.manual, True)
+        self.assertEqual(self.handler.can_handle(event), True)
+
+    @patch("freshmaker.handlers.koji.RebuildFlatpakApplicationOnModuleReady._record_builds")
+    def test_manual_event_initialized(self, mock_record_builds):
+        self.mock_pyxis.return_value.image_is_tagged_auto_rebuild.return_value = True
+        event = FlatpakApplicationManualBuildEvent(
+            "123", self.advisory, container_images=[])
+        self.handler.handle(event)
+
+        db_event = Event.get(db.session, message_id="123")
+        self.assertEqual(db_event.state, EventState.INITIALIZED.value)
+        mock_record_builds.assert_called()
+
+    @patch("freshmaker.handlers.koji.RebuildFlatpakApplicationOnModuleReady._record_builds")
+    def test_manual_event_initialized_when_matching_images(self, mock_record_builds):
+        self.mock_pyxis.return_value.image_is_tagged_auto_rebuild.return_value = True
+        event = FlatpakApplicationManualBuildEvent(
+            "123", self.advisory, container_images=["image-foo-bar"])
+        self.handler.handle(event)
+
+        db_event = Event.get(db.session, message_id="123")
+        self.assertEqual(db_event.state, EventState.INITIALIZED.value)
+        mock_record_builds.assert_called()
+
+    def test_manual_event_skipped_when_no_matching_images(self):
+        self.mock_pyxis.return_value.image_is_tagged_auto_rebuild.return_value = False
+        event = FlatpakApplicationManualBuildEvent(
+            "123", self.advisory, container_images=["image-foo-bar2"])
+        self.handler.handle(event)
+
+        db_event = Event.get(db.session, message_id="123")
+        self.assertEqual(db_event.state, EventState.SKIPPED.value)
+        self.assertEqual(
+            db_event.state_reason,
+            "None of the specified images are listed in flatpak index"
+            " service as latest published images impacted by"
+            " the advisory: image-foo-bar2. message_id: 123",
+        )
+
+    def test_manual_event_skipped_when_no_auto_rebuild_images(self):
+        self.mock_pyxis.return_value.image_is_tagged_auto_rebuild.return_value = False
+        event = FlatpakApplicationManualBuildEvent(
+            "123", self.advisory, container_images=[])
+        self.handler.handle(event)
+
+        db_event = Event.get(db.session, message_id="123")
+        self.assertEqual(db_event.state, EventState.SKIPPED.value)
+        self.assertEqual(
+            db_event.state_reason,
+            "No images impacted by the advisory are enabled for auto rebuild. message_id: 123",
+        )
