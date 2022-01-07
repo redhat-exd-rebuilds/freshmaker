@@ -486,3 +486,9 @@ class ManualBundleRebuildEvent(ErrataBaseEvent):
     @property
     def search_key(self):
         return str(self.advisory.errata_id)
+
+
+class FlatpakApplicationManualBuildEvent(ManualRebuildWithAdvisoryEvent):
+    """
+    Event triggered when manual rebuild of a flatpak is requested.
+    """

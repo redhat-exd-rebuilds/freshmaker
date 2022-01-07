@@ -23,6 +23,8 @@
 # Written by Chuang Zhang <chuazhan@redhat.com>
 
 import json
+from collections import defaultdict
+
 import koji
 import requests
 from odcs.common.types import PungiSourceType
@@ -31,7 +33,10 @@ from requests.packages.urllib3.util.retry import Retry
 
 from freshmaker import conf, db, log
 from freshmaker.errata import Errata
-from freshmaker.events import FlatpakModuleAdvisoryReadyEvent
+from freshmaker.events import (
+    FlatpakApplicationManualBuildEvent,
+    FlatpakModuleAdvisoryReadyEvent,
+)
 from freshmaker.handlers import ContainerBuildHandler, fail_event_on_handler_exception
 from freshmaker.kojiservice import koji_service
 from freshmaker.lightblue import LightBlue
@@ -41,13 +46,37 @@ from freshmaker.pyxis import Pyxis
 from freshmaker.types import ArtifactType, ArtifactBuildState, EventState, RebuildReason
 
 
+def _only_auto_rebuild(image_modules_mapping):
+    """
+    Returns filtered out image list with images which can be auto rebuilt.
+    """
+    if not conf.pyxis_server_url:
+        raise ValueError("'PYXIS_SERVER_URL' parameter should be set")
+
+    pyxis = Pyxis(conf.pyxis_server_url)
+
+    return {
+        image: modules for image, modules in image_modules_mapping.items()
+        if pyxis.image_is_tagged_auto_rebuild(image)
+    }
+
+
+class SkipEventException(Exception):
+    def __init__(self, msg):
+        super().__init__()
+        self.msg = msg
+
+
 class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
     # Module ready means Flatpak module advisory is in QE status
     # and all attached builds are signed.
     name = "RebuildFlatpakApplicationOnModuleReady"
 
     def can_handle(self, event):
-        return isinstance(event, FlatpakModuleAdvisoryReadyEvent)
+        return (
+            isinstance(event, FlatpakModuleAdvisoryReadyEvent) or
+            isinstance(event, FlatpakApplicationManualBuildEvent)
+        )
 
     @fail_event_on_handler_exception
     def handle(self, event):
@@ -65,33 +94,47 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
             event.advisory.errata_id, True
         )
 
-        rebuild_images = []
-        auto_build_image_modules_mapping = self._get_auto_rebuild_image_mapping()
-        if auto_build_image_modules_mapping:
-            images = list(auto_build_image_modules_mapping.keys())
-            rebuild_images = self._filter_images_with_higher_rpm_nvr(images)
-        if not auto_build_image_modules_mapping or not rebuild_images:
-            msg = (
-                "Images are not enabled for auto rebuild. "
-                if not auto_build_image_modules_mapping
-                else "No images are impacted by the advisory. "
-            )
-            msg = f"{msg} message_id: {event.msg_id}"
+        try:
+            return self._handle_or_skip(event)
+        except SkipEventException as e:
+            msg = f"{e.msg} message_id: {event.msg_id}"
             db_event.transition(EventState.SKIPPED, msg)
             db.session.commit()
             self.log_info(msg)
             return []
+
+    def _handle_or_skip(self, event):
+        """Raises SkipEventException if the event should be skipped."""
+        image_modules_mapping = self._image_modules_mapping()
+        if not image_modules_mapping:
+            raise SkipEventException("No images are impacted by the advisory.")
+
+        if event.manual and event.container_images:
+            image_modules_mapping = {
+                image: modules for image, modules in image_modules_mapping.items()
+                if image in event.container_images
+            }
+            if not image_modules_mapping:
+                specified_images = ", ".join(event.container_images)
+                raise SkipEventException(
+                    "None of the specified images are listed in flatpak index"
+                    " service as latest published images impacted by"
+                    f" the advisory: {specified_images}.")
+        else:
+            image_modules_mapping = _only_auto_rebuild(image_modules_mapping)
+            if not image_modules_mapping:
+                raise SkipEventException(
+                    "No images impacted by the advisory are enabled for auto rebuild.")
+
+        images = list(image_modules_mapping.keys())
+        rebuild_images = self._filter_images_with_higher_rpm_nvr(images)
+        if not rebuild_images:
+            raise SkipEventException("Images are no longer impacted by the advisory.")
 
         images_nvr = ",".join([rebuild_image.nvr for rebuild_image in rebuild_images])
         self.log_info("Following images %s will be rebuilt" % images_nvr)
 
-        builds = self._record_builds(rebuild_images, auto_build_image_modules_mapping)
-        if not builds:
-            msg = "No container images to rebuild for advisory %r" % event.advisory.name
-            self.log_info(msg)
-            db_event.transition(EventState.SKIPPED, msg)
-            db.session.commit()
-            return []
+        self._record_builds(rebuild_images, image_modules_mapping)
 
         # TODO: Return empty list so far as this method is still in progress.
         # Will think about whether to return the real BaseEvent objects in future.
@@ -120,22 +163,18 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
         session.mount("https://", adapter)
         return session
 
-    def _get_auto_rebuild_image_mapping(self):
+    def _image_modules_mapping(self):
         """
-        Get rebuild image mapping which images can be auto rebuilt.
+        Get image-to-modules mapping.
 
         :rtype: dict
         :return: A dict which key is the image which can be rebuilt
-            and value are modules which are enabled in this image.
+            and value is set of modules which are enabled in this image.
         """
-        if not conf.pyxis_server_url:
-            raise ValueError("'PYXIS_SERVER_URL' parameter should be set")
-        self._pyxis = Pyxis(conf.pyxis_server_url)
-
         if not conf.flatpak_server_url:
             raise ValueError("'FLATPAK_SERVER_URL' parameter should be set")
 
-        image_modules_mapping = {}
+        image_modules_mapping = defaultdict(set)
         req_session = self._get_requests_session()
         with koji_service(
             conf.koji_profile, log, login=False, dry_run=self.dry_run
@@ -152,18 +191,7 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
                     images_info = response.json().get("Images", [])
                     for image_info in images_info:
                         image_nvr = image_info["ImageNvr"]
-                        is_tagged_auto_build = self._pyxis.image_is_tagged_auto_rebuild(
-                            image_nvr
-                        )
-                        if is_tagged_auto_build:
-                            image_modules_mapping.setdefault(image_nvr, [])
-                            if (
-                                advisory_module_nvr
-                                not in image_modules_mapping[image_nvr]
-                            ):
-                                image_modules_mapping[image_nvr].append(
-                                    advisory_module_nvr
-                                )
+                        image_modules_mapping[image_nvr].add(advisory_module_nvr)
                 else:
                     self.log_error(
                         "Fetching module %s data failed.", advisory_module_nvr
@@ -248,12 +276,12 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
 
         return missing_composes
 
-    def _record_builds(self, images, auto_build_image_modules_mapping):
+    def _record_builds(self, images, image_modules_mapping):
         """
         Records the images to database.
 
         :param images list: a list of ContainerImage instances.
-        :param auto_build_image_modules_mapping dict: a dict which key is the
+        :param image_modules_mapping dict: a dict which key is the
             original image's NVR and value is modules list enabled in the image.
         :return: a mapping between docker image build NVR and
             corresponding ArtifactBuild object representing a future rebuild of
@@ -294,16 +322,14 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
 
                 module_name_stream_version_set = set()
                 module_name_stream_set = set()
-                module_nvrs = auto_build_image_modules_mapping[nvr]
+                module_nvrs = image_modules_mapping[nvr]
                 for module_nvr in module_nvrs:
                     mmd = session.get_modulemd(module_nvr)
                     name = mmd.get_module_name()
                     stream = mmd.get_stream_name()
                     version = mmd.get_version()
-                    module_name_stream_set.add("%s:%s" % (name, stream))
-                    module_name_stream_version_set.add(
-                        ":".join([name, stream, str(version)])
-                    )
+                    module_name_stream_set.add(f"{name}:{stream}")
+                    module_name_stream_version_set.add(f"{name}:{stream}:{version}")
                 original_odcs_compose_ids = image["original_odcs_compose_ids"]
                 outdated_composes = self._outdated_composes(
                     original_odcs_compose_ids, module_name_stream_set

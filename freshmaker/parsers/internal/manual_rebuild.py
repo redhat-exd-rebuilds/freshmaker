@@ -21,7 +21,11 @@
 
 import time
 from freshmaker.parsers import BaseParser
-from freshmaker.events import ManualRebuildWithAdvisoryEvent, ManualBundleRebuildEvent
+from freshmaker.events import (
+    FlatpakApplicationManualBuildEvent,
+    ManualBundleRebuildEvent,
+    ManualRebuildWithAdvisoryEvent,
+)
 from freshmaker.errata import Errata, ErrataAdvisory
 
 
@@ -50,8 +54,9 @@ class FreshmakerManualRebuildParser(BaseParser):
         errata = Errata()
         advisory = ErrataAdvisory.from_advisory_id(errata, errata_id)
 
-        # Generate bundle manual rebuild event if advisory is reported by Botas
-        if advisory.state == "SHIPPED_LIVE" and advisory.reporter.startswith('botas'):
+        if advisory.is_flatpak_module_advisory_ready():
+            klass = FlatpakApplicationManualBuildEvent
+        elif advisory.state == "SHIPPED_LIVE" and advisory.reporter.startswith('botas'):
             klass = ManualBundleRebuildEvent
         else:
             klass = ManualRebuildWithAdvisoryEvent
