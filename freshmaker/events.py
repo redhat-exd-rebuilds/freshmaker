@@ -322,7 +322,7 @@ class ManualRebuildWithAdvisoryEvent(ErrataAdvisoryRPMsSignedEvent):
     """
 
     def __init__(self, msg_id, advisory, container_images,
-                 requester_metadata_json=None, freshmaker_event_id=None,
+                 requester_metadata_json=None,
                  requester=None, **kwargs):
         """
         Creates new ManualRebuildWithAdvisoryEvent.
@@ -332,8 +332,6 @@ class ManualRebuildWithAdvisoryEvent(ErrataAdvisoryRPMsSignedEvent):
         :param list container_images: List of NVRs of images to rebuild or
             empty list to rebuild all images affected by the advisory.
         :param requester_metadata_json: JSON of additional information about rebuild
-        :param freshmaker_event_id: Freshmaker event id on which this manual rebuild
-            is based off on.
         :param requester: name of requester of rebuild
         """
         super(ManualRebuildWithAdvisoryEvent, self).__init__(
