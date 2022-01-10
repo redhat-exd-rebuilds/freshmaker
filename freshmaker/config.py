@@ -427,7 +427,7 @@ class Config(object):
             'desc': 'A list of bundle name-version entries that do not need to have an auto-rebuild '
                     'tag to be rebuilt. This only applies to the HandleBotasAdvisory handler'
         },
-        'flatpak_server_url ': {
+        'flatpak_server_url': {
             'type': str,
             'default': '',
             'desc': 'Root url of Flatpak index service'
