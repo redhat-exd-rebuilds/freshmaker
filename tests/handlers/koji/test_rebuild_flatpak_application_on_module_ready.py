@@ -379,7 +379,7 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
         self.handler.handle(event)
 
         db_event = Event.get(db.session, message_id="123")
-        self.assertEqual(db_event.state, EventState.INITIALIZED.value)
+        self.assertEqual(db_event.state, EventState.BUILDING.value)
         mock_record_builds.assert_called()
 
     @patch("freshmaker.handlers.koji.RebuildFlatpakApplicationOnModuleReady._record_builds")
@@ -390,7 +390,7 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
         self.handler.handle(event)
 
         db_event = Event.get(db.session, message_id="123")
-        self.assertEqual(db_event.state, EventState.INITIALIZED.value)
+        self.assertEqual(db_event.state, EventState.BUILDING.value)
         mock_record_builds.assert_called()
 
     def test_manual_event_skipped_when_no_matching_images(self):
