@@ -56,7 +56,8 @@ def _only_auto_rebuild(image_modules_mapping):
     pyxis = Pyxis(conf.pyxis_server_url)
 
     return {
-        image: modules for image, modules in image_modules_mapping.items()
+        image: modules
+        for image, modules in image_modules_mapping.items()
         if pyxis.image_is_tagged_auto_rebuild(image)
     }
 
@@ -73,9 +74,8 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
     name = "RebuildFlatpakApplicationOnModuleReady"
 
     def can_handle(self, event):
-        return (
-            isinstance(event, FlatpakModuleAdvisoryReadyEvent) or
-            isinstance(event, FlatpakApplicationManualBuildEvent)
+        return isinstance(event, FlatpakModuleAdvisoryReadyEvent) or isinstance(
+            event, FlatpakApplicationManualBuildEvent
         )
 
     @fail_event_on_handler_exception
@@ -95,13 +95,18 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
         )
 
         try:
-            return self._handle_or_skip(event)
+            builds = self._handle_or_skip(event)
         except SkipEventException as e:
             msg = f"{e.msg} message_id: {event.msg_id}"
             db_event.transition(EventState.SKIPPED, msg)
             db.session.commit()
             self.log_info(msg)
             return []
+
+        self.start_to_build_images(builds.values())
+        msg = "Rebuilding %d container images." % (len(builds))
+        db_event.transition(EventState.BUILDING, msg)
+        return builds
 
     def _handle_or_skip(self, event):
         """Raises SkipEventException if the event should be skipped."""
@@ -111,7 +116,8 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
 
         if event.manual and event.container_images:
             image_modules_mapping = {
-                image: modules for image, modules in image_modules_mapping.items()
+                image: modules
+                for image, modules in image_modules_mapping.items()
                 if image in event.container_images
             }
             if not image_modules_mapping:
@@ -119,12 +125,14 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
                 raise SkipEventException(
                     "None of the specified images are listed in flatpak index"
                     " service as latest published images impacted by"
-                    f" the advisory: {specified_images}.")
+                    f" the advisory: {specified_images}."
+                )
         else:
             image_modules_mapping = _only_auto_rebuild(image_modules_mapping)
             if not image_modules_mapping:
                 raise SkipEventException(
-                    "No images impacted by the advisory are enabled for auto rebuild.")
+                    "No images impacted by the advisory are enabled for auto rebuild."
+                )
 
         images = list(image_modules_mapping.keys())
         rebuild_images = self._filter_images_with_higher_rpm_nvr(images)
@@ -134,11 +142,7 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
         images_nvr = ",".join([rebuild_image.nvr for rebuild_image in rebuild_images])
         self.log_info("Following images %s will be rebuilt" % images_nvr)
 
-        self._record_builds(rebuild_images, image_modules_mapping)
-
-        # TODO: Return empty list so far as this method is still in progress.
-        # Will think about whether to return the real BaseEvent objects in future.
-        return []
+        return self._record_builds(rebuild_images, image_modules_mapping)
 
     def _get_requests_session(cls, retry_options={}):
         """
@@ -217,8 +221,11 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
             private_key=conf.lightblue_private_key,
             event_id=self.current_db_event_id,
         )
-        images = lb.get_images_by_nvrs(images, rpm_nvrs=errata_rpm_nvrs)
-        return images
+
+        if errata_rpm_nvrs:
+            return lb.get_images_by_nvrs(images, rpm_nvrs=errata_rpm_nvrs)
+
+        return lb.get_images_by_nvrs(images)
 
     def _outdated_composes(self, original_odcs_compose_ids, module_name_stream_set):
         """
@@ -264,13 +271,20 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
             compose = self.odcs.get_compose(compose_id)
             source_type = compose.get("source_type")
             if source_type == PungiSourceType.MODULE:
-                name_stream_set = {f"{n}:{s}" for n, s, v, c in _compose_sources(compose)}
-                mapping = {f"{n}:{s}": f"{n}:{s}:{v}" for n, s, v, c in _compose_sources(compose)}
+                name_stream_set = {
+                    f"{n}:{s}" for n, s, v, c in _compose_sources(compose)
+                }
+                mapping = {
+                    f"{n}:{s}": f"{n}:{s}:{v}"
+                    for n, s, v, c in _compose_sources(compose)
+                }
 
                 if not name_stream_set.isdisjoint(module_name_stream_set):
                     missing_composes.update(
                         mapping[name_stream]
-                        for name_stream in name_stream_set.difference(module_name_stream_set)
+                        for name_stream in name_stream_set.difference(
+                            module_name_stream_set
+                        )
                     )
                 missing_composes.update(module_name_stream_version_set)
 
@@ -345,6 +359,7 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
                         "renewed_odcs_compose_ids": list(outdated_composes),
                         "flatpak": image.get("flatpak", False),
                         "isolated": image.get("isolated", True),
+                        "original_parent": None,
                     }
                 )
                 db.session.commit()
@@ -354,12 +369,13 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
                     module_name_stream_set,
                     module_name_stream_version_set,
                 )
+                arches = sorted(image["arches"].split())
                 for compose_source in missing_composes:
                     if compose_source in odcs_cache:
                         db_compose = odcs_cache[compose_source]
                     else:
                         compose = create_odcs_client().new_compose(
-                            compose_source, "module"
+                            compose_source, "module", arches=arches
                         )
                         db_compose = Compose(odcs_compose_id=compose["id"])
                         db.session.add(db_compose)
