@@ -339,3 +339,17 @@ class Pyxis(object):
                 if set(tag['name'] for tag in repo['tags']) & set(auto_rebuild_tags):
                     return True
         return False
+
+    def is_hotfix_image(self, image_nvr):
+        """
+        Checks if image_nvr is a hotfix image
+
+        :param str image_nvr: image_nvr
+        :return: True if image is a hotfix image, otherwise False
+        :rtype: bool
+        """
+        image = self.get_images_by_nvr(image_nvr, include=["data.parsed_data"])
+        if not image:
+            raise Exception("Image %s was not found in Pyxis", image_nvr)
+        # images for different arches contain the same label names, so just check the first image
+        return any(label["name"] == "com.redhat.hotfix" for label in image[0]["parsed_data"]["labels"])

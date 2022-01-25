@@ -601,6 +601,36 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
         is_bundle = self.px.is_bundle("foobar-bundle-1-234")
         self.assertFalse(is_bundle)
 
+    @patch('freshmaker.pyxis.Pyxis._pagination')
+    def test_is_hotfix_image_true(self, page):
+        page.return_value = [{
+            "parsed_data": {
+                "labels": [
+                    {"name": "com.redhat.hotfix", "value": "bz1234567"},
+                    {"name": "architecture", "value": "ppc64le"},
+                    {"name": "brew", "value": "brew_value_1"},
+                    {"name": "repositories", "value": "repositories_value_1"},
+                ]
+            },
+        }]
+        is_hotfix_image = self.px.is_hotfix_image("foobar-bundle-1-234")
+        self.assertTrue(is_hotfix_image)
+
+    @patch('freshmaker.pyxis.Pyxis._pagination')
+    def test_is_hotfix_image_false(self, page):
+        page.return_value = [{
+            "parsed_data": {
+                "labels": [
+                    {"name": "not_com.redhat.hotfix", "value": "bz1234567"},
+                    {"name": "architecture", "value": "ppc64le"},
+                    {"name": "brew", "value": "brew_value_2"},
+                    {"name": "repositories", "value": "repositories_value_2"},
+                ]
+            },
+        }]
+        is_hotfix_image = self.px.is_hotfix_image("foobar-bundle-1-234")
+        self.assertFalse(is_hotfix_image)
+
     @patch('freshmaker.pyxis.Pyxis.get_auto_rebuild_tags')
     @patch('freshmaker.pyxis.Pyxis._pagination')
     def test_image_is_tagged_auto_rebuild(self, page, get_auto_rebuild_tags):
