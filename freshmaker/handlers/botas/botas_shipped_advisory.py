@@ -215,6 +215,12 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             # images in related images
             bundle_nvrs = self._get_impacted_bundles(original_digests_by_nvr.values())
 
+        # Create a new list which only contains images that are not hotfixes
+        for nvr in bundle_nvrs[:]:
+            if self._pyxis.is_hotfix_image(nvr):
+                bundle_nvrs.remove(nvr)
+                log.debug("Excluding hotfix bundle: %s", nvr)
+
         if not bundle_nvrs:
             return None, f"No bundle image is impacted by {self.event.advisory.errata_id}, skip."
 
