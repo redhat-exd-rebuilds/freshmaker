@@ -810,6 +810,7 @@ class LightBlue(object):
         projection = [
             {"field": "brew", "include": True, "recursive": True},
             {"field": "parsed_data.files", "include": True, "recursive": True},
+            {"field": "parsed_data.labels.*", "include": True, "recursive": True},
             {"field": "parsed_data.layers.*", "include": True, "recursive": True},
             {"field": "repositories.*.published", "include": True, "recursive": True},
             {"field": "repositories.*.registry", "include": True, "recursive": True},
@@ -1620,6 +1621,12 @@ class LightBlue(object):
         images = self.find_images_with_packages_from_content_set(
             rpm_nvrs, content_sets, filter_fnc, published,
             release_categories, leaf_container_images=leaf_container_images)
+
+        # Remove any hotfix images from list of images
+        for img in images[:]:
+            if any(label["name"] == "com.redhat.hotfix" for label in img["parsed_data"]["labels"]):
+                images.remove(img)
+                log.debug("Excluding hotfix image: %s", img.nvr)
 
         # Not skip images when rebuild images are requested explicitly
         if skip_nvrs and not leaf_container_images:
