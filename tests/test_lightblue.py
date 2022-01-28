@@ -1619,12 +1619,14 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
 
         image_a = ContainerImage.create({
             'brew': {'package': 'image-a', 'build': 'image-a-v-r1'},
+            'parsed_data': {'labels': [{"name": "not_com.redhat.hotfix", "value": "v4.6"}]},
             'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'image-a-commit'
         })
         image_b = ContainerImage.create({
             'brew': {'package': 'image-b', 'build': 'image-b-v-r1'},
+            'parsed_data': {'labels': [{"name": "not_com.redhat.hotfix", "value": "v4.6"}]},
             'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'image-b-commit',
@@ -1632,6 +1634,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         })
         image_c = ContainerImage.create({
             'brew': {'package': 'image-c', 'build': 'image-c-v-r1'},
+            'parsed_data': {'labels': [{"name": "not_com.redhat.hotfix", "value": "v4.6"}]},
             'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'image-c-commit',
@@ -1639,6 +1642,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         })
         image_e = ContainerImage.create({
             'brew': {'package': 'image-e', 'build': 'image-e-v-r1'},
+            'parsed_data': {'labels': [{"name": "not_com.redhat.hotfix", "value": "v4.6"}]},
             'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'image-e-commit',
@@ -1646,6 +1650,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         })
         image_d = ContainerImage.create({
             'brew': {'package': 'image-d', 'build': 'image-d-v-r1'},
+            'parsed_data': {'labels': [{"name": "not_com.redhat.hotfix", "value": "v4.6"}]},
             'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'image-d-commit',
@@ -1653,6 +1658,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         })
         image_j = ContainerImage.create({
             'brew': {'package': 'image-j', 'build': 'image-j-v-r1'},
+            'parsed_data': {'labels': [{"name": "not_com.redhat.hotfix", "value": "v4.6"}]},
             'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'image-j-commit',
@@ -1660,6 +1666,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         })
         image_k = ContainerImage.create({
             'brew': {'package': 'image-k', 'build': 'image-k-v-r1'},
+            'parsed_data': {'labels': [{"name": "not_com.redhat.hotfix", "value": "v4.6"}]},
             'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'image-k-commit',
@@ -1667,6 +1674,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         })
         image_g = ContainerImage.create({
             'brew': {'package': 'image-g', 'build': 'image-g-v-r1'},
+            'parsed_data': {'labels': [{"name": "not_com.redhat.hotfix", "value": "v4.6"}]},
             'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'image-g-commit',
@@ -1674,6 +1682,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         })
         image_f = ContainerImage.create({
             'brew': {'package': 'image-f', 'build': 'image-f-v-r1'},
+            'parsed_data': {'labels': [{"name": "not_com.redhat.hotfix", "value": "v4.6"}]},
             'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'image-f-commit',
@@ -1682,49 +1691,56 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
 
         leaf_image1 = ContainerImage.create({
             'brew': {'build': 'leaf-image-1-1'},
-            'parsed_data': {'layers': ['fake layer']},
+            'parsed_data': {'labels': [{"name": "not_com.redhat.hotfix", "value": "v4.6"}],
+                            'layers': ['fake layer']},
             'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'leaf-image1-commit',
         })
         leaf_image2 = ContainerImage.create({
             'brew': {'build': 'leaf-image-2-1'},
-            'parsed_data': {'layers': ['fake layer']},
+            'parsed_data': {'labels': [{"name": "not_com.redhat.hotfix", "value": "v4.6"}],
+                            'layers': ['fake layer']},
             'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'leaf-image2-commit',
         })
         leaf_image3 = ContainerImage.create({
             'brew': {'build': 'leaf-image-3-1'},
-            'parsed_data': {'layers': ['fake layer']},
+            'parsed_data': {'labels': [{"name": "not_com.redhat.hotfix", "value": "v4.6"}],
+                            'layers': ['fake layer']},
             'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'leaf-image3-commit',
         })
         leaf_image4 = ContainerImage.create({
             'brew': {'build': 'leaf-image-4-1'},
-            'parsed_data': {'layers': ['fake layer']},
+            'parsed_data': {'labels': [{"name": "not_com.redhat.hotfix", "value": "v4.6"}],
+                            'layers': ['fake layer']},
             'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'leaf-image4-commit',
         })
         leaf_image5 = ContainerImage.create({
             'brew': {'build': 'leaf-image-5-1'},
-            'parsed_data': {'layers': ['fake layer']},
+            'parsed_data': {'labels': [{"name": "not_com.redhat.hotfix", "value": "v4.6"}],
+                            'layers': ['fake layer']},
             'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'leaf-image5-commit',
         })
         leaf_image6 = ContainerImage.create({
             'brew': {'build': 'leaf-image-6-1'},
-            'parsed_data': {'layers': ['fake layer']},
+            'parsed_data': {'labels': [{"name": "not_com.redhat.hotfix", "value": "v4.6"}],
+                            'layers': ['fake layer']},
             'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'leaf-image6-commit',
         })
         leaf_image7 = ContainerImage.create({
             'brew': {'build': 'leaf-image-7-1'},
-            'parsed_data': {'layers': ['fake layer']},
+            'parsed_data': {'labels': [{"name": "not_com.redhat.hotfix", "value": "v4.6"}],
+                            'layers': ['fake layer']},
             'repositories': [{'repository': 'foo/bar'}],
             'repository': 'repo-1',
             'commit': 'leaf-image7-commit',
@@ -1813,12 +1829,16 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
 
         image_a = ContainerImage.create({
             'brew': {'package': 'image-a', 'build': 'image-a-v-r1'},
+            'parsed_data': {'labels': [{"name": "not_com.redhat.hotfix", "value": "v4.6"}, ],
+                            'layers': ['fake layer']},
             'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'image-a-commit'
         })
         image_b = ContainerImage.create({
             'brew': {'package': 'image-b', 'build': 'image-b-v-r1'},
+            'parsed_data': {'labels': [{"name": "not_com.redhat.hotfix", "value": "v4.6"}, ],
+                            'layers': ['fake layer']},
             'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'image-b-commit',
@@ -1826,6 +1846,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         })
         image_c = ContainerImage.create({
             'brew': {'package': 'image-c', 'build': 'image-c-v-r1'},
+            'parsed_data': {'labels': [{"name": "not_com.redhat.hotfix", "value": "v4.6"}, ],
+                            'layers': ['fake layer']},
             'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'image-c-commit',
@@ -1834,21 +1856,24 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
 
         leaf_image1 = ContainerImage.create({
             'brew': {'build': 'leaf-image-1-1'},
-            'parsed_data': {'layers': ['fake layer']},
+            'parsed_data': {'labels': [{"name": "not_com.redhat.hotfix", "value": "v4.6"}, ],
+                            'layers': ['fake layer']},
             'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'leaf-image1-commit',
         })
         leaf_image2 = ContainerImage.create({
             'brew': {'build': 'leaf-image-2-1'},
-            'parsed_data': {'layers': ['fake layer']},
+            'parsed_data': {'labels': [{"name": "not_com.redhat.hotfix", "value": "v4.6"}, ],
+                            'layers': ['fake layer']},
             'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'leaf-image2-commit',
         })
         leaf_image3 = ContainerImage.create({
             'brew': {'build': 'leaf-image-3-1'},
-            'parsed_data': {'layers': ['fake layer']},
+            'parsed_data': {'labels': [{"name": "not_com.redhat.hotfix", "value": "v4.6"}, ],
+                            'layers': ['fake layer']},
             'repositories': [{"repository": "foo/bar"}],
             'repository': 'repo-1',
             'commit': 'leaf-image3-commit',
@@ -1951,6 +1976,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
 
         image_a = ContainerImage.create({
             "brew": {"package": "image-a", "build": "image-a-v-r1"},
+            "parsed_data": {"labels": [{"name": "com.redhat.hotfix", "value": "v4.6"}]},
             "parent_brew_build": "some-original-nvr-7.6-252.1561619826",
             "repository": "repo-1",
             "commit": "image-a-commit",
@@ -1971,8 +1997,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                        private_key=self.fake_private_key)
         ret = lb.find_images_to_rebuild(["dummy-1-1"], ["dummy"])
 
-        self.assertEqual(len(ret), 1)
-        self.assertIsNotNone(ret[0][0].get("parent"))
+        self.assertNotEqual(len(ret), 1)
+        self.assertEqual(ret, [])
 
     @patch('freshmaker.lightblue.ArtifactBuild.get_most_original_nvr')
     @patch("freshmaker.lightblue.LightBlue.get_images_by_nvrs")
@@ -1993,6 +2019,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
 
         ubi_image_template = {
             "brew": {"package": "ubi8-container", "build": "ubi8-container-8.1-100"},
+            "parsed_data": {"labels": [{"name": "not_com.redhat.hotfix", "value": "v4.6"}]},
             "parent_image_builds": {},
             "repository": "containers/ubi8",
             "commit": "2b868f757977782367bf624373a5fe3d8e6bacd6",
@@ -2017,6 +2044,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
 
         python_image = ContainerImage.create({
             "brew": {"package": "python-36-container", "build": "python-36-container-1-10"},
+            "parsed_data": {"labels": [{"name": "not_com.redhat.hotfix", "value": "v4.6"}]},
             "parent_brew_build": directly_affected_ubi_image.nvr,
             "parent_image_builds": {},
             "repository": "containers/python-36",
@@ -2031,6 +2059,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
 
         nodejs_image = ContainerImage.create({
             "brew": {"package": "nodejs-12-container", "build": "nodejs-12-container-1-20.45678"},
+            "parsed_data": {"labels": [{"name": "not_com.redhat.hotfix", "value": "v4.6"}]},
             "parent_brew_build": dependency_ubi_image.nvr,
             "repository": "containers/nodejs-12",
             "commit": "97d57a9db975b58b43113e15d29e35de6c1a3f0b",
@@ -2182,6 +2211,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                     {'$or': [{'field': 'rpm_manifest.*.rpms.*.name', 'rvalue': 'openssl', 'op': '='}]}]},
              'projection': [{'field': 'brew', 'include': True, 'recursive': True},
                             {'field': 'parsed_data.files', 'include': True, 'recursive': True},
+                            {'field': 'parsed_data.labels.*', 'include': True, 'recursive': True},
                             {'field': 'parsed_data.layers.*', 'include': True, 'recursive': True},
                             {'field': 'repositories.*.published', 'include': True, 'recursive': True},
                             {'field': 'repositories.*.registry', 'include': True, 'recursive': True},
