@@ -90,8 +90,8 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
         self.set_context(db_event)
 
         self.errata = Errata()
-        self.advisory_module_nvrs = self.errata.get_cve_affected_build_nvrs(
-            event.advisory.errata_id, True
+        self.advisory_module_nvrs = self.errata.get_attached_build_nvrs(
+            event.advisory.errata_id
         )
 
         try:

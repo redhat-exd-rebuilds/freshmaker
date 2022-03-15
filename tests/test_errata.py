@@ -454,90 +454,29 @@ class TestErrata(helpers.FreshmakerTestCase):
 
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
+    def test_get_attached_build_nvrs(
+            self, errata_http_get, errata_rest_get):
+        api = MockedErrataAPI(errata_rest_get, errata_http_get)
+        api.builds_json = {
+            "PRODUCT1": [
+                {
+                    "libreoffice-flatpak-8050020220215203934.84f422e1":
+                    {
+                        "Hidden-PRODUCT2":
+                            {"x86_64": ["libfontenc-1.1.3-8.module+el8.5.0+12446+59af0ebd.x86_64.rpm"]}
+                    }
+                }
+            ]
+        }
+        ret = self.errata.get_attached_build_nvrs(28484)
+        self.assertEqual(ret, {"libreoffice-flatpak-8050020220215203934.84f422e1"})
+
+    @patch.object(Errata, "_errata_rest_get")
+    @patch.object(Errata, "_errata_http_get")
     def test_errata_get_cve_affected_rpm_nvrs(self, errata_http_get, errata_rest_get):
         MockedErrataAPI(errata_rest_get, errata_http_get)
         ret = self.errata.get_cve_affected_rpm_nvrs(28484)
         self.assertEqual(ret, ['libntirpc-1.4.3-4.el6rhs'])
-
-    @patch.object(Errata, "_errata_rest_get")
-    @patch.object(Errata, "_errata_http_get")
-    def test_errata_get_cve_affected_build_nvrs(self, errata_http_get, errata_rest_get):
-        mocked_errata = MockedErrataAPI(errata_rest_get, errata_http_get)
-        ret = self.errata.get_cve_affected_build_nvrs(28484)
-        self.assertEqual(ret, ['libntirpc-1.4.3-4.el6rhs'])
-        ret = self.errata.get_cve_affected_build_nvrs(28484, True)
-        self.assertEqual(ret, [])
-        mocked_errata.builds_by_cve = {
-            "CVE-2021-42574": {
-                "PRODUCT1": {
-                    "builds": [
-                        {
-                            "rust-toolset-rhel8-8050020211027231136.5c15747c": {
-                                "id": 1775730,
-                                "is_module": True,
-                                "nevr": "rust-toolset-0:rhel8-8050020211027231136.5c15747c",
-                                "nvr": "rust-toolset-rhel8-8050020211027231136.5c15747c",
-                                "variant_arch": {
-                                    "PRODUCT1": {
-                                        "SRPMS": [
-                                            "rust-1.54.0-3.module+el8.5.0+13074+d655d86c.src.rpm",
-                                            "rust-toolset-1.54.0-1.module+el8.5.0+12195+effd8a03.src.rpm"
-                                        ],
-                                        "aarch64": [
-                                            "cargo-1.54.0-3.module+el8.5.0+13074+d655d86c.aarch64.rpm",
-                                            "cargo-debuginfo-1.54.0-3.module+el8.5.0+13074+d655d86c.aarch64.rpm",
-                                            "clippy-1.54.0-3.module+el8.5.0+13074+d655d86c.aarch64.rpm",
-                                            "clippy-debuginfo-1.54.0-3.module+el8.5.0+13074+d655d86c.aarch64.rpm",
-                                            "rls-1.54.0-3.module+el8.5.0+13074+d655d86c.aarch64.rpm",
-                                            "rls-debuginfo-1.54.0-3.module+el8.5.0+13074+d655d86c.aarch64.rpm",
-                                            "rust-1.54.0-3.module+el8.5.0+13074+d655d86c.aarch64.rpm",
-                                            "rust-analysis-1.54.0-3.module+el8.5.0+13074+d655d86c.aarch64.rpm",
-                                            "rust-debuginfo-1.54.0-3.module+el8.5.0+13074+d655d86c.aarch64.rpm",
-                                            "rust-debugsource-1.54.0-3.module+el8.5.0+13074+d655d86c.aarch64.rpm",
-                                            "rust-doc-1.54.0-3.module+el8.5.0+13074+d655d86c.aarch64.rpm",
-                                            "rust-std-static-1.54.0-3.module+el8.5.0+13074+d655d86c.aarch64.rpm",
-                                            "rust-std-static-wasm32-unknown-unknown-1.54.0-3.module+el8.5.0+13074+d655d86c.aarch64.rpm",
-                                            "rust-toolset-1.54.0-1.module+el8.5.0+12195+effd8a03.aarch64.rpm",
-                                            "rustfmt-1.54.0-3.module+el8.5.0+13074+d655d86c.aarch64.rpm",
-                                            "rustfmt-debuginfo-1.54.0-3.module+el8.5.0+13074+d655d86c.aarch64.rpm"
-                                        ],
-                                        "noarch": [
-                                            "cargo-doc-1.54.0-3.module+el8.5.0+13074+d655d86c.noarch.rpm",
-                                            "rust-debugger-common-1.54.0-3.module+el8.5.0+13074+d655d86c.noarch.rpm",
-                                            "rust-gdb-1.54.0-3.module+el8.5.0+13074+d655d86c.noarch.rpm",
-                                            "rust-lldb-1.54.0-3.module+el8.5.0+13074+d655d86c.noarch.rpm",
-                                            "rust-src-1.54.0-3.module+el8.5.0+13074+d655d86c.noarch.rpm"
-                                        ],
-                                        "x86_64": [
-                                            "cargo-1.54.0-3.module+el8.5.0+13074+d655d86c.x86_64.rpm",
-                                            "cargo-debuginfo-1.54.0-3.module+el8.5.0+13074+d655d86c.x86_64.rpm",
-                                            "clippy-1.54.0-3.module+el8.5.0+13074+d655d86c.x86_64.rpm",
-                                            "clippy-debuginfo-1.54.0-3.module+el8.5.0+13074+d655d86c.x86_64.rpm",
-                                            "rls-1.54.0-3.module+el8.5.0+13074+d655d86c.x86_64.rpm",
-                                            "rls-debuginfo-1.54.0-3.module+el8.5.0+13074+d655d86c.x86_64.rpm",
-                                            "rust-1.54.0-3.module+el8.5.0+13074+d655d86c.x86_64.rpm",
-                                            "rust-analysis-1.54.0-3.module+el8.5.0+13074+d655d86c.x86_64.rpm",
-                                            "rust-debuginfo-1.54.0-3.module+el8.5.0+13074+d655d86c.x86_64.rpm",
-                                            "rust-debugsource-1.54.0-3.module+el8.5.0+13074+d655d86c.x86_64.rpm",
-                                            "rust-doc-1.54.0-3.module+el8.5.0+13074+d655d86c.x86_64.rpm",
-                                            "rust-std-static-1.54.0-3.module+el8.5.0+13074+d655d86c.x86_64.rpm",
-                                            "rust-std-static-wasm32-unknown-unknown-1.54.0-3.module+el8.5.0+13074+d655d86c.x86_64.rpm",
-                                            "rust-toolset-1.54.0-1.module+el8.5.0+12195+effd8a03.x86_64.rpm",
-                                            "rustfmt-1.54.0-3.module+el8.5.0+13074+d655d86c.x86_64.rpm",
-                                            "rustfmt-debuginfo-1.54.0-3.module+el8.5.0+13074+d655d86c.x86_64.rpm"
-                                        ]
-                                    }
-                                }
-                            }
-                        }
-                    ],
-                    "description": "PRODUCT Version 1",
-                    "name": "PRODUCT1"
-                }
-            }
-        }
-        ret = self.errata.get_cve_affected_build_nvrs(28484, True)
-        self.assertEqual(ret, ['rust-toolset-rhel8-8050020211027231136.5c15747c'])
 
     def test_get_docker_repo_tags(self):
         with patch.object(self.errata, "xmlrpc") as xmlrpc:
