@@ -84,7 +84,6 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
         self.mock_errata = self._patch(
             "freshmaker.handlers.koji.rebuild_flatpak_application_on_module_ready.Errata"
         )
-        self.mock_errata.return_value.get_cve_affected_build_nvrs.return_value = []
 
         self.event = FlatpakModuleAdvisoryReadyEvent("123", self.advisory)
 
