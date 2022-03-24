@@ -299,14 +299,6 @@ class TestAllowBuildBasedOnAllowlist(helpers.FreshmakerTestCase):
                 }
             )
         },
-        'RebuildImagesOnImageAdvisoryChange': {
-            'image': any_(
-                {
-                    'advisory_state': 'SHIPPED_LIVE',
-                    'advisory_name': 'RHBA-.*',
-                }
-            )
-        }
     })
     def test_allowlist_not_overwritten(self):
         """
@@ -314,11 +306,6 @@ class TestAllowBuildBasedOnAllowlist(helpers.FreshmakerTestCase):
         section after calling the handler.allow_build().
         """
         handler = MyHandler()
-        handler.name = "RebuildImagesOnImageAdvisoryChange"
-        allowed = handler.allow_build(
-            ArtifactType.IMAGE, advisory_state="SHIPPED_LIVE")
-        self.assertTrue(allowed)
-
         handler.name = "foo"
         allowed = handler.allow_build(
             ArtifactType.IMAGE, advisory_state="SHIPPED_LIVE")

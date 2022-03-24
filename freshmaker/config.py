@@ -177,7 +177,6 @@ class Config(object):
                 'freshmaker.handlers.koji:RebuildImagesOnRPMAdvisoryChange',
                 'freshmaker.handlers.internal:UpdateDBOnAdvisoryChange',
                 'freshmaker.handlers.koji:RebuildImagesOnODCSComposeDone',
-                'freshmaker.handlers.bob:RebuildImagesOnImageAdvisoryChange',
                 'freshmaker.handlers.koji:RebuildImagesOnAsyncManualBuild',
                 'freshmaker.handlers.botas:HandleBotasAdvisory'
             ],
@@ -304,14 +303,6 @@ class Config(object):
             'type': str,
             'default': '',
             'desc': 'Password to login Pulp.'},
-        'bob_server_url': {
-            'type': str,
-            'default': '',
-            'desc': 'Server URL of Bob container images rebuild service.'},
-        'bob_auth_token': {
-            'type': str,
-            'default': '',
-            'desc': 'Auth token for Bob container images rebuild service.'},
         'odcs_server_url': {
             'type': str,
             'default': '',
