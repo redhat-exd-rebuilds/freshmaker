@@ -227,46 +227,46 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
 
         return lb.get_images_by_nvrs(images)
 
-    def _outdated_composes(self, original_odcs_compose_ids, module_name_stream_set):
+    def _reused_composes(self, original_odcs_compose_ids, module_name_stream_set):
         """
-        Generate outdated composes.
+        Generate reused composes.
 
         :param original_odcs_compose_ids list: Original compose ids.
         :param module_name_stream_set set: Module name stream set from an advisory.
-        :return: a set of outdated composes.
+        :return: a set of reused composes.
         :rtype: set
         """
-        outdated_composes = set()
+        reused_composes = set()
         for compose_id in original_odcs_compose_ids:
             compose = self.odcs.get_compose(compose_id)
             source_type = compose.get("source_type")
             if source_type != PungiSourceType.MODULE:
-                outdated_composes.add(compose_id)
+                reused_composes.add(compose_id)
                 continue
 
             name_stream_set = {f"{n}:{s}" for n, s, v, c in _compose_sources(compose)}
 
             if name_stream_set.isdisjoint(module_name_stream_set):
-                outdated_composes.add(compose_id)
+                reused_composes.add(compose_id)
 
-        return outdated_composes
+        return reused_composes
 
-    def _missing_composes(
+    def _updated_compose_source(
         self,
         original_odcs_compose_ids,
         module_name_stream_set,
         module_name_stream_version_set,
     ):
         """
-        Generate missing composes.
+        Generate updated compose source.
 
         :param original_odcs_compose_ids list: Original compose ids.
         :param module_name_stream_set set: Module name stream set from an advisory.
         :param module_name_stream_version_set set: Module name stream version set from an advisory.
-        :return: a set of missing composes.
+        :return: a string of updated compose source.
         :rtype: set
         """
-        missing_composes = set()
+        updated_composes = set()
         for compose_id in original_odcs_compose_ids:
             compose = self.odcs.get_compose(compose_id)
             source_type = compose.get("source_type")
@@ -280,15 +280,15 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
                 }
 
                 if not name_stream_set.isdisjoint(module_name_stream_set):
-                    missing_composes.update(
+                    updated_composes.update(
                         mapping[name_stream]
                         for name_stream in name_stream_set.difference(
                             module_name_stream_set
                         )
                     )
-                missing_composes.update(module_name_stream_version_set)
+                updated_composes.update(module_name_stream_version_set)
 
-        return missing_composes
+        return " ".join(sorted(updated_composes))
 
     def _record_builds(self, images, image_modules_mapping):
         """
@@ -345,7 +345,7 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
                     module_name_stream_set.add(f"{name}:{stream}")
                     module_name_stream_version_set.add(f"{name}:{stream}:{version}")
                 original_odcs_compose_ids = image["original_odcs_compose_ids"]
-                outdated_composes = self._outdated_composes(
+                reused_composes = self._reused_composes(
                     original_odcs_compose_ids, module_name_stream_set
                 )
 
@@ -356,7 +356,7 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
                         "target": image["target"],
                         "branch": image["git_branch"],
                         "arches": image["arches"],
-                        "renewed_odcs_compose_ids": list(outdated_composes),
+                        "renewed_odcs_compose_ids": list(reused_composes),
                         "flatpak": image.get("flatpak", False),
                         "isolated": image.get("isolated", True),
                         "original_parent": None,
@@ -364,13 +364,13 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
                 )
                 db.session.commit()
 
-                missing_composes = self._missing_composes(
+                compose_source = self._updated_compose_source(
                     original_odcs_compose_ids,
                     module_name_stream_set,
                     module_name_stream_version_set,
                 )
                 arches = sorted(image["arches"].split())
-                for compose_source in missing_composes:
+                if compose_source:
                     if compose_source in odcs_cache:
                         db_compose = odcs_cache[compose_source]
                     else:

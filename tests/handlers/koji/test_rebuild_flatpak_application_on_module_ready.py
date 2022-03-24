@@ -236,16 +236,16 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
         original_odcs_compose_ids = ["985716"]
         module_name_stream_set = set(["nodejs:14"])
         module_name_stream_version_set = set(["nodejs:14:8040020211213111158"])
-        outdated_composes = self.handler._outdated_composes(
+        reused_composes = self.handler._reused_composes(
             original_odcs_compose_ids, module_name_stream_set
         )
-        missing_composes = self.handler._missing_composes(
+        updated_compose_source = self.handler._updated_compose_source(
             original_odcs_compose_ids,
             module_name_stream_set,
             module_name_stream_version_set,
         )
-        self.assertEqual(outdated_composes, {"985716"})
-        self.assertEqual(missing_composes, set())
+        self.assertEqual(reused_composes, {"985716"})
+        self.assertEqual(updated_compose_source, "")
 
     @patch("freshmaker.odcsclient.create_odcs_client")
     def test_prepare_data_for_compose_all_sources_not_in_adv(self, create_odcs_client):
@@ -268,16 +268,16 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
         original_odcs_compose_ids = ["985716"]
         module_name_stream_set = set(["name:stream"])
         module_name_stream_version_set = set(["name:stream:version"])
-        outdated_composes = self.handler._outdated_composes(
+        reused_composes = self.handler._reused_composes(
             original_odcs_compose_ids, module_name_stream_set
         )
-        missing_composes = self.handler._missing_composes(
+        updated_compose_source = self.handler._updated_compose_source(
             original_odcs_compose_ids,
             module_name_stream_set,
             module_name_stream_version_set,
         )
-        self.assertEqual(outdated_composes, {"985716"})
-        self.assertEqual(missing_composes, {"name:stream:version"})
+        self.assertEqual(reused_composes, {"985716"})
+        self.assertEqual(updated_compose_source, "name:stream:version")
 
     @patch("freshmaker.odcsclient.create_odcs_client")
     def test_prepare_data_for_compose_some_sources_in_adv(self, create_odcs_client):
@@ -300,18 +300,18 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
         original_odcs_compose_ids = ["985716"]
         module_name_stream_set = set(["name:stream"])
         module_name_stream_version_set = set(["name:stream:9823933"])
-        outdated_composes = self.handler._outdated_composes(
+        reused_composes = self.handler._reused_composes(
             original_odcs_compose_ids, module_name_stream_set
         )
-        missing_composes = self.handler._missing_composes(
+        updated_compose_source = self.handler._updated_compose_source(
             original_odcs_compose_ids,
             module_name_stream_set,
             module_name_stream_version_set,
         )
-        self.assertEqual(outdated_composes, set())
+        self.assertEqual(reused_composes, set())
         self.assertEqual(
-            missing_composes,
-            {"name:stream:9823933", "nodejs:14:8040020211213111158"},
+            updated_compose_source,
+            "name:stream:9823933 nodejs:14:8040020211213111158",
         )
 
     @patch("freshmaker.odcsclient.create_odcs_client")
