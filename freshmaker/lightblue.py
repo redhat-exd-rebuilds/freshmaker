@@ -972,7 +972,7 @@ class LightBlue(object):
 
     def _set_container_image_filters(self, request, content_sets,
                                      rpm_nvrs_names, auto_rebuild_tags,
-                                     published):
+                                     published, repo_names=None):
         """
         Sets the additional filters to containerImage request
 
@@ -983,6 +983,7 @@ class LightBlue(object):
         :param set auto_rebuild_tags: set of auto rebuild tags to add to query
         :param bool published: whether to limit queries to images that are published
             in a repository
+        :param list repo_names: List of image repository names
         """
         query = {"$and": []}
         if published is not None:
@@ -1002,6 +1003,12 @@ class LightBlue(object):
             query["$and"].append(
                 {"field": "rpm_manifest.*.rpms.*.name", "op": "$in",
                  "values": rpm_nvrs_names})
+
+        if repo_names:
+            query["$and"].append(
+                {"field": "repositories.*.repository", "op": "$in",
+                 "values": repo_names})
+
         request["query"] = query
 
         return request
@@ -1049,7 +1056,7 @@ class LightBlue(object):
 
         request = self._set_container_image_filters(
             image_request, content_sets, list(rpm_name_to_nvrs.keys()),
-            auto_rebuild_tags, published)
+            auto_rebuild_tags, published, list(repositories.keys()))
 
         images = self.find_container_images(request)
         if not images:
@@ -1120,12 +1127,10 @@ class LightBlue(object):
             "query": {
                 "$and": [
                     {
-                        "$or": [{
-                            "field": "brew.build",
-                            "op": "=",
-                            "rvalue": nvr
-                        } for nvr in nvrs]
-                    },
+                        "field": "brew.build",
+                        "op": "$in",
+                        "values": nvrs
+                    }
                 ]
             },
             "projection": self._get_default_projection(
@@ -1135,11 +1140,9 @@ class LightBlue(object):
         if content_sets is not None:
             image_request["query"]["$and"].append(
                 {
-                    "$or": [{
-                        "field": "content_sets.*",
-                        "op": "=",
-                        "rvalue": r
-                    } for r in content_sets]
+                    "field": "content_sets.*",
+                    "op": "$in",
+                    "values": content_sets
                 }
             )
 
@@ -1153,11 +1156,9 @@ class LightBlue(object):
                 rpm_name_to_nvrs.setdefault(name, []).append(rpm_nvr)
             image_request["query"]["$and"].append(
                 {
-                    "$or": [{
-                        "field": "rpm_manifest.*.rpms.*.name",
-                        "op": "=",
-                        "rvalue": rpm_name
-                    } for rpm_name in rpm_name_to_nvrs.keys()]
+                    "field": "rpm_manifest.*.rpms.*.name",
+                    "op": "$in",
+                    "values": list(rpm_name_to_nvrs.keys())
                 }
             )
 
@@ -1172,11 +1173,9 @@ class LightBlue(object):
         if rpm_names:
             image_request["query"]["$and"].append(
                 {
-                    "$or": [{
-                        "field": "rpm_manifest.*.rpms.*.name",
-                        "op": "=",
-                        "rvalue": rpm_name
-                    } for rpm_name in rpm_names]
+                    "field": "rpm_manifest.*.rpms.*.name",
+                    "op": "$in",
+                    "values": rpm_names
                 }
             )
 
