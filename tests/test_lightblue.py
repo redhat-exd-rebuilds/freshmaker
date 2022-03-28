@@ -1203,7 +1203,10 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                         "values": ["dummy-content-set-1", "dummy-content-set-2"]},
                     {
                         "field": "rpm_manifest.*.rpms.*.name", "op": "$in",
-                        "values": ["openssl"]}
+                        "values": ["openssl"]},
+                    {
+                        "field": "repositories.*.repository", "op": "$in",
+                        "values": ["product/repo1", "product2/repo2"]},
                 ]
             },
             "projection": lb._get_default_projection(rpm_names=["openssl"])
@@ -1214,6 +1217,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         # the tags criteria in order to assert with expected value.
         request_arg = cont_images.call_args[0][0]
         request_arg['query']['$and'][1]["values"].sort()
+        request_arg['query']['$and'][3]["values"].sort()
 
         self.assertEqual(expected_image_request, request_arg)
 
@@ -2204,11 +2208,10 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         cont_images.assert_called_once_with(
             {'query': {
                 '$and': [
-                    {'$or': [
-                        {'field': 'brew.build', 'rvalue': 'foo', 'op': '='},
-                        {'field': 'brew.build', 'rvalue': 'bar', 'op': '='}]},
-                    {'$or': [{'field': 'content_sets.*', 'rvalue': 'dummy-content-set', 'op': '='}]},
-                    {'$or': [{'field': 'rpm_manifest.*.rpms.*.name', 'rvalue': 'openssl', 'op': '='}]}]},
+                    {'field': 'brew.build', 'values': ['foo', 'bar'], 'op': '$in'},
+                    {'field': 'content_sets.*', 'values': ['dummy-content-set'], 'op': '$in'},
+                    {'field': 'rpm_manifest.*.rpms.*.name', 'values': ['openssl'], 'op': '$in'},
+                ]},
              'projection': [{'field': 'brew', 'include': True, 'recursive': True},
                             {'field': 'parsed_data.files', 'include': True, 'recursive': True},
                             {'field': 'parsed_data.labels.*', 'include': True, 'recursive': True},
