@@ -212,7 +212,7 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
         :return: a list of ContainerImage instances which can be auto rebuilt.
         :rtype: list
         """
-        errata_rpm_nvrs = self.errata.get_cve_affected_rpm_nvrs(
+        errata_rpm_nvrs = self.errata.get_binary_rpm_nvrs(
             self.event.advisory.errata_id
         )
         lb = LightBlue(
