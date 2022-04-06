@@ -32,6 +32,8 @@ import threading
 from os import sys  # type: ignore
 from freshmaker import logger
 
+PROD_CONFIG_FILE = '/etc/freshmaker/config.py'
+
 
 def any_(*rules):
     """
@@ -57,63 +59,77 @@ def all_(*rules):
     return ["all", [rule for rule in rules]]
 
 
-def init_config(app):
+def get_config_section_module():
     """
-    Configure Freshmaker
+    Get module and section for Freshmaker configuration.
+    The module may be None.
     """
-    config_module = None
-    config_file = '/etc/freshmaker/config.py'
+    from conf import config
+
     config_section = 'DevConfiguration'
+    config_module = None
 
-    # automagically detect production environment:
-    #   - existing and readable config_file presets ProdConfiguration
-    if os.path.exists(config_file) and os.access(config_file, os.O_RDONLY):
-        config_section = 'ProdConfiguration'
-
-    # try getting config_file from os.environ
-    if 'FRESHMAKER_CONFIG_FILE' in os.environ:
-        config_file = os.environ['FRESHMAKER_CONFIG_FILE']
-
-    # try getting config_section from os.environ
-    if 'FRESHMAKER_CONFIG_SECTION' in os.environ:
-        config_section = os.environ['FRESHMAKER_CONFIG_SECTION']
-
-    # TestConfiguration shall only be used for running tests, otherwise...
+    # TestConfiguration shall only be used for running tests
     test_env = os.environ.get('FRESHMAKER_TESTING_ENV', '').lower()
     test_executables = {'py.test', 'pytest', 'pytest.py'}
     if (os.path.basename(sys.argv[0]) in test_executables or
             test_env in ('1', 'on', 'true', 'y', 'yes')):
         config_section = 'TestConfiguration'
-        from conf import config
         config_module = config
-    # ...FRESHMAKER_DEVELOPER_ENV has always the last word
-    # and overrides anything previously set before!
-    # In any of the following cases, use configuration directly from Freshmaker
-    # package -> /conf/config.py.
 
     elif os.environ.get('FRESHMAKER_DEVELOPER_ENV', '').lower() in ('1', 'on', 'true', 'y', 'yes'):
         config_section = 'DevConfiguration'
-        if 'FRESHMAKER_CONFIG_FILE' in os.environ:
-            config_file = os.environ['FRESHMAKER_CONFIG_FILE']
-            config_module = None
-        else:
-            from conf import config
+        if 'FRESHMAKER_CONFIG_FILE' not in os.environ:
             config_module = config
 
-    # try loading configuration from file
-    if not config_module:
-        try:
-            config_module = imp.load_source('freshmaker_runtime_config',
-                                            config_file)
-        except IOError:
-            raise SystemError("Configuration file {} was not found."
-                              .format(config_file))
+    # Try getting config_section from os.environ
+    elif 'FRESHMAKER_CONFIG_SECTION' in os.environ:
+        config_section = os.environ['FRESHMAKER_CONFIG_SECTION']
 
-    # finally configure Freshmaker
+    # Automagically detect production environment:
+    #   - existing and readable config_file presets ProdConfiguration
+    elif os.path.exists(PROD_CONFIG_FILE) and os.access(PROD_CONFIG_FILE, os.O_RDONLY):
+        config_section = 'ProdConfiguration'
+
+    return (config_section, config_module)
+
+
+def get_config_module_from_file(config_file):
+    """
+    Try loading configuration module from a file
+    """
+    try:
+        config_module = imp.load_source('freshmaker_runtime_config', config_file)
+    except IOError:
+        raise SystemError("Configuration file {} was not found.".format(config_file))
+
+    return config_module
+
+
+def get_freshmaker_config(app, config_section, config_module):
+    """
+    Get Freshmaker configuration
+    """
     config_section_obj = getattr(config_module, config_section)
     conf = Config(config_section_obj)
     app.config.from_object(config_section_obj)
     return conf
+
+
+def init_config(app):
+    """
+    Configure Freshmaker
+    """
+    config_file = PROD_CONFIG_FILE
+    if 'FRESHMAKER_CONFIG_FILE' in os.environ:
+        config_file = os.environ['FRESHMAKER_CONFIG_FILE']
+
+    config_section, config_module = get_config_section_module()
+
+    if not config_module:
+        config_module = get_config_module_from_file(config_file)
+
+    return get_freshmaker_config(app, config_section, config_module)
 
 
 class Config(object):
@@ -440,16 +456,14 @@ class Config(object):
         with runtime values.
         """
 
-        # set defaults
-        for name, values in self._defaults.items():
-            self.set_item(name, values['default'])
+        # Set defaults
+        for key, values in self._defaults.items():
+            self.set_item(key, values['default'])
 
-        # override defaults
+        # Override defaults
         for key in dir(conf_section_obj):
-            # skip keys starting with underscore
             if key.startswith('_'):
                 continue
-            # set item (lower key)
             self.set_item(key.lower(), getattr(conf_section_obj, key))
 
     def set_item(self, key, value):
@@ -478,9 +492,9 @@ class Config(object):
         delx = lambda self: delattr(self, "_" + key)
         setattr(Config, key, property(getx, setx, delx))
 
-        # managed/registered configuration items
+        # Managed/registered configuration items
         if key in self._defaults:
-            # type conversion for configuration item
+            # Type conversion for configuration item
             convert = self._defaults[key]['type']
             if convert in [bool, int, list, str, set, dict, tuple]:
                 try:
@@ -559,7 +573,7 @@ class Config(object):
                         raise invalid_value
 
         # Use a default dict where any missing key will return {'groups': [], 'users': []}. This
-        # allows Freshmaker developers to add roles without needing to check if they key is set.
+        # Allows Freshmaker developers to add roles without needing to check if they key is set.
         fixed_permissions = defaultdict(lambda: {'groups': [], 'users': []})
         fixed_permissions.update(permissions)
         self._permissions = fixed_permissions
