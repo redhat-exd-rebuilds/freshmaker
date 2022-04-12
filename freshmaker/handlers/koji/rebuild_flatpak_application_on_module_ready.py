@@ -106,7 +106,7 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
         self.start_to_build_images(builds.values())
         msg = "Rebuilding %d container images." % (len(builds))
         db_event.transition(EventState.BUILDING, msg)
-        return builds
+        return []
 
     def _handle_or_skip(self, event):
         """Raises SkipEventException if the event should be skipped."""
