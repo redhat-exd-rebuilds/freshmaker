@@ -32,7 +32,7 @@ from flask import Flask
 from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
 
-from freshmaker.logger import init_logging
+from freshmaker.logger import init_logging, setup_logger
 from freshmaker.config import init_config
 from freshmaker.proxy import ReverseProxy
 
@@ -49,6 +49,8 @@ conf = init_config(app)
 db = SQLAlchemy(app)  # type: Any
 
 init_logging(conf)
+component = 'freshmaker'  # Remove `init_logging(conf)`` above?
+setup_logger(component)
 log = getLogger(__name__)
 
 login_manager = LoginManager()
