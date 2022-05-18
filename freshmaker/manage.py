@@ -40,7 +40,7 @@ def cli():
     """Manage freshmaker application"""
 
 
-cli.command('db', flask_migrate.MigrateCommand)
+cli.command('db', flask_migrate.Migrate)
 
 
 def _establish_ssl_context():
