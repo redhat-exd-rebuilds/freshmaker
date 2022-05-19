@@ -58,6 +58,12 @@ DEV_ENV = os.environ.get("FLASK_ENV", "development") == "development"
 LOG_DIR = "." if DEV_ENV else "/var/log"
 LOG_LEVEL = "DEBUG" if os.environ.get("DEBUG") else "INFO"
 
+CONSOLE_LOGS = True  # adding this in
+console_logs_allowed = True  # adding this in
+DEBUG = True
+debug_logs = True
+FLASK_ENV = "development"  #  or development?
+
 
 def setup_logger(component: str) -> None:
     """
@@ -105,7 +111,8 @@ def setup_logger(component: str) -> None:
     file_handler.setLevel(LOG_LEVEL)
     file_handler.setFormatter(file_formatter)
     logger.addHandler(file_handler)
-    if os.environ.get("CONSOLE_LOGS", "").lower() != "false":
+    # if os.environ.get("CONSOLE_LOGS", "").lower() != "false": #forcing it to be true below
+    if True:
         console_handler = logging.StreamHandler(stream=sys.stdout)
         console_handler.setLevel(LOG_LEVEL)
         console_handler.setFormatter(

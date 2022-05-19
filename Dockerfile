@@ -24,6 +24,9 @@ RUN \
     echo '' > requirements.txt && \
     pip3 install . --no-deps
 
+# Need this because for some reason it wont install with requirements.txt remove me later
+RUN pip install jsonformatter
+
 RUN mkdir -p /usr/share/freshmaker && cp contrib/freshmaker.wsgi /usr/share/freshmaker/
 # Delete the default logging configuration
 RUN rm -f fedmsg.d/freshmaker-logging.py
