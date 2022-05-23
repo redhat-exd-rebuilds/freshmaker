@@ -55,14 +55,15 @@ levels = {
 }
 
 DEV_ENV = os.environ.get("FLASK_ENV", "development") == "development"
-LOG_DIR = "." if DEV_ENV else "/var/log"
+#LOG_DIR = "." if DEV_ENV else "/var/log"
+LOG_DIR = "." if False else "/var/log" #testing this
 LOG_LEVEL = "DEBUG" if os.environ.get("DEBUG") else "INFO"
 
 CONSOLE_LOGS = True  # adding this in
 console_logs_allowed = True  # adding this in
 DEBUG = True
 debug_logs = True
-FLASK_ENV = "development"  #  or development?
+FLASK_ENV = "prod"  #  or development?
 
 
 def setup_logger(component: str) -> None:
