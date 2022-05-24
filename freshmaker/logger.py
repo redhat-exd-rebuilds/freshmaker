@@ -95,7 +95,9 @@ def setup_logger(component: str) -> None:
         file_format, ensure_ascii=False, record_custom_attrs=custom_attr, mix_extra=True
     )
     file_handler = RotatingFileHandler(
-        filename="/var/log/freshmaker.splunk.log",
+        # filename="/var/log/freshmaker",  # this works.. but i dont see the logs
+        filename="/var/log/freshmaker.splunk.log",  # this worked but qixiang said not to do
+        # filename="/var/log/freshmaker/freshmaker.splunk.log",  # not working
         maxBytes=1024 * 1024 * 10,  # 10MB
         backupCount=1,
         mode="a",
