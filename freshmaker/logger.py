@@ -54,6 +54,11 @@ levels = {
     "info": logging.INFO,
 }
 
+DEV_ENV = os.environ.get("FLASK_ENV", "development") == "development"
+print("@@@@what do i print111", DEV_ENV)
+print("@@@@what do i print222", os.environ.get("FLASK_ENV"))
+LOG_DIR = "." if DEV_ENV else "/var/log"  # else "/var/log/freshmaker"
+# LOG_DIR = "/tmp" if DEV_ENV else "/var/log" # else "/var/log/freshmaker"
 LOG_LEVEL = "DEBUG" if os.environ.get("DEBUG") else "INFO"
 
 
@@ -66,7 +71,7 @@ def setup_logger(component: str) -> None:
     logger.setLevel(LOG_LEVEL)
     custom_attr = {
         "environment": lambda: os.environ.get("FLASK_ENV"),
-        "host": lambda: os.environ.get("KUBERNETES_POD_NAME"),
+        "host": lambda: os.environ.get("HOSTNAME"),  # changed this
         "component": lambda: component,
         "sourcetype": lambda: f"freshmaker:{component}",
     }
@@ -98,7 +103,8 @@ def setup_logger(component: str) -> None:
         # filename="/var/log/freshmaker",  # this works.. but i dont see the logs
         # filename="/var/log/freshmaker.splunk.log",  # this worked but qixiang said not to do
         # filename="/var/log/freshmaker/freshmaker.splunk.log",  # not working
-        filename="/tmp/freshmaker.splunk.log",
+        # filename="/tmp/freshmaker.splunk.log", #same thing harita did for if dev env then . else then /var/log
+        filename=os.path.join(LOG_DIR, "snitch.splunk.log"),
         maxBytes=1024 * 1024 * 10,  # 10MB
         backupCount=1,
         mode="a",
@@ -106,16 +112,78 @@ def setup_logger(component: str) -> None:
     file_handler.setLevel(LOG_LEVEL)
     file_handler.setFormatter(file_formatter)
     logger.addHandler(file_handler)
-    console_handler = logging.StreamHandler(stream=sys.stdout)
-    console_handler.setLevel(LOG_LEVEL)
-    console_handler.setFormatter(
-        logging.Formatter(
-            "[%(asctime)s.%(msecs)d] [%(processName)s - %(threadName)s] "
-            "[%(levelname)s] %(message)s",
-            "%Y-%m-%dT%H:%M:%S",
+    if os.environ.get("CONSOLE_LOGS", "").lower() != "false":
+        print(1111111111111111111111111111111111, "testing CONSOLE_LOGS: ", os.environ.get("CONSOLE_LOGS", "").lower() != "false")
+        console_handler = logging.StreamHandler(stream=sys.stdout)
+        console_handler.setLevel(LOG_LEVEL)
+        console_handler.setFormatter(
+            logging.Formatter(
+                "[%(asctime)s.%(msecs)d] [%(processName)s - %(threadName)s] "
+                "[%(levelname)s] %(message)s",
+                "%Y-%m-%dT%H:%M:%S",
+            )
         )
-    )
-    logger.addHandler(console_handler)
+        logger.addHandler(console_handler)
+
+# def setup_logger(component: str) -> None:
+#     """
+#     Set up and configure 'freshmaker' logger.
+#     """
+#     logger = logging.getLogger("freshmaker")
+#     logger.propagate = False
+#     logger.setLevel(LOG_LEVEL)
+#     custom_attr = {
+#         "environment": lambda: os.environ.get("FLASK_ENV"),
+#         "host": lambda: os.environ.get("KUBERNETES_POD_NAME"),  # mariana changes
+#         "component": lambda: component,
+#         "sourcetype": lambda: f"freshmaker:{component}",
+#     }
+#     file_format = """{
+#         "environment":     "environment",
+#         "host":            "host",
+#         "sourcetype":      "sourcetype",
+#         "name":            "name",
+#         "levelno":         "levelno",
+#         "levelname":       "levelname",
+#         "pathname":        "pathname",
+#         "filename":        "filename",
+#         "module":          "module",
+#         "lineno":          "lineno",
+#         "funcname":        "funcName",
+#         "created":         "created",
+#         "asctime":         "asctime",
+#         "msecs":           "msecs",
+#         "relativeCreated": "relativeCreated",
+#         "thread":          "thread",
+#         "threadName":      "threadName",
+#         "process":         "process",
+#         "message":         "message"
+#     }"""
+#     file_formatter = JsonFormatter(
+#         file_format, ensure_ascii=False, record_custom_attrs=custom_attr, mix_extra=True
+#     )
+#     file_handler = RotatingFileHandler(
+#         # filename="/var/log/freshmaker",  # this works.. but i dont see the logs
+#         # filename="/var/log/freshmaker.splunk.log",  # this worked but qixiang said not to do
+#         # filename="/var/log/freshmaker/freshmaker.splunk.log",  # not working
+#         filename="/tmp/freshmaker.splunk.log", #same thing harita did for if dev env then . else then /var/log
+#         maxBytes=1024 * 1024 * 10,  # 10MB
+#         backupCount=1,
+#         mode="a",
+#     )
+#     file_handler.setLevel(LOG_LEVEL)
+#     file_handler.setFormatter(file_formatter)
+#     logger.addHandler(file_handler)
+#     console_handler = logging.StreamHandler(stream=sys.stdout)
+#     console_handler.setLevel(LOG_LEVEL)
+#     console_handler.setFormatter(
+#         logging.Formatter(
+#             "[%(asctime)s.%(msecs)d] [%(processName)s - %(threadName)s] "
+#             "[%(levelname)s] %(message)s",
+#             "%Y-%m-%dT%H:%M:%S",
+#         )
+#     )
+#     logger.addHandler(console_handler)
 
 
 def str_to_log_level(level):
