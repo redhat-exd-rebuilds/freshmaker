@@ -54,16 +54,7 @@ levels = {
     "info": logging.INFO,
 }
 
-DEV_ENV = os.environ.get("FLASK_ENV", "development") == "development"
-#LOG_DIR = "." if DEV_ENV else "/var/log"
-LOG_DIR = "." if False else "/var/log" #testing this
 LOG_LEVEL = "DEBUG" if os.environ.get("DEBUG") else "INFO"
-
-CONSOLE_LOGS = True  # adding this in
-console_logs_allowed = True  # adding this in
-DEBUG = True
-debug_logs = True
-FLASK_ENV = "prod"  #  or development?
 
 
 def setup_logger(component: str) -> None:
@@ -104,7 +95,7 @@ def setup_logger(component: str) -> None:
         file_format, ensure_ascii=False, record_custom_attrs=custom_attr, mix_extra=True
     )
     file_handler = RotatingFileHandler(
-        filename=os.path.join(LOG_DIR, "freshmaker.splunk.log"),
+        filename="/var/log/freshmaker.splunk.log",
         maxBytes=1024 * 1024 * 10,  # 10MB
         backupCount=1,
         mode="a",
@@ -112,18 +103,16 @@ def setup_logger(component: str) -> None:
     file_handler.setLevel(LOG_LEVEL)
     file_handler.setFormatter(file_formatter)
     logger.addHandler(file_handler)
-    # if os.environ.get("CONSOLE_LOGS", "").lower() != "false": #forcing it to be true below
-    if True:
-        console_handler = logging.StreamHandler(stream=sys.stdout)
-        console_handler.setLevel(LOG_LEVEL)
-        console_handler.setFormatter(
-            logging.Formatter(
-                "[%(asctime)s.%(msecs)d] [%(processName)s - %(threadName)s] "
-                "[%(levelname)s] %(message)s",
-                "%Y-%m-%dT%H:%M:%S",
-            )
+    console_handler = logging.StreamHandler(stream=sys.stdout)
+    console_handler.setLevel(LOG_LEVEL)
+    console_handler.setFormatter(
+        logging.Formatter(
+            "[%(asctime)s.%(msecs)d] [%(processName)s - %(threadName)s] "
+            "[%(levelname)s] %(message)s",
+            "%Y-%m-%dT%H:%M:%S",
         )
-        logger.addHandler(console_handler)
+    )
+    logger.addHandler(console_handler)
 
 
 def str_to_log_level(level):
