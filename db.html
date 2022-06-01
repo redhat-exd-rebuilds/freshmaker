@@ -1,16 +1,20 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Freshmaker database &mdash; Freshmaker  documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <title>Freshmaker database &mdash; Freshmaker  documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
-  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="_static/doctools.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="author" title="About these documents" href="about.html" />
@@ -37,7 +41,7 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption"><span class="caption-text">Contents:</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="about.html">About Freshmaker</a></li>
 <li class="toctree-l1"><a class="reference internal" href="api_v1.html">API version 1</a></li>
@@ -77,21 +81,21 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <div class="section" id="freshmaker-database">
-<h1>Freshmaker database<a class="headerlink" href="#freshmaker-database" title="Permalink to this headline">¶</a></h1>
+  <section id="freshmaker-database">
+<h1>Freshmaker database<a class="headerlink" href="#freshmaker-database" title="Permalink to this heading"></a></h1>
 <p>Freshmaker as an SQL toolkit uses SQLAlchemy extension for <a class="reference external" href="https://flask-sqlalchemy.palletsprojects.com/en/2.x/">Flask</a>. So whenever you want to add some columns or tables you should at least check <code class="docutils literal notranslate"><span class="pre">models.py</span></code> file. Every class that has a <strong>FreshmakerBase</strong> as a parent is actually a table with its own columns, relationships etc.</p>
 <p>As for database management system, we are using <a class="reference external" href="https://www.postgresql.org/">PostgreSQL</a> in deployments and <a class="reference external" href="https://www.sqlite.org/index.html">SQLite</a> in local environment.
 And besides that for testing we are using <em>in-memory</em> database, so whenever you are running tests from <code class="docutils literal notranslate"><span class="pre">tests/</span></code> folder, new database is created and live while tests are running.</p>
-<div class="section" id="setting-up-database">
-<h2>Setting up Database<a class="headerlink" href="#setting-up-database" title="Permalink to this headline">¶</a></h2>
+<section id="setting-up-database">
+<h2>Setting up Database<a class="headerlink" href="#setting-up-database" title="Permalink to this heading"></a></h2>
 <p>When you for the first time want to create freshmaker database, you are supposed to run:</p>
 <div class="highlight-none notranslate"><div class="highlight"><pre><span></span>./manager createdb
 </pre></div>
 </div>
 <p>This command will create new <code class="docutils literal notranslate"><span class="pre">freshmaker.db</span></code> file for local use for you.</p>
-</div>
-<div class="section" id="database-update">
-<h2>Database update<a class="headerlink" href="#database-update" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="database-update">
+<h2>Database update<a class="headerlink" href="#database-update" title="Permalink to this heading"></a></h2>
 <p>When some changes are applied to database scheme, like changing <code class="docutils literal notranslate"><span class="pre">models.py</span></code>, you should generate  migration file for a new database scheme by running:</p>
 <div class="highlight-none notranslate"><div class="highlight"><pre><span></span>./manager db migrate
 </pre></div>
@@ -101,16 +105,16 @@ And besides that for testing we are using <em>in-memory</em> database, so whenev
 </pre></div>
 </div>
 <p>After that all changes should be already applied to your local database.</p>
-</div>
-<div class="section" id="querying-database">
-<h2>Querying database<a class="headerlink" href="#querying-database" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="querying-database">
+<h2>Querying database<a class="headerlink" href="#querying-database" title="Permalink to this heading"></a></h2>
 <p>You can query your locally created database by running something like this in the directory with database file:</p>
 <div class="highlight-none notranslate"><div class="highlight"><pre><span></span>sqlite3 freshmaker.db &#39;SELECT id FROM artifact_builds;&#39;
 </pre></div>
 </div>
-</div>
-<div class="section" id="database-migrations">
-<h2>Database Migrations<a class="headerlink" href="#database-migrations" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="database-migrations">
+<h2>Database Migrations<a class="headerlink" href="#database-migrations" title="Permalink to this heading"></a></h2>
 <p>Migration is similar to <a class="reference external" href="https://github.com/release-engineering/cachito">Cachito</a>.
 Follow the steps below for database data and/or schema migrations:</p>
 <ul>
@@ -155,8 +159,8 @@ Follow the steps below for database data and/or schema migrations:</p>
 <li><p>Remove <code class="docutils literal notranslate"><span class="pre">freshmaker.db</span></code></p></li>
 <li><p>Commit your changes</p></li>
 </ul>
-</div>
-</div>
+</section>
+</section>
 
 
            </div>

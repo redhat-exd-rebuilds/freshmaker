@@ -1,16 +1,20 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>API version 1 &mdash; Freshmaker  documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <title>API version 1 &mdash; Freshmaker  documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
-  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="_static/doctools.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="author" title="About these documents" href="about.html" />
@@ -38,7 +42,7 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption"><span class="caption-text">Contents:</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="about.html">About Freshmaker</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">API version 1</a><ul>
@@ -78,10 +82,10 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <div class="section" id="api-version-1">
-<h1>API version 1<a class="headerlink" href="#api-version-1" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="event-json-representation">
-<span id="event-json-api-1"></span><h2>Event JSON representation<a class="headerlink" href="#event-json-representation" title="Permalink to this headline">¶</a></h2>
+  <section id="api-version-1">
+<h1>API version 1<a class="headerlink" href="#api-version-1" title="Permalink to this heading"></a></h1>
+<section id="event-json-representation">
+<span id="event-json-api-1"></span><h2>Event JSON representation<a class="headerlink" href="#event-json-representation" title="Permalink to this heading"></a></h2>
 <p>The Freshmaker Event is always represented in the API request as JSON, for example:</p>
 <div class="highlight-none notranslate"><div class="highlight"><pre><span></span>{
     &quot;builds&quot;: [],
@@ -185,9 +189,9 @@
 <dt><em>time_done</em> - <code class="docutils literal notranslate"><span class="pre">(datetime)</span></code></dt><dd><p>The date and time on which the Event has been moved to <code class="docutils literal notranslate"><span class="pre">FAILED</span></code>, <code class="docutils literal notranslate"><span class="pre">COMPLETE</span></code>, or <code class="docutils literal notranslate"><span class="pre">CANCELED</span></code> state.</p>
 </dd>
 </dl>
-</div>
-<div class="section" id="artifact-build-json-representation">
-<span id="build-json-api-1"></span><h2>Artifact Build JSON representation<a class="headerlink" href="#artifact-build-json-representation" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="artifact-build-json-representation">
+<span id="build-json-api-1"></span><h2>Artifact Build JSON representation<a class="headerlink" href="#artifact-build-json-representation" title="Permalink to this heading"></a></h2>
 <p>The Freshmaker Artifact Build is always represented in the API request as JSON, for example:</p>
 <div class="highlight-none notranslate"><div class="highlight"><pre><span></span>{
     &quot;build_args&quot;: {
@@ -311,9 +315,9 @@
 <dt><em>type__name</em> - <code class="docutils literal notranslate"><span class="pre">(string)</span></code></dt><dd><p>Name of the type of Artifact build. See <a class="reference internal" href="#build-type"><span class="std std-ref">type</span></a> for more info.</p>
 </dd>
 </dl>
-</div>
-<div class="section" id="rest-api-pagination">
-<span id="pagination-api-1"></span><h2>REST API pagination<a class="headerlink" href="#rest-api-pagination" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="rest-api-pagination">
+<span id="pagination-api-1"></span><h2>REST API pagination<a class="headerlink" href="#rest-api-pagination" title="Permalink to this heading"></a></h2>
 <p>When multiple objects are returned by the Freshmaker REST API, they are wrapped in the following JSON which allows pagination:</p>
 <div class="highlight-none notranslate"><div class="highlight"><pre><span></span>{
     &quot;items&quot;: [
@@ -334,12 +338,12 @@
 </pre></div>
 </div>
 <p>The <code class="docutils literal notranslate"><span class="pre">items</span></code> list contains the objects JSONs. The <code class="docutils literal notranslate"><span class="pre">meta</span></code> dict contains metadata about pagination. It is possible to use <code class="docutils literal notranslate"><span class="pre">per_page</span></code> argument to set the number of objects showed per single page and <code class="docutils literal notranslate"><span class="pre">page</span></code> to choose the page to show.</p>
-</div>
-<div class="section" id="http-rest-api">
-<h2>HTTP REST API<a class="headerlink" href="#http-rest-api" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="http-rest-api">
+<h2>HTTP REST API<a class="headerlink" href="#http-rest-api" title="Permalink to this heading"></a></h2>
 <dl class="http get">
-<dt id="get--api-1-events-">
-<code class="sig-name descname"><span class="pre">GET</span> </code><code class="sig-name descname"><span class="pre">/api/1/events/</span></code><a class="headerlink" href="#get--api-1-events-" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object http" id="get--api-1-events-">
+<span class="sig-name descname"><span class="pre">GET</span> </span><span class="sig-name descname"><span class="pre">/api/1/events/</span></span><a class="headerlink" href="#get--api-1-events-" title="Permalink to this definition"></a></dt>
 <dd><p>Returns Freshmaker Events.</p>
 <p>If <code class="docutils literal notranslate"><span class="pre">id</span></code> is set, only the Freshmaker Event defined by that ID is
 returned.</p>
@@ -368,16 +372,16 @@ the order will be descending. The default value is <code class="docutils literal
 </dd>
 <dt class="field-even">Status Codes</dt>
 <dd class="field-even"><ul class="simple">
-<li><p><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a> – Requested events are returned.</p></li>
-<li><p><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.5">404 Not Found</a> – Freshmaker event not found.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a></span> – Requested events are returned.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.5">404 Not Found</a></span> – Freshmaker event not found.</p></li>
 </ul>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="http patch">
-<dt id="patch--api-1-events-(int-id)">
-<code class="sig-name descname"><span class="pre">PATCH</span> </code><code class="sig-name descname"><span class="pre">/api/1/events/</span></code><span class="sig-paren">(</span><em class="property"><span class="pre">int:</span> </em><em class="sig-param"><span class="pre">id</span></em><span class="sig-paren">)</span><a class="headerlink" href="#patch--api-1-events-(int-id)" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object http" id="patch--api-1-events-(int-id)">
+<span class="sig-name descname"><span class="pre">PATCH</span> </span><span class="sig-name descname"><span class="pre">/api/1/events/</span></span><span class="sig-paren">(</span><em class="property"><span class="pre">int:</span> </em><em class="sig-param"><span class="pre">id</span></em><span class="sig-paren">)</span><a class="headerlink" href="#patch--api-1-events-(int-id)" title="Permalink to this definition"></a></dt>
 <dd><p>Manage Freshmaker event defined by ID. The request must be
 <em class="mimetype">application/json</em>.</p>
 <p>Returns the cancelled Freshmaker event as JSON.</p>
@@ -400,16 +404,16 @@ is supported.</p></li>
 </dd>
 <dt class="field-even">Status Codes</dt>
 <dd class="field-even"><ul class="simple">
-<li><p><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a> – Cancelled event is returned.</p></li>
-<li><p><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.1">400 Bad Request</a> – Action is missing or is unsupported.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a></span> – Cancelled event is returned.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.1">400 Bad Request</a></span> – Action is missing or is unsupported.</p></li>
 </ul>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="http get">
-<dt id="get--api-1-events-(int-id)">
-<code class="sig-name descname"><span class="pre">GET</span> </code><code class="sig-name descname"><span class="pre">/api/1/events/</span></code><span class="sig-paren">(</span><em class="property"><span class="pre">int:</span> </em><em class="sig-param"><span class="pre">id</span></em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-1-events-(int-id)" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object http" id="get--api-1-events-(int-id)">
+<span class="sig-name descname"><span class="pre">GET</span> </span><span class="sig-name descname"><span class="pre">/api/1/events/</span></span><span class="sig-paren">(</span><em class="property"><span class="pre">int:</span> </em><em class="sig-param"><span class="pre">id</span></em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-1-events-(int-id)" title="Permalink to this definition"></a></dt>
 <dd><p>Returns Freshmaker Events.</p>
 <p>If <code class="docutils literal notranslate"><span class="pre">id</span></code> is set, only the Freshmaker Event defined by that ID is
 returned.</p>
@@ -438,16 +442,16 @@ the order will be descending. The default value is <code class="docutils literal
 </dd>
 <dt class="field-even">Status Codes</dt>
 <dd class="field-even"><ul class="simple">
-<li><p><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a> – Requested events are returned.</p></li>
-<li><p><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.5">404 Not Found</a> – Freshmaker event not found.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a></span> – Requested events are returned.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.5">404 Not Found</a></span> – Freshmaker event not found.</p></li>
 </ul>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="http post">
-<dt id="post--api-1-builds-">
-<code class="sig-name descname"><span class="pre">POST</span> </code><code class="sig-name descname"><span class="pre">/api/1/builds/</span></code><a class="headerlink" href="#post--api-1-builds-" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object http" id="post--api-1-builds-">
+<span class="sig-name descname"><span class="pre">POST</span> </span><span class="sig-name descname"><span class="pre">/api/1/builds/</span></span><a class="headerlink" href="#post--api-1-builds-" title="Permalink to this definition"></a></dt>
 <dd><p>Trigger manual Freshmaker rebuild. The request must be
 <em class="mimetype">application/json</em>.</p>
 <p>Returns the newly created Freshmaker event as JSON.</p>
@@ -481,16 +485,16 @@ provided, it will be inherited from this Freshmaker event.</p></li>
 </dd>
 <dt class="field-even">Status Codes</dt>
 <dd class="field-even"><ul class="simple">
-<li><p><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a> – A new event was created.</p></li>
-<li><p><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.1">400 Bad Request</a> – The provided input is invalid.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a></span> – A new event was created.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.1">400 Bad Request</a></span> – The provided input is invalid.</p></li>
 </ul>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="http get">
-<dt id="get--api-1-verify-image-(image)">
-<code class="sig-name descname"><span class="pre">GET</span> </code><code class="sig-name descname"><span class="pre">/api/1/verify-image/</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="pre">image</span></em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-1-verify-image-(image)" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object http" id="get--api-1-verify-image-(image)">
+<span class="sig-name descname"><span class="pre">GET</span> </span><span class="sig-name descname"><span class="pre">/api/1/verify-image/</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">image</span></em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-1-verify-image-(image)" title="Permalink to this definition"></a></dt>
 <dd><p>Verifies whether the container image defined by the NVR is handled
 by Freshmaker. If not, returns explanation why.</p>
 <p><strong>Sample request</strong>:</p>
@@ -513,16 +517,16 @@ by Freshmaker. If not, returns explanation why.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Status Codes</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a> – Image is handled by Freshmaker.</p></li>
-<li><p><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.1">400 Bad Request</a> – Image is not handled by Freshmaker or not found.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a></span> – Image is handled by Freshmaker.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.1">400 Bad Request</a></span> – Image is not handled by Freshmaker or not found.</p></li>
 </ul>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="http get">
-<dt id="get--api-1-verify-image-repository-(project)-(repo)">
-<code class="sig-name descname"><span class="pre">GET</span> </code><code class="sig-name descname"><span class="pre">/api/1/verify-image-repository/</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="pre">project</span></em><span class="sig-paren">)</span><code class="sig-name descname"><span class="pre">/</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="pre">repo</span></em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-1-verify-image-repository-(project)-(repo)" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object http" id="get--api-1-verify-image-repository-(project)-(repo)">
+<span class="sig-name descname"><span class="pre">GET</span> </span><span class="sig-name descname"><span class="pre">/api/1/verify-image-repository/</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">project</span></em><span class="sig-paren">)</span><span class="sig-name descname"><span class="pre">/</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">repo</span></em><span class="sig-paren">)</span><a class="headerlink" href="#get--api-1-verify-image-repository-(project)-(repo)" title="Permalink to this definition"></a></dt>
 <dd><p>Verifies whether the container image repository is handled
 by Freshmaker. If not, returns explanation why.</p>
 <p><strong>Sample request</strong>:</p>
@@ -556,8 +560,8 @@ by Freshmaker. If not, returns explanation why.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Status Codes</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a> – Image repository is handled by Freshmaker.</p></li>
-<li><p><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.1">400 Bad Request</a> – Image repository is not handled by Freshmaker or not
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a></span> – Image repository is handled by Freshmaker.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.1">400 Bad Request</a></span> – Image repository is not handled by Freshmaker or not
 found.</p></li>
 </ul>
 </dd>
@@ -565,8 +569,8 @@ found.</p></li>
 </dd></dl>
 
 <dl class="http post">
-<dt id="post--api-1-async-builds-">
-<code class="sig-name descname"><span class="pre">POST</span> </code><code class="sig-name descname"><span class="pre">/api/1/async-builds/</span></code><a class="headerlink" href="#post--api-1-async-builds-" title="Permalink to this definition">¶</a></dt>
+<dt class="sig sig-object http" id="post--api-1-async-builds-">
+<span class="sig-name descname"><span class="pre">POST</span> </span><span class="sig-name descname"><span class="pre">/api/1/async-builds/</span></span><a class="headerlink" href="#post--api-1-async-builds-" title="Permalink to this definition"></a></dt>
 <dd><p>Trigger Freshmaker async rebuild (a.k.a non-CVE rebuild). The request
 must be <em class="mimetype">application/json</em>.</p>
 <p>Returns the newly created Freshmaker event as JSON.</p>
@@ -608,15 +612,15 @@ default value will be pulled from the previous buildContainer task.</p></li>
 </dd>
 <dt class="field-even">Status Codes</dt>
 <dd class="field-even"><ul class="simple">
-<li><p><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a> – A new event was created.</p></li>
-<li><p><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.1">400 Bad Request</a> – The provided input is invalid.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.1">200 OK</a></span> – A new event was created.</p></li>
+<li><p><span><a class="reference external" href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.1">400 Bad Request</a></span> – The provided input is invalid.</p></li>
 </ul>
 </dd>
 </dl>
 </dd></dl>
 
-</div>
-</div>
+</section>
+</section>
 
 
            </div>

@@ -1,16 +1,20 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Messaging API &mdash; Freshmaker  documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <title>Messaging API &mdash; Freshmaker  documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
-  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="_static/doctools.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="author" title="About these documents" href="about.html" />
@@ -38,7 +42,7 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption"><span class="caption-text">Contents:</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="about.html">About Freshmaker</a></li>
 <li class="toctree-l1"><a class="reference internal" href="api_v1.html">API version 1</a></li>
@@ -77,22 +81,22 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <div class="section" id="messaging-api">
-<h1>Messaging API<a class="headerlink" href="#messaging-api" title="Permalink to this headline">¶</a></h1>
+  <section id="messaging-api">
+<h1>Messaging API<a class="headerlink" href="#messaging-api" title="Permalink to this heading"></a></h1>
 <p>Freshmaker also sends AMQP or Fedmsg messages when events or builds change its state.</p>
-<div class="section" id="event-state-changed">
-<h2><code class="docutils literal notranslate"><span class="pre">event.state.changed</span></code><a class="headerlink" href="#event-state-changed" title="Permalink to this headline">¶</a></h2>
+<section id="event-state-changed">
+<h2><code class="docutils literal notranslate"><span class="pre">event.state.changed</span></code><a class="headerlink" href="#event-state-changed" title="Permalink to this heading"></a></h2>
 <p>This message is sent on every <a class="reference internal" href="api_v1.html#event-json-api-1"><span class="std std-ref">Freshmaker Event</span></a>’s <a class="reference internal" href="api_v1.html#event-state"><span class="std std-ref">state</span></a> change. The message contains <a class="reference internal" href="api_v1.html#event-json-api-1"><span class="std std-ref">Event JSON representation as defined in API version 1</span></a>.</p>
-</div>
-<div class="section" id="event-state-changed-min">
-<h2><code class="docutils literal notranslate"><span class="pre">event.state.changed.min</span></code><a class="headerlink" href="#event-state-changed-min" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="event-state-changed-min">
+<h2><code class="docutils literal notranslate"><span class="pre">event.state.changed.min</span></code><a class="headerlink" href="#event-state-changed-min" title="Permalink to this heading"></a></h2>
 <p>This message is sent on every <a class="reference internal" href="api_v2.html#event-json-api-2"><span class="std std-ref">Freshmaker Event</span></a>’s <a class="reference internal" href="api_v1.html#event-state"><span class="std std-ref">state</span></a> change. The message contains <a class="reference internal" href="api_v2.html#event-json-api-2"><span class="std std-ref">Event JSON representation as defined in API version 2</span></a>.</p>
-</div>
-<div class="section" id="build-state-changed">
-<h2><code class="docutils literal notranslate"><span class="pre">build.state.changed</span></code><a class="headerlink" href="#build-state-changed" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="build-state-changed">
+<h2><code class="docutils literal notranslate"><span class="pre">build.state.changed</span></code><a class="headerlink" href="#build-state-changed" title="Permalink to this heading"></a></h2>
 <p>This message is sent on every <a class="reference internal" href="api_v1.html#build-json-api-1"><span class="std std-ref">Artifact Build</span></a>’s <a class="reference internal" href="api_v1.html#build-state"><span class="std std-ref">state</span></a> change. The message contains <a class="reference internal" href="api_v1.html#build-json-api-1"><span class="std std-ref">Artifact Build</span></a>.</p>
-</div>
-</div>
+</section>
+</section>
 
 
            </div>

@@ -1,16 +1,20 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Configuration &mdash; Freshmaker  documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <title>Configuration &mdash; Freshmaker  documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
-  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="_static/doctools.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="author" title="About these documents" href="about.html" />
@@ -38,7 +42,7 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption"><span class="caption-text">Contents:</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="about.html">About Freshmaker</a></li>
 <li class="toctree-l1"><a class="reference internal" href="api_v1.html">API version 1</a></li>
@@ -77,15 +81,15 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <div class="section" id="configuration">
-<h1>Configuration<a class="headerlink" href="#configuration" title="Permalink to this headline">¶</a></h1>
+  <section id="configuration">
+<h1>Configuration<a class="headerlink" href="#configuration" title="Permalink to this heading"></a></h1>
 <p>Freshmaker uses the configuration file located at
 <code class="docutils literal notranslate"><span class="pre">/etc/freshmaker/config.py</span></code>. This is based on <code class="docutils literal notranslate"><span class="pre">conf/config.py</span></code>, and many
 default values are inherited from <code class="docutils literal notranslate"><span class="pre">freshmaker/config.py</span></code>. If the
 configuration you are interested in is not documented here, check both of those
 files.</p>
-<div class="section" id="permissions">
-<h2>Permissions<a class="headerlink" href="#permissions" title="Permalink to this headline">¶</a></h2>
+<section id="permissions">
+<h2>Permissions<a class="headerlink" href="#permissions" title="Permalink to this heading"></a></h2>
 <p>Freshmaker permissions are defined by using a dictionary, where the keys
 are role names, and the values are dictionaries that have the keys <code class="docutils literal notranslate"><span class="pre">groups</span></code>
 and <code class="docutils literal notranslate"><span class="pre">users</span></code>. If defined, these keys must have lists as values. If a role is
@@ -102,9 +106,9 @@ not defined, these values will default to empty lists.</p>
 <span class="p">}</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="eus-images">
-<h2>EUS images<a class="headerlink" href="#eus-images" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="eus-images">
+<h2>EUS images<a class="headerlink" href="#eus-images" title="Permalink to this heading"></a></h2>
 <p>EUS (Extended Update Support) base images are handled a little bit differently than
 standard container images. Mainly because its repository is unpublished and
 Freshmaker usually rebuilds images from published repositories. Since those images
@@ -122,9 +126,9 @@ configuration:</p>
 <span class="p">]</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="other">
-<h2>Other<a class="headerlink" href="#other" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="other">
+<h2>Other<a class="headerlink" href="#other" title="Permalink to this heading"></a></h2>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">rebuilt_nvr_release_suffix</span></code> - a suffix to add to the <code class="docutils literal notranslate"><span class="pre">rebuilt_nvr</span></code>
 release in addition to the timestamp. This defaults to an empty string.</p></li>
@@ -133,8 +137,8 @@ Freshmaker event. The importing of vcrpy and the recording of Lightblue queries 
 the vcrpy configuration variables (<code class="docutils literal notranslate"><span class="pre">vcrpy_path</span></code> and <code class="docutils literal notranslate"><span class="pre">vcrpy_mode</span></code>) are set in
 <code class="docutils literal notranslate"><span class="pre">freshmaker/config.py</span></code></p></li>
 </ul>
-</div>
-</div>
+</section>
+</section>
 
 
            </div>
