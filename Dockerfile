@@ -24,6 +24,10 @@ RUN \
     echo '' > requirements.txt && \
     pip3 install . --no-deps
 
+RUN pip install jsonformatter==0.3.1
+
+RUN mkdir /var/log/freshmaker/
+
 RUN mkdir -p /usr/share/freshmaker && cp contrib/freshmaker.wsgi /usr/share/freshmaker/
 # Delete the default logging configuration
 RUN rm -f fedmsg.d/freshmaker-logging.py

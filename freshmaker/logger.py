@@ -42,6 +42,10 @@ logging.warning("%s failed to build", task_id)
 """
 
 import logging
+from logging.handlers import RotatingFileHandler
+import os
+import sys
+from jsonformatter import JsonFormatter
 
 levels = {
     "debug": logging.DEBUG,
@@ -49,6 +53,69 @@ levels = {
     "warning": logging.WARNING,
     "info": logging.INFO,
 }
+
+DEV_ENV = os.environ.get("FRESHMAKER_TESTING_ENV") == "1"
+LOG_DIR = "." if DEV_ENV else "/var/log/freshmaker"
+LOG_LEVEL = "DEBUG" if os.environ.get("DEBUG") else "INFO"
+
+
+def setup_logger():
+    """
+    Set up and configure 'freshmaker' logger.
+    """
+    logger = logging.getLogger("freshmaker")
+    logger.propagate = False
+    logger.setLevel(LOG_LEVEL)
+    source = "freshmaker"
+    custom_attr = {
+        "environment": lambda: os.environ.get("env"),
+        "host": lambda: os.environ.get("freshmaker_ocp_host"),
+        "sourcetype": lambda: f"{source}",
+    }
+    file_format = """{
+        "environment":     "environment",
+        "host":            "host",
+        "sourcetype":      "sourcetype",
+        "name":            "name",
+        "levelno":         "levelno",
+        "levelname":       "levelname",
+        "pathname":        "pathname",
+        "filename":        "filename",
+        "module":          "module",
+        "lineno":          "lineno",
+        "funcname":        "funcName",
+        "created":         "created",
+        "asctime":         "asctime",
+        "msecs":           "msecs",
+        "relativeCreated": "relativeCreated",
+        "thread":          "thread",
+        "threadName":      "threadName",
+        "process":         "process",
+        "message":         "message"
+    }"""
+    file_formatter = JsonFormatter(
+        file_format, ensure_ascii=False, record_custom_attrs=custom_attr, mix_extra=True
+    )
+    file_handler = RotatingFileHandler(
+        filename=os.path.join(LOG_DIR, "freshmaker.splunk.log"),
+        maxBytes=1024 * 1024 * 10,  # 10MB
+        backupCount=1,
+        mode="a",
+    )
+    file_handler.setLevel(LOG_LEVEL)
+    file_handler.setFormatter(file_formatter)
+    logger.addHandler(file_handler)
+    if os.environ.get("CONSOLE_LOGS", "").lower() != "false":
+        console_handler = logging.StreamHandler(stream=sys.stdout)
+        console_handler.setLevel(LOG_LEVEL)
+        console_handler.setFormatter(
+            logging.Formatter(
+                "[%(asctime)s.%(msecs)d] [%(processName)s - %(threadName)s] "
+                "[%(levelname)s] %(message)s",
+                "%Y-%m-%dT%H:%M:%S",
+            )
+        )
+        logger.addHandler(console_handler)
 
 
 def str_to_log_level(level):
