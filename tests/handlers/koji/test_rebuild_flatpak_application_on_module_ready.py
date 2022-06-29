@@ -25,7 +25,7 @@ def _mock_image(image_nvr):
         "target": "t1",
         "git_branch": "mybranch",
         "arches": "x86_64",
-        "original_odcs_compose_ids": [10, 11],
+        "odcs_compose_ids": [10, 11],
         "directly_affected": True,
     }
     return ContainerImage(d)
@@ -323,10 +323,6 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
             "freshmaker.lightblue.ContainerImage.resolve_commit"
         )
         resolve_commit.return_value = None
-        resolve_original_odcs_compose_ids = self._patch(
-            "freshmaker.lightblue.ContainerImage.resolve_original_odcs_compose_ids"
-        )
-        resolve_original_odcs_compose_ids.return_value = None
 
         odcs = create_odcs_client.return_value
         composes = [

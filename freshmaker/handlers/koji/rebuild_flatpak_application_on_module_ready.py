@@ -319,7 +319,6 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
                 self.set_context(db_event)
 
                 image.resolve_commit()
-                image.resolve_original_odcs_compose_ids(False)
                 nvr = image.nvr
                 image_name = koji.parse_NVR(nvr)["name"]
                 build = self.record_build(
@@ -344,7 +343,7 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
                     version = mmd.get_version()
                     module_name_stream_set.add(f"{name}:{stream}")
                     module_name_stream_version_set.add(f"{name}:{stream}:{version}")
-                original_odcs_compose_ids = image["original_odcs_compose_ids"]
+                original_odcs_compose_ids = image["odcs_compose_ids"]
                 reused_composes = self._reused_composes(
                     original_odcs_compose_ids, module_name_stream_set
                 )

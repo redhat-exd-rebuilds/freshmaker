@@ -64,8 +64,6 @@ class TestRebuildImagesOnAsyncManualBuild(helpers.ModelsTestCase):
         self.mock_start_to_build_images = self.patcher.patch('start_to_build_images')
         self.mock_get_image_builds_in_first_batch = self.patcher.patch(
             'freshmaker.models.Event.get_image_builds_in_first_batch')
-        self.mock_get_most_original_nvr = self.patcher.patch(
-            'freshmaker.models.ArtifactBuild.get_most_original_nvr')
 
         # Structure of the images used for testing:
         #       image_0
