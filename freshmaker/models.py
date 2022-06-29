@@ -631,20 +631,6 @@ class ArtifactBuild(FreshmakerBase):
             return 0
         return build.build_id
 
-    @classmethod
-    def get_most_original_nvr(cls, nvr):
-        """
-        Get original NVR recursively until reach the one which was not built by freshmaker
-
-        Return the NVR of most original image
-        """
-        original_nvr = None
-        build = db.session.query(ArtifactBuild).filter(cls.rebuilt_nvr == nvr).first()
-        while build:
-            original_nvr = build.original_nvr
-            build = db.session.query(ArtifactBuild).filter(cls.rebuilt_nvr == original_nvr).first()
-        return original_nvr
-
     @property
     def bundle_pullspec_overrides(self):
         """Return the Python representation of the JSON bundle_pullspec_overrides."""

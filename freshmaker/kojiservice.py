@@ -335,21 +335,6 @@ class KojiService(object):
         return rpms
 
     @region.cache_on_arguments()
-    def get_odcs_compose_ids(self, build_nvr):
-        """
-        Get ODCS compose ids used in image build task
-
-        Return a list of compose ids
-        """
-        build = self.get_build(build_nvr)
-        # Get the list of ODCS composes used to build the image.
-        extra_image = build.get("extra", {}).get("image", {})
-        compose_ids = extra_image.get("odcs", {}).get("compose_ids")
-        if not compose_ids:
-            compose_ids = []
-        return compose_ids
-
-    @region.cache_on_arguments()
     def get_ocp_versions_range(self, build_nvr):
         """
         Get bundle image's OpenShift versions range value

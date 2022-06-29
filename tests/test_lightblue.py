@@ -379,55 +379,6 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
             self.dummy_image["error"],
             "Cannot resolve the container image: Expected exception.")
 
-    @patch('freshmaker.lightblue.ArtifactBuild.get_most_original_nvr')
-    @patch('freshmaker.kojiservice.KojiService.get_build')
-    @patch('freshmaker.kojiservice.KojiService.get_task_request')
-    def test_resolve_original_odcs_compose_ids(self, get_task_request, get_build, get_nvr):
-        get_build.return_value = {
-            "task_id": 123456,
-            'extra': {
-                'image': {
-                    'odcs': {
-                        'compose_ids': [7300, 7301],
-                        'signing_intent': 'release',
-                        'signing_intent_overridden': False
-                    }
-                }
-            }
-        }
-
-        get_task_request.return_value = [
-            "git://example.com/rpms/repo-1?#commit_hash1", "target1", {}]
-
-        self.dummy_image.resolve_original_odcs_compose_ids()
-        self.assertEqual(self.dummy_image["generate_pulp_repos"], True)
-        self.assertEqual(self.dummy_image["original_odcs_compose_ids"], [7300, 7301])
-
-    @patch('freshmaker.kojiservice.KojiService.get_build')
-    def test_resolve_original_odcs_compose_ids_without_dependency_builds(self, get_build):
-        image = ContainerImage.create({
-            '_id': '1233829',
-            'brew': {
-                'build': 'package-name-1-4-12.10'
-            },
-            'repository': 'repo-1',
-            'git_branch': 'branch',
-            'commit': 'commit_hash1',
-        })
-        get_build.return_value = {
-            "task_id": 123456,
-            'extra': {
-                'image': {
-                    'odcs': {
-                        'compose_ids': [7300, 7301]
-                    }
-                }
-            }
-        }
-
-        image.resolve_original_odcs_compose_ids(False)
-        self.assertEqual(image["original_odcs_compose_ids"], [7300, 7301])
-
     def test_resolve_content_sets_already_included_in_lb_response(self):
         image = ContainerImage.create({
             '_id': '1233829',
@@ -462,11 +413,10 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
         image.resolve_content_sets(lb)
         self.assertEqual(image["content_sets"], [])
 
-    @patch('freshmaker.lightblue.ArtifactBuild.get_most_original_nvr')
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')
     def test_resolve_content_sets_no_repositories_children_set(
-            self, get_task_request, get_build, get_most_original_nvr):
+            self, get_task_request, get_build):
         image = ContainerImage.create({
             '_id': '1233829',
             'brew': {
@@ -1292,15 +1242,13 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
     def _filter_fnc(self, image):
         return image.nvr.startswith("filtered_")
 
-    @patch('freshmaker.lightblue.ArtifactBuild.get_most_original_nvr')
     @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')
     @patch('os.path.exists')
     def test_images_with_content_set_packages(
-        self, exists, koji_task_request, koji_get_build, cont_images,
-        cont_repos, get_most_original_nvr
+        self, exists, koji_task_request, koji_get_build, cont_images, cont_repos
     ):
 
         exists.return_value = True
@@ -1334,7 +1282,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                          [
                              {
                                  "latest_released": True,
-                                 "generate_pulp_repos": True,
                                  "repository": "rpms/repo-2",
                                  "commit": "commit_hash2",
                                  "target": "target2",
@@ -1342,7 +1289,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                                  "error": None,
                                  "arches": None,
                                  "multi_arch_rpm_manifest": {},
-                                 "original_odcs_compose_ids": [],
+                                 "odcs_compose_ids": None,
+                                 "compose_sources": [],
                                  "parent_build_id": None,
                                  "parent_image_builds": None,
                                  "published": True,
@@ -1393,7 +1341,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                              },
                          ])
 
-    @patch('freshmaker.lightblue.ArtifactBuild.get_most_original_nvr')
     @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('freshmaker.kojiservice.KojiService.get_build')
@@ -1401,7 +1348,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
     @patch('os.path.exists')
     def test_images_with_content_set_packages_unpublished(
         self, exists, koji_task_request, koji_get_build, cont_images, cont_repos,
-        get_most_original_nvr
     ):
         exists.return_value = True
         cont_repos.return_value = self.fake_repositories_with_content_sets
@@ -1447,14 +1393,14 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                          [
                              {
                                  "latest_released": True,
-                                 "generate_pulp_repos": True,
                                  "repository": "rpms/repo-2",
                                  "commit": "commit_hash2",
+                                 "compose_sources": [],
                                  "target": "target2",
                                  "git_branch": "mybranch",
                                  "error": None,
                                  "arches": None,
-                                 "original_odcs_compose_ids": [],
+                                 "odcs_compose_ids": None,
                                  "parent_build_id": None,
                                  "parent_image_builds": None,
                                  "multi_arch_rpm_manifest": {},
@@ -1931,15 +1877,14 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             mock.ANY, expected_directly_affected_nvrs, ["dummy-1-1"], ["dummy"]
         )
 
-    @patch('freshmaker.lightblue.ArtifactBuild.get_most_original_nvr')
     @patch("freshmaker.lightblue.ContainerImage.resolve_published")
     @patch("freshmaker.lightblue.LightBlue.get_images_by_nvrs")
     @patch("os.path.exists")
     @patch("freshmaker.kojiservice.KojiService.get_build")
     @patch("freshmaker.kojiservice.KojiService.get_task_request")
     def test_parent_images_with_package_using_field_parent_brew_build(
-            self, get_task_request, get_build, exists, cont_images,
-            resolve_published, get_most_original_nvr):
+            self, get_task_request, get_build, exists, cont_images, resolve_published
+    ):
         get_build.return_value = {"task_id": 123456}
         get_task_request.return_value = [
             "git://example.com/rpms/repo-1#commit_hash1", "target1", {}]
@@ -1961,7 +1906,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             "Couldn't find parent image some-original-nvr-7.6-252.1561619826. "
             "Lightblue data is probably incomplete"))
 
-    @patch('freshmaker.lightblue.ArtifactBuild.get_most_original_nvr')
     @patch("freshmaker.lightblue.LightBlue.get_images_by_nvrs")
     @patch('freshmaker.lightblue.LightBlue.find_images_with_packages_from_content_set')
     @patch('freshmaker.lightblue.LightBlue.find_parent_images_with_package')
@@ -1973,7 +1917,8 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             self, exists, koji_task_request, koji_get_build,
             _filter_out_already_fixed_published_images,
             find_parent_images_with_package, find_images_with_packages_from_content_set,
-            cont_images, get_most_original_nvr):
+            cont_images
+    ):
         exists.return_value = True
         koji_task_request.side_effect = self.fake_koji_task_requests
         koji_get_build.side_effect = self.fake_koji_builds
@@ -2004,7 +1949,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         self.assertNotEqual(len(ret), 1)
         self.assertEqual(ret, [])
 
-    @patch('freshmaker.lightblue.ArtifactBuild.get_most_original_nvr')
     @patch("freshmaker.lightblue.LightBlue.get_images_by_nvrs")
     @patch('freshmaker.lightblue.LightBlue.find_images_with_packages_from_content_set')
     @patch('freshmaker.lightblue.LightBlue.find_parent_images_with_package')
@@ -2015,7 +1959,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
     def test_dedupe_dependency_images_with_all_repositories(
             self, exists, koji_task_request, koji_get_build, _filter_out_already_fixed_published_images,
             find_parent_images_with_package, find_images_with_packages_from_content_set,
-            get_images_by_nvrs, get_most_original_nvr):
+            get_images_by_nvrs):
         exists.return_value = True
 
         vulnerable_rpm_name = 'oh-noes'
@@ -2229,13 +2173,12 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                             {'field': 'rpm_manifest.*.rpms.*.srpm_name', 'include': True, 'recursive': True}],
              'objectType': 'containerImage'})
 
-    @patch('freshmaker.lightblue.ArtifactBuild.get_most_original_nvr')
     @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')
     def test_content_sets_of_multiarch_images_to_rebuild(
-            self, koji_task_request, koji_get_build, find_images, find_repos, get_most_original_nvr):
+            self, koji_task_request, koji_get_build, find_images, find_repos):
         new_images = [
             {
                 'brew': {

@@ -36,7 +36,7 @@ from itertools import groupby
 
 from freshmaker import log, conf
 from freshmaker.kojiservice import koji_service
-from freshmaker.models import ArtifactBuild
+from freshmaker.odcsclient import create_odcs_client
 from freshmaker.utils import sorted_by_nvr, is_pkg_modular
 from freshmaker.utils import retry
 import koji
@@ -225,6 +225,7 @@ class ContainerImage(dict):
             "git_branch": None,
             "error": None,
             "arches": None,
+            "odcs_compose_ids": None,
             "parent_image_builds": None,
         }
 
@@ -268,6 +269,10 @@ class ContainerImage(dict):
                     raise ExtraRepoNotConfiguredError(msg)
 
             extra_image = build.get("extra", {}).get("image", {})
+            # Get the list of ODCS composes used to build the image.
+            if extra_image.get("odcs", {}).get("compose_ids"):
+                data["odcs_compose_ids"] = extra_image["odcs"]["compose_ids"]
+
             data["parent_build_id"] = extra_image.get("parent_build_id")
             data["parent_image_builds"] = extra_image.get("parent_image_builds")
 
@@ -350,43 +355,32 @@ class ContainerImage(dict):
 
         self.update(data)
 
-    def resolve_original_odcs_compose_ids(self, from_most_original_build=True):
+    def resolve_compose_sources(self):
         """
-        Resolve the ODCS compose ids.
-
-        Gets the ODCS compose ids by excluding the composes added by
-        freshmaker, and sets the "original_odcs_compose_ids" of this image
-
-        :param bool from_most_original_build: If True, resolve the ODCS compose
-            ids used in most original image
+        Get source values of ODCS composes used in image build task
         """
+        compose_sources = self.get("compose_sources", None)
         # This has been populated, skip.
-        if self.get("original_odcs_compose_ids") is not None:
+        if compose_sources is not None:
             return
 
-        self["original_odcs_compose_ids"] = []
+        odcs_client = create_odcs_client()
+        compose_ids = self.get("odcs_compose_ids")
+        if not compose_ids:
+            self["compose_sources"] = []
+            return
 
-        original_nvr = self.nvr
-        if from_most_original_build:
-            self["generate_pulp_repos"] = True
-            # If this image was built by freshmaker, query database recursively to
-            # get the NVR of most original image which was not built by freshmaker
-            original_nvr = ArtifactBuild.get_most_original_nvr(self.nvr)
-            if original_nvr is None:
-                original_nvr = self.nvr
+        compose_sources = set()
+        for compose_id in compose_ids:
+            # Get odcs compose source value from odcs server
+            compose = odcs_client.get_compose(compose_id)
+            source = compose.get("source", "")
+            if source:
+                compose_sources.update(source.split())
 
-        compose_ids = []
-        with koji_service(conf.koji_profile, log, dry_run=conf.dry_run, login=False) as session:
-            try:
-                compose_ids = session.get_odcs_compose_ids(original_nvr)
-            except Exception as e:
-                self["error"] = str(e)
-                log.error("Failed to resolve original odcs compose ids for %s", self.nvr)
-                return
-
-        self["original_odcs_compose_ids"] = compose_ids
-        log.info("Original ODCS compose ids of %s: %r (from %s)",
-                 self.nvr, self["original_odcs_compose_ids"], original_nvr)
+        self["compose_sources"] = list(compose_sources)
+        log.info("Container image %s uses following compose sources: %r",
+                 self.nvr, self["compose_sources"])
 
     def resolve_content_sets(self, lb_instance, children=None):
         """
@@ -466,7 +460,7 @@ class ContainerImage(dict):
         """
         try:
             self.resolve_commit()
-            self.resolve_original_odcs_compose_ids()
+            self.resolve_compose_sources()
             self.resolve_content_sets(lb_instance, children)
             self.resolve_published(lb_instance)
         except Exception as e:

@@ -301,7 +301,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                     "target": image["target"],
                     "branch": image["git_branch"],
                     "arches": image["arches"],
-                    "renewed_odcs_compose_ids": image["original_odcs_compose_ids"],
+                    "renewed_odcs_compose_ids": image["odcs_compose_ids"],
                     "flatpak": image.get("flatpak", False),
                     "isolated": image.get("isolated", True),
                 })
@@ -309,52 +309,37 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                 db.session.commit()
 
                 if state != ArtifactBuildState.FAILED.value:
-                    # Store odcs pulp compose to build.
-                    # Also generate pulp repos in case the image is unpublished,
-                    # because in this case, we have to generate extra ODCS compose
-                    # with all the RPMs in the image anyway later. And OSBS works
-                    # in a way that we have to pass all the ODCS composes to it or
-                    # no ODCS compose at all.
-                    if image["generate_pulp_repos"] or not image["published"]:
-                        original_pulp_compose_sources = set()
-                        for compose_id in image["original_odcs_compose_ids"]:
-                            compose = self.odcs.get_compose(compose_id)
-                            source_type = compose.get("source_type")
-                            # source_type of pulp composes is 4
-                            if source_type != 4:
-                                continue
-                            source_value = compose.get("source", "")
-                            for source in source_value.split():
-                                original_pulp_compose_sources.add(source.strip())
+                    # Store ODCS pulp compose to build.
 
-                        # Add content set to new_pulp_sources if it's not found
-                        # in original_pulp_compose_sources
-                        new_pulp_sources = set()
-                        for content_set in image["content_sets"]:
-                            if content_set not in original_pulp_compose_sources:
-                                new_pulp_sources.add(content_set)
+                    # Check which content sets are missing from original build's compose sources.
+                    # For layered images, renewing the original ODCS composes should be sufficient,
+                    # however base images may not have the image content sets enabled in ODCS
+                    # composes, so we need to enable these content sets in case they're missing.
+                    missing_content_sets = set()
+                    for content_set in image["content_sets"]:
+                        if content_set in image["compose_sources"]:
+                            continue
+                        missing_content_sets.add(content_set)
 
-                        if new_pulp_sources:
-                            # Check if the compose for these new pulp sources is
-                            # already cached and use it in this case.
-                            cache_key = " ".join(sorted(new_pulp_sources))
-                            if cache_key in odcs_cache:
-                                db_compose = odcs_cache[cache_key]
-                            else:
-                                compose = self.odcs.prepare_pulp_repo(
-                                    build, list(new_pulp_sources))
+                    if missing_content_sets:
+                        cache_key = " ".join(sorted(missing_content_sets))
+                        if cache_key in odcs_cache:
+                            db_compose = odcs_cache[cache_key]
+                        else:
+                            compose = self.odcs.prepare_pulp_repo(
+                                build, list(missing_content_sets))
 
-                                if build.state != ArtifactBuildState.FAILED.value:
-                                    db_compose = Compose(odcs_compose_id=compose['id'])
-                                    db.session.add(db_compose)
-                                    db.session.commit()
-                                    odcs_cache[cache_key] = db_compose
-                                else:
-                                    db_compose = None
-                                    db.session.commit()
-                            if db_compose:
-                                build.add_composes(db.session, [db_compose])
+                            if build.state != ArtifactBuildState.FAILED.value:
+                                db_compose = Compose(odcs_compose_id=compose['id'])
+                                db.session.add(db_compose)
                                 db.session.commit()
+                                odcs_cache[cache_key] = db_compose
+                            else:
+                                db_compose = None
+                                db.session.commit()
+                        if db_compose:
+                            build.add_composes(db.session, [db_compose])
+                            db.session.commit()
 
                     # Unpublished images can contain unreleased RPMs, so generate
                     # the ODCS compose with all the RPMs in the image to allow

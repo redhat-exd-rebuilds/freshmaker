@@ -90,7 +90,8 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
                 ]
             },
             "generate_pulp_repos": True,
-            "original_odcs_compose_ids": [],
+            "odcs_compose_ids": [],
+            "compose_sources": [],
             "published": False,
         })
         self.image_b = ContainerImage({
@@ -111,7 +112,8 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
                 ]
             },
             "generate_pulp_repos": True,
-            "original_odcs_compose_ids": [],
+            "odcs_compose_ids": [],
+            "compose_sources": [],
             "published": False,
         })
         self.image_c = ContainerImage({
@@ -133,7 +135,8 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
                 ]
             },
             "generate_pulp_repos": True,
-            "original_odcs_compose_ids": [],
+            "odcs_compose_ids": [],
+            "compose_sources": [],
             "published": False,
         })
         self.image_d = ContainerImage({
@@ -155,7 +158,8 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
                 ]
             },
             "generate_pulp_repos": True,
-            "original_odcs_compose_ids": [],
+            "odcs_compose_ids": [],
+            "compose_sources": [],
             "published": False,
         })
         self.image_e = ContainerImage({
@@ -177,7 +181,8 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
                 ]
             },
             "generate_pulp_repos": True,
-            "original_odcs_compose_ids": [],
+            "odcs_compose_ids": [],
+            "compose_sources": [],
             "published": False,
         })
         self.image_f = ContainerImage({
@@ -199,7 +204,8 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
                 ]
             },
             "generate_pulp_repos": True,
-            "original_odcs_compose_ids": [],
+            "odcs_compose_ids": [],
+            "compose_sources": [],
             "published": False,
         })
         # For simplicify, mocking _find_images_to_rebuild to just return one
@@ -827,7 +833,8 @@ class TestBatches(helpers.ModelsTestCase):
             "content_sets": ["first-content-set"],
             "generate_pulp_repos": True,
             "arches": "x86_64",
-            "original_odcs_compose_ids": [10, 11],
+            "odcs_compose_ids": [10, 11],
+            "compose_sources": ["first-content-set"],
             "published": False,
         }
         d.update(kwargs)
@@ -1036,7 +1043,8 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "error": None,
                 "generate_pulp_repos": True,
                 "arches": "x86_64",
-                "original_odcs_compose_ids": [],
+                "odcs_compose_ids": [],
+                "compose_sources": [],
                 "published": False,
             })],
             [ContainerImage({
@@ -1080,7 +1088,8 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "error": None,
                 "generate_pulp_repos": True,
                 "arches": "x86_64",
-                "original_odcs_compose_ids": [],
+                "odcs_compose_ids": [],
+                "compose_sources": [],
                 "published": False,
             })]
         ]
@@ -1127,7 +1136,8 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "error": None,
                 "generate_pulp_repos": False,
                 "arches": "x86_64",
-                "original_odcs_compose_ids": [],
+                "odcs_compose_ids": [],
+                "compose_sources": ["content-set-1"],
                 "published": True,
             })]
         ]
@@ -1167,7 +1177,8 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "error": None,
                 "generate_pulp_repos": False,
                 "arches": "x86_64",
-                "original_odcs_compose_ids": [],
+                "odcs_compose_ids": [],
+                "compose_sources": [],
                 "published": False,
             })]
         ]
@@ -1206,8 +1217,8 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "git_branch": "rhel-7",
                 "error": None,
                 "arches": "x86_64",
-                "generate_pulp_repos": True,
-                "original_odcs_compose_ids": [],
+                "odcs_compose_ids": [],
+                "compose_sources": [],
                 "published": False,
             })],
             [ContainerImage({
@@ -1251,7 +1262,8 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "error": None,
                 "arches": "x86_64",
                 "generate_pulp_repos": True,
-                "original_odcs_compose_ids": [],
+                "odcs_compose_ids": [],
+                "compose_sources": [],
                 "published": False,
             })]
         ]
@@ -1300,8 +1312,8 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "git_branch": "rhel-7",
                 "error": None,
                 "arches": "x86_64",
-                "generate_pulp_repos": True,
-                "original_odcs_compose_ids": [123],
+                "odcs_compose_ids": [123],
+                "compose_sources": ["content-set-1"],
                 "published": False,
             })]
         ]
@@ -1342,7 +1354,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "git_branch": "rhel-7",
                 "error": "Some error occurs while getting this image.",
                 "arches": "x86_64",
-                "original_odcs_compose_ids": [],
+                "odcs_compose_ids": [],
                 "published": False,
             })]
         ]
@@ -1379,7 +1391,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "git_branch": "rhel-7",
                 "error": "Some error occurs while getting this image.",
                 "arches": "x86_64",
-                "original_odcs_compose_ids": [],
+                "odcs_compose_ids": [],
                 "published": False,
             })]
         ]
@@ -1416,7 +1428,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "git_branch": "rhel-7",
                 "error": "Some error occured.",
                 "arches": "x86_64",
-                "original_odcs_compose_ids": [],
+                "odcs_compose_ids": [],
                 "published": False,
             })],
             [ContainerImage({
@@ -1459,7 +1471,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "git_branch": "rhel-7",
                 "error": "Some error occured too.",
                 "arches": "x86_64",
-                "original_odcs_compose_ids": [],
+                "odcs_compose_ids": [],
                 "published": False,
             })]
         ]
@@ -1500,7 +1512,7 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "git_branch": "rhel-7",
                 "error": "Some error occured.",
                 "arches": "x86_64",
-                "original_odcs_compose_ids": [],
+                "odcs_compose_ids": [],
                 "published": False,
             })],
         ]
@@ -1536,9 +1548,9 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "target": "target-candidate",
                 "git_branch": "rhel-7",
                 "error": None,
-                "generate_pulp_repos": True,
                 "arches": "x86_64",
-                "original_odcs_compose_ids": [],
+                "odcs_compose_ids": [],
+                "compose_sources": [],
                 "published": False,
             })],
             [ContainerImage({
@@ -1580,9 +1592,9 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
                 "target": "target-candidate",
                 "git_branch": "rhel-7",
                 "error": None,
-                "generate_pulp_repos": True,
                 "arches": "x86_64",
-                "original_odcs_compose_ids": [],
+                "odcs_compose_ids": [],
+                "compose_sources": [],
                 "published": False,
             })]
         ]
