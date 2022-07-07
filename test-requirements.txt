@@ -8,3 +8,4 @@ vcrpy
 requests_mock
 tox
 mypy
+flexmock
