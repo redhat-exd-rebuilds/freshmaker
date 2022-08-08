@@ -25,8 +25,6 @@ import os
 import requests
 import dogpile.cache
 from requests_kerberos import HTTPKerberosAuth
-from xmlrpc.client import ServerProxy
-from kobo.xmlrpc import SafeCookieTransport
 
 from freshmaker.events import (
     BrewSignRPMEvent, ErrataBaseEvent,
@@ -174,9 +172,6 @@ class Errata(object):
         else:
             self.server_url = conf.errata_tool_server_url.rstrip('/')
 
-        xmlrpc_url = self.server_url + '/errata/xmlrpc.cgi'
-        self.xmlrpc = ServerProxy(xmlrpc_url, transport=SafeCookieTransport())
-
     @retry(wait_on=(requests.exceptions.RequestException,), logger=log)
     def _errata_authorized_get(self, *args, **kwargs):
         try:
@@ -246,38 +241,6 @@ class Errata(object):
             advisories.append(advisory)
 
         return advisories
-
-    def get_docker_repo_tags(self, errata_id):
-        """
-        Get ET repo/tag configuration using XML-RPC call
-        get_advisory_cdn_docker_file_list
-        :param int errata_id: Errata advisory ID.
-        :rtype: dict
-        :return: Dict of repos and tags config:
-            {
-                'cdn_repo1': [
-                    'tag1',
-                    'tag2'
-                ],
-                ...
-            }
-        """
-        try:
-            response = self.xmlrpc.get_advisory_cdn_docker_file_list(
-                errata_id)
-        except Exception:
-            log.exception("Canot call XMLRPC get_advisory_cdn_docker_file_list call.")
-            return None
-        if response is None:
-            log.warning("The get_advisory_cdn_docker_file_list XMLRPC call "
-                        "returned None.")
-            return None
-
-        return {
-            repo: repo_data['tags']
-            for build_data in response.values()
-            for repo, repo_data in build_data['docker']['target']['external_repos'].items()
-        }
 
     def advisories_from_event(self, event):
         """
