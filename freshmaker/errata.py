@@ -24,7 +24,7 @@
 import os
 import requests
 import dogpile.cache
-from requests_kerberos import HTTPKerberosAuth
+from requests_kerberos import HTTPKerberosAuth, OPTIONAL
 
 from freshmaker.events import (
     BrewSignRPMEvent, ErrataBaseEvent,
@@ -177,7 +177,9 @@ class Errata(object):
         try:
             r = requests.get(
                 *args,
-                auth=HTTPKerberosAuth(principal=conf.krb_auth_principal),
+                auth=HTTPKerberosAuth(
+                    mutual_authentication=OPTIONAL, principal=conf.krb_auth_principal
+                ),
                 **kwargs, timeout=conf.requests_timeout)
             r.raise_for_status()
         except requests.exceptions.RequestException as e:
