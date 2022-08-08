@@ -478,63 +478,6 @@ class TestErrata(helpers.FreshmakerTestCase):
         ret = self.errata.get_cve_affected_rpm_nvrs(28484)
         self.assertEqual(ret, ['libntirpc-1.4.3-4.el6rhs'])
 
-    def test_get_docker_repo_tags(self):
-        with patch.object(self.errata, "xmlrpc") as xmlrpc:
-            xmlrpc.get_advisory_cdn_docker_file_list.return_value = {
-                'foo-container-1-1': {
-                    'docker': {
-                        'target': {
-                            'external_repos': {
-                                'foo-526': {'tags': ['5.26', 'latest']}
-                            }
-                        }
-                    }
-                }
-            }
-            repo_tags = self.errata.get_docker_repo_tags(28484)
-
-            expected = {'foo-526': ['5.26', 'latest']}
-            self.assertEqual(repo_tags, expected)
-
-        with patch.object(self.errata, "xmlrpc") as xmlrpc:
-            xmlrpc.get_advisory_cdn_docker_file_list.return_value = {
-                'foo-container-1-1': {
-                    'docker': {
-                        'target': {
-                            'external_repos': {
-                                'foo-526': {'tags': ['5.26', 'latest']}
-                            }
-                        }
-                    }
-                },
-                'bar-container-1-1': {
-                    'docker': {
-                        'target': {
-                            'external_repos': {
-                                'bar-526': {'tags': ['5.27', 'latest']}
-                            }
-                        }
-                    }
-                }
-            }
-            repo_tags = self.errata.get_docker_repo_tags(28484)
-
-            expected = {'bar-526': ['5.27', 'latest'], 'foo-526': ['5.26', 'latest']}
-            self.assertEqual(repo_tags, expected)
-
-    def test_get_docker_repo_tags_xmlrpc_exception(self):
-        with patch.object(self.errata, "xmlrpc") as xmlrpc:
-            xmlrpc.get_advisory_cdn_docker_file_list.side_effect = ValueError(
-                "Expected XMLRPC test exception")
-            repo_tags = self.errata.get_docker_repo_tags(28484)
-            self.assertEqual(repo_tags, None)
-
-    def test_get_docker_repo_tags_xmlrpc_non_returned(self):
-        with patch.object(self.errata, "xmlrpc") as xmlrpc:
-            xmlrpc.get_advisory_cdn_docker_file_list.return_value = None
-            repo_tags = self.errata.get_docker_repo_tags(28484)
-            self.assertEqual(repo_tags, None)
-
     @patch.object(Errata, "_get_attached_builds")
     @patch.object(Errata, "_get_blocking_advisories")
     def test_get_blocking_advisories_builds(self, get_blocks, get_builds):
