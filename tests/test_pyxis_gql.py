@@ -82,3 +82,38 @@ def test_pyxis_graphql_find_repositories():
     repositories = pyxis_gql.find_repositories()
 
     assert repositories == results[0]["find_repositories"]["data"]
+
+
+def test_pyxis_graphql_get_repository_by_registry_path():
+
+    pyxis_schema_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "fixtures",
+        "pyxis.graphql",
+    )
+    with open(pyxis_schema_path) as source:
+        document = parse(source.read())
+    schema = build_ast_schema(document)
+
+    flexmock(PyxisGQL).should_receive("dsl_schema").and_return(DSLSchema(schema))
+
+    result = {
+        "get_repository_by_registry_path": {
+            "data": {
+                "auto_rebuild_tags": ["1.0", "1.1"],
+                "registry": "registry.example.com",
+                "release_categories": ["Generally " "Available"],
+                "repository": "foobar/foobar-operator",
+            },
+            "error": None,
+        }
+    }
+
+    pyxis_gql = PyxisGQL(url="graphql.pyxis.local", cert=("/path/to/crt", "/path/to/key"))
+    flexmock(Client).should_receive("execute").and_return(result)
+
+    repository = pyxis_gql.get_repository_by_registry_path(
+        "foobar/foobar-operator", "registry.example.com"
+    )
+
+    assert repository == result["get_repository_by_registry_path"]["data"]
