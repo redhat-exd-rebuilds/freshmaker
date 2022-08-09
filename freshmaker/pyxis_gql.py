@@ -118,3 +118,34 @@ class PyxisGQL:
             page_num += 1
 
         return repositories
+
+    def get_repository_by_registry_path(self, repository, registry):
+        """Get image repository by registry path
+
+        :param str repository: repository name
+        :param str registry: registry name
+        :return: container repository response
+        :rtype: dict
+        """
+        ds = self.dsl_schema
+        query_dsl = ds.Query.get_repository_by_registry_path(
+            repository=repository,
+            registry=registry
+        ).select(
+            ds.ContainerRepositoryResponse.error.select(
+                ds.ResponseError.status,
+                ds.ResponseError.detail,
+            ),
+            ds.ContainerRepositoryResponse.data.select(
+                ds.ContainerRepository.release_categories,
+                ds.ContainerRepository.auto_rebuild_tags,
+                ds.ContainerRepository.registry,
+                ds.ContainerRepository.repository,
+            ),
+        )
+
+        result = self.query(query_dsl)
+        error = result["get_repository_by_registry_path"]["error"]
+        if error is not None:
+            raise PyxisGQLRequestError(str(error))
+        return result["get_repository_by_registry_path"]["data"]
