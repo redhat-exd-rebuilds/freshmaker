@@ -68,8 +68,8 @@ def setup_logger():
     logger.setLevel(LOG_LEVEL)
     source = "freshmaker"
     custom_attr = {
-        "environment": lambda: os.environ.get("env"),
-        "host": lambda: os.environ.get("freshmaker_ocp_host"),
+        "environment": lambda: os.environ.get("FRESHMAKER_ENV"),
+        "host": lambda: os.environ.get("HOSTNAME"),
         "sourcetype": lambda: f"{source}",
     }
     file_format = """{
