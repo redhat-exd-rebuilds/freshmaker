@@ -20,12 +20,20 @@
 # SOFTWARE.
 
 import kobo.rpmlib
+import re
 
 from dataclasses import dataclass, field, fields
 from typing import Any, Dict, List, Optional, Union, Tuple
 
 from freshmaker import conf
+from freshmaker.kojiservice import KojiService, KojiLookupError
 from freshmaker.pyxis_gql import PyxisGQL
+
+
+class ExtraRepoNotConfiguredError(ValueError):
+    """Extra repo required but missing in config"""
+
+    pass
 
 
 @dataclass
@@ -114,6 +122,99 @@ class Container:
             ):
                 return True
         return False
+
+    def resolve_build_metadata(self, koji_session: KojiService) -> None:
+        """
+        Populates build metadata by querying Koji
+
+        :param KojiService koji_session: koji session to connect
+        """
+        self.build_metadata = {}
+
+        build = koji_session.get_build(self.nvr)
+        if not build:
+            raise KojiLookupError(f"Cannot find koji build with NVR {self.nvr}")
+
+        if "task_id" not in build or not build["task_id"]:
+            task_id = build.get("extra", {}).get("container_koji_task_id", None)
+            if task_id:
+                build["task_id"] = task_id
+            else:
+                raise KojiLookupError(f"Cannot find build task id in koji build {build}")
+
+        fs_koji_task_id = build.get("extra", {}).get("filesystem_koji_task_id")
+        if fs_koji_task_id:
+            parsed_nvr = kobo.rpmlib.parse_nvr(self.nvr)
+            name_version = f"{parsed_nvr['name']}-{parsed_nvr['version']}"
+            if name_version not in conf.image_extra_repo:
+                msg = (
+                    f"{name_version} is a base image, but extra image repo for it "
+                    "is not specified in the Freshmaker configuration."
+                )
+                raise ExtraRepoNotConfiguredError(msg)
+
+        extra_image = build.get("extra", {}).get("image", {})
+        # Get the list of ODCS composes used to build the image.
+        if extra_image.get("odcs", {}).get("compose_ids"):
+            self.build_metadata["odcs_compose_ids"] = extra_image["odcs"]["compose_ids"]
+
+        self.build_metadata["parent_build_id"] = extra_image.get("parent_build_id")
+        self.build_metadata["parent_image_builds"] = extra_image.get("parent_image_builds")
+
+        flatpak = extra_image.get("flatpak", False)
+        if flatpak:
+            self.build_metadata["flatpak"] = flatpak
+
+        brew_task = koji_session.get_task_request(build["task_id"])
+        source = brew_task[0]
+        self.build_metadata["target"] = brew_task[1]
+        extra_data = brew_task[2]
+        if "git_branch" in extra_data:
+            self.build_metadata["git_branch"] = extra_data["git_branch"]
+        else:
+            self.build_metadata["git_branch"] = "unknown"
+
+        # Some builds do not have "source" attribute filled in, so try
+        # both build["source"] and task_request[0] sources.
+        sources = [source]
+        if "source" in build:
+            sources.insert(0, build["source"])
+        for src in sources:
+            m = re.match(r".*/(?P<namespace>.*)/(?P<container>.*)#(?P<commit>.*)", src)
+            if m:
+                namespace = m.group("namespace")
+                # For some Koji tasks, the container part ends with "?" in
+                # source URL. This is just because some custom scripts for
+                # submitting those builds include this character in source URL
+                # to mark the query part of URL. We need to handle that by
+                # stripping that character.
+                container = m.group("container").rstrip("?")
+                self.build_metadata["repository"] = namespace + "/" + container
+
+                # There might be tasks which have branch name in
+                # "origin/branch_name" format, so detect it set commit
+                # hash only if this is not true.
+                if "/" not in m.group("commit"):
+                    self.build_metadata["commit"] = m.group("commit")
+                    break
+
+        if not self.build_metadata["commit"]:
+            raise KojiLookupError("Cannot find valid source of Koji build %r" % build)
+
+        if not conf.supply_arch_overrides:
+            self.build_metadata["arches"] = None
+        else:
+            self.build_metadata["arches"] = koji_session.get_build_arches(build["build_id"])
+
+    def resolve(self, pyxis_instance: PyxisGQL, koji_session: KojiService, children=None) -> None:
+        """
+        Resolves the container - populates additional metadata by
+        querying Pyxis and Koji
+
+        :param PyxisGQL pyxis_instance: Pyxis instance to connect
+        :param KojiService koji_session: Koji session to connect
+        """
+        self.resolve_build_metadata(koji_session)
 
 
 class ContainerAPI:
