@@ -25,8 +25,9 @@ import re
 from dataclasses import dataclass, field, fields
 from typing import Any, Dict, List, Optional, Union, Tuple
 
-from freshmaker import conf
+from freshmaker import conf, log
 from freshmaker.kojiservice import KojiService, KojiLookupError
+from freshmaker.odcsclient import create_odcs_client
 from freshmaker.pyxis_gql import PyxisGQL
 
 
@@ -206,6 +207,30 @@ class Container:
         else:
             self.build_metadata["arches"] = koji_session.get_build_arches(build["build_id"])
 
+    def resolve_compose_sources(self):
+        """Get source values of ODCS composes used in image build task"""
+        compose_sources = getattr(self, "compose_sources", None)
+        # This has been populated, skip.
+        if compose_sources is not None:
+            return
+
+        self.compose_sources = []
+        odcs_client = create_odcs_client()
+        compose_ids = self.build_metadata.get("odcs_compose_ids")
+        if not compose_ids:
+            return
+
+        compose_sources = set()
+        for compose_id in compose_ids:
+            # Get odcs compose source value from odcs server
+            compose = odcs_client.get_compose(compose_id)
+            source = compose.get("source", "")
+            if source:
+                compose_sources.update(source.split())
+
+        self.compose_sources = list(compose_sources)
+        log.info("Container %s uses following compose sources: %r", self.nvr, self.compose_sources)
+
     def resolve(self, pyxis_instance: PyxisGQL, koji_session: KojiService, children=None) -> None:
         """
         Resolves the container - populates additional metadata by
@@ -215,6 +240,7 @@ class Container:
         :param KojiService koji_session: Koji session to connect
         """
         self.resolve_build_metadata(koji_session)
+        self.resolve_compose_sources()
 
 
 class ContainerAPI:
