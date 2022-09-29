@@ -49,6 +49,11 @@ from freshmaker.events import BrewContainerTaskStateChangeEvent  # noqa E402
 from freshmaker.models import ArtifactBuild  # noqa E402
 
 
+class KojiLookupError(ValueError):
+    """ Koji lookup error """
+    pass
+
+
 class KojiService(object):
     """Wrapper of Koji API and profile configuration
 
@@ -453,6 +458,15 @@ class KojiService(object):
         except Exception as e:
             log.error("Read packager string failed for NVR %s: %s", build_nvr, str(e))
             return None
+
+    @region.cache_on_arguments()
+    def get_build_arches(self, build_id):
+        archives = self.list_archives(build_id=build_id)
+        arches = [
+            archive["extra"]["image"]["arch"]
+            for archive in archives if archive["btype"] == "image"
+        ]
+        return " ".join(sorted(arches))
 
 
 @contextlib.contextmanager
