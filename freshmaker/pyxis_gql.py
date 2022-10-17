@@ -354,7 +354,7 @@ class PyxisGQL:
         query_filter["and"].append({"brew": {"package": {"in": names}}})
         # Only query for published images
         query_filter["and"].append(
-            {"repositories_elemMatch": {"published": {"eq": True}}}
+            {"repositories_elemMatch": {"and": [{"published": {"eq": True}}]}}
         )
 
         ds = self.dsl_schema
@@ -374,9 +374,7 @@ class PyxisGQL:
                 ds.ContainerImagePaginatedResponse.page,
                 ds.ContainerImagePaginatedResponse.page_size,
                 ds.ContainerImagePaginatedResponse.total,
-                ds.ContainerImagePaginatedResponse.data.select(
-                    *self._get_image_projection()
-                ),
+                ds.ContainerImagePaginatedResponse.data.select(*self._get_image_projection(include_rpms=False)),
             )
 
             result = self.query(query_dsl)
