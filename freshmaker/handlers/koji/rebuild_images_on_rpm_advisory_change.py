@@ -24,6 +24,7 @@
 
 import json
 import koji
+import re
 
 from freshmaker import conf, db
 from freshmaker.events import (
@@ -318,6 +319,9 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                     missing_content_sets = set()
                     for content_set in image["content_sets"]:
                         if content_set in image["compose_sources"]:
+                            continue
+                        # Exclude hidden content set.
+                        if re.search(conf.exclude_content_sets_pattern, content_set):
                             continue
                         missing_content_sets.add(content_set)
 
