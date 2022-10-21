@@ -321,6 +321,97 @@ def test_pyxis_graphql_find_images_by_nvr():
     assert images == result["find_images_by_nvr"]["data"]
 
 
+def test_pyxis_graphql_find_images_by_nvrs():
+    pyxis_schema_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "fixtures",
+        "pyxis.graphql",
+    )
+    with open(pyxis_schema_path) as source:
+        document = parse(source.read())
+    schema = build_ast_schema(document)
+
+    flexmock(PyxisGQL).should_receive("dsl_schema").and_return(DSLSchema(schema))
+
+    result = {
+        "find_images": {
+            "data": [
+                {
+                    "architecture": "amd64",
+                    "brew": {"build": "foobar-container-v0.13.0-12.1582340001"},
+                    "content_sets": ["rhel-8-for-x86_64-baseos-rpms"],
+                    "edges": {
+                        "rpm_manifest": {
+                            "data": {
+                                "rpms": [
+                                    {
+                                        "name": "foo",
+                                        "nvra": "foo-10-123.el8.noarch",
+                                        "srpm_name": "foo",
+                                        "srpm_nevra": "foo-10-123.el8.src",
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "parent_brew_build": "ubi8-minimal-container-8.6-100.1582220001",
+                    "parsed_data": {},
+                    "repositories": [
+                        {
+                            "published": True,
+                            "registry": "registry.example.com",
+                            "repository": "dummy/foobar-rhel8",
+                            "tags": [{"name": "v0.13"}],
+                        }
+                    ],
+                },
+                {
+                    "architecture": "arm64",
+                    "brew": {"build": "foobar-container-v0.13.0-12.1582340001"},
+                    "content_sets": ["rhel-8-for-aarch64-baseos-rpms"],
+                    "edges": {
+                        "rpm_manifest": {
+                            "data": {
+                                "rpms": [
+                                    {
+                                        "name": "foo",
+                                        "nvra": "foo-10-123.el8.noarch",
+                                        "srpm_name": "foo",
+                                        "srpm_nevra": "foo-10-123.el8.src",
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "parent_brew_build": "ubi8-minimal-container-8.6-100.1582220001",
+                    "parsed_data": {},
+                    "repositories": [
+                        {
+                            "published": True,
+                            "registry": "registry.example.com",
+                            "repository": "dummy/foobar-rhel8",
+                            "tags": [{"name": "v0.13"}],
+                        }
+                    ],
+                },
+            ],
+            "error": None,
+            "page": 0,
+            "page_size": 50,
+            "total": 2,
+        }
+    }
+
+    pyxis_gql = PyxisGQL(url="graphql.pyxis.local", cert=("/path/to/crt", "/path/to/key"))
+    flexmock(Client).should_receive("execute").and_return(copy.deepcopy(result))
+
+    nvrs = ["foobar-container-v0.13.0-12.1582340001"]
+    images = pyxis_gql.find_images_by_nvrs(nvrs, include_rpms=True)
+    expected = copy.deepcopy(result["find_images"]["data"])
+
+    assert images == expected
+
+
 def test_pyxis_graphql_find_images_by_names():
     pyxis_schema_path = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),

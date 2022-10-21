@@ -264,6 +264,51 @@ class PyxisGQL:
 
         return images
 
+    def find_images_by_nvrs(self, nvrs, include_rpms=True):
+        ds = self.dsl_schema
+
+        images = []
+        page_num = 0
+        page_size = 50
+
+        # Iterate all pages
+        while True:
+            query_filter = {'brew': {'build': {'in': nvrs}}}
+            query_dsl = ds.Query.find_images(
+                page=page_num,
+                page_size=page_size,
+                filter=query_filter,
+            ).select(
+                ds.ContainerImagePaginatedResponse.error.select(
+                    ds.ResponseError.status,
+                    ds.ResponseError.detail,
+                ),
+                ds.ContainerImagePaginatedResponse.page,
+                ds.ContainerImagePaginatedResponse.page_size,
+                ds.ContainerImagePaginatedResponse.total,
+                ds.ContainerImagePaginatedResponse.data.select(
+                    *self._get_image_projection(include_rpms=include_rpms)
+                ),
+            )
+
+            result = self.query(query_dsl)
+            error = result["find_images"]["error"]
+            if error is not None:
+                raise PyxisGQLRequestError(str(error))
+            data = result["find_images"]["data"]
+            # Data is empty when there are no more results
+            if not data:
+                break
+
+            images.extend(data)
+
+            # If page_size >= total, means all results have been fetched in the first page
+            if result["find_images"]["page_size"] >= result["find_images"]["total"]:
+                break
+            page_num += 1
+
+        return images
+
     def find_images_by_installed_rpms(
         self, rpm_names, content_sets=None, repositories=None, published=None, tags=None
     ):
