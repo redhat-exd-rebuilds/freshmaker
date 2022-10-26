@@ -439,6 +439,11 @@ class Config(object):
             'default': '',
             'desc': 'Root url of Flatpak index service'
         },
+        'container_metadata_source': {
+            'type': str,
+            'default': 'lightblue',
+            'desc': 'An option to get image metadata from LightBlue or Pyxis GraphQL. Can be set to "pyxis_graphql" or "lightblue".'
+        },
     }
 
     def __init__(self, conf_section_obj):
