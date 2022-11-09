@@ -85,12 +85,13 @@ class TestUpdateDBOnODCSComposeFail(helpers.ModelsTestCase):
         handler = UpdateDBOnODCSComposeFail()
         handler.handle(event)
 
-        db.session.refresh(self.db_event)
+        # This would ensure all changes are committed.
+        db.session.rollback()
+
         build = self.db_event.builds[0]
         self.assertEqual(build.state, ArtifactBuildState.FAILED.value)
         self.assertEqual(build.state_reason,
                          "ODCS compose 1 is in failed state.")
 
-        db.session.refresh(self.db_event_2)
         build = self.db_event_2.builds[0]
         self.assertEqual(build.state, ArtifactBuildState.PLANNED.value)
