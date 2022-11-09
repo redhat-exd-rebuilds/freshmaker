@@ -148,6 +148,7 @@ class TestRebuildImagesOnODCSComposeDone(helpers.ModelsTestCase):
 
         handler = RebuildImagesOnODCSComposeDone()
         handler.handle(event)
+        db.session.rollback()
 
         args, kwargs = start_to_build_images.call_args
         passed_builds = sorted(args[0], key=lambda build: build.id)
