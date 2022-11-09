@@ -67,3 +67,5 @@ class UpdateDBOnODCSComposeFail(BaseHandler):
             build.transition(
                 ArtifactBuildState.FAILED.value,
                 "ODCS compose %r is in failed state." % compose_id)
+
+        db.session.commit()
