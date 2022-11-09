@@ -159,7 +159,7 @@ python-fedora==1.1.1
     #   odcs
 python-json-logger==0.1.7
     # via -r requirements.in
-python-ldap==3.3.1
+python-ldap==3.4.3
     # via
     #   -r requirements.in
     #   pyldap
