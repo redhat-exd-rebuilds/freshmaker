@@ -1224,6 +1224,11 @@ class LightBlue(object):
         # We need to resolve the image in here because "parent_image_builds" needs to be there
         # and it gets populated when the image gets resolved.
         child_image.resolve(self)
+
+        # Some images have `parent_image_builds` but are built in a multi-stage way and don't have
+        # `parent_build_id`, in this situation FM doesn't try to find the parent image and skip.
+        if not child_image.get("parent_build_id"):
+            return None
         # If the parent is not in `parent_brew_build` we can try to look for the parent in Brew,
         # using the field `parent_image_builds` (searching for the nvr), which should always be there.
         # In case parent_brew_build is None and child_image["parent_image_builds"] == {},
