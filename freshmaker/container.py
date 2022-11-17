@@ -45,6 +45,7 @@ class Container:
     parsed_data: dict = field(repr=False, default_factory=dict)
     repositories: List[Dict[str, Any]] = field(repr=False, default_factory=list)
     parent_brew_build: Optional[str] = field(repr=False, default=None)
+    published: bool = field(repr = False, default_factory=bool)
 
     # Content sets by architechure
     content_sets_by_arch: Dict[str, List[str]] = field(repr=False, default_factory=dict)
@@ -242,6 +243,55 @@ class Container:
         self.resolve_build_metadata(koji_session)
         self.resolve_compose_sources()
 
+    def resolve_content_sets(self, data: Dict[str, Any], children=None):
+        """
+        if empty, then query pyxis graphql API (find images_by_nvr) to populate the data
+        """
+
+        # ContainerImage now has content_sets field, so use it if available.
+        if not self.content_sets_by_arch:
+            log.info("Container image %s uses following content sets: %r",
+                     self.nvr, self.content_sets_by_arch)
+            if "content_sets_source" not in self:
+                self["content_sets_source"] = "lightblue_container_image"
+            return
+
+        for child in children:
+            if not child.content_sets_by_arch:
+                child.resolve(PyxisGQL, KojiService, child)
+                continue
+
+            log.info("Container image %s does not have 'content-sets' set "
+                     "in Lightblue. Using child image %s content_sets: %r",
+                     self.nvr, child.nvr,
+                     child.content_sets_by_arch)
+            self.content_sets_by_arch[child["architecture"]] = child["content_sets_by_arch"]
+            return
+
+        log.warning("Container image %s does not have 'content_sets' set "
+                    "in Lightblue as well as its children, this "
+                    "is suspicious.", self.nvr)
+        self.content_sets_by_arch[data["architecture"]] = []
+
+    def resolve_published(self, pyxis_instance: PyxisGQL):
+        # Get the published version of this image to find out if the image
+        # was actually published.
+        images = pyxis_instance.find_images_by_nvrs(self.nvr, include_rpms=True)
+        if images:
+            self.published = True
+        else:
+            self.published = False
+
+            # Usually we do not store complete RPM manifest, but when
+            # image is unpublished, we need complete RPM manifest in order
+            # to check for possible unpublished RPMs.
+            # We do not want to get the complete manifest for every container
+            # image, because it is relatively big, so fetch it only when needed.
+            images = pyxis_instance.find_images_by_nvrs(self.nvr, include_rpms=True)
+            if images:
+                self.rpms =  images[0]["rpm_manifest"]
+            else:
+                log.warning("No image %s found in Lightblue.", self.nvr)
 
 class ContainerAPI:
     def __init__(self, pyxis_graphql_url: str, pyxis_cert: Union[str, Tuple[str]]):
