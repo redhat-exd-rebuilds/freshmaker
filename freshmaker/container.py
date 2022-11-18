@@ -271,7 +271,7 @@ class Container:
         log.warning("Container image %s does not have 'content_sets' set "
                     "in Lightblue as well as its children, this "
                     "is suspicious.", self.nvr)
-        self.content_sets_by_arch[data["architecture"]] = []
+        self.content_sets_by_arch[data["architecture"]] = [] # self.content_sets_by_arch[child["architecture"]] = []
 
     def resolve_published(self, pyxis_instance: PyxisGQL):
         # Get the published version of this image to find out if the image
