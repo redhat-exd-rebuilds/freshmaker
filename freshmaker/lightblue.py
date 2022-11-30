@@ -32,7 +32,7 @@ import dogpile.cache
 import kobo.rpmlib
 from concurrent.futures import ThreadPoolExecutor
 from http import HTTPStatus
-from itertools import groupby
+from itertools import groupby, islice
 
 from freshmaker import log, conf
 from freshmaker.kojiservice import koji_service
@@ -1329,8 +1329,16 @@ class LightBlue(object):
         if not repos:
             return []
         if not leaf_container_images:
-            images = self.find_images_with_included_rpms(
-                content_sets, rpm_nvrs, repos, published)
+            images = []
+            # Split the repos to small chunks to generate "small" LightBlue queries
+            repos_iterator = iter(repos)
+            chunk_size = 100
+            for i in range(0, len(repos), chunk_size):
+                repos_chunk = {k: repos[k] for k in islice(repos_iterator, chunk_size)}
+                images_chunk = self.find_images_with_included_rpms(
+                    content_sets, rpm_nvrs, repos_chunk, published)
+                if images_chunk:
+                    images.extend(images_chunk)
         else:
             # The `leaf_container_images` can contain unpublished container image,
             # therefore set `published` to None.
