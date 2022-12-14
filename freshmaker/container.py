@@ -45,6 +45,7 @@ class Container:
     parsed_data: dict = field(repr=False, default_factory=dict)
     repositories: List[Dict[str, Any]] = field(repr=False, default_factory=list)
     parent_brew_build: Optional[str] = field(repr=False, default=None)
+    published: Optional[bool] = field(repr=False, default=None)
 
     # Content sets by architechure
     content_sets_by_arch: Dict[str, List[str]] = field(repr=False, default_factory=dict)
@@ -88,6 +89,24 @@ class Container:
                 continue
             setattr(container, name, value)
         return container
+
+    @staticmethod
+    def _convert_rpm(rpm):
+        """Convert rpm data to dict of rpm names and nvr"""
+        parsed_nvra = kobo.rpmlib.parse_nvra(rpm["nvra"])
+        nvr = "-".join(
+            [parsed_nvra["name"], parsed_nvra["version"], parsed_nvra["release"]]
+        )
+        parsed_nvra = kobo.rpmlib.parse_nvra(rpm["srpm_nevra"])
+        srpm_nvr = "-".join(
+            [parsed_nvra["name"], parsed_nvra["version"], parsed_nvra["release"]]
+        )
+        return {
+            "name": rpm["name"],
+            "nvr": nvr,
+            "srpm_name": rpm["srpm_name"],
+            "srpm_nvr": srpm_nvr,
+        }
 
     @property
     def arches(self) -> list[str]:
@@ -231,7 +250,7 @@ class Container:
         self.compose_sources = list(compose_sources)
         log.info("Container %s uses following compose sources: %r", self.nvr, self.compose_sources)
 
-    def resolve(self, pyxis_instance: PyxisGQL, koji_session: KojiService, children=None) -> None:
+    def resolve(self, pyxis_instance: PyxisGQL, koji_session: KojiService) -> None:
         """
         Resolves the container - populates additional metadata by
         querying Pyxis and Koji
@@ -241,6 +260,65 @@ class Container:
         """
         self.resolve_build_metadata(koji_session)
         self.resolve_compose_sources()
+
+    def resolve_content_sets(
+        self, pyxis_instance: PyxisGQL, koji_session: KojiService, children=None
+    ):
+        """Resolve each child in children if content_sets_by_arch is not set"""
+        if self.content_sets_by_arch:
+            log.info(
+                "Container image %s uses following content sets: %r",
+                self.nvr,
+                self.content_sets_by_arch,
+            )
+            return
+        if not children:
+            return
+
+        for child in children:
+            if not child.content_sets_by_arch:
+                child.resolve(pyxis_instance, koji_session)
+            if not child.content_sets_by_arch:
+                continue
+
+            log.info(
+                "Container image %s does not have 'content-sets' set "
+                "in Pyxis. Using child image %s content_sets: %r",
+                self.nvr,
+                child.nvr,
+                child.content_sets_by_arch,
+            )
+            self.content_sets_by_arch = child.content_sets_by_arch
+            return
+
+        log.warning(
+            "Container image %s does not have 'content_sets' set "
+            "in Pyxis as well as its children, this "
+            "is suspicious.",
+            self.nvr,
+        )
+
+    def resolve_published(self, pyxis_instance: PyxisGQL):
+        # Get the published version of this image to find out if the image
+        # was actually published.
+        if self.published is not None:
+            return
+        images = pyxis_instance.find_images_by_nvr(self.nvr, include_rpms=False)
+        for image in images[:1]:
+            for repo in image["repositories"]:
+                if repo["published"] is True:
+                    self.published = True
+                    return
+
+        self.published = False
+        images = pyxis_instance.find_images_by_nvr(self.nvr)
+        if not self.rpms:
+            return
+        exist_rpms = [rpm["rpm_name"] for rpm in self.rpms]
+        for rpm in images[0]["edges"]["rpm_manifest"]["data"]["rpms"]:
+            new_rpm = self._convert_rpm(rpm)
+            if new_rpm["nvr"] not in exist_rpms:
+                self.rpms.append(new_rpm)
 
 
 class ContainerAPI:
