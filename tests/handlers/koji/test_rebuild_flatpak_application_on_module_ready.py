@@ -299,19 +299,19 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
         }
         original_odcs_compose_ids = ["985716"]
         module_name_stream_set = set(["name:stream"])
-        module_name_stream_version_set = set(["name:stream:9823933"])
+        module_nsvc_set = set(["name:stream:9823933:8233ee4"])
         reused_composes = self.handler._reused_composes(
             original_odcs_compose_ids, module_name_stream_set
         )
         updated_compose_source = self.handler._updated_compose_source(
             original_odcs_compose_ids,
             module_name_stream_set,
-            module_name_stream_version_set,
+            module_nsvc_set,
         )
         self.assertEqual(reused_composes, set())
         self.assertEqual(
             updated_compose_source,
-            "name:stream:9823933 nodejs:14:8040020211213111158",
+            "name:stream:9823933:8233ee4 nodejs:14:8040020211213111158:522a0ee4",
         )
 
     @patch("freshmaker.odcsclient.create_odcs_client")

@@ -255,14 +255,14 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
         self,
         original_odcs_compose_ids,
         module_name_stream_set,
-        module_name_stream_version_set,
+        module_nsvc_set,
     ):
         """
         Generate updated compose source.
 
         :param original_odcs_compose_ids list: Original compose ids.
         :param module_name_stream_set set: Module name stream set from an advisory.
-        :param module_name_stream_version_set set: Module name stream version set from an advisory.
+        :param module_nsvc_set set: Module name stream version context set from an advisory.
         :return: a string of updated compose source.
         :rtype: set
         """
@@ -275,7 +275,7 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
                     f"{n}:{s}" for n, s, v, c in _compose_sources(compose)
                 }
                 mapping = {
-                    f"{n}:{s}": f"{n}:{s}:{v}"
+                    f"{n}:{s}": f"{n}:{s}:{v}:{c}"
                     for n, s, v, c in _compose_sources(compose)
                 }
 
@@ -286,7 +286,7 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
                             module_name_stream_set
                         )
                     )
-                updated_composes.update(module_name_stream_version_set)
+                updated_composes.update(module_nsvc_set)
 
         return " ".join(sorted(updated_composes))
 
@@ -333,7 +333,7 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
                 # in case of error.
                 self.set_context(build)
 
-                module_name_stream_version_set = set()
+                module_nsvc_set = set()
                 module_name_stream_set = set()
                 module_nvrs = image_modules_mapping[nvr]
                 for module_nvr in module_nvrs:
@@ -341,8 +341,9 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
                     name = mmd.get_module_name()
                     stream = mmd.get_stream_name()
                     version = mmd.get_version()
+                    context = mmd.get_context()
                     module_name_stream_set.add(f"{name}:{stream}")
-                    module_name_stream_version_set.add(f"{name}:{stream}:{version}")
+                    module_nsvc_set.add(f"{name}:{stream}:{version}:{context}")
                 original_odcs_compose_ids = image["odcs_compose_ids"]
                 reused_composes = self._reused_composes(
                     original_odcs_compose_ids, module_name_stream_set
@@ -366,7 +367,7 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
                 compose_source = self._updated_compose_source(
                     original_odcs_compose_ids,
                     module_name_stream_set,
-                    module_name_stream_version_set,
+                    module_nsvc_set,
                 )
                 arches = sorted(image["arches"].split())
                 if compose_source:
