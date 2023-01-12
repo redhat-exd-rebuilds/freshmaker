@@ -48,20 +48,20 @@ def test_pyxis_graphql_find_repositories():
             "data": [
                 {
                     "auto_rebuild_tags": ["latest"],
-                    "registry": "registry.example.com",
+                    "published": True,
                     "release_categories": ["Generally Available"],
                     "repository": "foobar/foo",
                 },
                 {
                     "auto_rebuild_tags": ["latest"],
-                    "registry": "registry.example.com",
+                    "published": True,
                     "release_categories": ["Generally Available"],
                     "repository": "foobar/bar",
                 },
             ],
             "error": None,
             "page": 0,
-            "page_size": 50,
+            "page_size": 250,
             "total": 2,
         }
     }
@@ -91,7 +91,7 @@ def test_pyxis_graphql_get_repository_by_registry_path():
         "get_repository_by_registry_path": {
             "data": {
                 "auto_rebuild_tags": ["1.0", "1.1"],
-                "registry": "registry.example.com",
+                "published": True,
                 "release_categories": ["Generally " "Available"],
                 "repository": "foobar/foobar-operator",
             },
@@ -197,7 +197,7 @@ def test_pyxis_graphql_find_images_by_installed_rpms():
             ],
             "error": None,
             "page": 0,
-            "page_size": 50,
+            "page_size": 250,
             "total": 2,
         }
     }
@@ -309,7 +309,7 @@ def test_pyxis_graphql_find_images_by_nvr():
             ],
             "error": None,
             "page": 0,
-            "page_size": 50,
+            "page_size": 250,
             "total": 2,
         }
     }
@@ -397,7 +397,7 @@ def test_pyxis_graphql_find_images_by_nvrs():
             ],
             "error": None,
             "page": 0,
-            "page_size": 50,
+            "page_size": 250,
             "total": 2,
         }
     }
@@ -460,7 +460,7 @@ def test_pyxis_graphql_find_images_by_names():
             ],
             "error": None,
             "page": 0,
-            "page_size": 50,
+            "page_size": 250,
             "total": 2,
         }
     }
