@@ -30,7 +30,7 @@ from freshmaker import conf, db
 from freshmaker.events import (
     ErrataAdvisoryRPMsSignedEvent, ManualRebuildWithAdvisoryEvent)
 from freshmaker.handlers import ContainerBuildHandler, fail_event_on_handler_exception
-from freshmaker.lightblue import LightBlue
+from freshmaker.image import PyxisAPI
 from freshmaker.pulp import Pulp
 from freshmaker.errata import Errata
 from freshmaker.types import (
@@ -204,7 +204,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
         """
         Records the images from batches to database.
 
-        :param batches list: Output of LightBlue._find_images_to_rebuild(...).
+        :param batches list: Output of PyxisAPI._find_images_to_rebuild(...).
         :param event ErrataAdvisoryRPMsSignedEvent: The event this handler
             is currently handling.
         :param builds dict: mappings from docker image build NVR to
@@ -417,21 +417,19 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
         self.log_info('RPMs from advisory ends up in following content sets: '
                       '%s', content_sets)
 
-        # Query images from LightBlue by signed RPM's srpm name and found
+        # Query images from Pyxis by signed RPM's srpm name and found
         # content sets
-        lb = LightBlue(server_url=conf.lightblue_server_url,
-                       cert=conf.lightblue_certificate,
-                       private_key=conf.lightblue_private_key)
+        pyxis = PyxisAPI(server_url=conf.pyxis_graphql_url)
         # Check if we are allowed to rebuild unpublished images and clear
         # published and release_categories if so.
         if self.event.is_allowed(self, published=True):
             published = True
-            release_categories = conf.lightblue_release_categories
+            release_categories = conf.container_release_categories
         else:
             published = None
             release_categories = None
 
-        # Limit the Lightblue query to particular leaf images if set in Event.
+        # Limit the Pyxis query to particular leaf images if set in Event.
         leaf_container_images = None
         if isinstance(self.event, ManualRebuildWithAdvisoryEvent):
             leaf_container_images = self.event.container_images
@@ -447,7 +445,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
         self.log_info(
             "Going to find all the container images to rebuild as "
             "result of %r update.", affected_nvrs)
-        batches = lb.find_images_to_rebuild(
+        batches = pyxis.find_images_to_rebuild(
             affected_nvrs, content_sets,
             filter_fnc=self._filter_out_not_allowed_builds,
             published=published, release_categories=release_categories,

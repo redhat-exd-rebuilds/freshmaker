@@ -23,7 +23,7 @@ import koji
 import json
 
 from freshmaker import conf, db, log
-from freshmaker.lightblue import LightBlue
+from freshmaker.image import PyxisAPI
 from freshmaker.handlers import ContainerBuildHandler, fail_event_on_handler_exception
 from freshmaker.events import FreshmakerAsyncManualBuildEvent
 from freshmaker.types import EventState
@@ -65,12 +65,12 @@ class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
             self.log_info(msg)
             return []
 
-        lb = self.init_lightblue_instance()
+        pyxis = self.init_pyxis_api_instance()
         # images contains at this point a list of images with all NVR for the same package
-        images = self._find_images_to_rebuild(lb)
+        images = self._find_images_to_rebuild(pyxis)
 
         # Since the input is an image name, and not an NVR, freshmaker won't be able to know
-        # exactly which one needs to be rebuilt. For this reason Freshmaker asked Lightblue
+        # exactly which one needs to be rebuilt. For this reason Freshmaker asked Pyxis
         # all the NVRs that match that image name. Now we need to check which one has the
         # dist_git_branch. If more than one is found Freshmaker will choose the one with the
         # highest NVR.
@@ -83,11 +83,11 @@ class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
         if len(images) == 1:
             batches = [images]
         else:
-            images_trees = self.find_images_trees_to_rebuild(images, lb)
+            images_trees = self.find_images_trees_to_rebuild(images, pyxis)
             to_rebuild = self.filter_out_unrelated_images(images_trees)
-            batches = self.generate_batches(to_rebuild, images, lb)
+            batches = self.generate_batches(to_rebuild, images, pyxis)
 
-        builds = self._record_batches(batches, db_event, lb)
+        builds = self._record_batches(batches, db_event, pyxis)
 
         if not builds:
             msg = f"No container images to rebuild for event with message_id {event.msg_id}"
@@ -112,11 +112,8 @@ class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
 
         return []
 
-    def init_lightblue_instance(self):
-        return LightBlue(server_url=conf.lightblue_server_url,
-                         cert=conf.lightblue_certificate,
-                         private_key=conf.lightblue_private_key,
-                         event_id=self.current_db_event_id)
+    def init_pyxis_api_instance(self):
+        return PyxisAPI(server_url=conf.pyxis_graphql_url)
 
     def filter_out_unrelated_images(self, batches):
         """
@@ -155,51 +152,51 @@ class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
             new_batches.append(filtered_batch)
         return new_batches
 
-    def generate_batches(self, to_rebuild, images, lb):
+    def generate_batches(self, to_rebuild, images, pyxis):
         # Get all the directly affected images so that any parents that are not marked as
         # directly affected can be set in _images_to_rebuild_to_batches
         directly_affected_nvrs = {
             image.nvr for image in images if image.get("directly_affected")
         }
         # Now generate batches from deduplicated list and return it.
-        return lb._images_to_rebuild_to_batches(to_rebuild, directly_affected_nvrs)
+        return pyxis._images_to_rebuild_to_batches(to_rebuild, directly_affected_nvrs)
 
-    def _find_images_to_rebuild(self, lb):
+    def _find_images_to_rebuild(self, pyxis):
         """
         Since the input is an image name, and not an NVR, freshmaker won't be able to know
-        exactly which one needs to be rebuilt. For this reason Freshmaker will ask Lightblue
+        exactly which one needs to be rebuilt. For this reason Freshmaker will ask Pyxis
         all the NVRs that match that image name. It will then check which one has the
         dist_git_branch. If more than one is found Freshmaker will choose the one with the highest
         NVRArtifactType.IMAGE.
 
-        :param lb LightBlue: LightBlue instance
+        :param pyxis PyxisAPI: PyxisAPI instance
         :return: list of container images matching a certain name.
         :rtype: list
         """
 
-        return lb.get_images_by_brew_package(self.event.container_images)
+        return pyxis.get_images_by_brew_package(self.event.container_images)
 
-    def get_image_tree(self, lb, image, tree):
+    def get_image_tree(self, pyxis, image, tree):
         """
         This method recursively finds the tree for given image, up to the base image.
         At every recursive call it will add one element of the tree.
         When the base image is reached, the tree will be completed.
 
-        :param lb LightBlue: LightBlue instance
+        :param pyxis PyxisAPI: PyxisAPI instance
         :param image ContainerImage: image of which we want the tree.
         :param tree list: the list of images that we found until now.
         :return: list of images, in this order: [parent, grandparent, ..., baseimage]
         :rtype: list
         """
-        parent_nvr = lb.find_parent_brew_build_nvr_from_child(image)
+        parent_nvr = pyxis.find_parent_brew_build_nvr_from_child(image)
         if parent_nvr:
-            parent = lb.get_images_by_nvrs([parent_nvr], published=None)
+            parent = pyxis.get_images_by_nvrs([parent_nvr], published=None)
             if parent:
                 parent = parent[0]
-                parent.resolve(lb)
+                parent.resolve(pyxis)
                 image['parent'] = parent
                 tree.append(parent)
-                return self.get_image_tree(lb, parent, tree)
+                return self.get_image_tree(pyxis, parent, tree)
         return tree
 
     def filter_images_based_on_dist_git_branch(self, images, db_event):
@@ -227,7 +224,7 @@ class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
             images_to_rebuild = {}
 
             # In case the user requested to build ['s2i-core-container', 'cnv-libvirt-container']
-            # lightblue will return a bunch of NVRs for each name, example:
+            # Pyxis will return a bunch of NVRs for each name, example:
             #   * s2i-core-container-1-127
             #   * s2i-core-container-1-126
             #   * ...
@@ -278,7 +275,7 @@ class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
             # The result needs to be a list
             return list(images_to_rebuild.values())
 
-    def find_images_trees_to_rebuild(self, images_to_rebuild, lb):
+    def find_images_trees_to_rebuild(self, images_to_rebuild, pyxis):
         """
         At this point images_to_rebuilds contains the images to rebuild requested by the
         user. We now need to find out if there's some dependency between these images.
@@ -292,7 +289,7 @@ class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
         This method, for the given input images, return their trees, after deduplication.
 
         :param images_to_rebuild list: list of images to rebuild.
-        :param lb LightBlue: LightBlue instance
+        :param pyxis PyxisAPI: PyxisAPI instance
         :return: list of trees of images.
         :rtype: list of lists
         """
@@ -301,20 +298,20 @@ class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
         # base image.
         images_trees = []
         for image in images_to_rebuild:
-            images_trees.append([image] + self.get_image_tree(lb, image, []))
+            images_trees.append([image] + self.get_image_tree(pyxis, image, []))
 
         # Let's remove duplicated images which share the same name and version, but different
         # release.
-        to_rebuild = lb._deduplicate_images_to_rebuild(images_trees)
+        to_rebuild = pyxis._deduplicate_images_to_rebuild(images_trees)
         return to_rebuild
 
-    def _record_batches(self, batches, db_event, lb):
+    def _record_batches(self, batches, db_event, pyxis):
         """
             Records the images from batches to the database.
 
-        :param batches list: Output of LightBlue._find_images_to_rebuild(...).
+        :param batches list: Output of PyxisAPI._find_images_to_rebuild(...).
         :param db_event: event to handle.
-        :param lb LightBlue: LightBlue instance
+        :param pyxis PyxisAPI: PyxisAPI instance
         :return: a mapping between image build NVR and corresponding ArtifactBuild
             object representing a future rebuild of that. It is extended by including
             those images stored into database.
@@ -349,7 +346,7 @@ class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
                     else:
                         parent_nvr = None
                 else:
-                    parent_nvr = lb.find_parent_brew_build_nvr_from_child(image)
+                    parent_nvr = pyxis.find_parent_brew_build_nvr_from_child(image)
 
                 dep_on = builds[parent_nvr] if parent_nvr in builds else None
 
@@ -365,7 +362,7 @@ class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
                 # in case of error.
                 self.set_context(build)
 
-                image.resolve(lb)
+                image.resolve(pyxis)
                 build.transition(state, state_reason)
                 build_target = (
                     self.event.brew_target if self.event.brew_target else image["target"])

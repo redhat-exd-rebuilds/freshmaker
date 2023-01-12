@@ -267,30 +267,14 @@ class Config(object):
             'default': '',
             'desc': 'SFM2 API URl'
         },
-        'lightblue_server_url': {
-            'type': str,
-            'default': '',
-            'desc': 'Server URL of LightBlue.'},
-        'lightblue_verify_ssl': {
-            'type': bool,
-            'default': True,
-            'desc': 'Whether to enable SSL verification over HTTP with lightblue.'},
-        'lightblue_certificate': {
-            'type': str,
-            'default': '',
-            'desc': 'Path to LightBlue certificate file.'},
-        'lightblue_private_key': {
-            'type': str,
-            'default': '',
-            'desc': 'Path to LightBlue private key file.'},
-        'lightblue_released_dependencies_only': {
+        'container_released_dependencies_only': {
             'type': bool,
             'default': False,
             'desc': 'When True, only released images will be used as dependencies '
                     'for other images. WARN: This may lead to downgrade to older '
                     'release as result of rebuild when image to rebuild depends '
                     'on unreleased release of the parent image.'},
-        'lightblue_repo_vendors': {
+        'container_repo_vendors': {
             'type': tuple,
             'default': ("redhat",),
             'desc': 'Allowed vendors for Container Repositories'},
@@ -386,7 +370,7 @@ class Config(object):
             'default': '',
             'desc': 'A suffix to add to the rebuilt_nvr release in addition to the timestamp.',
         },
-        'lightblue_release_categories': {
+        'container_release_categories': {
             'type': tuple,
             'default': ("Generally Available", "Tech Preview", "Beta",),
             'desc': 'Release categories',
@@ -394,8 +378,21 @@ class Config(object):
         'pyxis_server_url': {
             'type': str,
             'default': '',
-            'desc': 'Server URL of Pyxis.'
+            'desc': 'Server URL of Pyxis Rest API.'
         },
+        'pyxis_graphql_url': {
+            'type': str,
+            'default': '',
+            'desc': 'Server URL of Pyxis GraphQL API.'
+        },
+        'pyxis_certificate': {
+            'type': str,
+            'default': '',
+            'desc': 'Path to Pyxis certificate file.'},
+        'pyxis_private_key': {
+            'type': str,
+            'default': '',
+            'desc': 'Path to Pyxis private key file.'},
         'pyxis_index_image_organizations': {
             'type': list,
             'default': [],
@@ -428,11 +425,6 @@ class Config(object):
             'type': str,
             'default': '',
             'desc': 'Root url of Flatpak index service'
-        },
-        'container_metadata_source': {
-            'type': str,
-            'default': 'lightblue',
-            'desc': 'An option to get image metadata from LightBlue or Pyxis GraphQL. Can be set to "pyxis_graphql" or "lightblue".'
         },
         'exclude_content_sets_pattern': {
             'type': str,
