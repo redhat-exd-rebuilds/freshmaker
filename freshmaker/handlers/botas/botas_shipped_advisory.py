@@ -30,7 +30,7 @@ import semver
 from freshmaker import db, conf, log
 from freshmaker.handlers import ContainerBuildHandler
 from freshmaker.events import BotasErrataShippedEvent, ManualBundleRebuildEvent
-from freshmaker.lightblue import ContainerImage
+from freshmaker.image import ContainerImage
 from freshmaker.models import ArtifactBuild, ArtifactType, Event
 from freshmaker.types import EventState, ArtifactBuildState, RebuildReason
 from freshmaker.pyxis import Pyxis

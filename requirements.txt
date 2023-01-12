@@ -117,6 +117,8 @@ munch==2.5.0
     # via
     #   -r requirements.in
     #   python-fedora
+mypy-extensions==1.0.0
+    # via -r requirements.in
 odcs[client]==0.3.4
     # via -r requirements.in
 openidc-client==0.6.0

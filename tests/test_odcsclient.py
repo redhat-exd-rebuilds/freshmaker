@@ -26,7 +26,7 @@ from unittest.mock import patch, Mock
 from odcs.client.odcs import AuthMech
 
 from freshmaker import conf, db
-from freshmaker.lightblue import ContainerImage
+from freshmaker.image import ContainerImage
 from freshmaker.models import Event, ArtifactBuild, Compose
 from freshmaker.odcsclient import create_odcs_client
 from freshmaker.types import ArtifactBuildState, EventState, ArtifactType

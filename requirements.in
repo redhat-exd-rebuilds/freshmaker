@@ -32,3 +32,4 @@ jsonformatter
 Werkzeug<2.1
 gql[requests]
 PyYaml
+mypy-extensions
