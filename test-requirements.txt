@@ -4,7 +4,6 @@ copr
 freezegun
 pytest
 pytest-cov
-vcrpy
 requests_mock
 tox
 mypy

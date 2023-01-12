@@ -391,16 +391,6 @@ class Config(object):
             'default': ("Generally Available", "Tech Preview", "Beta",),
             'desc': 'Release categories',
         },
-        'vcrpy_path': {
-            'type': str,
-            'default': '',
-            'desc': 'vcr path where lightblue queries will be recorded'
-        },
-        'vcrpy_mode': {
-            'type': str,
-            'default': 'all',
-            'desc': 'vcr mode for recording lightblue queries'
-        },
         'pyxis_server_url': {
             'type': str,
             'default': '',
@@ -573,12 +563,6 @@ class Config(object):
         fixed_permissions = defaultdict(lambda: {'groups': [], 'users': []})
         fixed_permissions.update(permissions)
         self._permissions = fixed_permissions
-
-    def _setifok_vcrpy_path(self, s):
-        s = str(s)
-        if s:
-            import vcr  # noqa: F401
-        self._vcrpy_path = s
 
     def _get_krb_auth_ccache_file(self):
         if not self._krb_auth_ccache_file:
