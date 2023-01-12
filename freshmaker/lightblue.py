@@ -519,8 +519,7 @@ class LightBlue(object):
 
     def __init__(self, server_url, cert, private_key,
                  verify_ssl=None,
-                 entity_versions=None,
-                 event_id=None):
+                 entity_versions=None):
         """Initialize LightBlue instance
 
         :param str server_url: URL used to call LightBlue APIs. It is
@@ -538,7 +537,6 @@ class LightBlue(object):
         """
         self.server_url = server_url.rstrip('/')
         self.api_root = '{}/rest/data'.format(self.server_url)
-        self.event_id = event_id
         if verify_ssl is None:
             self.verify_ssl = True
         else:
@@ -569,7 +567,7 @@ class LightBlue(object):
         return self.entity_versions.get(entity_name, '')
 
     def _make_request(self, entity, data):
-        """Make a request to query data from LightBlue and save it if vcrpy is configured
+        """Make a request to query data from LightBlue
 
         :param str entity: the entity part to construct a full URL sent to
             LightBlue. Refer to callers of ``_make_request`` to learn what
@@ -591,16 +589,7 @@ class LightBlue(object):
             "cert": (self.cert, self.private_key),
             "headers": {'Content-Type': 'application/json'}
         }
-        if self.event_id and conf.vcrpy_path:
-            import vcr
-            my_vcr = vcr.VCR(
-                cassette_library_dir=conf.vcrpy_path,
-                record_mode=conf.vcrpy_mode,
-            )
-            with my_vcr.use_cassette(f'{self.event_id}.yml'):
-                response = requests.post(entity_url, **request_kwargs, timeout=conf.requests_timeout)
-        else:
-            response = requests.post(entity_url, **request_kwargs, timeout=max(600, conf.requests_timeout * 5))
+        response = requests.post(entity_url, **request_kwargs, timeout=max(600, conf.requests_timeout * 5))
 
         status_code = response.status_code
 

@@ -165,6 +165,8 @@ python-ldap==3.4.3
     #   pyldap
 pytz==2022.1
     # via moksha-common
+pyyaml==6.0
+    # via -r requirements.in
 pyzmq==23.2.1
     # via
     #   fedmsg
