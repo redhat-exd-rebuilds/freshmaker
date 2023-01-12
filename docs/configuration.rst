@@ -58,8 +58,3 @@ Other
 
 * ``rebuilt_nvr_release_suffix`` - a suffix to add to the ``rebuilt_nvr``
   release in addition to the timestamp. This defaults to an empty string.
-
-* vcrpy - use this library for recording the Lightblue queries per
-  Freshmaker event. The importing of vcrpy and the recording of Lightblue queries is performed if
-  the vcrpy configuration variables (``vcrpy_path`` and ``vcrpy_mode``) are set in
-  ``freshmaker/config.py``

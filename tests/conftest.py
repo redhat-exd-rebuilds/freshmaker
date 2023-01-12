@@ -21,7 +21,6 @@
 
 import flask
 import pytest
-from unittest import mock
 
 
 @pytest.fixture(autouse=True)
@@ -35,9 +34,3 @@ def clear_flask_g():
     for attr in ('group', 'user'):
         if hasattr(flask.g, attr):
             delattr(flask.g, attr)
-
-
-@pytest.fixture(autouse=True)
-def mock_vcrpy():
-    with mock.patch('vcr.VCR'):
-        yield
