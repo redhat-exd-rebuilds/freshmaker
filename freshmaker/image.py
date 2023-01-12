@@ -23,29 +23,27 @@
 #            Jan Kaluza <jkaluza@redhat.com>
 #            Ralph Bean <rbean@redhat.com>
 
-import json
-import os
+import copy
 import re
 import requests
-import io
 import dogpile.cache
 import kobo.rpmlib
 from concurrent.futures import ThreadPoolExecutor
-from http import HTTPStatus
 from itertools import groupby, islice
 
 from freshmaker import log, conf
 from freshmaker.kojiservice import koji_service
 from freshmaker.odcsclient import create_odcs_client
+from freshmaker.pyxis_gql import PyxisGQL
 from freshmaker.utils import sorted_by_nvr, is_pkg_modular
 from freshmaker.utils import retry
 import koji
 
 
 class ImageGroup:
-    def __init__(self, image, lightblue):
+    def __init__(self, image, pyxis_api_instance):
         parsed_nvr = koji.parse_NVR(image.nvr)
-        repositories = image.get_registry_repositories(lightblue)
+        repositories = image.get_registry_repositories(pyxis_api_instance)
         self.name = parsed_nvr["name"]
         self.version = parsed_nvr["version"]
         self.repos = {x["repository"] for x in repositories}
@@ -65,78 +63,6 @@ class ImageGroup:
             self.name == other.name and
             self.version == other.version and
             self.repos.issubset(other.repos)
-        )
-
-
-class LightBlueError(Exception):
-    """Base class representing errors from LightBlue server"""
-
-    def __init__(self, status_code, error_response):
-        """Initialize
-
-        :param int status_code: response status code
-        :param str or dict error_response: response content returned from
-            LightBlue server that contains error content. There are two types of
-            error. A piece of HTML when error happens in system-wide, for example,
-            requested resource does not exists (404), and internal server error (500).
-            It could also be a JSON data when error happens while LightBlue handles
-            request.
-        """
-        self._raw = error_response
-        self._status_code = status_code
-
-    def __repr__(self):
-        return '<{} [{}]>'.format(self.__class__.__name__, self.status_code)
-
-    @property
-    def raw(self):
-        return self._raw
-
-    @property
-    def status_code(self):
-        return self._status_code
-
-
-class LightBlueSystemError(LightBlueError):
-    """LightBlue system error"""
-
-    def _get_error_message(self):
-        # Try getting the error code from JSON if returned.
-        try:
-            msg = ""
-            json_data = json.loads(self.raw)
-            if "errors" in json_data:
-                for error in json_data["errors"]:
-                    if "msg" not in error or "errorCode" not in error:
-                        continue
-                    msg += error["errorCode"] + ": " + error["msg"] + "\n"
-            if msg:
-                return msg
-        except ValueError as e:
-            log.exception(e)
-        # If no JSON is returned, try to get the title of HTML page.
-        buf = io.StringIO(self.raw)
-        html = ''.join((line.strip('\n') for line in buf))
-        match = re.search('<title>(.+)</title>', html)
-        return match.groups()[0]
-
-    def __str__(self):
-        try:
-            return self._get_error_message()
-        except Exception as e:
-            log.exception(e)
-            raise
-
-
-class LightBlueRequestError(LightBlueError):
-    """LightBlue request error"""
-
-    def __str__(self):
-        return 'Error{} ({}):\n{}'.format(
-            's' if len(self.raw['errors']) > 1 else '',
-            len(self.raw['errors']),
-            '\n'.join(('    {}'.format(err['msg'])
-                      for err in self.raw['errors']))
         )
 
 
@@ -382,12 +308,12 @@ class ContainerImage(dict):
         log.info("Container image %s uses following compose sources: %r",
                  self.nvr, self["compose_sources"])
 
-    def resolve_content_sets(self, lb_instance, children=None):
+    def resolve_content_sets(self, pyxis_api_instance, children=None):
         """
         Find out the content_sets this image uses and store it as
         "content_sets" key in image.
 
-        :param LightBlue lb_instance: LightBlue instance to use for additional
+        :param Pyxis pyxis_api_instance: Pyxis instance to use for additional
             queries.
         :param list[ContainerImage] children: List of children to take the
             content_sets from in case this container image is unpublished and
@@ -399,7 +325,7 @@ class ContainerImage(dict):
             log.info("Container image %s uses following content sets: %r",
                      self.nvr, self["content_sets"])
             if "content_sets_source" not in self:
-                self["content_sets_source"] = "lightblue_container_image"
+                self["content_sets_source"] = "pyxis_container_image"
             return
 
         # In case content_sets are not set directly in this ContainerImage,
@@ -407,7 +333,7 @@ class ContainerImage(dict):
         self["content_sets_source"] = "child_image"
         if not children:
             log.warning("Container image %s does not have 'content_sets' set "
-                        "in Lightblue and also does not have any children, "
+                        "in Pyxis and also does not have any children, "
                         "this is suspicious.", self.nvr)
             self.update({"content_sets": []})
             return
@@ -416,27 +342,26 @@ class ContainerImage(dict):
             # The child['content_sets'] should be always set for children
             # passed here, but in case it is not, just try it.
             if "content_sets" not in child:
-                child.resolve(lb_instance, None)
+                child.resolve(pyxis_api_instance, None)
             if not child["content_sets"]:
                 continue
 
             log.info("Container image %s does not have 'content-sets' set "
-                     "in Lightblue. Using child image %s content_sets: %r",
+                     "in Pyxis. Using child image %s content_sets: %r",
                      self.nvr, child.nvr,
                      child["content_sets"])
             self.update({"content_sets": child["content_sets"]})
             return
 
         log.warning("Container image %s does not have 'content_sets' set "
-                    "in Lightblue as well as its children, this "
+                    "in Pyxis as well as its children, this "
                     "is suspicious.", self.nvr)
         self.update({"content_sets": []})
 
-    def resolve_published(self, lb_instance):
+    def resolve_published(self, pyxis_api_instance):
         # Get the published version of this image to find out if the image
         # was actually published.
-        images = lb_instance.get_images_by_nvrs(
-            [self.nvr], published=True, include_rpm_manifest=False)
+        images = pyxis_api_instance.get_images_by_nvrs([self.nvr], published=True)
         if images:
             self["published"] = True
         else:
@@ -447,22 +372,22 @@ class ContainerImage(dict):
             # to check for possible unpublished RPMs.
             # We do not want to get the complete manifest for every container
             # image, because it is relatively big, so fetch it only when needed.
-            images = lb_instance.get_images_by_nvrs([self.nvr])
+            images = pyxis_api_instance.get_images_by_nvrs([self.nvr])
             if images:
                 self["rpm_manifest"] = images[0]["rpm_manifest"]
             else:
-                log.warning("No image %s found in Lightblue.", self.nvr)
+                log.warning("No image %s found in Pyxis.", self.nvr)
 
-    def resolve(self, lb_instance, children=None):
+    def resolve(self, pyxis_api_instance, children=None):
         """
         Resolves the Container image - populates additional metadata by
-        querying Koji and lightblue.
+        querying Koji and Pyxis.
         """
         try:
             self.resolve_commit()
             self.resolve_compose_sources()
-            self.resolve_content_sets(lb_instance, children)
-            self.resolve_published(lb_instance)
+            self.resolve_content_sets(pyxis_api_instance, children)
+            self.resolve_published(pyxis_api_instance)
         except Exception as e:
             err = "Cannot resolve the container image: %s" % e
             self.log_error(err)
@@ -476,7 +401,7 @@ class ContainerImage(dict):
             log.info(("Not filtering out this image because we "
                       "are not sure what RPMs are in there."))
             return
-        # There is always just single "rpm_manifest". Lightblue returns
+        # There is always just single "rpm_manifest". Pyxis returns
         # this as a list, because it is reference to
         # containerImageRPMManifest.
         rpm_manifest = self["rpm_manifest"][0]
@@ -487,7 +412,7 @@ class ContainerImage(dict):
             return
         return rpm_manifest["rpms"]
 
-    def get_registry_repositories(self, lb_instance):
+    def get_registry_repositories(self, pyxis_api_instance):
         if self['repositories']:
             return self['repositories']
 
@@ -502,155 +427,34 @@ class ContainerImage(dict):
         original_nvr = '{name}-{version}-{release}'.format(**parsed_nvr)
         log.debug('Finding repositories for %s through %s', self.nvr, original_nvr)
 
-        previous_images = lb_instance.get_images_by_nvrs(
+        previous_images = pyxis_api_instance.get_images_by_nvrs(
             [original_nvr], published=None, include_rpm_manifest=False)
         if not previous_images:
-            log.warning('original_nvr %s not found in Lightblue', original_nvr)
+            log.warning('original_nvr %s not found in Pyxis', original_nvr)
             return []
 
-        return previous_images[0].get_registry_repositories(lb_instance)
+        return previous_images[0].get_registry_repositories(pyxis_api_instance)
 
 
-class LightBlue(object):
-    """Interface to query lightblue"""
+class PyxisAPI(object):
+    """Interface to query Pyxis"""
 
     region = dogpile.cache.make_region().configure(
         conf.dogpile_cache_backend, expiration_time=120)
 
-    def __init__(self, server_url, cert, private_key,
-                 verify_ssl=None,
-                 entity_versions=None):
-        """Initialize LightBlue instance
+    def __init__(self, server_url):
+        """Initialize PyxisAPI instance
 
-        :param str server_url: URL used to call LightBlue APIs. It is
-            unnecessary to include path part, which will be handled
-            automatically. For example, https://lightblue.example.com/.
-        :param str cert: path to certificate file.
-        :param str private_key: path to private key file.
-        :param bool verify_ssl: whether to verify SSL over HTTP. Enabled by
-            default.
-        :param dict entity_versions: a mapping from entity to what version
-            should be used to request data. If no such a mapping appear , it
-            means the default version will be used. You should choose versions
-            explicitly. If entity_versions is omitted entirely, default version
-            will be used on each entity.
+        :param str server_url: Pyxis GraphQL url
         """
-        self.server_url = server_url.rstrip('/')
-        self.api_root = '{}/rest/data'.format(self.server_url)
-        if verify_ssl is None:
-            self.verify_ssl = True
-        else:
-            self.verify_ssl = verify_ssl
+        self.pyxis = PyxisGQL(url=server_url)
 
-        if not os.path.exists(cert):
-            raise IOError('Certificate file {} does not exist.'.format(cert))
-        else:
-            self.cert = cert
-
-        if not os.path.exists(private_key):
-            raise IOError('Private key file {} does not exist.'.format(private_key))
-        else:
-            self.private_key = private_key
-
-        self.entity_versions = entity_versions or {}
-
-    def _get_entity_version(self, entity_name):
-        """Lookup configured entity's version
-
-        :param str entity_name: entity name to get its version.
-        :return: version configured for the entity name. If there is no
-            corresponding version, emtpy string is returned, which can be used
-            to construct request URL directly that means to use default
-            version.
-        :rtype: str
-        """
-        return self.entity_versions.get(entity_name, '')
-
-    def _make_request(self, entity, data):
-        """Make a request to query data from LightBlue
-
-        :param str entity: the entity part to construct a full URL sent to
-            LightBlue. Refer to callers of ``_make_request`` to learn what
-            entities this argument accepts.
-        :param dict data: LightBlue query metadata and criteria.
-        :return: a mapping containing result returned from LightBlue.
-        :rtype: dict
-        :raises LightBlueSystemError: if requested resource does not exist,
-            something wrong internally inside LightBlue to fail to response
-            the query, or the request is unauthorized.
-        :raises LightBlueRequestError: if LightBlue responses any other type
-            of errors.
-        """
-        entity_url = '{}/{}'.format(self.api_root, entity)
-        # Record the Freshmaker lightblue queries
-        request_kwargs = {
-            "data": json.dumps(data),
-            "verify": self.verify_ssl,
-            "cert": (self.cert, self.private_key),
-            "headers": {'Content-Type': 'application/json'}
-        }
-        response = requests.post(entity_url, **request_kwargs, timeout=max(600, conf.requests_timeout * 5))
-
-        status_code = response.status_code
-
-        if status_code == HTTPStatus.OK:
-            return response.json()
-
-        # Warn early, in case there is an error in the error handling code below
-        log.warning("Request to %s gave %r", response.request.url, response)
-
-        if status_code in (HTTPStatus.NOT_FOUND,
-                           HTTPStatus.INTERNAL_SERVER_ERROR,
-                           HTTPStatus.UNAUTHORIZED):
-            raise LightBlueSystemError(status_code, response.content)
-        else:
-            raise LightBlueRequestError(status_code, response.json())
-
-    def find_container_repositories(self, request, auto_rebuild=True):
-        """Query via entity containerRepository
-
-        :param dict request: a map containing complete query expression.
-            This query will be sent to LightBlue in a POST request. Refer to
-            https://jewzaam.gitbooks.io/lightblue-specifications/content/language_specification/query.html
-            to know more detail about how to write a query.
-        :param bool auto_rebuild: only include repositories that have auto_rebuild_tags set.
-        :return: a list of ContainerRepository objects
-        :rtype: list
-        """
-
-        url = 'find/containerRepository/{}'.format(
-            self._get_entity_version('containerRepository'))
-        response = self._make_request(url, request)
-
-        repos = []
-        for repo_data in response['processed']:
-            if auto_rebuild and not repo_data.get('auto_rebuild_tags'):
-                log.info('"auto_rebuild_tags" not set for %s repository, ignoring repository',
-                         repo_data["repository"])
-                continue
-            repo = ContainerRepository()
-            repo.update(repo_data)
-            repos.append(repo)
-        return repos
-
-    def find_container_images(self, request):
-        """Query via entity containerImage
-
-        :param dict request: a map containing complete query expression.
-            This query will be sent to LightBlue in a POST request. Refer to
-            https://jewzaam.gitbooks.io/lightblue-specifications/content/language_specification/query.html
-            to know more detail about how to write a query.
-        :return: a list of ContainerImage objects
-        :rtype: list
-        """
-
-        url = 'find/containerImage/{}'.format(
-            self._get_entity_version('containerImage'))
-        response = self._make_request(url, request)
+    def _dicts_to_images(self, image_dicts):
+        """Convert image dictionaries to list of ContainerImage"""
 
         images = []
         nvr_to_arches = {}
-        for image_data in response['processed']:
+        for image_data in image_dicts:
             image = ContainerImage.create(image_data)
             images.append(image)
 
@@ -686,68 +490,12 @@ class LightBlue(object):
 
         return images
 
-    def _set_container_repository_filters(
-            self, request, published=True,
-            release_categories=conf.lightblue_release_categories,
-            vendors=conf.lightblue_repo_vendors):
-        """
-        Sets the additional filters to containerRepository request
-        based on the self.published, self.release_categories attributes.
-        :param bool published: whether to limit queries to published
-            repositories
-        :param release_categories: filter only repositories with specific
-            release categories (options: Deprecated, Generally Available, Beta, Tech Preview)
-        :type release_categories: tuple[str] or list[str]
-        :param vendors: accept repositories only from selected vendors
-        :type vendors: tuple[str]
-        """
-        if published is not None:
-            request["query"]["$or"][0]["$and"].append({
-                "field": "published",
-                "op": "=",
-                "rvalue": published
-            })
-            # If the query is for published images, add configurable repos  for
-            # unpublished images(like EUS) too because they shouldn't be ignored
-            if published is True and conf.unpublished_exceptions:
-                for repo in conf.unpublished_exceptions:
-                    request["query"]["$or"].append(
-                        {
-                            "$and": [
-                                {"field": "published", "op": "=", "rvalue": False},
-                                {"field": "registry", "op": "=", "rvalue": repo["registry"]},
-                                {"field": "repository", "op": "=", "rvalue": repo["repository"]},
-                            ]
-                        }
-                    )
-
-        if release_categories:  # Check if release_categories is None or empty
-            request["query"]["$or"][0]["$and"].append({
-                "$or": [{
-                    "field": "release_categories.*",
-                    "op": "=",
-                    "rvalue": category
-                } for category in release_categories]
-            })
-
-        if vendors:
-            request["query"]["$or"][0]["$and"].append({
-                "$or": [{
-                    "field": "vendorLabel",
-                    "op": "=",
-                    "rvalue": vendor
-                } for vendor in vendors]
-            })
-
-        # If there was no changes to query performed, change query to avoid
-        # Lightblue syntax error
-        if not request["query"]["$or"][0]["$and"]:
-            request["query"] = {"$and": []}
-        return request
-
-    def find_all_container_repositories(
-            self, published=True,
-            release_categories=conf.lightblue_release_categories):
+    def find_repositories(
+        self,
+        published=True,
+        release_categories=conf.container_release_categories,
+        auto_rebuild=True,
+    ):
         """
         Returns dict with repository name as key and ContainerRepository as
         value.
@@ -762,77 +510,29 @@ class LightBlue(object):
         :return: Dict with repository name as key and ContainerRepository as
             value.
         """
-        repo_request = {
-            "objectType": "containerRepository",
-            "query": {
-                "$or": [
-                    {"$and": []}  # filled by _set_container_repository_filters().
-                ]
-            },
-            "projection": [
-                {"field": "repository", "include": True},
-                {"field": "published", "include": True},
-                {"field": "auto_rebuild_tags", "include": True, "recursive": True},
-                {"field": "release_categories", "include": True, "recursive": True},
-            ]
-        }
-        repo_request = self._set_container_repository_filters(
-            repo_request, published, release_categories)
-        repositories = self.find_container_repositories(repo_request)
-        return {r["repository"]: r for r in repositories}
+        repositories = self.pyxis.find_repositories(
+            published=published, release_categories=release_categories
+        )
 
-    def _get_default_projection(self, rpm_names=None, include_rpm_manifest=True):
-        """
-        Returns the default projection list for containerImage objects.
+        # If the query is for published images, add configurable repos for
+        # unpublished images(like EUS) too because they shouldn't be ignored
+        if published is True and conf.unpublished_exceptions:
+            unpublished_repositories = self.pyxis.find_repositories_by_registry_paths(
+                conf.unpublished_exceptions
+            )
+            repositories.extend(unpublished_repositories)
 
-        :param list rpm_names: When not None, defines the RPM names which
-            are returned in "rpm_manifest" field of containerImage.;
-        :param bool include_rpm_manifest: indicate whether to include
-            "rpm_manifest" in the query result. Default is True.
-        """
-        projection = [
-            {"field": "brew", "include": True, "recursive": True},
-            {"field": "parsed_data.files", "include": True, "recursive": True},
-            {"field": "parsed_data.labels.*", "include": True, "recursive": True},
-            {"field": "parsed_data.layers.*", "include": True, "recursive": True},
-            {"field": "repositories.*.published", "include": True, "recursive": True},
-            {"field": "repositories.*.registry", "include": True, "recursive": True},
-            {"field": "repositories.*.repository", "include": True, "recursive": True},
-            {"field": "repositories.*.tags.*.name", "include": True, "recursive": True},
-            {"field": "content_sets", "include": True, "recursive": True},
-            {"field": "parent_brew_build", "include": True, "recursive": False},
-            {"field": "architecture", "include": True, "recursive": False},
-        ]
-        if include_rpm_manifest:
-            if rpm_names:
-                projection += [
-                    {"field": "rpm_manifest.*.rpms", "include": True, "recursive": True,
-                     "match": {
-                         "$or": [{
-                             "field": "name",
-                             "op": "=",
-                             "rvalue": rpm_name
-                         } for rpm_name in rpm_names]},
-                     "project": [
-                         {"field": "srpm_nevra", "include": True},
-                         {"field": "nvra", "include": True},
-                         {"field": "name", "include": True},
-                         {"field": "srpm_name", "include": True},
-                     ]
-                     }
-                ]
-            else:
-                projection += [
-                    {"field": "rpm_manifest.*.rpms.*.srpm_nevra",
-                     "include": True, "recursive": True},
-                    {"field": "rpm_manifest.*.rpms.*.nvra",
-                     "include": True, "recursive": True},
-                    {"field": "rpm_manifest.*.rpms.*.name",
-                     "include": True, "recursive": True},
-                    {"field": "rpm_manifest.*.rpms.*.srpm_name",
-                     "include": True, "recursive": True},
-                ]
-        return projection
+        repos = []
+        for repo_data in repositories:
+            if auto_rebuild and not repo_data.get('auto_rebuild_tags'):
+                log.info('"auto_rebuild_tags" not set for %s repository, ignoring repository',
+                         repo_data["repository"])
+                continue
+            repo = ContainerRepository()
+            repo.update(repo_data)
+            repos.append(repo)
+
+        return {r["repository"]: r for r in repos}
 
     def filter_out_images_with_higher_rpm_nvr(self, images, rpm_name_to_nvrs):
         """
@@ -929,11 +629,11 @@ class LightBlue(object):
         """
         Filter out container images based on the content_set.
 
-        Freshmaker queries Lightblue to get images containing affected RPMs installed from a
-        particular content_set. At the same time Freshmaker asks to Lightblue also all the images
+        Freshmaker queries Pyxis to get images containing affected RPMs installed from a
+        particular content_set. At the same time Freshmaker asks to Pyxis also all the images
         with enabled the auto_rebuild_tags tag (when not enabled the rebuilds of images in this
         repository are disabled).
-        This gets done only because the Lightblue query will be easier and cleaner this way.
+        This gets done only because the Pyxis query will be easier and cleaner this way.
         But because of that some images returned by that query will not have the correct
         content_sets, for this reason we need to filter out images based on the content_sets.
 
@@ -953,55 +653,12 @@ class LightBlue(object):
                 ret.append(image)
         return ret
 
-    def _set_container_image_filters(self, request, content_sets,
-                                     rpm_nvrs_names, auto_rebuild_tags,
-                                     published, repo_names=None):
-        """
-        Sets the additional filters to containerImage request
-
-        :param dict request: request that should be modified
-        :param list content_sets: List of content_sets the image includes RPMs
-            from.
-        :param list rpm_nvrs_names: list names of the binary RPM NVRs to look for
-        :param set auto_rebuild_tags: set of auto rebuild tags to add to query
-        :param bool published: whether to limit queries to images that are published
-            in a repository
-        :param list repo_names: List of image repository names
-        """
-        query = {"$and": []}
-        if published is not None:
-            query["$and"].append({"field": "repositories.*.published", "op": "=",
-                                  "rvalue": published})
-
-        if auto_rebuild_tags:
-            query["$and"].append(
-                {"field": "repositories.*.tags.*.name", "op": "$in",
-                 "values": list(auto_rebuild_tags)})
-
-        if content_sets:
-            query["$and"].append({"field": "content_sets.*", "op": "$in",
-                                  "values": content_sets})
-
-        if rpm_nvrs_names:
-            query["$and"].append(
-                {"field": "rpm_manifest.*.rpms.*.name", "op": "$in",
-                 "values": rpm_nvrs_names})
-
-        if repo_names:
-            query["$and"].append(
-                {"field": "repositories.*.repository", "op": "$in",
-                 "values": repo_names})
-
-        request["query"] = query
-
-        return request
-
     @retry(wait_on=requests.exceptions.ConnectionError, logger=log)
     def find_images_with_included_rpms(
             self, content_sets, rpm_nvrs, repositories, published=True,
             include_rpm_manifest=True):
         """
-        Query lightblue and find the containerImages in the given containerRepositories.
+        Query Pyxis and find the containerImages in the given containerRepositories.
 
         By default, limit this only to images which have been published to at least one repository
         and have an auto-rebuild tag.
@@ -1021,7 +678,7 @@ class LightBlue(object):
         for repo in repositories.values():
             auto_rebuild_tags |= set(repo["auto_rebuild_tags"])
 
-        # Lightblue cannot compare NVRs, so just ask for all the container
+        # Pyxis cannot compare NVRs, so just ask for all the container
         # images with any version/release of RPM we are interested in and
         # compare it on client side.
         rpm_name_to_nvrs = {}
@@ -1029,21 +686,22 @@ class LightBlue(object):
             name = koji.parse_NVR(rpm_nvr)["name"]
             rpm_name_to_nvrs.setdefault(name, []).append(rpm_nvr)
 
-        image_request = {
-            "objectType": "containerImage",
-            "query": {},   # set by _set_container_image_filters()
-            "projection": self._get_default_projection(
-                rpm_names=rpm_name_to_nvrs.keys(),
-                include_rpm_manifest=include_rpm_manifest)
-        }
-
-        request = self._set_container_image_filters(
-            image_request, content_sets, list(rpm_name_to_nvrs.keys()),
-            auto_rebuild_tags, published, list(repositories.keys()))
-
-        images = self.find_container_images(request)
+        images = self.pyxis.find_images_by_installed_rpms(rpm_name_to_nvrs, content_sets, repositories, published, auto_rebuild_tags)
         if not images:
-            return images
+            return []
+
+        # Avoid manipulating the images directly, use a copy instead
+        image_dicts = copy.deepcopy(images)
+        del images
+
+        for image in image_dicts:
+            # modify Pyxis image data to simulate the data structure returned from LightBlue
+            rpms = [rpm for rpm in image["edges"]["rpm_manifest"]["data"]["rpms"] if rpm["name"] in rpm_name_to_nvrs]
+            image["rpm_manifest"] = [{"rpms": rpms}]
+            del image["edges"]
+
+        # convert the dicts to list of ContainerImage
+        images = self._dicts_to_images(image_dicts)
 
         # The image_request returns container images which are in the
         # right repository and are latest in *some* repository. But we need
@@ -1091,7 +749,7 @@ class LightBlue(object):
     def get_images_by_nvrs(self, nvrs, published=True, content_sets=None,
                            rpm_nvrs=None, include_rpm_manifest=True,
                            rpm_names=None):
-        """Query lightblue and returns containerImages defined by list of
+        """Query Pyxis and returns containerImages defined by list of
         `nvrs`.
 
         :param list nvrs: List of NVRs defining the containerImages to return.
@@ -1105,97 +763,76 @@ class LightBlue(object):
         :return: List of containerImages.
         :rtype: list of ContainerImages.
         """
-        image_request = {
-            "objectType": "containerImage",
-            "query": {
-                "$and": [
-                    {
-                        "field": "brew.build",
-                        "op": "$in",
-                        "values": nvrs
-                    }
-                ]
-            },
-            "projection": self._get_default_projection(
-                include_rpm_manifest=include_rpm_manifest)
-        }
+        if len(nvrs) == 1:
+            images = self.pyxis.find_images_by_nvr(nvrs[0], include_rpms=include_rpm_manifest)
+        else:
+            images = self.pyxis.find_images_by_nvrs(nvrs, include_rpms=include_rpm_manifest)
+        if not images:
+            return []
+
+        # Avoid manipulating the images directly, uses a copy instead.
+        image_dicts = copy.deepcopy(images)
+        del images
+
+        for image in image_dicts:
+            # modify Pyxis image data to simulate the data structure returned from LightBlue
+            image["rpm_manifest"] = [copy.deepcopy(image["edges"]["rpm_manifest"]["data"])]
+            del image["edges"]
 
         if content_sets is not None:
-            image_request["query"]["$and"].append(
-                {
-                    "field": "content_sets.*",
-                    "op": "$in",
-                    "values": content_sets
-                }
-            )
+            # Filter out images that don't have any of the content sets
+            image_dicts = [
+                d for d in image_dicts if not set(content_sets).isdisjoint(set(d["content_sets"]))
+            ]
+
+        def _image_has_rpm(image, rpms):
+            # rpms is a list of rpm names
+            rpm_names = [x["name"] for x in image["rpm_manifest"][0]["rpms"]]
+            # return True if image has any of the rpms installed
+            return not set(rpms).isdisjoint(set(rpm_names))
 
         if rpm_nvrs is not None:
-            # Lightblue cannot compare NVRs, so just ask for all the container
+            # Pyxis cannot compare rpm NVRs, so just ask for all the container
             # images with any version/release of RPM we are interested in and
             # compare it on client side.
             rpm_name_to_nvrs = {}
             for rpm_nvr in rpm_nvrs:
                 name = koji.parse_NVR(rpm_nvr)["name"]
                 rpm_name_to_nvrs.setdefault(name, []).append(rpm_nvr)
-            image_request["query"]["$and"].append(
-                {
-                    "field": "rpm_manifest.*.rpms.*.name",
-                    "op": "$in",
-                    "values": list(rpm_name_to_nvrs.keys())
-                }
-            )
 
-        if published is not None:
-            image_request["query"]["$and"].append(
-                {
-                    "field": "repositories.*.published",
-                    "op": "=",
-                    "rvalue": published
-                })
+            image_dicts = list(
+                filter(lambda x: _image_has_rpm(x, rpm_name_to_nvrs.keys()), image_dicts)
+            )
 
         if rpm_names:
-            image_request["query"]["$and"].append(
-                {
-                    "field": "rpm_manifest.*.rpms.*.name",
-                    "op": "$in",
-                    "values": rpm_names
-                }
-            )
+            image_dicts = list(filter(lambda x: _image_has_rpm(x, rpm_names), image_dicts))
 
-        images = self.find_container_images(image_request)
+        if published is not None:
+            def _image_visibility_is(image, published):
+                # published: boolean value, True or False
+                for repo in image["repositories"]:
+                    if repo["registry"] in conf.image_build_repository_registries:
+                        continue
+                    if repo["published"] is published:
+                        return True
+                return False
+            image_dicts = list(filter(lambda x: _image_visibility_is(x, published), image_dicts))
+
+        images = self._dicts_to_images(image_dicts)
+
         if rpm_nvrs is not None:
             images = self.filter_out_images_with_higher_rpm_nvr(images, rpm_name_to_nvrs)
         return images
 
     def get_images_by_brew_package(self, names):
         """
-        Query Lightblue to get all the images for a specific list of names.
+        Query Pyxis to get all the images for a specific list of names.
         :param names list: list of names we want to find images for.
         :return: list of container images matching the requested names.
         :rtype: list of ContainerImages
         """
-
-        query = {
-            "objectType": "containerImage",
-            "query": {
-                "$and": [
-                    {
-                        "field": "repositories.*.published",
-                        "op": "=",
-                        "rvalue": True
-                    },
-                    {
-                        "$or": [{
-                            "field": "brew.package",
-                            "op": "=",
-                            "rvalue": name,
-                        } for name in names]
-                    }
-                ]
-            },
-            "projection": self._get_default_projection(include_rpm_manifest=False)
-        }
-        return self.find_container_images(query)
+        images = self.pyxis.find_images_by_names(names)
+        return self._dicts_to_images(images)
 
     def find_parent_brew_build_nvr_from_child(self, child_image):
         """
@@ -1244,7 +881,7 @@ class LightBlue(object):
             images = []
         parent_image = None
 
-        # We first try to find the parent from the `parent_brew_build` field in Lightblue.
+        # We first try to find the parent from the `parent_brew_build` field in Pyxis.
         parent_brew_build = self.find_parent_brew_build_nvr_from_child(child_image)
         # We've reached the base image, stop recursion
         if not parent_brew_build:
@@ -1273,7 +910,7 @@ class LightBlue(object):
                     parent = parent[0]
                     parent.resolve(self, images)
                 else:
-                    err = "Couldn't find parent image %s. Lightblue data is probably incomplete" % (
+                    err = "Couldn't find parent image %s. Pyxis data is probably incomplete" % (
                         parent_brew_build)
                     log.error(err)
                     if not images[-1]['error']:
@@ -1287,9 +924,9 @@ class LightBlue(object):
 
     def find_images_with_packages_from_content_set(
             self, rpm_nvrs, content_sets, filter_fnc=None, published=True,
-            release_categories=conf.lightblue_release_categories,
+            release_categories=conf.container_release_categories,
             leaf_container_images=None):
-        """Query lightblue and find containers which contain given
+        """Query Pyxis and find containers which contain given
         package from one of content sets
 
         :param list rpm_nvrs: list of binary RPM NVRs to look for
@@ -1308,18 +945,18 @@ class LightBlue(object):
         :type release_categories: tuple[str] or list[str]
         :param list leaf_container_images: List of NVRs of leaf images to
             consider for the rebuild. If not set, all images found in
-            Lightblue will be considered for rebuild.
+            Pyxis will be considered for rebuild.
 
         :return: a list of dictionaries which represents container images
         :rtype: list
         """
 
-        repos = self.find_all_container_repositories(published, release_categories)
+        repos = self.find_repositories(published, release_categories)
         if not repos:
             return []
         if not leaf_container_images:
             images = []
-            # Split the repos to small chunks to generate "small" LightBlue queries
+            # Split the repos to small chunks to generate "small" queries
             repos_iterator = iter(repos)
             chunk_size = 100
             for i in range(0, len(repos), chunk_size):
@@ -1331,8 +968,7 @@ class LightBlue(object):
         else:
             # The `leaf_container_images` can contain unpublished container image,
             # therefore set `published` to None.
-            images = self.get_images_by_nvrs(
-                leaf_container_images, None, content_sets, rpm_nvrs)
+            images = self.get_images_by_nvrs(leaf_container_images, None, content_sets, rpm_nvrs)
 
         # In case we query for unpublished images, we need to return just
         # the latest NVR for given name-version, otherwise images would
@@ -1477,7 +1113,7 @@ class LightBlue(object):
                 # The latest_released_nvr_index points to the latest released NVR
                 # in the `nvrs` list. Because `nvrs` list is desc sorted, every NVR
                 # with higher index is lower and therefore we need to replace it.
-                if not conf.lightblue_released_dependencies_only:
+                if not conf.container_released_dependencies_only:
                     latest_released_nvr_index = nvrs.index(latest_released_nvr)
                 else:
                     # In case we want to use only released versions of images,
@@ -1583,7 +1219,7 @@ class LightBlue(object):
 
     def find_images_to_rebuild(
             self, rpm_nvrs, content_sets, published=True,
-            release_categories=conf.lightblue_release_categories,
+            release_categories=conf.container_release_categories,
             filter_fnc=None, leaf_container_images=None, skip_nvrs=None):
         """
         Find images to rebuild through image build layers
@@ -1609,7 +1245,7 @@ class LightBlue(object):
             Freshmaker configuration.
         :param list leaf_container_images: List of NVRs of leaf images to
             consider for the rebuild. If not set, all images found in
-            Lightblue will be considered for rebuild. Note that `published`
+            Pyxis will be considered for rebuild. Note that `published`
             is not respected when `leaf_container_images` are used.
         :param list skip_nvrs: List of NVRs of images to be skipped.
         """
@@ -1774,6 +1410,24 @@ class LightBlue(object):
             child_image["parent"] = fixed_published_image
             del image_group[not_directly_affected_index:]
 
+    def postprocess_images(self, images, rpm_name_to_nvrs):
+        # Avoid manipulating the images directly, uses a copy instead.
+        image_dicts = copy.deepcopy(images)
+        del images
+
+        for image in image_dicts:
+            # modify Pyxis image data to simulate the data structure returned from LightBlue
+            rpms = [
+                rpm
+                for rpm in copy.deepcopy(image["edges"]["rpm_manifest"]["data"]["rpms"])
+                if rpm["name"] in rpm_name_to_nvrs.keys()
+            ]
+            image["rpm_manifest"] = [{"rpms": rpms}]
+            del image["edges"]
+
+        # convert the dicts to list of ContainerImage
+        return self._dicts_to_images(image_dicts)
+
     @region.cache_on_arguments()
     def get_fixed_published_image(self, name, version, image_group, rpm_nvrs, content_sets):
         """
@@ -1794,64 +1448,15 @@ class LightBlue(object):
         :rtype: ContainerImage or None
         """
         rpm_name_to_nvrs = {kobo.rpmlib.parse_nvr(nvr)["name"]: nvr for nvr in rpm_nvrs}
-        # It is too slow to also filter by the expected RPMs. This is done outside of the lightblue
-        # query instead.
-        request = {
-            "objectType": "containerImage",
-            "query": {
-                "$and": [
-                    {
-                        "field": "brew.package", "op": "=", "rvalue": name
-                    },
-                    {
-                        "field": "brew.build", "regex": f"{name}-{version}-.*"
-                    },
-                    {
-                        "$or": [
-                            {
-                                "field": "content_sets.*",
-                                "op": "=",
-                                "rvalue": content_set
-                            }
-                            for content_set in content_sets
-                        ]
-                    },
-                    {
-                        "field": "repositories.*.published",
-                        "op": "=",
-                        "rvalue": True,
-                    },
-                ]
-            },
-            # Start with a small projection and increase it once a fixed image is found by
-            # querying by the NVR with the default projection
-            "projection": [
-                {"field": "brew.build", "include": True},
-                {
-                    "field": "rpm_manifest.*.rpms",
-                    "include": True,
-                    "match": {
-                        "$or": [
-                            {
-                                "field": "name",
-                                "op": "=",
-                                "rvalue": rpm_name
-                            } for rpm_name in rpm_name_to_nvrs.keys()
-                        ]
-                    },
-                    "project": [
-                        {"field": "nvra", "include": True},
-                        {"field": "name", "include": True},
-                    ]
-                },
-                {"field": "repositories.*.repository", "include": True, "recursive": True},
-                {"field": "content_sets", "include": True, "recursive": True},
-            ]
-        }
-        images = self.find_container_images(request)
+
+        images = self.pyxis.find_images_by_name_version(
+            name, version, content_sets
+        )
         if not images:
             log.error("Could not find an image with the name and version of %s-%s", name, version)
             return
+
+        images = self.postprocess_images(images, rpm_name_to_nvrs)
 
         candidate_images = []
         for image in images:
@@ -1867,8 +1472,8 @@ class LightBlue(object):
                 )
                 continue
 
-            # Due to filtering by installed RPMs taking too long in lightblue, perform the filter
-            # here since the projection (returned RPM manifest from lightblue) has the filtering
+            # Due to filtering by installed RPMs taking too long in Pyxis, perform the filter
+            # here since the projection (returned RPM manifest from Pyxis) has the filtering
             # applied. This is to be conservative in the event a child image relies on the RPM but
             # it is no longer installed
             if {rpm["name"] for rpm in image.get_rpms() or []} != rpm_name_to_nvrs.keys():
@@ -1908,21 +1513,16 @@ class LightBlue(object):
             ):
                 fixed_published_image = candidate_image
 
-        # Now that the best fixed published image is determined, get it from lightblue with all the
+        # Now that the best fixed published image is determined, get it from pyxis with all the
         # metadata required by Freshmaker
-        request = {
-            "objectType": "containerImage",
-            "query": {
-                "$and": [{"field": "brew.build", "op": "=", "rvalue": fixed_published_image.nvr}],
-            },
-            "projection": self._get_default_projection(rpm_names=rpm_name_to_nvrs.keys()),
-        }
-        images = self.find_container_images(request)
+        images = self.pyxis.find_images_by_nvr(fixed_published_image.nvr)
         if not images:
             log.error(
-                "The image with the NVR %s was not found in lightblue", fixed_published_image.nvr
+                "The image with the NVR %s was not found in Pyxis", fixed_published_image.nvr
             )
             return
+
+        images = self.postprocess_images(images, rpm_name_to_nvrs)
 
         image = images[0]
         image.resolve(self)

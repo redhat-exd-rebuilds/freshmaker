@@ -319,7 +319,7 @@ class FreshmakerODCSClient(object):
         later.
 
         :param dict image: Container image representation as returned by
-            LightBlue class.
+            PyxisAPI class.
         :return: a mapping returned from ODCS that represents the request
             compose.
         :rtype: dict

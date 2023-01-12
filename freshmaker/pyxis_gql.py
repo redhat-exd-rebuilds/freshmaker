@@ -179,6 +179,117 @@ class PyxisGQL:
 
         return repositories
 
+    def find_repositories_by_repository_name(self, repository: str) -> list:
+        """Get image repositories by repository name
+
+        :param string repository: repository name to filter by
+        :return: list of image repositories
+        :rtype: list
+        """
+        query_filter: dict = {}
+        query_filter["and"] = []
+        # Query Red Hat repositories only
+        query_filter["and"].append({"vendor_label": {"eq": "redhat"}})
+
+        query_filter["and"].append({"repository": {"eq": repository}})
+
+        repositories = []
+        ds = self.dsl_schema
+
+        page_num = 0
+        # Iterate all pages
+        while True:
+            query_dsl = ds.Query.find_repositories(
+                page=page_num,
+                page_size=PYXIS_PAGE_SIZE,
+                filter=query_filter,
+            ).select(
+                ds.ContainerRepositoryPaginatedResponse.error.select(
+                    ds.ResponseError.status,
+                    ds.ResponseError.detail,
+                ),
+                ds.ContainerRepositoryPaginatedResponse.page,
+                ds.ContainerRepositoryPaginatedResponse.page_size,
+                ds.ContainerRepositoryPaginatedResponse.total,
+                ds.ContainerRepositoryPaginatedResponse.data.select(*self._get_repo_projection()),
+            )
+
+            result = self.query(query_dsl)
+            error = result["find_repositories"]["error"]
+            if error is not None:
+                raise PyxisGQLRequestError(str(error))
+            data = result["find_repositories"]["data"]
+            # Data is empty when there are no more results
+            if not data:
+                break
+
+            repositories.extend(data)
+            # If page_size >= total, means all results have been fetched in the first page
+            if result["find_repositories"]["page_size"] >= result["find_repositories"]["total"]:
+                break
+            page_num += 1
+
+        return repositories
+
+    def find_repositories_by_registry_paths(self, registry_paths):
+        """Get image repositories by registry paths
+
+        :param list registry_paths: list of registry paths, each in format of:
+            {"registry": registry_name, "repository": repository_name}
+        :return: list of image repositories
+        :rtype: list
+        """
+        query_filter = {}
+        query_filter["or"] = []
+
+        for path in registry_paths:
+            query_filter["or"].append(
+                {
+                    "and": [
+                        {"registry": {"eq": path["registry"]}},
+                        {"repository": {"eq": path["repository"]}},
+                    ]
+                }
+            )
+
+        repositories = []
+        ds = self.dsl_schema
+
+        page_num = 0
+        # Iterate all pages
+        while True:
+            query_dsl = ds.Query.find_repositories(
+                page=page_num,
+                page_size=PYXIS_PAGE_SIZE,
+                filter=query_filter,
+            ).select(
+                ds.ContainerRepositoryPaginatedResponse.error.select(
+                    ds.ResponseError.status,
+                    ds.ResponseError.detail,
+                ),
+                ds.ContainerRepositoryPaginatedResponse.page,
+                ds.ContainerRepositoryPaginatedResponse.page_size,
+                ds.ContainerRepositoryPaginatedResponse.total,
+                ds.ContainerRepositoryPaginatedResponse.data.select(*self._get_repo_projection()),
+            )
+
+            result = self.query(query_dsl)
+            error = result["find_repositories"]["error"]
+            if error is not None:
+                raise PyxisGQLRequestError(str(error))
+            data = result["find_repositories"]["data"]
+            # Data is empty when there are no more results
+            if not data:
+                break
+
+            repositories.extend(data)
+            # If page_size >= total, means all results have been fetched in the first page
+            if result["find_repositories"]["page_size"] >= result["find_repositories"]["total"]:
+                break
+            page_num += 1
+
+        return repositories
+
     def get_repository_by_registry_path(self, registry, repository):
         """Get image repository by registry path
 
@@ -206,7 +317,7 @@ class PyxisGQL:
             raise PyxisGQLRequestError(str(error))
         return result["get_repository_by_registry_path"]["data"]
 
-    def find_images_by_nvr(self, nvr, include_rpms=True):
+    def find_images_by_nvr(self, nvr: str, include_rpms: bool = True):
         ds = self.dsl_schema
 
         images = []
@@ -371,8 +482,8 @@ class PyxisGQL:
         return images
 
     def find_images_by_names(self, names):
-        """
-        Find all the images for a specific list of names.
+        """Find all the images for a specific list of names.
+
         :param names list: list of names we want to find images for.
         :return: list of container images matching the requested names.
         :rtype: list of ContainerImages
@@ -404,6 +515,120 @@ class PyxisGQL:
                 ds.ContainerImagePaginatedResponse.data.select(
                     *self._get_image_projection(include_rpms=False)
                 ),
+            )
+
+            result = self.query(query_dsl)
+            error = result["find_images"]["error"]
+            if error is not None:
+                raise PyxisGQLRequestError(str(error))
+            data = result["find_images"]["data"]
+            # Data is empty when there are no more results
+            if not data:
+                break
+            images.extend(data)
+
+            # If page_size >= total, means all results have been fetched in the first page
+            if result["find_images"]["page_size"] >= result["find_images"]["total"]:
+                break
+            page_num += 1
+
+        return images
+
+    def find_images_by_repository(self, repository: str, auto_rebuild_tags: list[str] = None) -> list:
+        """Find images which have the provided repository name and auto_rebuild_tags
+        :param string repository: repository name to filter by
+        :param list[string] auto_rebuild_tags: repository auto_rebuild_tags to filter by
+        :return: List of image data
+        :rtype: list
+        """
+        images = []
+
+        query_filter: dict = {}
+        query_filter["and"] = []
+
+        query_filter["and"].append({"repositories": {"repository": {"eq": repository}}})
+        query_filter["and"].append({"repositories": {"published": {"eq": True}}})
+        if auto_rebuild_tags:
+            query_filter["and"].append({"repositories": {"tags": {"name": {"in": auto_rebuild_tags}}}})
+
+        ds = self.dsl_schema
+        page_num = 0
+
+        # Iterate all pages
+        while True:
+            query_dsl = ds.Query.find_images(
+                page=page_num,
+                page_size=PYXIS_PAGE_SIZE,
+                filter=query_filter,
+            ).select(
+                ds.ContainerImagePaginatedResponse.error.select(
+                    ds.ResponseError.status,
+                    ds.ResponseError.detail,
+                ),
+                ds.ContainerImagePaginatedResponse.page,
+                ds.ContainerImagePaginatedResponse.page_size,
+                ds.ContainerImagePaginatedResponse.total,
+                ds.ContainerImagePaginatedResponse.data.select(*self._get_image_projection(include_rpms=False)),
+            )
+
+            result = self.query(query_dsl)
+            error = result["find_images"]["error"]
+            if error is not None:
+                raise PyxisGQLRequestError(str(error))
+            data = result["find_images"]["data"]
+            # Data is empty when there are no more results
+            if not data:
+                break
+
+            images.extend(data)
+
+            # If page_size >= total, means all results have been fetched in the first page
+            if result["find_images"]["page_size"] >= result["find_images"]["total"]:
+                break
+            page_num += 1
+
+        return images
+
+    def find_images_by_name_version(self, name, version, published=None, content_sets=None):
+        """
+        Find all the images with published repositories that match the specified name, version, and are filtered by the given content sets.
+
+         all the images for a specific list of names.
+        :param names list: list of names we want to find images for.
+        :return: list of container images matching the requested names.
+        :rtype: list of ContainerImages
+        """
+        images = []
+
+        query_filter = {"and": []}
+        query_filter["and"].append({"brew": {"package": {"eq": name}}})
+        query_filter["and"].append({"brew": {"build": {"regex": f"{name}-{version}-.*"}}})
+
+        if content_sets:
+            query_filter["and"].append({"content_sets": {"in": content_sets}})
+
+        if isinstance(published, bool):
+            repo_matches = [{"published": {"eq": published}}]
+            query_filter["and"].append({"repositories_elemMatch": {"and": repo_matches}})
+
+        ds = self.dsl_schema
+        page_num = 0
+        page_size = 50
+
+        while True:
+            query_dsl = ds.Query.find_images(
+                page=page_num,
+                page_size=page_size,
+                filter=query_filter,
+            ).select(
+                ds.ContainerImagePaginatedResponse.error.select(
+                    ds.ResponseError.status,
+                    ds.ResponseError.detail,
+                ),
+                ds.ContainerImagePaginatedResponse.page,
+                ds.ContainerImagePaginatedResponse.page_size,
+                ds.ContainerImagePaginatedResponse.total,
+                ds.ContainerImagePaginatedResponse.data.select(*self._get_image_projection()),
             )
 
             result = self.query(query_dsl)

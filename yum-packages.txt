@@ -21,6 +21,7 @@ python3-libmodulemd
 python3-mock
 python3-mod_wsgi
 python3-munch
+python3-mypy_extensions
 python3-odcs-client
 python3-openidc-client
 python3-pip

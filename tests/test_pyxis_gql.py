@@ -470,3 +470,63 @@ def test_pyxis_graphql_find_images_by_names():
 
     images = pyxis_gql.find_images_by_names(["foobar-container"])
     assert images == result["find_images"]["data"]
+
+
+def test_pyxis_graphql_find_images_by_name_version():
+    pyxis_schema_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "fixtures",
+        "pyxis.graphql",
+    )
+    with open(pyxis_schema_path) as source:
+        document = parse(source.read())
+    schema = build_ast_schema(document)
+
+    flexmock(PyxisGQL).should_receive("dsl_schema").and_return(DSLSchema(schema))
+
+    result = {
+        "find_images": {
+            "data": [
+                {
+                    "architecture": "amd64",
+                    "brew": {"build": "foobar-container-v0.13.0-12.1582340001"},
+                    "content_sets": ["rhel-8-for-x86_64-baseos-rpms"],
+                    "parent_brew_build": "ubi8-minimal-container-8.6-100.1582220001",
+                    "parsed_data": {},
+                    "repositories": [
+                        {
+                            "published": True,
+                            "registry": "registry.example.com",
+                            "repository": "dummy/foobar-rhel8",
+                            "tags": [{"name": "v0.13.0"}],
+                        }
+                    ],
+                },
+                {
+                    "architecture": "arm64",
+                    "brew": {"build": "foobar-container-v0.13.0-12.1582340001"},
+                    "content_sets": ["rhel-8-for-x86_64-baseos-rpms"],
+                    "parent_brew_build": "ubi8-minimal-container-8.6-100.1582220001",
+                    "parsed_data": {},
+                    "repositories": [
+                        {
+                            "published": True,
+                            "registry": "registry.example.com",
+                            "repository": "dummy/foobar-rhel8",
+                            "tags": [{"name": "v0.13.0"}],
+                        }
+                    ],
+                },
+            ],
+            "error": None,
+            "page": 0,
+            "page_size": 250,
+            "total": 2,
+        }
+    }
+
+    pyxis_gql = PyxisGQL(url="graphql.pyxis.local")
+    flexmock(Client).should_receive("execute").and_return(copy.deepcopy(result))
+
+    images = pyxis_gql.find_images_by_name_version("foobar-container", "v0.13.0", published=True, content_sets=["rhel-8-for-x86_64-baseos-rpms"])
+    assert images == result["find_images"]["data"]

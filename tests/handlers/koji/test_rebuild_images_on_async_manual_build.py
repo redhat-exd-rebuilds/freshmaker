@@ -26,7 +26,7 @@ from freshmaker.handlers.koji import RebuildImagesOnAsyncManualBuild
 from freshmaker.events import FreshmakerAsyncManualBuildEvent
 from freshmaker.types import EventState
 from freshmaker.models import Event
-from freshmaker.lightblue import ContainerImage
+from freshmaker.image import ContainerImage
 from tests import helpers
 
 
@@ -59,7 +59,7 @@ class TestRebuildImagesOnAsyncManualBuild(helpers.ModelsTestCase):
 
         # Mocking Lightblue
         self.mock_find_images_to_rebuild = self.patcher.patch('_find_images_to_rebuild')
-        self.mock_lightblue = self.patcher.patch('init_lightblue_instance')
+        self.mock_pyxis = self.patcher.patch('init_pyxis_api_instance')
 
         self.mock_start_to_build_images = self.patcher.patch('start_to_build_images')
         self.mock_get_image_builds_in_first_batch = self.patcher.patch(
@@ -305,7 +305,7 @@ class TestRebuildImagesOnAsyncManualBuild(helpers.ModelsTestCase):
 
     def test_multiple_nvrs_for_the_same_name(self):
         """
-        This test checks that when for one name more nvrs are returned by lightblue, Freshmaker
+        This test checks that when for one name more nvrs are returned by Pyxis, Freshmaker
         will pick the one with higher nvr.
         """
         self.mock_find_images_to_rebuild.return_value = [self.image_a, self.image_c]
@@ -425,7 +425,7 @@ class TestRebuildImagesOnAsyncManualBuild(helpers.ModelsTestCase):
             'msg-id-123', 'test_branch', ['image-a-container'])
         find_parent_mock = MagicMock()
         find_parent_mock.find_parent_brew_build_nvr_from_child.return_value = 'ubi8-container-8.2-299'
-        self.mock_lightblue.return_value = find_parent_mock
+        self.mock_pyxis.return_value = find_parent_mock
         RebuildImagesOnAsyncManualBuild().handle(event)
 
         db_event = Event.get(db.session, 'msg-id-123')
