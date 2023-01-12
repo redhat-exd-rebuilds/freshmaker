@@ -932,7 +932,7 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         self.assertEqual(get_original_build.call_count, 2)
         self.assertEqual(mapping, expected_map)
 
-    @patch("freshmaker.lightblue.ContainerImage.get_additional_data_from_koji")
+    @patch("freshmaker.image.ContainerImage.get_additional_data_from_koji")
     def test_prepare_builds(self, get_koji_data):
         get_koji_data.return_value = {
             "repository": "repo",

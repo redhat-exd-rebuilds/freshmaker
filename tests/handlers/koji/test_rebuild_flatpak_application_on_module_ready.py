@@ -10,7 +10,7 @@ from freshmaker.events import (
     FlatpakModuleAdvisoryReadyEvent,
 )
 from freshmaker.handlers.koji import RebuildFlatpakApplicationOnModuleReady
-from freshmaker.lightblue import ContainerImage
+from freshmaker.image import ContainerImage
 from freshmaker.models import Event
 from freshmaker.types import EventState
 from tests import helpers
@@ -69,10 +69,10 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
             return_value={"image-foo-bar": {"module-foo-bar"}}
         )
 
-        self.mock_lb = self._patch(
-            "freshmaker.handlers.koji.rebuild_flatpak_application_on_module_ready.LightBlue"
+        self.mock_pyxis_api = self._patch(
+            "freshmaker.handlers.koji.rebuild_flatpak_application_on_module_ready.PyxisAPI"
         )
-        self.mock_lb.return_value.get_images_by_nvrs.side_effect = lambda images, rpm_nvrs: [
+        self.mock_pyxis_api.return_value.get_images_by_nvrs.side_effect = lambda images, rpm_nvrs: [
             _mock_image(image) for image in images
         ]
 
@@ -204,7 +204,7 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
         )
 
     def test_event_state_updated_when_no_images_with_higher_rpm_nvr(self):
-        self.mock_lb.return_value.get_images_by_nvrs.side_effect = lambda images, rpm_nvrs: []
+        self.mock_pyxis_api.return_value.get_images_by_nvrs.side_effect = lambda images, rpm_nvrs: []
         self.mock_pyxis.return_value.image_is_tagged_auto_rebuild.return_value = True
         self.handler.handle(self.event)
 
@@ -320,7 +320,7 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
         Tests that builds are properly recorded in DB.
         """
         resolve_commit = self._patch(
-            "freshmaker.lightblue.ContainerImage.resolve_commit"
+            "freshmaker.image.ContainerImage.resolve_commit"
         )
         resolve_commit.return_value = None
 

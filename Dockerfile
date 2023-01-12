@@ -24,7 +24,7 @@ RUN \
     echo '' > requirements.txt && \
     pip3 install . --no-deps
 
-RUN pip install jsonformatter==0.3.1
+RUN pip install jsonformatter==0.3.1 gql[requests]==3.3.0
 
 RUN mkdir /var/log/freshmaker/
 
