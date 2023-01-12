@@ -37,6 +37,7 @@ from itertools import groupby, islice
 from freshmaker import log, conf
 from freshmaker.kojiservice import koji_service
 from freshmaker.odcsclient import create_odcs_client
+from freshmaker.pyxis_gql import PyxisGQL
 from freshmaker.utils import sorted_by_nvr, is_pkg_modular
 from freshmaker.utils import retry
 import koji
@@ -535,6 +536,8 @@ class LightBlue(object):
             explicitly. If entity_versions is omitted entirely, default version
             will be used on each entity.
         """
+        self.pyxis = PyxisGQL(url=server_url, cert=(cert, private_key))
+
         self.server_url = server_url.rstrip('/')
         self.api_root = '{}/rest/data'.format(self.server_url)
         if verify_ssl is None:
@@ -606,33 +609,6 @@ class LightBlue(object):
         else:
             raise LightBlueRequestError(status_code, response.json())
 
-    def find_container_repositories(self, request, auto_rebuild=True):
-        """Query via entity containerRepository
-
-        :param dict request: a map containing complete query expression.
-            This query will be sent to LightBlue in a POST request. Refer to
-            https://jewzaam.gitbooks.io/lightblue-specifications/content/language_specification/query.html
-            to know more detail about how to write a query.
-        :param bool auto_rebuild: only include repositories that have auto_rebuild_tags set.
-        :return: a list of ContainerRepository objects
-        :rtype: list
-        """
-
-        url = 'find/containerRepository/{}'.format(
-            self._get_entity_version('containerRepository'))
-        response = self._make_request(url, request)
-
-        repos = []
-        for repo_data in response['processed']:
-            if auto_rebuild and not repo_data.get('auto_rebuild_tags'):
-                log.info('"auto_rebuild_tags" not set for %s repository, ignoring repository',
-                         repo_data["repository"])
-                continue
-            repo = ContainerRepository()
-            repo.update(repo_data)
-            repos.append(repo)
-        return repos
-
     def find_container_images(self, request):
         """Query via entity containerImage
 
@@ -686,68 +662,12 @@ class LightBlue(object):
 
         return images
 
-    def _set_container_repository_filters(
-            self, request, published=True,
-            release_categories=conf.lightblue_release_categories,
-            vendors=conf.lightblue_repo_vendors):
-        """
-        Sets the additional filters to containerRepository request
-        based on the self.published, self.release_categories attributes.
-        :param bool published: whether to limit queries to published
-            repositories
-        :param release_categories: filter only repositories with specific
-            release categories (options: Deprecated, Generally Available, Beta, Tech Preview)
-        :type release_categories: tuple[str] or list[str]
-        :param vendors: accept repositories only from selected vendors
-        :type vendors: tuple[str]
-        """
-        if published is not None:
-            request["query"]["$or"][0]["$and"].append({
-                "field": "published",
-                "op": "=",
-                "rvalue": published
-            })
-            # If the query is for published images, add configurable repos  for
-            # unpublished images(like EUS) too because they shouldn't be ignored
-            if published is True and conf.unpublished_exceptions:
-                for repo in conf.unpublished_exceptions:
-                    request["query"]["$or"].append(
-                        {
-                            "$and": [
-                                {"field": "published", "op": "=", "rvalue": False},
-                                {"field": "registry", "op": "=", "rvalue": repo["registry"]},
-                                {"field": "repository", "op": "=", "rvalue": repo["repository"]},
-                            ]
-                        }
-                    )
-
-        if release_categories:  # Check if release_categories is None or empty
-            request["query"]["$or"][0]["$and"].append({
-                "$or": [{
-                    "field": "release_categories.*",
-                    "op": "=",
-                    "rvalue": category
-                } for category in release_categories]
-            })
-
-        if vendors:
-            request["query"]["$or"][0]["$and"].append({
-                "$or": [{
-                    "field": "vendorLabel",
-                    "op": "=",
-                    "rvalue": vendor
-                } for vendor in vendors]
-            })
-
-        # If there was no changes to query performed, change query to avoid
-        # Lightblue syntax error
-        if not request["query"]["$or"][0]["$and"]:
-            request["query"] = {"$and": []}
-        return request
-
-    def find_all_container_repositories(
-            self, published=True,
-            release_categories=conf.lightblue_release_categories):
+    def find_repositories(
+        self,
+        published=True,
+        release_categories=conf.lightblue_release_categories,
+        auto_rebuild=True,
+    ):
         """
         Returns dict with repository name as key and ContainerRepository as
         value.
@@ -762,24 +682,29 @@ class LightBlue(object):
         :return: Dict with repository name as key and ContainerRepository as
             value.
         """
-        repo_request = {
-            "objectType": "containerRepository",
-            "query": {
-                "$or": [
-                    {"$and": []}  # filled by _set_container_repository_filters().
-                ]
-            },
-            "projection": [
-                {"field": "repository", "include": True},
-                {"field": "published", "include": True},
-                {"field": "auto_rebuild_tags", "include": True, "recursive": True},
-                {"field": "release_categories", "include": True, "recursive": True},
-            ]
-        }
-        repo_request = self._set_container_repository_filters(
-            repo_request, published, release_categories)
-        repositories = self.find_container_repositories(repo_request)
-        return {r["repository"]: r for r in repositories}
+        repositories = self.pyxis.find_repositories(
+            published=published, release_categories=release_categories
+        )
+
+        # If the query is for published images, add configurable repos for
+        # unpublished images(like EUS) too because they shouldn't be ignored
+        if published is True and conf.unpublished_exceptions:
+            unpublished_repositories = self.pyxis.find_repositories_by_registry_paths(
+                conf.unpublished_exceptions
+            )
+            repositories.extend(unpublished_repositories)
+
+        repos = []
+        for repo_data in repositories:
+            if auto_rebuild and not repo_data.get('auto_rebuild_tags'):
+                log.info('"auto_rebuild_tags" not set for %s repository, ignoring repository',
+                         repo_data["repository"])
+                continue
+            repo = ContainerRepository()
+            repo.update(repo_data)
+            repos.append(repo)
+
+        return {r["repository"]: r for r in repos}
 
     def _get_default_projection(self, rpm_names=None, include_rpm_manifest=True):
         """
@@ -1314,7 +1239,7 @@ class LightBlue(object):
         :rtype: list
         """
 
-        repos = self.find_all_container_repositories(published, release_categories)
+        repos = self.find_repositories(published, release_categories)
         if not repos:
             return []
         if not leaf_container_images:

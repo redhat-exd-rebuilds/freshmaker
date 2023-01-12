@@ -24,6 +24,7 @@ import copy
 import json
 import io
 import http.client
+import pytest
 
 from unittest import mock
 from unittest.mock import call, patch, Mock
@@ -527,6 +528,7 @@ class TestContainerRepository(helpers.FreshmakerTestCase):
         self.assertEqual('20170223T08:28:40.913-0500', image['metrics']['last_update_date'])
 
 
+@pytest.mark.usefixtures("pyxis_graphql_schema")
 class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
 
     def setUp(self):
@@ -561,6 +563,32 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                 "published": "true",
             }
         ]
+
+        self.fake_pyxis_find_repos = {
+            "find_repositories": {
+                "data": [
+                    {
+                        "repository": "product/repo1",
+                        "content_sets": ["dummy-content-set-1",
+                                         "dummy-content-set-2"],
+                        "auto_rebuild_tags": ["latest", "tag1"],
+                        "release_categories": ["Generally Available"],
+                        "published": "true",
+                    },
+                    {
+                        "repository": "product2/repo2",
+                        "content_sets": ["dummy-content-set-1"],
+                        "auto_rebuild_tags": ["latest", "tag2"],
+                        "release_categories": ["Generally Available"],
+                        "published": "true",
+                    }
+                ],
+                "error": None,
+                "page": 0,
+                "page_size": 250,
+                "total": 2,
+            }
+        }
 
         self.fake_images_with_parsed_data = [
             {
@@ -944,83 +972,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             [call_args[0][0]['image_id'] for call_args in update_multi_arch.call_args_list])
 
     @patch('freshmaker.lightblue.requests.post')
-    def test_find_container_repositories(self, post):
-        post.return_value.status_code = http.client.OK
-        post.return_value.json.return_value = {
-            'entity': 'containerRepository',
-            'status': 'COMPLETE',
-            'modifiedCount': 0,
-            'matchCount': 2,
-            'processed': [
-                {
-                    'creationDate': '20160927T11:14:56.420-0400',
-                    'metrics': {
-                        'pulls_in_last_30_days': 0,
-                        'last_update_date': '20170223T08:28:40.913-0500'
-                    },
-                    'repository': 'spam',
-                    'auto_rebuild_tags': ['latest'],
-                },
-                {
-                    'creationDate': '20161020T04:52:43.365-0400',
-                    'metrics': {
-                        'last_update_date': '20170501T03:00:19.892-0400',
-                        'pulls_in_last_30_days': 20
-                    },
-                    'repository': 'bacon',
-                    'auto_rebuild_tags': ['latest'],
-                },
-                {
-                    'creationDate': '20161020T04:52:43.365-0400',
-                    'metrics': {
-                        'last_update_date': '20170501T03:00:19.892-0400',
-                        'pulls_in_last_30_days': 20
-                    },
-                    # This repository is ignored by Freshmaker because it does not
-                    # have auto_rebuild_tags set.
-                    'repository': 'ignored-due-to-missing-tags',
-                }
-            ],
-            'entityVersion': '0.0.11',
-            'hostname': self.fake_server_url,
-            'resultMetadata': []
-        }
-
-        fake_request = {
-            "objectType": "containerRepository",
-            "projection": [
-                {"field": "creationDate", "include": True},
-                {"field": "metrics", "include": True, "recursive": True}
-            ],
-        }
-
-        with patch('os.path.exists'):
-            lb = LightBlue(server_url=self.fake_server_url,
-                           cert=self.fake_cert_file,
-                           private_key=self.fake_private_key)
-            repos = lb.find_container_repositories(request=fake_request)
-
-        post.assert_called_once_with(
-            '{}/{}/'.format(lb.api_root, 'find/containerRepository'),
-            data=json.dumps(fake_request),
-            verify=lb.verify_ssl,
-            cert=(self.fake_cert_file, self.fake_private_key),
-            headers={'Content-Type': 'application/json'},
-            timeout=max(600, conf.requests_timeout * 5)
-        )
-
-        self.assertEqual(2, len(repos))
-
-        repo = repos[0]
-        self.assertEqual('20160927T11:14:56.420-0400', repo['creationDate'])
-        self.assertEqual(0, repo['metrics']['pulls_in_last_30_days'])
-        self.assertEqual('20170223T08:28:40.913-0500', repo['metrics']['last_update_date'])
-        self.assertEqual(["latest"], repo["auto_rebuild_tags"])
-
-        self.assertEqual(repos[0]['repository'], 'spam')
-        self.assertEqual(repos[1]['repository'], 'bacon')
-
-    @patch('freshmaker.lightblue.requests.post')
     def test_raise_error_if_request_data_is_incorrect(self, post):
         post.return_value.status_code = http.client.BAD_REQUEST
         post.return_value.json.return_value = {
@@ -1057,58 +1008,15 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
 
     @patch.object(freshmaker.conf, 'unpublished_exceptions',
                   new=[{"repository": "some_repo", "registry": "some_registry"}])
-    @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
+    @patch('freshmaker.pyxis_gql.Client')
     @patch('os.path.exists')
-    def test_find_all_container_repositories(self, exists, cont_repos):
+    def test_find_all_repositories(self, exists, gql_client):
         exists.return_value = True
-        cont_repos.return_value = self.fake_repositories_with_content_sets
+        gql_client.return_value.execute.return_value = self.fake_pyxis_find_repos
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
                        private_key=self.fake_private_key)
-        ret = lb.find_all_container_repositories()
-        expected_repo_request = {
-            "objectType": "containerRepository",
-            "query": {
-                "$or": [
-                    {
-                        "$and": [
-                            {
-                                "field": "published",
-                                "op": "=",
-                                "rvalue": True
-                            },
-                            {
-                                "$or": [
-                                    {"field": "release_categories.*", "rvalue": "Generally Available", "op": "="},
-                                    {"field": "release_categories.*", "rvalue": "Tech Preview", "op": "="},
-                                    {"field": "release_categories.*", "rvalue": "Beta", "op": "="}]
-                            },
-                            {
-                                "$or": [
-                                    {"field": "vendorLabel", "rvalue": "redhat", "op": "="},
-                                ]
-                            },
-                        ]
-                    },
-                    {
-                        "$and": [
-                            {"field": "published", "op": "=", "rvalue": False},
-                            {"field": "registry", "op": "=",
-                             "rvalue": "some_registry"},
-                            {"field": "repository", "op": "=",
-                             "rvalue": "some_repo"},
-                        ]
-                    }
-                ]
-            },
-            "projection": [
-                {"field": "repository", "include": True},
-                {"field": "published", "include": True},
-                {"field": "auto_rebuild_tags", "include": True, "recursive": True},
-                {"field": "release_categories", "include": True, "recursive": True},
-            ]
-        }
-        cont_repos.assert_called_with(expected_repo_request)
+        ret = lb.find_repositories()
 
         expected_ret = {
             repo["repository"]: repo for repo in
@@ -1234,17 +1142,17 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
     def _filter_fnc(self, image):
         return image.nvr.startswith("filtered_")
 
-    @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
+    @patch('freshmaker.pyxis_gql.Client')
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')
     @patch('os.path.exists')
     def test_images_with_content_set_packages(
-        self, exists, koji_task_request, koji_get_build, cont_images, cont_repos
+        self, exists, koji_task_request, koji_get_build, cont_images, gql_client
     ):
 
         exists.return_value = True
-        cont_repos.return_value = self.fake_repositories_with_content_sets
+        gql_client.return_value.execute.return_value = self.fake_pyxis_find_repos
         # "filtered_x-1-23" image will be filtered by filter_fnc.
         cont_images.return_value = self.fake_container_images + [
             ContainerImage.create(
@@ -1333,16 +1241,16 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                              },
                          ])
 
-    @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
+    @patch('freshmaker.pyxis_gql.Client')
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')
     @patch('os.path.exists')
     def test_images_with_content_set_packages_unpublished(
-        self, exists, koji_task_request, koji_get_build, cont_images, cont_repos,
+        self, exists, koji_task_request, koji_get_build, cont_images, gql_client
     ):
         exists.return_value = True
-        cont_repos.return_value = self.fake_repositories_with_content_sets
+        gql_client.return_value.execute.return_value = self.fake_pyxis_find_repos
 
         # "filtered_x-1-23" image will be filtered by filter_fnc.
         cont_images.return_value = self.fake_container_images + [
@@ -1444,16 +1352,17 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                              },
                          ])
 
-    @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
+    @patch('freshmaker.pyxis_gql.Client')
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')
     @patch('os.path.exists')
     def test_images_with_content_set_packages_beta(
-            self, exists, koji_task_request, koji_get_build, cont_images, cont_repos):
+        self, exists, koji_task_request, koji_get_build, cont_images, gql_client
+    ):
         exists.return_value = True
-        cont_repos.return_value = self.fake_repositories_with_content_sets
-        cont_repos.return_value[1]["release_categories"] = ["Beta"]
+        self.fake_pyxis_find_repos["find_repositories"]["data"][1]["release_categories"] = ["Beta"]
+        gql_client.return_value.execute.return_value = self.fake_pyxis_find_repos
         cont_images.return_value = self.fake_container_images
         koji_task_request.side_effect = self.fake_koji_task_requests
         koji_get_build.side_effect = self.fake_koji_builds
@@ -2095,7 +2004,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         self.assertEqual(set(ret[0]["content_sets"]),
                          set(["dummy-content-set-1", "dummy-content-set-2"]))
 
-    @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
+    @patch('freshmaker.lightblue.LightBlue.find_repositories')
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('os.path.exists')
     def test_images_with_content_set_packages_exception(self, exists,
@@ -2125,15 +2034,15 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                 ["dummy-content-set-1"])
 
     @patch('freshmaker.lightblue.ContainerImage.resolve')
-    @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
+    @patch('freshmaker.pyxis_gql.Client')
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('os.path.exists')
     def test_images_with_content_set_packages_leaf_container_images(
-            self, exists, cont_images, cont_repos, resolve):
-
+        self, exists, cont_images, gql_client, resolve
+    ):
         exists.return_value = True
         cont_images.return_value = self.fake_container_images
-        cont_repos.return_value = self.fake_repositories_with_content_sets
+        gql_client.return_value.execute.return_value = self.fake_pyxis_find_repos
 
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
@@ -2165,12 +2074,13 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                             {'field': 'rpm_manifest.*.rpms.*.srpm_name', 'include': True, 'recursive': True}],
              'objectType': 'containerImage'})
 
-    @patch('freshmaker.lightblue.LightBlue.find_container_repositories')
+    @patch('freshmaker.pyxis_gql.Client')
+    @patch('freshmaker.lightblue.LightBlue.find_repositories')
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')
     def test_content_sets_of_multiarch_images_to_rebuild(
-            self, koji_task_request, koji_get_build, find_images, find_repos):
+            self, koji_task_request, koji_get_build, find_images, find_repos, gql_client):
         new_images = [
             {
                 'brew': {
@@ -2223,8 +2133,9 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                 'architecture': 's390x'
             }
         ]
+
+        gql_client.return_value.execute.return_value = self.fake_pyxis_find_repos
         new_images = [ContainerImage.create(i) for i in new_images]
-        find_repos.return_value = self.fake_repositories_with_content_sets
         find_images.return_value = self.fake_container_images + new_images
         koji_task_request.side_effect = self.fake_koji_task_requests
         koji_get_build.side_effect = self.fake_koji_builds
@@ -2357,61 +2268,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                 ["dummy-content-set-1", "dummy-content-set-2"], ["openssl-1.2.3-2"], repositories)
 
         self.assertEqual(ret, [find_images.return_value[1]])
-
-
-class TestEntityVersion(helpers.FreshmakerTestCase):
-    """Test case for ensuring correct entity version in request"""
-
-    def setUp(self):
-        super(TestEntityVersion, self).setUp()
-        self.fake_server_url = 'lightblue.localhost'
-        self.fake_cert_file = 'path/to/cert'
-        self.fake_private_key = 'path/to/private-key'
-        self.fake_entity_versions = {
-            'containerImage': '0.0.11',
-            'containerRepository': '0.0.12',
-        }
-
-    @patch('freshmaker.lightblue.LightBlue._make_request')
-    @patch('os.path.exists', return_value=True)
-    def test_use_specified_container_image_version(self, exists, _make_request):
-        lb = LightBlue(server_url=self.fake_server_url,
-                       cert=self.fake_cert_file,
-                       private_key=self.fake_private_key,
-                       entity_versions=self.fake_entity_versions)
-        lb.find_container_images({})
-
-        _make_request.assert_called_once_with('find/containerImage/0.0.11', {})
-
-    @patch('freshmaker.lightblue.LightBlue._make_request')
-    @patch('os.path.exists', return_value=True)
-    def test_use_specified_container_repository_version(self, exists, _make_request):
-        lb = LightBlue(server_url=self.fake_server_url,
-                       cert=self.fake_cert_file,
-                       private_key=self.fake_private_key,
-                       entity_versions=self.fake_entity_versions)
-        lb.find_container_repositories({})
-
-        _make_request.assert_called_once_with('find/containerRepository/0.0.12', {})
-
-    @patch('freshmaker.lightblue.LightBlue._make_request')
-    @patch('os.path.exists', return_value=True)
-    def test_use_default_entity_version(self, exists, _make_request):
-        _make_request.return_value = {
-            # Omit other attributes that are not useful for this test
-            'processed': []
-        }
-
-        lb = LightBlue(server_url=self.fake_server_url,
-                       cert=self.fake_cert_file,
-                       private_key=self.fake_private_key)
-        lb.find_container_repositories({})
-        lb.find_container_images({})
-
-        _make_request.assert_has_calls([
-            call('find/containerRepository/', {}),
-            call('find/containerImage/', {}),
-        ])
 
 
 class TestDeduplicateImagesToRebuild(helpers.FreshmakerTestCase):
