@@ -804,14 +804,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         self.patcher.unpatch_all()
         self.koji_read_config_patcher.stop()
 
-    @patch('os.path.exists', return_value=True)
-    def test_LightBlue_returns_event(self, exists):
-        lb = LightBlue(server_url=self.fake_server_url,
-                       cert=self.fake_cert_file,
-                       private_key=self.fake_private_key,
-                       event_id=self.current_db_event_id)
-        assert lb.event_id == self.current_db_event_id
-
     @patch('freshmaker.lightblue.requests.post')
     def test_find_container_images(self, post):
         post.return_value.status_code = http.client.OK

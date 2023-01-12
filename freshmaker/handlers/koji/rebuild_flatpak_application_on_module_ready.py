@@ -218,8 +218,7 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
         lb = LightBlue(
             server_url=conf.lightblue_server_url,
             cert=conf.lightblue_certificate,
-            private_key=conf.lightblue_private_key,
-            event_id=self.current_db_event_id,
+            private_key=conf.lightblue_private_key
         )
 
         if errata_rpm_nvrs:
