@@ -26,6 +26,8 @@ from gql.dsl import DSLQuery, DSLSchema, dsl_gql
 from gql.transport.requests import RequestsHTTPTransport
 from requests_kerberos import OPTIONAL, HTTPKerberosAuth
 
+PYXIS_PAGE_SIZE = 250
+
 
 class PyxisGQLRequestError(RuntimeError):
     pass
@@ -65,7 +67,7 @@ class PyxisGQL:
         projection = [
             ds.ContainerRepository.release_categories,
             ds.ContainerRepository.auto_rebuild_tags,
-            ds.ContainerRepository.registry,
+            ds.ContainerRepository.published,
             ds.ContainerRepository.repository,
         ]
         return projection
@@ -130,8 +132,8 @@ class PyxisGQL:
         # Query Red Hat repositories only
         query_filter["and"].append({"vendor_label": {"eq": "redhat"}})
 
-        if published is not None and isinstance(published, bool):
-            query_filter["and"].append({"published": {"eq": True}})
+        if isinstance(published, bool):
+            query_filter["and"].append({"published": {"eq": published}})
 
         if release_categories is not None:
             query_filter["and"].append({"release_categories": {"in": release_categories}})
@@ -143,12 +145,11 @@ class PyxisGQL:
         ds = self.dsl_schema
 
         page_num = 0
-        page_size = 50
         # Iterate all pages
         while True:
             query_dsl = ds.Query.find_repositories(
                 page=page_num,
-                page_size=page_size,
+                page_size=PYXIS_PAGE_SIZE,
                 filter=query_filter,
             ).select(
                 ds.ContainerRepositoryPaginatedResponse.error.select(
@@ -178,17 +179,17 @@ class PyxisGQL:
 
         return repositories
 
-    def get_repository_by_registry_path(self, repository, registry):
+    def get_repository_by_registry_path(self, registry, repository):
         """Get image repository by registry path
 
-        :param str repository: repository name
         :param str registry: registry name
+        :param str repository: repository name
         :return: container repository response
         :rtype: dict
         """
         ds = self.dsl_schema
         query_dsl = ds.Query.get_repository_by_registry_path(
-            repository=repository, registry=registry
+            registry=registry, repository=repository
         ).select(
             ds.ContainerRepositoryResponse.error.select(
                 ds.ResponseError.status,
@@ -210,13 +211,12 @@ class PyxisGQL:
 
         images = []
         page_num = 0
-        page_size = 50
 
         # Iterate all pages
         while True:
             query_dsl = ds.Query.find_images_by_nvr(
                 page=page_num,
-                page_size=page_size,
+                page_size=PYXIS_PAGE_SIZE,
                 nvr=nvr,
             ).select(
                 ds.ContainerImagePaginatedResponse.error.select(
@@ -254,14 +254,13 @@ class PyxisGQL:
 
         images = []
         page_num = 0
-        page_size = 50
 
         # Iterate all pages
         while True:
-            query_filter = {'brew': {'build': {'in': nvrs}}}
+            query_filter = {"brew": {"build": {"in": nvrs}}}
             query_dsl = ds.Query.find_images(
                 page=page_num,
-                page_size=page_size,
+                page_size=PYXIS_PAGE_SIZE,
                 filter=query_filter,
             ).select(
                 ds.ContainerImagePaginatedResponse.error.select(
@@ -329,13 +328,12 @@ class PyxisGQL:
 
         ds = self.dsl_schema
         page_num = 0
-        page_size = 50
 
         # Iterate all pages
         while True:
             query_dsl = ds.Query.find_images(
                 page=page_num,
-                page_size=page_size,
+                page_size=PYXIS_PAGE_SIZE,
                 filter=query_filter,
             ).select(
                 ds.ContainerImagePaginatedResponse.error.select(
@@ -389,12 +387,11 @@ class PyxisGQL:
 
         ds = self.dsl_schema
         page_num = 0
-        page_size = 50
 
         while True:
             query_dsl = ds.Query.find_images(
                 page=page_num,
-                page_size=page_size,
+                page_size=PYXIS_PAGE_SIZE,
                 filter=query_filter,
             ).select(
                 ds.ContainerImagePaginatedResponse.error.select(
@@ -404,7 +401,9 @@ class PyxisGQL:
                 ds.ContainerImagePaginatedResponse.page,
                 ds.ContainerImagePaginatedResponse.page_size,
                 ds.ContainerImagePaginatedResponse.total,
-                ds.ContainerImagePaginatedResponse.data.select(*self._get_image_projection(include_rpms=False)),
+                ds.ContainerImagePaginatedResponse.data.select(
+                    *self._get_image_projection(include_rpms=False)
+                ),
             )
 
             result = self.query(query_dsl)
