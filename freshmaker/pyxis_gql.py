@@ -194,6 +194,65 @@ class PyxisGQL:
 
         return repositories
 
+    def find_repositories_by_registry_paths(self, registry_paths):
+        """Get image repositories by registry paths
+
+        :param list registry_paths: list of registry paths, each in format of:
+            {"registry": registry_name, "repository": repository_name}
+        :return: list of image repositories
+        :rtype: list
+        """
+        query_filter = {}
+        query_filter["or"] = []
+
+        for path in registry_paths:
+            query_filter["or"].append(
+                {
+                    "and": [
+                        {"registry": {"eq": path["registry"]}},
+                        {"repository": {"eq": path["repository"]}},
+                    ]
+                }
+            )
+
+        repositories = []
+        ds = self.dsl_schema
+
+        page_num = 0
+        # Iterate all pages
+        while True:
+            query_dsl = ds.Query.find_repositories(
+                page=page_num,
+                page_size=PYXIS_PAGE_SIZE,
+                filter=query_filter,
+            ).select(
+                ds.ContainerRepositoryPaginatedResponse.error.select(
+                    ds.ResponseError.status,
+                    ds.ResponseError.detail,
+                ),
+                ds.ContainerRepositoryPaginatedResponse.page,
+                ds.ContainerRepositoryPaginatedResponse.page_size,
+                ds.ContainerRepositoryPaginatedResponse.total,
+                ds.ContainerRepositoryPaginatedResponse.data.select(*self._get_repo_projection()),
+            )
+
+            result = self.query(query_dsl)
+            error = result["find_repositories"]["error"]
+            if error is not None:
+                raise PyxisGQLRequestError(str(error))
+            data = result["find_repositories"]["data"]
+            # Data is empty when there are no more results
+            if not data:
+                break
+
+            repositories.extend(data)
+            # If page_size >= total, means all results have been fetched in the first page
+            if result["find_repositories"]["page_size"] >= result["find_repositories"]["total"]:
+                break
+            page_num += 1
+
+        return repositories
+
     def get_repository_by_registry_path(self, registry, repository):
         """Get image repository by registry path
 
