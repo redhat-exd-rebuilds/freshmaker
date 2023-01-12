@@ -37,9 +37,6 @@ class TestConfig(helpers.FreshmakerTestCase):
             "freshmaker_cc_%s_%s" % (os.getpid(),
                                      threading.current_thread().ident))
 
-    def test_container_metadata_source(self):
-        self.assertTrue(conf.container_metadata_source == 'lightblue' or conf.container_metadata_source == 'pyxis_graphql')
-
 
 @pytest.mark.parametrize('value', (
     'not a dict',

@@ -31,7 +31,7 @@ from freshmaker.events import (
     ManualRebuildWithAdvisoryEvent,
     BaseEvent)
 from freshmaker.handlers.koji import RebuildImagesOnRPMAdvisoryChange
-from freshmaker.lightblue import ContainerImage
+from freshmaker.image import ContainerImage
 from freshmaker.models import Event, Compose, ArtifactBuild, EVENT_TYPES
 from freshmaker.types import (
     ArtifactBuildState, ArtifactType, EventState, RebuildReason)
@@ -446,7 +446,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             return_value=["httpd-2.4-11.el7"])
 
         self.find_images_to_rebuild = self.patcher.patch(
-            'freshmaker.lightblue.LightBlue.find_images_to_rebuild',
+            'freshmaker.image.PyxisAPI.find_images_to_rebuild',
             return_value=[[]])
 
         self.event = ErrataAdvisoryRPMsSignedEvent(
@@ -480,7 +480,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
         self.find_images_to_rebuild.assert_called_once_with(
             ['httpd-2.4-11.el7'], ['content-set-1', 'pulp_repo_x86_64'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
-            published=True, release_categories=conf.lightblue_release_categories,
+            published=True, release_categories=conf.container_release_categories,
             leaf_container_images=None, skip_nvrs=None)
 
     @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
@@ -498,7 +498,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             ['httpd-2.4-11.el7', 'httpd-2.2-11.el6'],
             ['content-set-1', 'pulp_repo_x86_64'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
-            published=True, release_categories=conf.lightblue_release_categories,
+            published=True, release_categories=conf.container_release_categories,
             leaf_container_images=None, skip_nvrs=None)
 
     @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
@@ -534,7 +534,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
         self.find_images_to_rebuild.assert_called_once_with(
             ['httpd-2.4-11.el7'], ['content-set-1', 'pulp_repo_x86_64'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
-            published=True, release_categories=conf.lightblue_release_categories,
+            published=True, release_categories=conf.container_release_categories,
             leaf_container_images=None, skip_nvrs=None)
 
     @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
@@ -552,7 +552,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
         self.find_images_to_rebuild.assert_called_once_with(
             ['httpd-2.4-11.el7'], ['content-set-1', 'pulp_repo_x86_64'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
-            published=True, release_categories=conf.lightblue_release_categories,
+            published=True, release_categories=conf.container_release_categories,
             leaf_container_images=["foo", "bar"], skip_nvrs=None)
 
     @patch.object(freshmaker.conf, 'handler_build_allowlist', new={
@@ -571,7 +571,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             ['nodejs-10.19.0-1.module+el8.1.0+5726+6ed65f8c.x86_64'],
             ['content-set-1', 'pulp_repo_x86_64'],
             filter_fnc=self.handler._filter_out_not_allowed_builds,
-            published=True, release_categories=conf.lightblue_release_categories,
+            published=True, release_categories=conf.container_release_categories,
             leaf_container_images=None, skip_nvrs=None)
 
 

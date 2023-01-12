@@ -20,7 +20,12 @@
 # SOFTWARE.
 
 import flask
+import mock
+import os
 import pytest
+
+from gql.dsl import DSLSchema
+from graphql import build_ast_schema, parse
 
 
 @pytest.fixture(autouse=True)
@@ -34,3 +39,22 @@ def clear_flask_g():
     for attr in ('group', 'user'):
         if hasattr(flask.g, attr):
             delattr(flask.g, attr)
+
+
+@pytest.fixture()
+def pyxis_graphql_schema():
+    pyxis_schema_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "fixtures",
+        "pyxis.graphql",
+    )
+    with open(pyxis_schema_path) as source:
+        document = parse(source.read())
+    schema = build_ast_schema(document)
+
+    with mock.patch(
+        "freshmaker.pyxis_gql.PyxisGQL.dsl_schema",
+        new_callable=mock.PropertyMock
+    ) as dsl_schema:
+        dsl_schema.return_value = DSLSchema(schema)
+        yield dsl_schema

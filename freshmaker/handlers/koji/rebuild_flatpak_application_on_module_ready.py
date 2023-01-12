@@ -39,7 +39,7 @@ from freshmaker.events import (
 )
 from freshmaker.handlers import ContainerBuildHandler, fail_event_on_handler_exception
 from freshmaker.kojiservice import koji_service
-from freshmaker.lightblue import LightBlue
+from freshmaker.image import PyxisAPI
 from freshmaker.models import Event, Compose
 from freshmaker.odcsclient import create_odcs_client
 from freshmaker.pyxis import Pyxis
@@ -215,16 +215,12 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
         errata_rpm_nvrs = self.errata.get_binary_rpm_nvrs(
             self.event.advisory.errata_id
         )
-        lb = LightBlue(
-            server_url=conf.lightblue_server_url,
-            cert=conf.lightblue_certificate,
-            private_key=conf.lightblue_private_key
-        )
+        pyxis = PyxisAPI(server_url=conf.pyxis_graphql_url)
 
         if errata_rpm_nvrs:
-            return lb.get_images_by_nvrs(images, rpm_nvrs=errata_rpm_nvrs)
+            return pyxis.get_images_by_nvrs(images, rpm_nvrs=errata_rpm_nvrs)
 
-        return lb.get_images_by_nvrs(images)
+        return pyxis.get_images_by_nvrs(images)
 
     def _reused_composes(self, original_odcs_compose_ids, module_name_stream_set):
         """
