@@ -590,6 +590,289 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             }
         }
 
+        foo_image_1_20_data = [
+            {
+                "architecture": "amd64",
+                "brew": {"build": "foo-container-1-20"},
+                "content_sets": ["foo-content-set-x86_64"],
+                "edges": {
+                    "rpm_manifest": {
+                        "data": {
+                            "rpms": [
+                                {
+                                    "srpm_name": "openssl",
+                                    "srpm_nevra": "openssl-0:1.2.3-1.src",
+                                    "name": "openssl",
+                                    "nvra": "openssl-1.2.3-1.x86_64"
+                                },
+                                {
+                                    "srpm_name": "tespackage",
+                                    "srpm_nevra": "testpackage-10:1.2.3-1.src",
+                                    "name": "tespackage",
+                                    "nvra": "testpackage-1.2.3-1.x86_64"
+                                }
+                            ]
+                        }
+                    }
+                },
+                "parent_brew_build": "foo-parent-container-2-130",
+                "parsed_data": {
+                    "files": [
+                        {
+                            "key": "buildfile",
+                            "content_url": "http://git.repo.com/cgit/rpms/foo-container/plain/Dockerfile?id=commit_hash1",
+                            "filename": u"Dockerfile"
+                        }
+                    ],
+                },
+                "repositories": [
+                    {
+                        "published": True,
+                        "registry": "registry.example.com",
+                        "repository": "foobar-product/foo",
+                        "tags": [{"name": "latest"}],
+                    }
+                ],
+            },
+            {
+                "architecture": "ppc64le",
+                "brew": {"build": "foo-container-1-20"},
+                "content_sets": ["foo-content-set-ppc64le"],
+                "edges": {
+                    "rpm_manifest": {
+                        "data": {
+                            "rpms": [
+                                {
+                                    "srpm_name": "openssl",
+                                    "srpm_nevra": "openssl-0:1.2.3-1.src",
+                                    "name": "openssl",
+                                    "nvra": "openssl-1.2.3-1.ppc64le"
+                                },
+                                {
+                                    "srpm_name": "tespackage",
+                                    "srpm_nevra": "testpackage-10:1.2.3-1.src",
+                                    "name": "tespackage",
+                                    "nvra": "testpackage-1.2.3-1.ppc64le"
+                                }
+                            ]
+                        }
+                    }
+                },
+                "parent_brew_build": "foo-parent-container-2-130",
+                "parsed_data": {
+                    "files": [
+                        {
+                            "key": "buildfile",
+                            "content_url": "http://git.repo.com/cgit/rpms/foo-container/plain/Dockerfile?id=commit_hash1",
+                            "filename": u"Dockerfile"
+                        }
+                    ],
+                },
+                "repositories": [
+                    {
+                        "published": True,
+                        "registry": "registry.example.com",
+                        "repository": "foobar-product/foo",
+                        "tags": [{"name": "latest"}],
+                    }
+                ],
+            },
+        ]
+
+        foo_parent_image_2_130_data = [
+            {
+                "architecture": "amd64",
+                "brew": {"build": "foo-parent-container-2-130"},
+                "content_sets": ["foo-content-set-x86_64"],
+                "edges": {
+                    "rpm_manifest": {
+                        "data": {
+                            "rpms": [
+                                {
+                                    "srpm_name": "openssl",
+                                    "srpm_nevra": "openssl-0:1.2.3-1.src",
+                                    "name": "openssl",
+                                    "nvra": "openssl-1.2.3-1.x86_64"
+                                }
+                            ]
+                        }
+                    }
+                },
+                "parsed_data": {
+                    "files": [
+                        {
+                            "key": "buildfile",
+                            "content_url": "http://git.repo.com/cgit/rpms/foo-parent-container/plain/Dockerfile?id=commit_hash1",
+                            "filename": u"Dockerfile"
+                        }
+                    ],
+                },
+                "repositories": [
+                    {
+                        "published": True,
+                        "registry": "registry.example.com",
+                        "repository": "foobar-product/foo-parent",
+                        "tags": [{"name": "latest"}],
+                    }
+                ],
+            },
+            {
+                "architecture": "ppc64le",
+                "brew": {"build": "foo-parent-container-2-130"},
+                "content_sets": ["foo-content-set-ppc64le"],
+                "edges": {
+                    "rpm_manifest": {
+                        "data": {
+                            "rpms": [
+                                {
+                                    "srpm_name": "openssl",
+                                    "srpm_nevra": "openssl-0:1.2.3-1.src",
+                                    "name": "openssl",
+                                    "nvra": "openssl-1.2.3-1.ppc64le"
+                                }
+                            ]
+                        }
+                    }
+                },
+                "parsed_data": {
+                    "files": [
+                        {
+                            "key": "buildfile",
+                            "content_url": "http://git.repo.com/cgit/rpms/foo-parent-container/plain/Dockerfile?id=commit_hash1",
+                            "filename": u"Dockerfile"
+                        }
+                    ],
+                },
+                "repositories": [
+                    {
+                        "published": True,
+                        "registry": "registry.example.com",
+                        "repository": "foobar-product/foo-parent",
+                        "tags": [{"name": "latest"}],
+                    }
+                ],
+            },
+        ]
+
+        bar_image_2_30_data = [
+            {
+                "architecture": "amd64",
+                "brew": {"build": "bar-container-2-30"},
+                "content_sets": ["bar-content-set-x86_64"],
+                "edges": {
+                    "rpm_manifest": {
+                        "data": {
+                            "rpms": [
+                                {
+                                    "srpm_name": "openssl",
+                                    "srpm_nevra": "openssl-0:1.2.3-1.src",
+                                    "name": "openssl",
+                                    "nvra": "openssl-1.2.3-1.x86_64"
+                                },
+                                {
+                                    "srpm_name": "tespackage",
+                                    "srpm_nevra": "testpackage-10:1.2.3-1.src",
+                                    "name": "tespackage",
+                                    "nvra": "testpackage-1.2.3-1.x86_64"
+                                }
+                            ]
+                        }
+                    }
+                },
+                "parent_brew_build": "bar-parent-container-1-10",
+                "parsed_data": {
+                    "files": [
+                        {
+                            "key": "buildfile",
+                            "content_url": "http://git.repo.com/cgit/rpms/bar-container/plain/Dockerfile?id=commit_hash2",
+                            "filename": u"Dockerfile"
+                        }
+                    ],
+                },
+                "repositories": [
+                    {
+                        "published": True,
+                        "registry": "registry.example.com",
+                        "repository": "foobar-product/bar",
+                        "tags": [{"name": "latest"}],
+                    }
+                ],
+            },
+            {
+                "architecture": "ppc64le",
+                "brew": {"build": "bar-container-2-30"},
+                "content_sets": ["bar-content-set-ppc64le"],
+                "edges": {
+                    "rpm_manifest": {
+                        "data": {
+                            "rpms": [
+                                {
+                                    "srpm_name": "openssl",
+                                    "srpm_nevra": "openssl-0:1.2.3-1.src",
+                                    "name": "openssl",
+                                    "nvra": "openssl-1.2.3-1.ppc64le"
+                                },
+                                {
+                                    "srpm_name": "tespackage",
+                                    "srpm_nevra": "testpackage-10:1.2.3-1.src",
+                                    "name": "tespackage",
+                                    "nvra": "testpackage-1.2.3-1.ppc64le"
+                                }
+                            ]
+                        }
+                    }
+                },
+                "parent_brew_build": "bar-parent-container-1-10",
+                "parsed_data": {
+                    "files": [
+                        {
+                            "key": "buildfile",
+                            "content_url": "http://git.repo.com/cgit/rpms/bar-container/plain/Dockerfile?id=commit_hash2",
+                            "filename": u"Dockerfile"
+                        }
+                    ],
+                },
+                "repositories": [
+                    {
+                        "published": True,
+                        "registry": "registry.example.com",
+                        "repository": "foobar-product/bar",
+                        "tags": [{"name": "latest"}],
+                    }
+                ],
+            },
+        ]
+
+        self.fake_pyxis_find_images_by_nvr = {
+            "find_images_by_nvr": {
+                "data": foo_image_1_20_data,
+                "error": None,
+                "page": 0,
+                "page_size": 250,
+                "total": 2,
+            }
+        }
+
+        self.fake_pyxis_find_images_by_nvr_parent = {
+            "find_images_by_nvr": {
+                "data": foo_parent_image_2_130_data,
+                "error": None,
+                "page": 0,
+                "page_size": 250,
+                "total": 2,
+            }
+        }
+
+        self.fake_pyxis_find_images_by_nvrs = {
+            "find_images": {
+                "data": foo_image_1_20_data + bar_image_2_30_data,
+                "error": None,
+                "page": 0,
+                "page_size": 250,
+                "total": 4,
+            }
+        }
+
         self.fake_images_with_parsed_data = [
             {
                 'brew': {
@@ -1381,12 +1664,12 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         self.assertEqual(ret[0]["release_categories"], ["Beta"])
 
     @patch('freshmaker.lightblue.ContainerImage.resolve_published')
-    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @patch('freshmaker.pyxis_gql.Client')
     @patch('os.path.exists')
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')
     def test_parent_images_with_package(
-            self, get_task_request, get_build, exists, cont_images,
+            self, get_task_request, get_build, exists, gql_client,
             resolve_published):
 
         get_build.return_value = {"task_id": 123456}
@@ -1394,16 +1677,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             "git://example.com/rpms/repo-1#commit_hash1", "target1", {}]
         exists.return_value = True
 
-        # Test that even when the parent image does not have the repositories
-        # set, it will take the content_sets from the child image.
-        images_without_repositories = []
-        for data in self.fake_images_with_parsed_data:
-            img = ContainerImage.create(data)
-            del img["repositories"]
-            images_without_repositories.append(img)
-
-        cont_images.side_effect = [images_without_repositories, [],
-                                   images_without_repositories]
+        gql_client.return_value.execute.return_value = self.fake_pyxis_find_images_by_nvr_parent
 
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
@@ -1412,35 +1686,27 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             self.fake_container_images[0], "openssl")
 
         self.assertEqual(1, len(ret))
-        self.assertEqual(ret[0]["brew"]["package"], "package-name-1")
+        self.assertEqual(ret[0]["brew"]["build"], "foo-parent-container-2-130")
         self.assertEqual(set(ret[0]["content_sets"]),
-                         set(["dummy-content-set-1", "dummy-content-set-2"]))
+                         set(["foo-content-set-x86_64", "foo-content-set-ppc64le"]))
 
     @patch('freshmaker.lightblue.ContainerImage.resolve_published')
-    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @patch('freshmaker.pyxis_gql.Client')
     @patch('os.path.exists')
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')
     def test_parent_images_with_package_last_parent_content_sets(
-            self, get_task_request, get_build, exists, cont_images,
+            self, get_task_request, get_build, exists, gql_client,
             resolve_published):
         get_build.return_value = {"task_id": 123456}
         get_task_request.return_value = [
             "git://example.com/rpms/repo-1#commit_hash1", "target1", {}]
         exists.return_value = True
 
-        # Test that even when the parent image does not have the repositories
-        # set, it will take the content_sets from the child image.
-        images_without_repositories = []
-        for data in self.fake_images_with_parsed_data:
-            img = ContainerImage.create(data)
-            del img["repositories"]
-            images_without_repositories.append(img)
-
-        cont_images.side_effect = [self.fake_container_images,
-                                   images_without_repositories,
-                                   images_without_repositories, [],
-                                   images_without_repositories]
+        gql_client.return_value.execute.side_effect = [
+            self.fake_pyxis_find_images_by_nvr,
+            self.fake_pyxis_find_images_by_nvr_parent,
+        ]
 
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
@@ -1448,14 +1714,13 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         ret = lb.find_parent_images_with_package(
             self.fake_container_images[0], "openssl", [])
 
-        self.assertEqual(3, len(ret))
-        self.assertEqual(ret[0]["brew"]["package"], "package-name-1")
+        self.assertEqual(2, len(ret))
+        self.assertEqual(ret[0]["brew"]["build"], "foo-container-1-20")
+        self.assertEqual(ret[1]["brew"]["build"], "foo-parent-container-2-130")
         self.assertEqual(set(ret[0]["content_sets"]),
-                         set(['dummy-content-set-1', 'dummy-content-set-2']))
+                         set(["foo-content-set-x86_64", "foo-content-set-ppc64le"]))
         self.assertEqual(set(ret[1]["content_sets"]),
-                         set(['dummy-content-set-1', 'dummy-content-set-2']))
-        self.assertEqual(set(ret[2]["content_sets"]),
-                         set(['dummy-content-set-1', 'dummy-content-set-2']))
+                         set(["foo-content-set-x86_64", "foo-content-set-ppc64le"]))
 
     @patch('freshmaker.lightblue.LightBlue.find_images_with_packages_from_content_set')
     @patch('freshmaker.lightblue.LightBlue.find_parent_images_with_package')
@@ -2035,126 +2300,66 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
 
     @patch('freshmaker.lightblue.ContainerImage.resolve')
     @patch('freshmaker.pyxis_gql.Client')
-    @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('os.path.exists')
     def test_images_with_content_set_packages_leaf_container_images(
-        self, exists, cont_images, gql_client, resolve
+        self, exists, gql_client, resolve
     ):
         exists.return_value = True
-        cont_images.return_value = self.fake_container_images
-        gql_client.return_value.execute.return_value = self.fake_pyxis_find_repos
+        gql_client.return_value.execute.side_effect = [
+            self.fake_pyxis_find_repos,
+            self.fake_pyxis_find_images_by_nvrs
+        ]
 
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
                        private_key=self.fake_private_key)
-        lb.find_images_with_packages_from_content_set(
-            ["openssl-1.2.3-2"], ["dummy-content-set"],
-            leaf_container_images=["foo", "bar"])
-        cont_images.assert_called_once_with(
-            {'query': {
-                '$and': [
-                    {'field': 'brew.build', 'values': ['foo', 'bar'], 'op': '$in'},
-                    {'field': 'content_sets.*', 'values': ['dummy-content-set'], 'op': '$in'},
-                    {'field': 'rpm_manifest.*.rpms.*.name', 'values': ['openssl'], 'op': '$in'},
-                ]},
-             'projection': [{'field': 'brew', 'include': True, 'recursive': True},
-                            {'field': 'parsed_data.files', 'include': True, 'recursive': True},
-                            {'field': 'parsed_data.labels.*', 'include': True, 'recursive': True},
-                            {'field': 'parsed_data.layers.*', 'include': True, 'recursive': True},
-                            {'field': 'repositories.*.published', 'include': True, 'recursive': True},
-                            {'field': 'repositories.*.registry', 'include': True, 'recursive': True},
-                            {'field': 'repositories.*.repository', 'include': True, 'recursive': True},
-                            {'field': 'repositories.*.tags.*.name', 'include': True, 'recursive': True},
-                            {'field': 'content_sets', 'include': True, 'recursive': True},
-                            {'field': 'parent_brew_build', 'include': True, 'recursive': False},
-                            {'field': 'architecture', 'include': True, 'recursive': False},
-                            {'field': 'rpm_manifest.*.rpms.*.srpm_nevra', 'include': True, 'recursive': True},
-                            {'field': 'rpm_manifest.*.rpms.*.nvra', 'include': True, 'recursive': True},
-                            {'field': 'rpm_manifest.*.rpms.*.name', 'include': True, 'recursive': True},
-                            {'field': 'rpm_manifest.*.rpms.*.srpm_name', 'include': True, 'recursive': True}],
-             'objectType': 'containerImage'})
+        images = lb.find_images_with_packages_from_content_set(
+            ["openssl-1.2.3-2"], ["foo-content-set-x86_64", "foo-content-set-ppc64le"],
+            leaf_container_images=["foo-container-1-20", "bar-container-2-30"]
+        )
+
+        # Only foo-container-1-20 has the content sets enabled
+        self.assertEqual(len(images), 1)
+        self.assertEqual(images[0].nvr, "foo-container-1-20")
 
     @patch('freshmaker.pyxis_gql.Client')
-    @patch('freshmaker.lightblue.LightBlue.find_repositories')
-    @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')
     def test_content_sets_of_multiarch_images_to_rebuild(
-            self, koji_task_request, koji_get_build, find_images, find_repos, gql_client):
-        new_images = [
-            {
-                'brew': {
-                    'completion_date': u'20170421T04:27:51.000-0400',
-                    'build': 'build1-name-1.1',
-                    'package': 'package-name-3'
-                },
-                "content_sets": ["content-set-1",
-                                 "content-set-2"],
-                'parent_brew_build': 'some-original-nvr-7.6-252.1561619826',
-                'repositories': [
-                    {'repository': 'product1/repo1', 'published': True,
-                     'tags': [{"name": "latest"}]}
-                ],
-                'rpm_manifest': [{
-                    'rpms': [
-                        {
-                            "srpm_name": "openssl",
-                            "srpm_nevra": "openssl-0:1.2.3-1.src",
-                            "name": "openssl",
-                            "nvra": "openssl-1.2.3-1.amd64"
-                        }
-                    ]
-                }],
-                'architecture': 'amd64'
-            },
-            {
-                'brew': {
-                    'completion_date': u'20170421T04:27:51.000-0400',
-                    'build': 'build1-name-1.1',
-                    'package': 'package-name-4'
-                },
-                "content_sets": ["content-set-2",
-                                 "content-set-3"],
-                'parent_brew_build': 'some-original-nvr-7.6-252.1561619826',
-                'repositories': [
-                    {'repository': 'product1/repo1', 'published': True,
-                     'tags': [{"name": "latest"}]}
-                ],
-                'rpm_manifest': [{
-                    'rpms': [
-                        {
-                            "srpm_name": "openssl",
-                            "srpm_nevra": "openssl-0:1.2.3-1.src",
-                            "name": "openssl",
-                            "nvra": "openssl-1.2.3-1.s390x"
-                        }
-                    ]
-                }],
-                'architecture': 's390x'
-            }
-        ]
+            self, koji_task_request, koji_get_build, gql_client):
 
-        gql_client.return_value.execute.return_value = self.fake_pyxis_find_repos
-        new_images = [ContainerImage.create(i) for i in new_images]
-        find_images.return_value = self.fake_container_images + new_images
+        gql_client.return_value.execute.side_effect = [
+            self.fake_pyxis_find_repos,
+            self.fake_pyxis_find_images_by_nvrs,
+        ]
         koji_task_request.side_effect = self.fake_koji_task_requests
         koji_get_build.side_effect = self.fake_koji_builds
-        right_content_sets = [["dummy-content-set-1", "dummy-content-set-2"],
-                              ["dummy-content-set-1"],
-                              ["content-set-1", "content-set-2"],
-                              ["content-set-2", "content-set-3"]]
+
         with patch('os.path.exists'):
             lb = LightBlue(server_url=self.fake_server_url,
                            cert=self.fake_cert_file,
                            private_key=self.fake_private_key)
             ret = lb.find_images_with_packages_from_content_set(
                 set(["openssl-1.2.3-3"]),
-                ["content-set-1", "content-set-2", "content-set-3"],
-                leaf_container_images=['placeholder'])
+                [
+                    "foo-content-set-x86_64",
+                    "foo-content-set-ppc64le",
+                    "bar-content-set-x86_64",
+                    "bar-content-set-ppc64le",
+                ],
+                leaf_container_images=["foo-container-1-20", "bar-container-2-30"])
 
-        self.assertEqual(4, len(ret))
-        images_content_sets = [sorted(i.get('content_sets', ['!'])) for i in ret]
-        self.assertEqual(images_content_sets, right_content_sets)
+        self.assertEqual(2, len(ret))
+        foo_container = [x for x in ret if x.nvr == "foo-container-1-20"][0]
+        bar_container = [x for x in ret if x.nvr == "bar-container-2-30"][0]
+        self.assertEqual(
+            sorted(foo_container["content_sets"]),
+            ["foo-content-set-ppc64le", "foo-content-set-x86_64"]
+        )
+        self.assertEqual(
+            sorted(bar_container["content_sets"]),
+            ["bar-content-set-ppc64le", "bar-content-set-x86_64"]
+        )
 
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('os.path.exists')
