@@ -23,6 +23,7 @@
 #            Jan Kaluza <jkaluza@redhat.com>
 #            Ralph Bean <rbean@redhat.com>
 
+import copy
 import json
 import os
 import re
@@ -662,6 +663,47 @@ class LightBlue(object):
 
         return images
 
+    def _dicts_to_images(self, image_dicts):
+        """Convert image dictionaries to list of ContainerImage"""
+
+        images = []
+        nvr_to_arches = {}
+        for image_data in image_dicts:
+            image = ContainerImage.create(image_data)
+            images.append(image)
+
+            # TODO: In the future, we may want to combine different ContainerImage
+            # objects into a single object. For now, ensure that whichever object
+            # is used by caller contains multi-arch information.
+            nvr = image.nvr
+            nvr_to_arches.setdefault(nvr, [])
+            nvr_to_arches[nvr].append(image)
+            for arch_image in nvr_to_arches[nvr][:-1]:
+                arch_image.update_multi_arch(image)
+                image.update_multi_arch(arch_image)
+
+        # There can be multi-arch images which share the same
+        # image['brew']['build']. Freshmaker is not interested in the image
+        # architecture, it is only interested in NVR, so group the images
+        # by the same image['brew']['build'] and include just first one in the
+        # image list.
+        sorted_images = sorted_by_nvr(images, reverse=True)
+        images = []
+
+        # We must combine content_sets with same image NVR
+        # but different architectures into one content_sets field
+        for k, temp_images in groupby(sorted_images, key=lambda item: item.nvr):
+            temp_images = list(temp_images)
+            img = temp_images[0]
+            if 'content_sets' in img and len(temp_images) > 1:
+                new_content_sets = set(img.get('content_sets'))
+                for i in temp_images[1:]:
+                    new_content_sets.update(i.get('content_sets', []))
+                img["content_sets"] = list(new_content_sets)
+            images.append(img)
+
+        return images
+
     def find_repositories(
         self,
         published=True,
@@ -1016,7 +1058,7 @@ class LightBlue(object):
     def get_images_by_nvrs(self, nvrs, published=True, content_sets=None,
                            rpm_nvrs=None, include_rpm_manifest=True,
                            rpm_names=None):
-        """Query lightblue and returns containerImages defined by list of
+        """Query Pyxis and returns containerImages defined by list of
         `nvrs`.
 
         :param list nvrs: List of NVRs defining the containerImages to return.
@@ -1030,97 +1072,76 @@ class LightBlue(object):
         :return: List of containerImages.
         :rtype: list of ContainerImages.
         """
-        image_request = {
-            "objectType": "containerImage",
-            "query": {
-                "$and": [
-                    {
-                        "field": "brew.build",
-                        "op": "$in",
-                        "values": nvrs
-                    }
-                ]
-            },
-            "projection": self._get_default_projection(
-                include_rpm_manifest=include_rpm_manifest)
-        }
+        if len(nvrs) == 1:
+            images = self.pyxis.find_images_by_nvr(nvrs[0], include_rpms=include_rpm_manifest)
+        else:
+            images = self.pyxis.find_images_by_nvrs(nvrs, include_rpms=include_rpm_manifest)
+        if not images:
+            return []
+
+        # Avoid manipulating the images directly, uses a copy instead.
+        image_dicts = copy.deepcopy(images)
+        del images
+
+        for image in image_dicts:
+            # modify Pyxis image data to simulate the data structure returned from LightBlue
+            image["rpm_manifest"] = [copy.deepcopy(image["edges"]["rpm_manifest"]["data"])]
+            del image["edges"]
 
         if content_sets is not None:
-            image_request["query"]["$and"].append(
-                {
-                    "field": "content_sets.*",
-                    "op": "$in",
-                    "values": content_sets
-                }
-            )
+            # Filter out images that don't have any of the content sets
+            image_dicts = [
+                d for d in image_dicts if not set(content_sets).isdisjoint(set(d["content_sets"]))
+            ]
+
+        def _image_has_rpm(image, rpms):
+            # rpms is a list of rpm names
+            rpm_names = [x["name"] for x in image["rpm_manifest"][0]["rpms"]]
+            # return True if image has any of the rpms installed
+            return not set(rpms).isdisjoint(set(rpm_names))
 
         if rpm_nvrs is not None:
-            # Lightblue cannot compare NVRs, so just ask for all the container
+            # Pyxis cannot compare rpm NVRs, so just ask for all the container
             # images with any version/release of RPM we are interested in and
             # compare it on client side.
             rpm_name_to_nvrs = {}
             for rpm_nvr in rpm_nvrs:
                 name = koji.parse_NVR(rpm_nvr)["name"]
                 rpm_name_to_nvrs.setdefault(name, []).append(rpm_nvr)
-            image_request["query"]["$and"].append(
-                {
-                    "field": "rpm_manifest.*.rpms.*.name",
-                    "op": "$in",
-                    "values": list(rpm_name_to_nvrs.keys())
-                }
-            )
 
-        if published is not None:
-            image_request["query"]["$and"].append(
-                {
-                    "field": "repositories.*.published",
-                    "op": "=",
-                    "rvalue": published
-                })
+            image_dicts = list(
+                filter(lambda x: _image_has_rpm(x, rpm_name_to_nvrs.keys()), image_dicts)
+            )
 
         if rpm_names:
-            image_request["query"]["$and"].append(
-                {
-                    "field": "rpm_manifest.*.rpms.*.name",
-                    "op": "$in",
-                    "values": rpm_names
-                }
-            )
+            image_dicts = list(filter(lambda x: _image_has_rpm(x, rpm_names), image_dicts))
 
-        images = self.find_container_images(image_request)
+        if published is not None:
+            def _image_visibility_is(image, published):
+                # published: boolean value, True or False
+                for repo in image["repositories"]:
+                    if repo["registry"] in conf.image_build_repository_registries:
+                        continue
+                    if repo["published"] is published:
+                        return True
+                return False
+            image_dicts = list(filter(lambda x: _image_visibility_is(x, published), image_dicts))
+
+        images = self._dicts_to_images(image_dicts)
+
         if rpm_nvrs is not None:
             images = self.filter_out_images_with_higher_rpm_nvr(images, rpm_name_to_nvrs)
         return images
 
     def get_images_by_brew_package(self, names):
         """
-        Query Lightblue to get all the images for a specific list of names.
+        Query Pyxis to get all the images for a specific list of names.
         :param names list: list of names we want to find images for.
         :return: list of container images matching the requested names.
         :rtype: list of ContainerImages
         """
-
-        query = {
-            "objectType": "containerImage",
-            "query": {
-                "$and": [
-                    {
-                        "field": "repositories.*.published",
-                        "op": "=",
-                        "rvalue": True
-                    },
-                    {
-                        "$or": [{
-                            "field": "brew.package",
-                            "op": "=",
-                            "rvalue": name,
-                        } for name in names]
-                    }
-                ]
-            },
-            "projection": self._get_default_projection(include_rpm_manifest=False)
-        }
-        return self.find_container_images(query)
+        images = self.pyxis.find_images_by_names(names)
+        return self._dicts_to_images(images)
 
     def find_parent_brew_build_nvr_from_child(self, child_image):
         """
