@@ -391,11 +391,24 @@ class Config(object):
             'default': ("Generally Available", "Tech Preview", "Beta",),
             'desc': 'Release categories',
         },
+        'container_release_categories': {
+            'type': tuple,
+            'default': ("Generally Available", "Tech Preview", "Beta",),
+            'desc': 'Release categories',
+        },
         'pyxis_server_url': {
             'type': str,
             'default': '',
             'desc': 'Server URL of Pyxis.'
         },
+        'pyxis_certificate': {
+            'type': str,
+            'default': '',
+            'desc': 'Path to Pyxis certificate file.'},
+        'pyxis_private_key': {
+            'type': str,
+            'default': '',
+            'desc': 'Path to Pyxis private key file.'},
         'pyxis_index_image_organizations': {
             'type': list,
             'default': [],
