@@ -393,15 +393,15 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
     def test_get_operator_indices_with_unreleased_filtered_out(self, page):
         pp_mock_data = [
             {
-                "url": "http://pp.example.com/api/releases/openshift-4.5/schedule-tasks",
+                "url": "http://pp.example.com/api/releases/openshift-4.5/schedule-tasks/",
                 "json": [{"name": "GA", "date_finish": "2020-02-05"}]
             },
             {
-                "url": "http://pp.example.com/api/releases/openshift-4.6/schedule-tasks",
+                "url": "http://pp.example.com/api/releases/openshift-4.6/schedule-tasks/",
                 "json": [{"name": "GA", "date_finish": "2020-05-23"}]
             },
             {
-                "url": "http://pp.example.com/api/releases/openshift-4.8/schedule-tasks",
+                "url": "http://pp.example.com/api/releases/openshift-4.8/schedule-tasks/",
                 "json": [{"name": "GA", "date_finish": "2021-08-12"}]
             }
         ]
