@@ -496,3 +496,62 @@ class PyxisGQL:
             page_num += 1
 
         return images
+
+    def find_images_by_name_version(self, name, version, published=None, content_sets=None):
+        """
+        Find all the images with published repositories that match the specified name, version, and are filtered by the given content sets.
+
+         all the images for a specific list of names.
+        :param names list: list of names we want to find images for.
+        :return: list of container images matching the requested names.
+        :rtype: list of ContainerImages
+        """
+        images = []
+
+        query_filter = {"and": []}
+        query_filter["and"].append({"brew": {"package": {"eq": name}}})
+        query_filter["and"].append({"brew": {"build": {"regex": f"{name}-{version}-.*"}}})
+
+        if content_sets:
+            query_filter["and"].append({"content_sets": {"in": content_sets}})
+
+        if isinstance(published, bool):
+            repo_matches = [{"published": {"eq": published}}]
+            query_filter["and"].append({"repositories_elemMatch": {"and": repo_matches}})
+
+        ds = self.dsl_schema
+        page_num = 0
+        page_size = 50
+
+        while True:
+            query_dsl = ds.Query.find_images(
+                page=page_num,
+                page_size=page_size,
+                filter=query_filter,
+            ).select(
+                ds.ContainerImagePaginatedResponse.error.select(
+                    ds.ResponseError.status,
+                    ds.ResponseError.detail,
+                ),
+                ds.ContainerImagePaginatedResponse.page,
+                ds.ContainerImagePaginatedResponse.page_size,
+                ds.ContainerImagePaginatedResponse.total,
+                ds.ContainerImagePaginatedResponse.data.select(*self._get_image_projection()),
+            )
+
+            result = self.query(query_dsl)
+            error = result["find_images"]["error"]
+            if error is not None:
+                raise PyxisGQLRequestError(str(error))
+            data = result["find_images"]["data"]
+            # Data is empty when there are no more results
+            if not data:
+                break
+            images.extend(data)
+
+            # If page_size >= total, means all results have been fetched in the first page
+            if result["find_images"]["page_size"] >= result["find_images"]["total"]:
+                break
+            page_num += 1
+
+        return images

@@ -3099,16 +3099,21 @@ def test_filter_out_already_fixed_published_images(mock_dig, mock_gfpi, mock_exi
     )
 
 
+@pytest.mark.usefixtures("pyxis_graphql_schema")
+@patch('freshmaker.pyxis_gql.Client')
 @patch('os.path.exists', return_value=True)
-@patch('freshmaker.lightblue.LightBlue.find_container_images')
-def test_get_fixed_published_image(mock_fci, mock_exists):
-    other_rhel7_image = ContainerImage.create(
-        {
-            "brew": {"build": "rhel-server-container-7.9-188"},
-            "content_sets": ["rhel-7-server-rpms"],
-            "repositories": [{"repository": "repo"}],
-            "rpm_manifest": [
-                {
+@patch('freshmaker.pyxis_gql.PyxisGQL.find_images_by_name_version')
+@patch('freshmaker.pyxis_gql.PyxisGQL.find_images_by_nvr')
+@patch('freshmaker.lightblue.ContainerImage.resolve')
+def test_get_fixed_published_image(resolve, find_images_by_nvr, published_images, mock_exists, gql_client):
+    other_rhel7_image_pyxis = {
+        "brew": {"build": "rhel-server-container-7.9-188"},
+        "content_sets": ["rhel-7-server-rpms"],
+        "repositories": [{"repository": "repo"}],
+        "edges": {
+            "rpm_manifest": {
+                "data": {
+                    "image_id": '57ea8dc69c624c035f96f990',
                     "rpms": [
                         {
                             "name": "bash",
@@ -3119,16 +3124,17 @@ def test_get_fixed_published_image(mock_fci, mock_exists):
                         }
                     ]
                 }
-            ],
+            }
         }
-    )
-    latest_rhel7_image = ContainerImage.create(
-        {
-            "brew": {"build": "rhel-server-container-7.9-189"},
-            "content_sets": ["rhel-7-server-rpms"],
-            "repositories": [{"repository": "repo"}],
-            "rpm_manifest": [
-                {
+    }
+    latest_rhel7_image_pyxis = {
+        "brew": {"build": "rhel-server-container-7.9-189"},
+        "content_sets": ["rhel-7-server-rpms"],
+        "repositories": [{"repository": "repo"}],
+        "edges": {
+            "rpm_manifest": {
+                "data": {
+                    "image_id": '57ea8dc69c624c035f96f990',
                     "rpms": [
                         {
                             "name": "bash",
@@ -3139,13 +3145,12 @@ def test_get_fixed_published_image(mock_fci, mock_exists):
                         }
                     ]
                 }
-            ],
+            }
         }
-    )
-    # Don't have `resolve` reach out over the network
-    other_rhel7_image.resolve = Mock()
-    latest_rhel7_image.resolve = Mock()
-    mock_fci.side_effect = [[other_rhel7_image, latest_rhel7_image], [latest_rhel7_image]]
+    }
+
+    published_images.return_value = [other_rhel7_image_pyxis, latest_rhel7_image_pyxis]
+    find_images_by_nvr.return_value = [latest_rhel7_image_pyxis]
     image = Mock(nvr="rhel-server-container-7.9-185")
     image.get_registry_repositories.return_value = [{"repository": "repo"}]
     image_group = ImageGroup(image, Mock())
@@ -3157,15 +3162,16 @@ def test_get_fixed_published_image(mock_fci, mock_exists):
         "rhel-server-container", "7.9", image_group, rpm_nvrs, content_sets
     )
 
-    assert image == latest_rhel7_image
+    assert image["brew"]["build"] == "rhel-server-container-7.9-189"
 
-    latest_rhel7_image = ContainerImage.create(
-        {
-            "brew": {"build": "rhel-server-container-7.9-189"},
-            "content_sets": ["rhel-7-server-rpms"],
-            "repositories": [{"repository": "repo2"}],
-            "rpm_manifest": [
-                {
+    latest_rhel7_image_pyxis = {
+        "brew": {"build": "rhel-server-container-7.9-189"},
+        "content_sets": ["rhel-7-server-rpms"],
+        "repositories": [{"repository": "repo2"}],
+        "edges": {
+            "rpm_manifest": {
+                "data": {
+                    "image_id": '57ea8dc69c624c035f96f990',
                     "rpms": [
                         {
                             "name": "bash",
@@ -3176,13 +3182,13 @@ def test_get_fixed_published_image(mock_fci, mock_exists):
                         }
                     ]
                 }
-            ],
+            }
         }
-    )
+    }
 
-    latest_rhel7_image.resolve = Mock()
+    published_images.return_value = [other_rhel7_image_pyxis, latest_rhel7_image_pyxis]
+    find_images_by_nvr.return_value = [latest_rhel7_image_pyxis]
 
-    mock_fci.side_effect = [[other_rhel7_image, latest_rhel7_image], [latest_rhel7_image]]
     image_2 = Mock(nvr="rhel-server-container-7.9-185")
     image_2.get_registry_repositories.return_value = [{"repository": "repo"}]
     image_group_2 = ImageGroup(image_2, Mock())
@@ -3190,13 +3196,17 @@ def test_get_fixed_published_image(mock_fci, mock_exists):
         "rhel-server-container", "7.9", image_group_2, rpm_nvrs, content_sets
     )
 
-    assert image_2 == latest_rhel7_image
+    assert image_2["brew"]["build"] == "rhel-server-container-7.9-189"
 
 
+@pytest.mark.usefixtures("pyxis_graphql_schema")
+@patch('freshmaker.pyxis_gql.Client')
 @patch('os.path.exists', return_value=True)
-@patch('freshmaker.lightblue.LightBlue.find_container_images')
-def test_get_fixed_published_image_not_found(mock_fci, mock_exists):
-    mock_fci.return_value = []
+@patch('freshmaker.pyxis_gql.PyxisGQL.find_images_by_name_version')
+@patch('freshmaker.pyxis_gql.PyxisGQL.find_images_by_nvr')
+def test_get_fixed_published_image_not_found(find_images_by_nvr, published_images, mock_exists, gql_client):
+    published_images.return_value = find_images_by_nvr.return_value = []
+
     image_group = "rhel-server-container-7.9-['repo']"
     rpm_nvrs = ["bash-4.2.46-34.el7"]
     content_sets = ["rhel-7-server-rpms"]
@@ -3209,16 +3219,19 @@ def test_get_fixed_published_image_not_found(mock_fci, mock_exists):
     assert image is None
 
 
+@pytest.mark.usefixtures("pyxis_graphql_schema")
+@patch('freshmaker.pyxis_gql.Client')
 @patch('os.path.exists', return_value=True)
-@patch('freshmaker.lightblue.LightBlue.find_container_images')
-def test_get_fixed_published_image_diff_repo(mock_fci, mock_exists):
-    latest_rhel7_image = ContainerImage.create(
-        {
-            "brew": {"build": "rhel-server-container-7.9-189"},
-            "content_sets": ["rhel-7-server-rpms"],
-            "repositories": [{"repository": "other_repo"}],
-            "rpm_manifest": [
-                {
+@patch('freshmaker.pyxis_gql.PyxisGQL.find_images_by_name_version')
+def test_get_fixed_published_image_diff_repo(published_images, mock_exists, gql_client):
+    latest_rhel7_image_pyxis = {
+        "brew": {"build": "rhel-server-container-7.9-189"},
+        "content_sets": ["rhel-7-server-rpms"],
+        "repositories": [{"repository": "other_repo"}],
+        "edges": {
+            "rpm_manifest": {
+                "data": {
+                    "image_id": '57ea8dc69c624c035f96f990',
                     "rpms": [
                         {
                             "name": "bash",
@@ -3229,10 +3242,10 @@ def test_get_fixed_published_image_diff_repo(mock_fci, mock_exists):
                         }
                     ]
                 }
-            ],
+            }
         }
-    )
-    mock_fci.return_value = [latest_rhel7_image]
+    }
+    published_images.return_value = [latest_rhel7_image_pyxis]
     image = Mock(nvr="rhel-server-container-7.9-189")
     image.get_registry_repositories.return_value = [{"repository": "repo"}]
     image_group = ImageGroup(image, Mock())
@@ -3247,17 +3260,33 @@ def test_get_fixed_published_image_diff_repo(mock_fci, mock_exists):
     assert image is None
 
 
+@pytest.mark.usefixtures("pyxis_graphql_schema")
+@patch('freshmaker.pyxis_gql.Client')
 @patch('os.path.exists', return_value=True)
-@patch('freshmaker.lightblue.LightBlue.find_container_images')
-def test_get_fixed_published_image_missing_rpm(mock_fci, mock_exists):
-    latest_rhel7_image = ContainerImage.create(
-        {
-            "brew": {"build": "rhel-server-container-7.9-189"},
-            "content_sets": ["rhel-7-server-rpms"],
-            "repositories": [{"repository": "repo"}],
+@patch('freshmaker.pyxis_gql.PyxisGQL.find_images_by_name_version')
+def test_get_fixed_published_image_missing_rpm(published_images, mock_exists, gql_client):
+    latest_rhel7_image_pyxis = {
+        "brew": {"build": "rhel-server-container-7.9-189"},
+        "content_sets": ["rhel-7-server-rpms"],
+        "repositories": [{"repository": "repo"}],
+        "edges": {
+            "rpm_manifest": {
+                "data": {
+                    "image_id": '57ea8dc69c624c035f96f990',
+                    "rpms": [
+                        {
+                            "name": "foo",
+                            "nvra": "foo-4.2.-34.el746.x86_64",
+                            "srpm_name": "foo",
+                            "srpm_nevra": "foo-0:4.2.46-34.el7.src",
+                            "version": "4.2.46",
+                        }
+                    ]
+                }
+            }
         }
-    )
-    mock_fci.return_value = [latest_rhel7_image]
+    }
+    published_images.return_value = [latest_rhel7_image_pyxis]
     image = Mock(nvr="rhel-server-container-7.9-189")
     image.get_registry_repositories.return_value = [{"repository": "repo"}]
     image_group = ImageGroup(image, Mock())
@@ -3272,16 +3301,19 @@ def test_get_fixed_published_image_missing_rpm(mock_fci, mock_exists):
     assert image is None
 
 
+@pytest.mark.usefixtures("pyxis_graphql_schema")
+@patch('freshmaker.pyxis_gql.Client')
 @patch('os.path.exists', return_value=True)
-@patch('freshmaker.lightblue.LightBlue.find_container_images')
-def test_get_fixed_published_image_modularity_mismatch(mock_fci, mock_exists):
-    latest_rhel8_image = ContainerImage.create(
-        {
-            "brew": {"build": "rhel-server-container-8.2-189"},
-            "content_sets": ["rhel-7-server-rpms"],
-            "repositories": [{"repository": "repo"}],
-            "rpm_manifest": [
-                {
+@patch('freshmaker.pyxis_gql.PyxisGQL.find_images_by_name_version')
+def test_get_fixed_published_image_modularity_mismatch(published_images, mock_exists, gql_client):
+    latest_rhel8_image_pyxis = {
+        "brew": {"build": "rhel-server-container-8.2-189"},
+        "content_sets": ["rhel-7-server-rpms"],
+        "repositories": [{"repository": "repo"}],
+        "edges": {
+            "rpm_manifest": {
+                "data": {
+                    "image_id": '57ea8dc69c624c035f96f990',
                     "rpms": [
                         {
                             "name": "bash",
@@ -3292,10 +3324,10 @@ def test_get_fixed_published_image_modularity_mismatch(mock_fci, mock_exists):
                         }
                     ]
                 }
-            ],
+            }
         }
-    )
-    mock_fci.return_value = [latest_rhel8_image]
+    }
+    published_images.return_value = [latest_rhel8_image_pyxis]
     image = Mock(nvr="rhel-server-container-8.2-185")
     image.get_registry_repositories.return_value = [{"repository": "repo"}]
     image_group = ImageGroup(image, Mock())
@@ -3310,16 +3342,19 @@ def test_get_fixed_published_image_modularity_mismatch(mock_fci, mock_exists):
     assert image is None
 
 
+@pytest.mark.usefixtures("pyxis_graphql_schema")
+@patch('freshmaker.pyxis_gql.Client')
 @patch('os.path.exists', return_value=True)
-@patch('freshmaker.lightblue.LightBlue.find_container_images')
-def test_get_fixed_published_image_rpm_too_old(mock_fci, mock_exists):
-    latest_rhel7_image = ContainerImage.create(
-        {
-            "brew": {"build": "rhel-server-container-7.9-189"},
-            "content_sets": ["rhel-7-server-rpms"],
-            "repositories": [{"repository": "repo"}],
-            "rpm_manifest": [
-                {
+@patch('freshmaker.pyxis_gql.PyxisGQL.find_images_by_name_version')
+def test_get_fixed_published_image_rpm_too_old(published_images, mock_exists, gql_client):
+    latest_rhel7_image_pyxis = {
+        "brew": {"build": "rhel-server-container-7.9-189"},
+        "content_sets": ["rhel-7-server-rpms"],
+        "repositories": [{"repository": "repo"}],
+        "edges": {
+            "rpm_manifest": {
+                "data": {
+                    "image_id": '57ea8dc69c624c035f96f990',
                     "rpms": [
                         {
                             "name": "bash",
@@ -3330,10 +3365,10 @@ def test_get_fixed_published_image_rpm_too_old(mock_fci, mock_exists):
                         }
                     ]
                 }
-            ],
+            }
         }
-    )
-    mock_fci.return_value = [latest_rhel7_image]
+    }
+    published_images.return_value = [latest_rhel7_image_pyxis]
     image = Mock(nvr="rhel-server-container-7.9-185")
     image.get_registry_repositories.return_value = [{"repository": "repo"}]
     image_group = ImageGroup(image, Mock())
@@ -3348,16 +3383,20 @@ def test_get_fixed_published_image_rpm_too_old(mock_fci, mock_exists):
     assert image is None
 
 
+@pytest.mark.usefixtures("pyxis_graphql_schema")
+@patch('freshmaker.pyxis_gql.Client')
 @patch('os.path.exists', return_value=True)
-@patch('freshmaker.lightblue.LightBlue.find_container_images')
-def test_get_fixed_published_image_not_found_by_nvr(mock_fci, mock_exists):
-    latest_rhel7_image = ContainerImage.create(
-        {
-            "brew": {"build": "rhel-server-container-7.9-189"},
-            "content_sets": ["rhel-7-server-rpms"],
-            "repositories": [{"repository": "repo"}],
-            "rpm_manifest": [
-                {
+@patch('freshmaker.pyxis_gql.PyxisGQL.find_images_by_name_version')
+@patch('freshmaker.pyxis_gql.PyxisGQL.find_images_by_nvr')
+def test_get_fixed_published_image_not_found_by_nvr(find_images_by_nvr, published_images, mock_exists, gql_client):
+    latest_rhel7_image_pyxis = {
+        "brew": {"build": "rhel-server-container-7.9-189"},
+        "content_sets": ["rhel-7-server-rpms"],
+        "repositories": [{"repository": "repo"}],
+        "edges": {
+            "rpm_manifest": {
+                "data": {
+                    "image_id": '57ea8dc69c624c035f96f990',
                     "rpms": [
                         {
                             "name": "bash",
@@ -3368,12 +3407,11 @@ def test_get_fixed_published_image_not_found_by_nvr(mock_fci, mock_exists):
                         }
                     ]
                 }
-            ],
+            }
         }
-    )
-    # Don't have `resolve` reach out over the network
-    latest_rhel7_image.resolve = Mock()
-    mock_fci.side_effect = [[latest_rhel7_image], []]
+    }
+    published_images.return_value = [latest_rhel7_image_pyxis]
+    find_images_by_nvr.return_value = []
     image = Mock(nvr="rhel-server-container-7.9-185")
     image.get_registry_repositories.return_value = [{"repository": "repo"}]
     image_group = ImageGroup(image, Mock())
