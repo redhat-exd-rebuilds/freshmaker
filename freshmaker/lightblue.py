@@ -1720,6 +1720,24 @@ class LightBlue(object):
             child_image["parent"] = fixed_published_image
             del image_group[not_directly_affected_index:]
 
+    def postprocess_images(self, images, rpm_name_to_nvrs):
+        # Avoid manipulating the images directly, uses a copy instead.
+        image_dicts = copy.deepcopy(images)
+        del images
+
+        for image in image_dicts:
+            # modify Pyxis image data to simulate the data structure returned from LightBlue
+            rpms = [
+                rpm
+                for rpm in copy.deepcopy(image["edges"]["rpm_manifest"]["data"]["rpms"])
+                if rpm["name"] in rpm_name_to_nvrs.keys()
+            ]
+            image["rpm_manifest"] = [{"rpms": rpms}]
+            del image["edges"]
+
+        # convert the dicts to list of ContainerImage
+        return self._dicts_to_images(image_dicts)
+
     @region.cache_on_arguments()
     def get_fixed_published_image(self, name, version, image_group, rpm_nvrs, content_sets):
         """
@@ -1740,64 +1758,15 @@ class LightBlue(object):
         :rtype: ContainerImage or None
         """
         rpm_name_to_nvrs = {kobo.rpmlib.parse_nvr(nvr)["name"]: nvr for nvr in rpm_nvrs}
-        # It is too slow to also filter by the expected RPMs. This is done outside of the lightblue
-        # query instead.
-        request = {
-            "objectType": "containerImage",
-            "query": {
-                "$and": [
-                    {
-                        "field": "brew.package", "op": "=", "rvalue": name
-                    },
-                    {
-                        "field": "brew.build", "regex": f"{name}-{version}-.*"
-                    },
-                    {
-                        "$or": [
-                            {
-                                "field": "content_sets.*",
-                                "op": "=",
-                                "rvalue": content_set
-                            }
-                            for content_set in content_sets
-                        ]
-                    },
-                    {
-                        "field": "repositories.*.published",
-                        "op": "=",
-                        "rvalue": True,
-                    },
-                ]
-            },
-            # Start with a small projection and increase it once a fixed image is found by
-            # querying by the NVR with the default projection
-            "projection": [
-                {"field": "brew.build", "include": True},
-                {
-                    "field": "rpm_manifest.*.rpms",
-                    "include": True,
-                    "match": {
-                        "$or": [
-                            {
-                                "field": "name",
-                                "op": "=",
-                                "rvalue": rpm_name
-                            } for rpm_name in rpm_name_to_nvrs.keys()
-                        ]
-                    },
-                    "project": [
-                        {"field": "nvra", "include": True},
-                        {"field": "name", "include": True},
-                    ]
-                },
-                {"field": "repositories.*.repository", "include": True, "recursive": True},
-                {"field": "content_sets", "include": True, "recursive": True},
-            ]
-        }
-        images = self.find_container_images(request)
+
+        images = self.pyxis.find_images_by_name_version(
+            name, version, content_sets
+        )
         if not images:
             log.error("Could not find an image with the name and version of %s-%s", name, version)
             return
+
+        images = self.postprocess_images(images, rpm_name_to_nvrs)
 
         candidate_images = []
         for image in images:
@@ -1854,21 +1823,16 @@ class LightBlue(object):
             ):
                 fixed_published_image = candidate_image
 
-        # Now that the best fixed published image is determined, get it from lightblue with all the
+        # Now that the best fixed published image is determined, get it from pyxis with all the
         # metadata required by Freshmaker
-        request = {
-            "objectType": "containerImage",
-            "query": {
-                "$and": [{"field": "brew.build", "op": "=", "rvalue": fixed_published_image.nvr}],
-            },
-            "projection": self._get_default_projection(rpm_names=rpm_name_to_nvrs.keys()),
-        }
-        images = self.find_container_images(request)
+        images = self.pyxis.find_images_by_nvr(fixed_published_image.nvr)
         if not images:
             log.error(
                 "The image with the NVR %s was not found in lightblue", fixed_published_image.nvr
             )
             return
+
+        images = self.postprocess_images(images, rpm_name_to_nvrs)
 
         image = images[0]
         image.resolve(self)
