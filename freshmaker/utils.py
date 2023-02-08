@@ -205,7 +205,7 @@ def get_ocp_release_date(ocp_version):
 
     ocp_release = f"openshift-{ocp_version}"
 
-    url = f"{conf.product_pages_api_url.rstrip('/')}/releases/{ocp_release}/schedule-tasks"
+    url = f"{conf.product_pages_api_url.rstrip('/')}/releases/{ocp_release}/schedule-tasks/"
     resp = requests.get(
         url,
         params={"name": "GA", "fields": "name,date_finish"},
