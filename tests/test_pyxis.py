@@ -403,6 +403,10 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
             {
                 "url": "http://pp.example.com/api/releases/openshift-4.8/schedule-tasks/",
                 "json": [{"name": "GA", "date_finish": "2021-08-12"}]
+            },
+            {
+                "url": "http://pp.example.com/api/releases/openshift-4.9/schedule-tasks/",
+                "json": []
             }
         ]
         page.return_value = self.indices + [
@@ -428,6 +432,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
 
         assert len(indices) == 3
         assert "4.8" not in [i["ocp_version"] for i in indices]
+        assert "4.9" not in [i["ocp_version"] for i in indices]
 
     @patch('freshmaker.pyxis.Pyxis._pagination')
     def test_get_bundles_by_related_image_digest(self, page):
