@@ -217,6 +217,11 @@ def get_ocp_release_date(ocp_version):
         return None
     if not resp.ok:
         resp.raise_for_status()
+
+    # A new unpublished version can exist without any GA schedule date
+    if not resp.json():
+        return None
+
     return resp.json()[0]['date_finish']
 
 
