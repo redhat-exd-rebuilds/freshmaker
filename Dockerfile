@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora:35-x86_64
+FROM registry.fedoraproject.org/fedora:35-x86_64
 
 LABEL \
     name="Freshmaker application" \
