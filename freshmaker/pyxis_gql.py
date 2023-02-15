@@ -178,6 +178,7 @@ class PyxisGQL:
             )
 
             result = self.query(query_dsl)
+            print(333333, result)
             error = result["find_repositories"]["error"]
             if error is not None:
                 raise PyxisGQLRequestError(str(error))
@@ -421,6 +422,7 @@ class PyxisGQL:
             )
 
             result = self.query(query_dsl)
+            print(1111111, result)
             error = result["find_images"]["error"]
             if error is not None:
                 raise PyxisGQLRequestError(str(error))
