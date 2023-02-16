@@ -21,37 +21,22 @@
 
 from functools import cached_property
 
-from gql import gql, Client
+from gql import Client, gql
 from gql.dsl import DSLQuery, DSLSchema, dsl_gql
 from gql.transport.requests import RequestsHTTPTransport
+from requests_kerberos import OPTIONAL, HTTPKerberosAuth
 
 
 class PyxisGQLRequestError(RuntimeError):
     pass
 
 
-class RequestsHTTPTransportWithCert(RequestsHTTPTransport):
-    """A modified requests transport to support certificate authentication"""
-
-    def __init__(self, *args, **kwargs):
-        self.cert = kwargs.pop("cert", None)
-        if self.cert is None:
-            raise RuntimeError("Missing required keyword argument: cert")
-        super().__init__(*args, **kwargs)
-
-    def connect(self):
-        super().connect()
-        self.session.cert = self.cert
-
-
 class PyxisGQL:
-    def __init__(self, url, cert):
+    def __init__(self, url):
         """Create authenticated Pyxis GraphQL session"""
-        transport = RequestsHTTPTransportWithCert(
-            url=url,
-            retries=3,
-            cert=cert,
-        )
+        pyxis_krb_auth = HTTPKerberosAuth(mutual_authentication=OPTIONAL, force_preemptive=True)
+        transport = RequestsHTTPTransport(url=url, retries=3, auth=pyxis_krb_auth)
+
         # Fetch the schema from the transport using an introspection query
         self._client = Client(transport=transport, fetch_schema_from_transport=True)
 
