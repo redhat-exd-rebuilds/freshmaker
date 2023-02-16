@@ -66,7 +66,7 @@ def test_pyxis_graphql_find_repositories():
         }
     }
 
-    pyxis_gql = PyxisGQL(url="graphql.pyxis.local", cert=("/path/to/crt", "/path/to/key"))
+    pyxis_gql = PyxisGQL(url="graphql.pyxis.local")
     flexmock(Client).should_receive("execute").and_return(copy.deepcopy(result))
 
     repositories = pyxis_gql.find_repositories()
@@ -99,7 +99,7 @@ def test_pyxis_graphql_get_repository_by_registry_path():
         }
     }
 
-    pyxis_gql = PyxisGQL(url="graphql.pyxis.local", cert=("/path/to/crt", "/path/to/key"))
+    pyxis_gql = PyxisGQL(url="graphql.pyxis.local")
     flexmock(Client).should_receive("execute").and_return(copy.deepcopy(result))
 
     repository = pyxis_gql.get_repository_by_registry_path(
@@ -202,7 +202,7 @@ def test_pyxis_graphql_find_images_by_installed_rpms():
         }
     }
 
-    pyxis_gql = PyxisGQL(url="graphql.pyxis.local", cert=("/path/to/crt", "/path/to/key"))
+    pyxis_gql = PyxisGQL(url="graphql.pyxis.local")
     flexmock(Client).should_receive("execute").and_return(copy.deepcopy(result))
 
     rpm_names = ["foo"]
@@ -314,7 +314,7 @@ def test_pyxis_graphql_find_images_by_nvr():
         }
     }
 
-    pyxis_gql = PyxisGQL(url="graphql.pyxis.local", cert=("/path/to/crt", "/path/to/key"))
+    pyxis_gql = PyxisGQL(url="graphql.pyxis.local")
     flexmock(Client).should_receive("execute").and_return(copy.deepcopy(result))
 
     images = pyxis_gql.find_images_by_nvr("foobar-container-v0.13.0-12.1582340001")
@@ -402,7 +402,7 @@ def test_pyxis_graphql_find_images_by_nvrs():
         }
     }
 
-    pyxis_gql = PyxisGQL(url="graphql.pyxis.local", cert=("/path/to/crt", "/path/to/key"))
+    pyxis_gql = PyxisGQL(url="graphql.pyxis.local")
     flexmock(Client).should_receive("execute").and_return(copy.deepcopy(result))
 
     nvrs = ["foobar-container-v0.13.0-12.1582340001"]
@@ -465,9 +465,7 @@ def test_pyxis_graphql_find_images_by_names():
         }
     }
 
-    pyxis_gql = PyxisGQL(
-        url="graphql.pyxis.local", cert=("/path/to/crt", "/path/to/key")
-    )
+    pyxis_gql = PyxisGQL(url="graphql.pyxis.local")
     flexmock(Client).should_receive("execute").and_return(copy.deepcopy(result))
 
     images = pyxis_gql.find_images_by_names(["foobar-container"])
