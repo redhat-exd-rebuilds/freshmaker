@@ -14,3 +14,5 @@ freshmaker.db
 .mypy_cache/
 .dmypy.json
 dmypy.json
+# pyenv/virtualenv
+.python-version
