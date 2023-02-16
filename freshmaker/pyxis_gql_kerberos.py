@@ -11,14 +11,18 @@
 # [x] write a makefile, install tools, lint and check the code
 # [x] commit the prototype file i made so far
 
-# [ ] make this into a class, and replicate the functionality in pyxis_gql.py (backup old file just in case)
+# [x] make a backup file of pyxis_gql.py
+# [x] insert the kerberos functionality in pyxis_gql.py ()
 # - seems like requests-kerberos has this class that attaches kerberos/gssapi auth to a given request:
 #   https://github.com/requests/requests-kerberos/blob/master/requests_kerberos/kerberos_.py#L165
+# [ ] make type hints?
 
 # [ ] test that all queries are working fine in local pyxis
 # [ ] test that all queries are working fine in remote pyxis
 # [ ] run unit tests and rewrite whatever needs correction
 # [ ] remove backup of old pyxis_gql.py
+# [ ] format and lint
+# [ ] commit
 
 # [ ] later: check if not verifying ssl certificates is ok
 # [ ] later: check if not making mutual authentication is ok
