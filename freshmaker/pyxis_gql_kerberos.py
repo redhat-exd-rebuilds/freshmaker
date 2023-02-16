@@ -15,7 +15,6 @@
 # [x] insert the kerberos functionality in pyxis_gql.py ()
 # - seems like requests-kerberos has this class that attaches kerberos/gssapi auth to a given request:
 #   https://github.com/requests/requests-kerberos/blob/master/requests_kerberos/kerberos_.py#L165
-# [ ] make type hints?
 
 # [ ] test that all queries are working fine in local pyxis
 # [ ] test that all queries are working fine in remote pyxis
@@ -23,6 +22,7 @@
 # [ ] remove backup of old pyxis_gql.py
 # [ ] format and lint
 # [ ] commit
+# [ ] make type hints?
 
 # [ ] later: check if not verifying ssl certificates is ok
 # [ ] later: check if not making mutual authentication is ok
@@ -54,6 +54,20 @@ logging.basicConfig()
 logging.getLogger().setLevel(logging.DEBUG)
 
 
+class RequestsHTTPTransportWithCert(RequestsHTTPTransport):
+    """A modified requests transport to support certificate authentication"""
+
+    def __init__(self, *args, **kwargs):
+        self.cert = kwargs.pop("cert", None)
+        if self.cert is None:
+            raise RuntimeError("Missing required keyword argument: cert")
+        super().__init__(*args, **kwargs)
+
+    def connect(self):
+        super().connect()
+        self.session.cert = self.cert
+
+
 def try_request() -> requests.Response:
     pyxis_url = "https://pyxis.engineering.redhat.com/v1/product-listings"
     # pyxis_url="https://pyxis.engineering.redhat.com/v1/ping"
@@ -76,12 +90,13 @@ def try_query() -> dict:
     pyxis_krb_auth = HTTPKerberosAuth(
         mutual_authentication=OPTIONAL, force_preemptive=True
     )
-    pyxis_krb_transport = RequestsHTTPTransport(
+    pyxis_krb_transport = RequestsHTTPTransportWithCert(
         url=pyxis_url,
         retries=3,
         auth=pyxis_krb_auth,
         method="POST",
         verify=False,
+        cert=""
     )
     pyxis_client = Client(
         transport=pyxis_krb_transport, fetch_schema_from_transport=True
