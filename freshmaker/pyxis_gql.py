@@ -21,7 +21,7 @@
 
 from functools import cached_property
 
-from gql import gql, Client
+from gql import Client, gql
 from gql.dsl import DSLQuery, DSLSchema, dsl_gql
 from gql.transport.requests import RequestsHTTPTransport
 from requests_kerberos import OPTIONAL, HTTPKerberosAuth
@@ -50,11 +50,7 @@ class PyxisGQL:
         """Create authenticated Pyxis GraphQL session"""
         pyxis_krb_auth = HTTPKerberosAuth(mutual_authentication=OPTIONAL, force_preemptive=True)
         transport = RequestsHTTPTransportWithCert(
-            url=url,
-            retries=3,
-            cert=cert,
-            auth=pyxis_krb_auth,
-            verify=False
+            url=url, retries=3, cert=cert, auth=pyxis_krb_auth, verify=False
         )
         # Fetch the schema from the transport using an introspection query
         self._client = Client(transport=transport, fetch_schema_from_transport=True)
