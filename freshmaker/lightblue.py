@@ -473,7 +473,6 @@ class ContainerImage(dict):
         """
         Extracts the RPMs from the Container image.
         """
-        #breakpoint()
         if "rpm_manifest" not in self or not self["rpm_manifest"]:
             # Do not filter if we are not sure what RPMs are in the image.
             log.info(("Not filtering out this image because we "
@@ -824,7 +823,6 @@ class LightBlue(object):
         :return: List of ContainerImage instances without the filtered images.
         """
         ret = []
-        #breakpoint()
         for image in images:
             rpms = image.get_rpms()
             if rpms is None:
@@ -986,7 +984,6 @@ class LightBlue(object):
             repositories
         :param bool include_rpm_manifest: whether to include the RPMs in the result.
         """
-        #breakpoint()
         auto_rebuild_tags = set()
         for repo in repositories.values():
             auto_rebuild_tags |= set(repo["auto_rebuild_tags"])
@@ -1001,9 +998,7 @@ class LightBlue(object):
 
         rpm_names = [kobo.rpmlib.parse_nvr(nvr)["name"] for nvr in rpm_nvrs]
         # images = self.pyxis.find_images_by_nvrs(nvrs, include_rpms=include_rpm_manifest)
-        #breakpoint()
         images = self.pyxis.find_images_by_installed_rpms(rpm_name_to_nvrs.keys(), rpm_names, content_sets, repositories, published)
-        #import pdb; pdb.set_trace()
         if not images:
             return []
 

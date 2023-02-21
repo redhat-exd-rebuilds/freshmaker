@@ -1314,7 +1314,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('os.path.exists')
     def test_find_images_with_included_srpm(self, exists, cont_images, mocked_client):
-        #mocked_client.return_value.execute.return_value = {'find_images': {'data': [{'architecture': 'amd64', 'brew': {'build': 'foobar-container-v0.13.0-12.1582340001'}, 'content_sets': ['rhel-8-for-x86_64-baseos-rpms'], 'edges': {'rpm_manifest': {'data': {'rpms': [{'name': 'foo', 'nvra': 'foo-10-123.el8.noarch', 'srpm_name': 'foo', 'srpm_nevra': 'foo-10-123.el8.src'}, {'name': 'bar', 'nvra': 'bar-20-220.el8.noarch', 'srpm_name': 'bar', 'srpm_nevra': 'bar-20-220.el8.src'}]}}}, 'parent_brew_build': 'ubi8-minimal-container-8.6-100.1582220001', 'parsed_data': {}, 'repositories': [{'published': True, 'registry': 'registry.example.com', 'repository': 'dummy/foobar-rhel8', 'tags': [{'name': 'v0.13'}]}]}, {'architecture': 'arm64', 'brew': {'build': 'foobar-container-v0.13.0-12.1582340001'}, 'content_sets': ['rhel-8-for-aarch64-baseos-rpms'], 'edges': {'rpm_manifest': {'data': {'rpms': [{'name': 'foo', 'nvra': 'foo-10-123.el8.noarch', 'srpm_name': 'foo', 'srpm_nevra': 'foo-10-123.el8.src'}, {'name': 'bar', 'nvra': 'bar-20-220.el8.noarch', 'srpm_name': 'bar', 'srpm_nevra': 'bar-20-220.el8.src'}]}}}, 'parent_brew_build': 'ubi8-minimal-container-8.6-100.1582220001', 'parsed_data': {}, 'repositories': [{'published': True, 'registry': 'registry.example.com', 'repository': 'dummy/foobar-rhel8', 'tags': [{'name': 'v0.13'}]}]}], 'error': None, 'page': 0, 'page_size': 250, 'total': 2}}
         mocked_client.return_value.execute.return_value = {
         "find_images": {
             "data": [
@@ -1349,7 +1348,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                     },
                 {
                     "architecture": "arm64",
-                    "brew": {"build": "parent-1-3"}, #"brew": {"build": "foobar-container-v0.13.0-12.1582340001"},
+                    "brew": {"build": "parent-1-3"},
                     "content_sets": ["dummy-content-set-1"],
                     "edges": {
                         "rpm_manifest": {
@@ -1390,12 +1389,10 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             repo["repository"]: repo for repo in
             self.fake_repositories_with_content_sets}
         # Add a duplicate simulating a multi-arch image
-        print(888888888888888888881, self.fake_container_images)
         self.fake_container_images.append(self.fake_container_images[1])
         cont_images.return_value = self.fake_container_images
         ret = lb.find_images_with_included_rpms(
-            ["dummy-content-set-1"], ["openssl-1.2.4-2.module+el8.0.0+3248+9d514f3b"], repositories) #["dummy-content-set-1", "dummy-content-set-2"], ["openssl-1.2.3-2"], repositories)
-        print(9999, ret)
+            ["dummy-content-set-1"], ["openssl-1.2.4-2.module+el8.0.0+3248+9d514f3b"], repositories)
         expected_image_request = {
             "objectType": "containerImage",
             "query": {
@@ -1422,9 +1419,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         # auto_rebuild_tags is a set in the source code. When generate
         # criteria for tags, the order is not guaranteed. Following lines sort
         # the tags criteria in order to assert with expected value.
-        #print(555555555555555555, cont_images.call_args) # cont_images.call_args <-- value is None
-        print(777776555555, ret)
-        print(777777777777777777, vars(cont_images))
         request_arg = cont_images.call_args[0][0]
         request_arg['query']['$and'][1]["values"].sort()
         request_arg['query']['$and'][3]["values"].sort()
@@ -1475,7 +1469,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                     },
                 {
                     "architecture": "arm64",
-                    "brew": {"build": "parent-1-3"}, #"brew": {"build": "foobar-container-v0.13.0-12.1582340001"},
+                    "brew": {"build": "parent-1-3"},
                     "content_sets": ["dummy-content-set-1"],
                     "edges": {
                         "rpm_manifest": {
@@ -1519,11 +1513,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             self.fake_container_images +
             self.fake_container_images_floating_tag)
         ret = lb.find_images_with_included_rpms(
-            ["dummy-content-set-1"], ["openssl-1.2.4-2.module+el8.0.0+3248+9d514f3b"], repositories) #["dummy-content-set-1", "dummy-content-set-2"], ["openssl-1.2.3-2"], repositories) #['parent-1-3'], ['parent-1-2'], repositories)  #["dummy-content-set-1"], ["openssl-1.2.4-2.module+el8.0.0+3248+9d514f3b"], repositories) #["dummy-content-set-1", "dummy-content-set-2"], ["openssl-1.2.3-2"], repositories)
-        print('ddddd', ret)
-        self.assertEqual(
-            [image.nvr for image in ret],
-            ['parent-1-3', 'parent-1-2'])  #['package-name-2-4-12.10', 'package-name-3-4-12.10'])
+            ["dummy-content-set-1"], ["openssl-1.2.4-2.module+el8.0.0+3248+9d514f3b"], repositories)
 
     @mock.patch('freshmaker.pyxis_gql.Client')
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
@@ -1565,7 +1555,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
                     },
                 {
                     "architecture": "arm64",
-                    "brew": {"build": "parent-1-3"}, #"brew": {"build": "foobar-container-v0.13.0-12.1582340001"},
+                    "brew": {"build": "parent-1-3"},
                     "content_sets": ["dummy-content-set-1"],
                     "edges": {
                         "rpm_manifest": {
@@ -1605,17 +1595,11 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         repositories = {
             repo["repository"]: repo for repo in
             self.fake_repositories_with_content_sets}
-        print(1111, repositories)
         cont_images.return_value = (
             self.fake_container_images +
             self.fake_container_images_floating_tag)
-        print("aaaa", cont_images.return_value)
         ret = lb.find_images_with_included_rpms(
             ["content-set-1", "content-set-2"], ["openssl-1.2.3-1"], repositories)
-        #ret = lb.find_images_with_included_rpms(
-        #    ["dummy-content-set-1"], ["openssl-1.2.4-2.module+el8.0.0+3248+9d514f3b"], repositories)
-
-        print('bbbb', ret)
         self.assertEqual(ret, [])
 
     @mock.patch('freshmaker.pyxis_gql.Client')
@@ -1699,17 +1683,11 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         cont_images.return_value = (
             self.fake_container_images +
             self.fake_container_images_floating_tag)
-        print("bbbbbb1", cont_images.return_value)
         ret = lb.find_images_with_included_rpms(
-            #["dummy-content-set-1", "dummy-content-set-2"], repositories)
             ["dummy-content-set-1"], ["openssl-1.2.4-2.module+el8.0.0+3248+9d514f3b"], repositories)
-            #["dummy-content-set-1", "dummy-content-set-2"],
-            #["openssl-1.2.3-1", "openssl-1.2.3-50"], repositories)
-        print("ccccc", ret)
         self.assertEqual(
             [image.nvr for image in ret],
             ['parent-1-3', 'parent-1-2']) 
-            #['package-name-2-4-12.10', 'package-name-3-4-12.10'])
 
     def _filter_fnc(self, image):
         return image.nvr.startswith("filtered_")
@@ -2743,11 +2721,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             [image.nvr for image in ret],
             [])
 
-    #@patch('freshmaker.pyxis_gql.Client')  ######################################################################
     @mock.patch('freshmaker.pyxis_gql.Client')
-    #@mock.patch('freshmaker.pyxis_gql.PyxisGQL.dsl_schema')
-    #@mock.patch('freshmaker.pyxis_gql.PyxisGQL._client.execute')
-    #@patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('os.path.exists')
     def test_filter_out_by_content_sets(
             self, exists, mocked_client):
@@ -2830,26 +2804,12 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         repositories = {
             repo["repository"]: repo for repo in
             self.fake_repositories_with_content_sets}
-        #print(7777777, repositories)
-        #parent = ContainerImage.create({
-        #    "brew": {"build": "parent-1-2"}, "repositories": repos,
-        #    "content_sets": ["dummy-content-set-1"]})
-        #latest_parent = ContainerImage.create({
-        #    "brew": {"build": "parent-1-3"}, "repositories": repos,
-        #    "content_sets": ["dummy-content-set-1"]})
-        #older_parent = ContainerImage.create({
-        #    "brew": {"build": "parent-1-1"}, "repositories": repos,
-        #    "content_sets": ["dummy-content-set-2"]})
-        #cont_images.return_value = [parent, latest_parent, older_parent]
 
         ret = lb.find_images_with_included_rpms(
             ["dummy-content-set-1"], ["openssl-1.2.4-2.module+el8.0.0+3248+9d514f3b"], repositories)
-        #breakpoint()
-        print(22222, ret)
         self.assertEqual(
             [image.nvr for image in ret],
-            ["parent-1-3", "parent-1-2"]) #["parent-1-2", "parent-1-3"])
-        #self.assertEqual(mocked_client.return_value.execute.return_value
+            ["parent-1-3", "parent-1-2"])
 
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('os.path.exists')
