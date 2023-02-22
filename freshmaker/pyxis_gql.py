@@ -31,27 +31,12 @@ class PyxisGQLRequestError(RuntimeError):
     pass
 
 
-class RequestsHTTPTransportWithCert(RequestsHTTPTransport):
-    """A modified requests transport to support certificate authentication"""
-
-    def __init__(self, *args, **kwargs):
-        self.cert = kwargs.pop("cert", None)
-        if self.cert is None:
-            raise RuntimeError("Missing required keyword argument: cert")
-        super().__init__(*args, **kwargs)
-
-    def connect(self):
-        super().connect()
-        self.session.cert = self.cert
-
-
 class PyxisGQL:
-    def __init__(self, url, cert):
+    def __init__(self, url, cert=None):
         """Create authenticated Pyxis GraphQL session"""
         pyxis_krb_auth = HTTPKerberosAuth(mutual_authentication=OPTIONAL, force_preemptive=True)
-        transport = RequestsHTTPTransportWithCert(
-            url=url, retries=3, cert=cert, auth=pyxis_krb_auth, verify=False
-        )
+        transport = RequestsHTTPTransport(url=url, retries=3, auth=pyxis_krb_auth, verify=False)
+
         # Fetch the schema from the transport using an introspection query
         self._client = Client(transport=transport, fetch_schema_from_transport=True)
 
