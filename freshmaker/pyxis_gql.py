@@ -32,7 +32,7 @@ class PyxisGQLRequestError(RuntimeError):
 
 
 class PyxisGQL:
-    def __init__(self, url, cert=None):
+    def __init__(self, url):
         """Create authenticated Pyxis GraphQL session"""
         pyxis_krb_auth = HTTPKerberosAuth(mutual_authentication=OPTIONAL, force_preemptive=True)
         transport = RequestsHTTPTransport(url=url, retries=3, auth=pyxis_krb_auth, verify=False)
