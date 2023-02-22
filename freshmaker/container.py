@@ -23,7 +23,7 @@ import kobo.rpmlib
 import re
 
 from dataclasses import dataclass, field, fields
-from typing import Any, Dict, List, Optional, Union, Tuple
+from typing import Any, Dict, List, Optional
 
 from freshmaker import conf, log
 from freshmaker.kojiservice import KojiService, KojiLookupError
