@@ -814,7 +814,7 @@ def register_api_v1():
                              view_func=view,
                              **val['options'])
 
-    app.register_blueprint(monitor_api)
+    app.register_blueprint(monitor_api, name="monitor_api_v1")
 
 
 def register_api_v2():
@@ -829,7 +829,7 @@ def register_api_v2():
                              view_func=view,
                              **val['options'])
 
-    app.register_blueprint(monitor_api)
+    app.register_blueprint(monitor_api, name="monitor_api_v2")
 
 
 register_api_v1()

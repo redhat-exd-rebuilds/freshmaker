@@ -1,4 +1,4 @@
-FROM registry.fedoraproject.org/fedora:35-x86_64
+FROM registry.fedoraproject.org/fedora:37-x86_64
 
 LABEL \
     name="Freshmaker application" \
@@ -7,7 +7,7 @@ LABEL \
 
 
 # Use Copr repo for python3-rhmsg package
-RUN dnf install -y 'dnf-command(copr)' && dnf copr enable -y mikeb/python-rhmsg
+RUN dnf install -y 'dnf-command(copr)' && dnf copr enable -y qwan/python-rhmsg
 
 COPY yum-packages.txt /tmp/yum-packages.txt
 
@@ -24,7 +24,7 @@ RUN \
     echo '' > requirements.txt && \
     pip3 install . --no-deps
 
-RUN pip install jsonformatter==0.3.1
+RUN pip install jsonformatter==0.3.2 gql[requests]==3.3.0
 
 RUN mkdir /var/log/freshmaker/
 
