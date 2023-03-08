@@ -996,21 +996,22 @@ class LightBlue(object):
             name = koji.parse_NVR(rpm_nvr)["name"]
             rpm_name_to_nvrs.setdefault(name, []).append(rpm_nvr)
 
-        image_request = {
-            "objectType": "containerImage",
-            "query": {},   # set by _set_container_image_filters()
-            "projection": self._get_default_projection(
-                rpm_names=rpm_name_to_nvrs.keys(),
-                include_rpm_manifest=include_rpm_manifest)
-        }
-
-        request = self._set_container_image_filters(
-            image_request, content_sets, list(rpm_name_to_nvrs.keys()),
-            auto_rebuild_tags, published, list(repositories.keys()))
-
-        images = self.find_container_images(request)
+        images = self.pyxis.find_images_by_installed_rpms(rpm_name_to_nvrs, content_sets, repositories, published, auto_rebuild_tags)
         if not images:
-            return images
+            return []
+
+        # Avoid maniuplating the images directly, use a copy instead
+        image_dicts = copy.deepcopy(images)
+        del images
+
+        for image in image_dicts:
+            # modify Pyxis image data to simulate the data structure returned from LightBlue
+            rpms = [rpm for rpm in image["edges"]["rpm_manifest"]["data"]["rpms"] if rpm["name"] in rpm_name_to_nvrs]
+            image["rpm_manifest"] = [{"rpms": rpms}]
+            del image["edges"]
+
+        # convert the dicts to list of ContainerImage
+        images = self._dicts_to_images(image_dicts)
 
         # The image_request returns container images which are in the
         # right repository and are latest in *some* repository. But we need
