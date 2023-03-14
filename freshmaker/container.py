@@ -23,7 +23,7 @@ import kobo.rpmlib
 import re
 
 from dataclasses import dataclass, field, fields
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from freshmaker import conf, log
 from freshmaker.kojiservice import KojiService, KojiLookupError
@@ -322,8 +322,8 @@ class Container:
 
 
 class ContainerAPI:
-    def __init__(self, pyxis_graphql_url: str):
-        self.pyxis = PyxisGQL(url=pyxis_graphql_url)
+    def __init__(self, pyxis_graphql_url: str, cert: Union[str, tuple[str, str]]):
+        self.pyxis = PyxisGQL(url=pyxis_graphql_url, cert=cert)
 
     def find_auto_rebuild_containers_with_older_rpms(
         self,
