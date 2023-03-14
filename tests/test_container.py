@@ -195,7 +195,7 @@ def test_find_auto_rebuild_containers_with_older_rpms():
     rpm_nvrs = ["foo-10-123.el8"]
     content_sets = ["rhel-8-for-x86_64-baseos-rpms", "rhel-8-for-aarch64-baseos-rpms"]
 
-    container_api = ContainerAPI(pyxis_graphql_url="graphql.pyxis.local")
+    container_api = ContainerAPI(pyxis_graphql_url="graphql.pyxis.local", cert="/path/to/cert")
     containers = container_api.find_auto_rebuild_containers_with_older_rpms(
         rpm_nvrs=rpm_nvrs, content_sets=content_sets, published=True
     )
@@ -349,7 +349,7 @@ def test_resolve_image_build_metadata():
     ]
     flexmock(KojiService).should_receive("get_task_request").and_return(task_params)
 
-    pyxis_gql = PyxisGQL(url="graphql.pyxis.local")
+    pyxis_gql = PyxisGQL(url="graphql.pyxis.local", cert="/path/to/cert")
 
     images = pyxis_gql.find_images_by_nvr("foobar-container-v0.13.0-12.1582340001")
     container = Container.load(images[0])
@@ -531,7 +531,7 @@ def test_resolve_image_compose_sources():
     ]
     flexmock(RetryingODCS).should_receive("get_compose").and_return(odcs_composes).one_by_one()
 
-    pyxis_gql = PyxisGQL(url="graphql.pyxis.local")
+    pyxis_gql = PyxisGQL(url="graphql.pyxis.local", cert="/path/to/cert")
 
     images = pyxis_gql.find_images_by_nvr("foobar-container-v0.13.0-12.1582340001")
     container = Container.load(images[0])
@@ -713,7 +713,7 @@ def test_resolve_content_sets():
         odcs_composes
     ).one_by_one()
 
-    pyxis_gql = PyxisGQL(url="graphql.pyxis.local")
+    pyxis_gql = PyxisGQL(url="graphql.pyxis.local", cert="/path/to/cert")
 
     images = pyxis_gql.find_images_by_nvr("foobar-container-v0.13.0-12.1582340001")
     container = Container.load(images[0])
@@ -896,7 +896,7 @@ def test_resolve_published():
         odcs_composes
     ).one_by_one()
 
-    pyxis_gql = PyxisGQL(url="graphql.pyxis.local")
+    pyxis_gql = PyxisGQL(url="graphql.pyxis.local", cert="/path/to/cert")
 
     images = pyxis_gql.find_images_by_nvr("foobar-container-v0.13.0-12.1582340001")
     container = Container.load(images[0])

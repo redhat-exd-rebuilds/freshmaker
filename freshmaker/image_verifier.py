@@ -38,7 +38,13 @@ class ImageVerifier(object):
 
         :param PyxisGQL pyxis: PyxisGQL instance to use to verify images.
         """
-        self.pyxis = pyxis if pyxis else PyxisGQL(url=conf.pyxis_server_url)
+        self.pyxis = (
+            pyxis
+            if pyxis
+            else PyxisGQL(
+                url=conf.pyxis_server_url, cert=(conf.pyxis_certificate, conf.pyxis_private_key)
+            )
+        )
 
     def _verify_repository_data(self, repo):
         """
