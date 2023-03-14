@@ -447,7 +447,10 @@ class PyxisAPI(object):
 
         :param str server_url: Pyxis GraphQL url
         """
-        self.pyxis = PyxisGQL(url=server_url)
+        self.pyxis = PyxisGQL(
+            url=server_url,
+            cert=(conf.pyxis_certificate, conf.pyxis_private_key)
+        )
 
     def _dicts_to_images(self, image_dicts):
         """Convert image dictionaries to list of ContainerImage"""
