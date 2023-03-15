@@ -23,7 +23,7 @@ import kobo.rpmlib
 import re
 
 from dataclasses import dataclass, field, fields
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from freshmaker import conf, log
 from freshmaker.kojiservice import KojiService, KojiLookupError
@@ -43,17 +43,17 @@ class Container:
     nvr: str
 
     parsed_data: dict = field(repr=False, default_factory=dict)
-    repositories: List[Dict[str, Any]] = field(repr=False, default_factory=list)
+    repositories: list[dict[str, Any]] = field(repr=False, default_factory=list)
     parent_brew_build: Optional[str] = field(repr=False, default=None)
     published: Optional[bool] = field(repr=False, default=None)
 
     # Content sets by architechure
-    content_sets_by_arch: Dict[str, List[str]] = field(repr=False, default_factory=dict)
+    content_sets_by_arch: dict[str, list[str]] = field(repr=False, default_factory=dict)
     # Installed rpms without architechure info
-    rpms: Optional[List[Dict[str, Any]]] = field(repr=False, default=None)
+    rpms: Optional[list[dict[str, Any]]] = field(repr=False, default=None)
 
     @classmethod
-    def load(cls, data: Dict[str, Any]):
+    def load(cls, data: dict[str, Any]):
         """Load container data from given image data"""
         container = cls(data["brew"]["build"])
 
@@ -113,7 +113,7 @@ class Container:
         """All supported architectures"""
         return list(self.content_sets_by_arch.keys())
 
-    def add_arch(self, data: Dict[str, Any]) -> None:
+    def add_arch(self, data: dict[str, Any]) -> None:
         """Update container data to add arch specific data for other arches.
 
         :param dict data: data for an arch specific image
@@ -121,10 +121,10 @@ class Container:
         if data["architecture"] not in self.arches:
             self.content_sets_by_arch[data["architecture"]] = data["content_sets"]
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         return {field.name: getattr(self, field.name) for field in fields(self)}
 
-    def has_older_rpms(self, rpm_nvrs: List[str]) -> bool:
+    def has_older_rpms(self, rpm_nvrs: list[str]) -> bool:
         """Check if container has any installed rpms is older than the provided NVRs
 
         :param str rpm_nvrs: List of rpm NVRs
@@ -327,10 +327,10 @@ class ContainerAPI:
 
     def find_auto_rebuild_containers_with_older_rpms(
         self,
-        rpm_nvrs: List[str],
-        content_sets: List[str],
+        rpm_nvrs: list[str],
+        content_sets: list[str],
         published: bool = True,
-        release_categories: Optional[List[str]] = None,
+        release_categories: Optional[list[str]] = None,
     ):
         """Find images which have older NVRs of the provided rpms installed
 
@@ -365,7 +365,7 @@ class ContainerAPI:
             tags=list(auto_rebuild_tags),
         )
 
-        images_by_nvr: Dict[str, List[Dict[str, Any]]] = {}
+        images_by_nvr: dict[str, list[dict[str, Any]]] = {}
         # Filter images to keep images which are only tagged with the auto-rebuild tags
         # in its repository
         for image in images:
