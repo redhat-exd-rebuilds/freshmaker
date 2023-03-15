@@ -22,7 +22,7 @@
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
 import itertools
-from typing import Dict, Any  # noqa
+from typing import Any  # noqa
 
 from freshmaker import conf
 from freshmaker.types import ArtifactType
@@ -32,7 +32,7 @@ from inspect import signature
 
 class BaseEvent(object):
 
-    _parsers = {}  # type: Dict[Any, Any]
+    _parsers = {}  # type: dict[Any, Any]
 
     def __init__(self, msg_id, manual=False, dry_run=False):
         """
