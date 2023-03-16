@@ -611,7 +611,7 @@ class PyxisGQL:
 
         ds = self.dsl_schema
         page_num = 0
-        page_size = 50
+        page_size = PYXIS_PAGE_SIZE
 
         while True:
             query_dsl = ds.Query.find_images(
