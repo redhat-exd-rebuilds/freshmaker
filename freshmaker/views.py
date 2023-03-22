@@ -590,7 +590,7 @@ class AsyncBuildAPI(MethodView):
             Content-Type: application/json
 
             {
-                "dist_git_branch": "master",
+                "dist_git_branch": "main",
                 "container_images": ["foo-1-1"]
             }
 

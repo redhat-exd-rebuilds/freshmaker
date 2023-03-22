@@ -17,12 +17,12 @@ try { // massive try{} catch{} around the entire build for failure notifications
                 // get git commit short SHA, we'll tag image with this SHA value later
                 commitid = sh(returnStdout: true, script: """printf `git rev-parse --short HEAD`""").trim()
 
-                scmVars.GIT_BRANCH_NAME = scmVars.GIT_BRANCH.split('/')[-1]  // origin/master -> master
+                scmVars.GIT_BRANCH_NAME = scmVars.GIT_BRANCH.split('/')[-1]  // origin/main -> main
                 def branch = scmVars.GIT_BRANCH_NAME
-                if ( branch == 'master' ) {
-                    echo 'Building master'
+                if ( branch == 'main' ) {
+                    echo 'Building main'
                     // setting build display name
-                    currentBuild.displayName = 'master'
+                    currentBuild.displayName = 'main'
                 }
             }
             stage('Build Docker container') {
@@ -53,7 +53,7 @@ try { // massive try{} catch{} around the entire build for failure notifications
             }
         }
         node('docker') {
-            if (scmVars.GIT_BRANCH == 'origin/master') {
+            if (scmVars.GIT_BRANCH == 'origin/main') {
                 stage('Tag "latest".') {
                     checkout scm
                     docker.withRegistry(
@@ -93,7 +93,7 @@ try { // massive try{} catch{} around the entire build for failure notifications
     }
 
     def RECIEPENT = scmVars.GIT_AUTHOR_EMAIL
-    if (ownership.job.ownershipEnabled && branch == 'master') {
+    if (ownership.job.ownershipEnabled && branch == 'main') {
         RECIEPENT = ownership.job.primaryOwnerEmail
     }
 

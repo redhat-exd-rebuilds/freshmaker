@@ -55,7 +55,7 @@ Database Migrations
 Migration is similar to `Cachito <https://github.com/release-engineering/cachito>`_.
 Follow the steps below for database data and/or schema migrations:
 
-* Checkout the master branch and ensure no schema changes are present in ``freshmaker/models.py``
+* Checkout the main branch and ensure no schema changes are present in ``freshmaker/models.py``
 
 * Set ``SQLALCHEMY_DATABASE_URI`` to ``sqlite:///*path-to-your-freshmaker.db*`` in used configuration file.
 
