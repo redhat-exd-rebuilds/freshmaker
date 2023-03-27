@@ -41,7 +41,7 @@ defusedxml==0.7.1
     # via -r requirements.in
 dogpile-cache==1.1.3
     # via -r requirements.in
-fedmsg==1.1.2
+fedmsg==1.1.3
     # via -r requirements.in
 flask==2.0.1
     # via
@@ -63,9 +63,9 @@ gql[requests]==3.3.0
     # via -r requirements.in
 graphql-core==3.2.1
     # via gql
-greenlet==1.1.2
+greenlet==2.0.2
     # via sqlalchemy
-gssapi==1.7.3
+gssapi==1.8.2
     # via requests-gssapi
 httplib2==0.20.2
     # via
@@ -165,7 +165,7 @@ python-ldap==3.4.3
     #   pyldap
 pytz==2022.1
     # via moksha-common
-pyzmq==23.0.0
+pyzmq==23.2.1
     # via
     #   fedmsg
     #   moksha-hub
@@ -190,7 +190,7 @@ requests-kerberos==0.12.0
     #   odcs
 requests-toolbelt==0.9.1
     # via gql
-rpm-py-installer==1.1.0
+rpm-py-installer==1.2.0
     # via -r requirements.in
 semver==2.13.0
     # via -r requirements.in
@@ -237,7 +237,7 @@ werkzeug==2.0.1
     # via
     #   -r requirements.in
     #   flask
-yarl==1.7.2
+yarl==1.8.2
     # via gql
 zope-interface==5.4.0
     # via twisted
