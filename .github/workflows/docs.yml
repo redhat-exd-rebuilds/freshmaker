@@ -29,7 +29,7 @@ jobs:
       - name: Build docs
         uses: fedora-python/tox-github-action@master
         with:
-          dnf_install: --repo fedora ${{ steps.packages.outputs.packages }}
+          dnf_install: ${{ steps.packages.outputs.packages }}
           tox_env: docs
 
       - name: Deploy docs
