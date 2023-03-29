@@ -57,6 +57,19 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
         self.builds_signed = self._patch("freshmaker.errata.Errata.builds_signed")
         self.builds_signed.return_value = True
 
+        self._get_release = self._patch("freshmaker.errata.Errata._get_release")
+        self._get_release.return_value = {
+            "data": {
+                "id": 557,
+                "type": "releases",
+                "attributes": {
+                    "name": "release-example",
+                    "description": "For tests",
+                    "type": "Zstream",
+                }
+            }
+        }
+
         self.from_advisory_id = self._patch(
             "freshmaker.errata.ErrataAdvisory.from_advisory_id"
         )
@@ -160,6 +173,32 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
 
     def test_no_event_from_signing_message_for_unsigned(self):
         self.builds_signed.return_value = False
+        self.assertEqual(self.advisory.is_flatpak_module_advisory_ready(), False)
+
+        msg = {
+            "msg_id": "fake-msg-id",
+            "topic": "/topic/VirtualTopic.eng.errata.activity.signing",
+            "msg": {
+                "content_types": ["module"],
+                "errata_status": "QE",
+                "errata_id": 123,
+            },
+        }
+        event = self.consumer.get_abstracted_msg(msg)
+        self.assertEqual(event, None)
+
+    def test_no_event_from_signing_message_for_non_zstream(self):
+        self._get_release.return_value = {
+            "data": {
+                "id": 557,
+                "type": "releases",
+                "attributes": {
+                    "name": "release-example",
+                    "description": "For tests",
+                    "type": "QuarterlyUpdate",
+                },
+            }
+        }
         self.assertEqual(self.advisory.is_flatpak_module_advisory_ready(), False)
 
         msg = {

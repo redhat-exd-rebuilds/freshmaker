@@ -139,7 +139,8 @@ class ErrataAdvisory(object):
                 "-hidden-" in repo_id
                 for repo_id in errata.get_pulp_repository_ids(self.errata_id)
             ) and
-            errata.builds_signed(self.errata_id)
+            errata.builds_signed(self.errata_id) and
+            errata.is_zstream(self.errata_id)
         )
 
 
@@ -479,3 +480,26 @@ class Errata(object):
             for build in builds
             for nvr in build.keys()
         }
+
+    def _get_release(self, errata_id):
+        """
+        Returns release for the specified advisory.
+
+        :param number errata_id: ID of advisory
+
+        :return: a dict for release data
+        :rtype: dict
+        """
+
+        # Get the release ID of this advisory
+        data = self._get_advisory_legacy(errata_id)
+        release_id = data["release"]["id"]
+
+        # Get release with the release ID.
+        release = self._errata_rest_get("releases/%s" % str(release_id))
+
+        return release
+
+    def is_zstream(self, errata_id):
+        release = self._get_release(errata_id)
+        return release["data"]["attributes"]["type"] == "Zstream"
