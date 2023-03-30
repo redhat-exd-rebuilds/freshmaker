@@ -11,7 +11,6 @@
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/doctools.js"></script>
         <script src="_static/sphinx_highlight.js"></script>
@@ -121,7 +120,7 @@ And besides that for testing we are using <em>in-memory</em> database, so whenev
 <p>Migration is similar to <a class="reference external" href="https://github.com/release-engineering/cachito">Cachito</a>.
 Follow the steps below for database data and/or schema migrations:</p>
 <ul>
-<li><p>Checkout the master branch and ensure no schema changes are present in <code class="docutils literal notranslate"><span class="pre">freshmaker/models.py</span></code></p></li>
+<li><p>Checkout the main branch and ensure no schema changes are present in <code class="docutils literal notranslate"><span class="pre">freshmaker/models.py</span></code></p></li>
 <li><p>Set <code class="docutils literal notranslate"><span class="pre">SQLALCHEMY_DATABASE_URI</span></code> to <code class="docutils literal notranslate"><span class="pre">sqlite:///*path-to-your-freshmaker.db*</span></code> in used configuration file.</p></li>
 <li><p>Run <code class="docutils literal notranslate"><span class="pre">./manager</span> <span class="pre">db</span> <span class="pre">upgrade</span></code> which will create an empty database in the root of your Git repository</p>
 <p>called <code class="docutils literal notranslate"><span class="pre">freshmaker.db</span></code> with the current schema applied</p>
