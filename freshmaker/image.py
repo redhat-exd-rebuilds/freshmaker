@@ -361,8 +361,13 @@ class ContainerImage(dict):
     def resolve_published(self, pyxis_api_instance):
         # Get the published version of this image to find out if the image
         # was actually published.
-        images = pyxis_api_instance.get_images_by_nvrs([self.nvr], published=True)
-        if images:
+        images = pyxis_api_instance.find_images_by_nvr(self.nvr)
+        if not images:
+            log.warning("No image %s found in Pyxis.", self.nvr)
+            return
+
+        published = any([r["published"] for img in images for r in img["repositories"]])
+        if published:
             self["published"] = True
         else:
             self["published"] = False
@@ -372,11 +377,7 @@ class ContainerImage(dict):
             # to check for possible unpublished RPMs.
             # We do not want to get the complete manifest for every container
             # image, because it is relatively big, so fetch it only when needed.
-            images = pyxis_api_instance.get_images_by_nvrs([self.nvr])
-            if images:
-                self["rpm_manifest"] = images[0]["rpm_manifest"]
-            else:
-                log.warning("No image %s found in Pyxis.", self.nvr)
+            self["rpm_manifest"] = [{"rpms": images[0]["edges"]["rpm_manifest"]["data"]["rpms"]}]
 
     def resolve(self, pyxis_api_instance, children=None):
         """
@@ -384,6 +385,7 @@ class ContainerImage(dict):
         querying Koji and Pyxis.
         """
         try:
+            log.debug("Resolving image: %s", self.nvr)
             self.resolve_commit()
             self.resolve_compose_sources()
             self.resolve_content_sets(pyxis_api_instance, children)
@@ -447,6 +449,7 @@ class PyxisAPI(object):
 
         :param str server_url: Pyxis GraphQL url
         """
+        self.server_url = server_url
         self.pyxis = PyxisGQL(
             url=server_url,
             cert=(conf.pyxis_certificate, conf.pyxis_private_key)
@@ -751,7 +754,7 @@ class PyxisAPI(object):
 
     def get_images_by_nvrs(self, nvrs, published=True, content_sets=None,
                            rpm_nvrs=None, include_rpm_manifest=True,
-                           rpm_names=None):
+                           rpm_names=None, pyxis_api_instance=None):
         """Query Pyxis and returns containerImages defined by list of
         `nvrs`.
 
@@ -763,13 +766,19 @@ class PyxisAPI(object):
         :param bool include_rpm_manifest: When True, the rpm_manifest is
             included in the returned ContainerImages.
         :param list rpm_names: list of RPM names to look for.
+        :param PyxisGQL pyxis_api_instance: an instance of PyxisGQL
         :return: List of containerImages.
         :rtype: list of ContainerImages.
         """
+        if pyxis_api_instance is None:
+            pyxis_api_instance = self.pyxis
+
         if len(nvrs) == 1:
-            images = self.pyxis.find_images_by_nvr(nvrs[0], include_rpms=include_rpm_manifest)
+            images = pyxis_api_instance.find_images_by_nvr(
+                nvrs[0], include_rpms=include_rpm_manifest
+            )
         else:
-            images = self.pyxis.find_images_by_nvrs(nvrs, include_rpms=include_rpm_manifest)
+            images = pyxis_api_instance.find_images_by_nvrs(nvrs, include_rpms=include_rpm_manifest)
         if not images:
             return []
 
@@ -837,22 +846,26 @@ class PyxisAPI(object):
         images = self.pyxis.find_images_by_names(names)
         return self._dicts_to_images(images)
 
-    def find_parent_brew_build_nvr_from_child(self, child_image):
+    def find_parent_brew_build_nvr_from_child(self, child_image, pyxis_api_instance=None):
         """
         Returns the parent brew build NVR of the input image. If the parent is not found it returns None.
 
         :param ContainerImage child_image: ContainerImage object, image for which we need to find the parent.
+        :param PyxisGQL pyxis_api_instance: an instance of PyxisGQL
 
         :return: parent brew build NVR of the input image.
         :rtype: str
 
         """
+        if pyxis_api_instance is None:
+            pyxis_api_instance = self.pyxis
+
         parent_brew_build = child_image.get("parent_brew_build")
         if parent_brew_build:
             return parent_brew_build
         # We need to resolve the image in here because "parent_image_builds" needs to be there
         # and it gets populated when the image gets resolved.
-        child_image.resolve(self)
+        child_image.resolve(pyxis_api_instance)
 
         # Some images have `parent_image_builds` but are built in a multi-stage way and don't have
         # `parent_build_id`, in this situation FM doesn't try to find the parent image and skip.
@@ -869,7 +882,9 @@ class PyxisAPI(object):
 
         return parent_brew_build
 
-    def find_parent_images_with_package(self, child_image, rpm_name, images=None):
+    def find_parent_images_with_package(
+        self, child_image, rpm_name, images=None, pyxis_api_instance=None
+    ):
         """
         Returns the chain of all parent images of the image which contain the
         package `rpm_name` in their RPM manifest.
@@ -880,16 +895,24 @@ class PyxisAPI(object):
 
         This method is recursive.
         """
+        if pyxis_api_instance is None:
+            pyxis_api_instance = self.pyxis
+
         if not images:
             images = []
         parent_image = None
 
         # We first try to find the parent from the `parent_brew_build` field in Pyxis.
-        parent_brew_build = self.find_parent_brew_build_nvr_from_child(child_image)
+        parent_brew_build = self.find_parent_brew_build_nvr_from_child(
+            child_image, pyxis_api_instance
+        )
         # We've reached the base image, stop recursion
         if not parent_brew_build:
             return images
-        parent_image = self.get_images_by_nvrs([parent_brew_build], rpm_names=[rpm_name], published=None)
+        parent_image = self.get_images_by_nvrs(
+            [parent_brew_build], rpm_names=[rpm_name], published=None,
+            pyxis_api_instance=pyxis_api_instance
+        )
 
         if parent_image:
             # In some cases, an image may not have its content sets defined. To
@@ -897,7 +920,7 @@ class PyxisAPI(object):
             # resolve so their content sets can be used.
             children = images if images else [child_image]
             parent_image = parent_image[0]
-            parent_image.resolve(self, children)
+            parent_image.resolve(pyxis_api_instance, children)
 
         if images:
             if parent_image:
@@ -908,10 +931,12 @@ class PyxisAPI(object):
                 # the package so we know against which image it has been
                 # built.
                 # Let's try first with the "parent_brew_build" field.
-                parent = self.get_images_by_nvrs([parent_brew_build], published=None)
+                parent = self.get_images_by_nvrs(
+                    [parent_brew_build], published=None, pyxis_api_instance=pyxis_api_instance
+                )
                 if parent:
                     parent = parent[0]
-                    parent.resolve(self, images)
+                    parent.resolve(pyxis_api_instance, images)
                 else:
                     err = "Couldn't find parent image %s. Pyxis data is probably incomplete" % (
                         parent_brew_build)
@@ -923,7 +948,9 @@ class PyxisAPI(object):
         if not parent_image:
             return images
         images.append(parent_image)
-        return self.find_parent_images_with_package(parent_image, rpm_name, images)
+        return self.find_parent_images_with_package(
+            parent_image, rpm_name, images, pyxis_api_instance
+        )
 
     def find_images_with_packages_from_content_set(
             self, rpm_nvrs, content_sets, filter_fnc=None, published=True,
@@ -996,7 +1023,11 @@ class PyxisAPI(object):
         def _resolve_image(image):
             # We do not set "children" here in resolve_content_sets call, because
             # published images should have the content_set set.
-            image.resolve(self, None)
+            pyxis_api_instance = PyxisGQL(
+                url=self.server_url,
+                cert=(conf.pyxis_certificate, conf.pyxis_private_key)
+            )
+            image.resolve(pyxis_api_instance, None)
 
             # Mark as latest_released only images which are not Beta or Tech Preview.
             # This is important, because "latest_released" is used in deduplication
@@ -1272,6 +1303,11 @@ class PyxisAPI(object):
             """
             Find out parent images to rebuild, helper called from threadpool.
             """
+            pyxis_api_instance = PyxisGQL(
+                url=self.server_url,
+                cert=(conf.pyxis_certificate, conf.pyxis_private_key)
+            )
+
             rebuild_list = {}  # per binary rpm name rebuild list.
             for rpm_name in rpm_names:
                 for rpm in image["rpm_manifest"][0]["rpms"]:
@@ -1282,16 +1318,22 @@ class PyxisAPI(object):
                     continue
 
                 rebuild_list[rpm_name] = self.find_parent_images_with_package(
-                    image, rpm_name, [])
+                    image, rpm_name, images=[], pyxis_api_instance=pyxis_api_instance
+                )
                 if rebuild_list[rpm_name]:
                     image['parent'] = rebuild_list[rpm_name][0]
                 else:
-                    parent_brew_build = self.find_parent_brew_build_nvr_from_child(image)
+                    parent_brew_build = self.find_parent_brew_build_nvr_from_child(
+                        image, pyxis_api_instance
+                    )
                     if parent_brew_build:
-                        parent = self.get_images_by_nvrs([parent_brew_build], published=None)
+                        parent = self.get_images_by_nvrs(
+                            [parent_brew_build], published=None,
+                            pyxis_api_instance=pyxis_api_instance
+                        )
                         if parent:
                             parent = parent[0]
-                            parent.resolve(self, images)
+                            parent.resolve(pyxis_api_instance, images)
                             image['parent'] = parent
                 rebuild_list[rpm_name].insert(0, image)
             return rebuild_list
