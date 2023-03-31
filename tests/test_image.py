@@ -24,7 +24,7 @@ import copy
 import pytest
 
 from unittest import mock
-from unittest.mock import call, patch, Mock
+from unittest.mock import patch, Mock
 
 import freshmaker
 
@@ -407,16 +407,17 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
                 "brew": {
                     "build": "package-name-1-4-12.10",
                 },
+                "repositories": [
+                    {"published": True}
+                ],
             }
         )
 
         pyxis = Mock()
-        pyxis.get_images_by_nvrs.return_value = [image]
+        pyxis.find_images_by_nvr.return_value = [image]
         image.resolve_published(pyxis)
         self.assertEqual(image["published"], True)
-        pyxis.get_images_by_nvrs.assert_called_once_with(
-            ["package-name-1-4-12.10"], published=True
-        )
+        pyxis.find_images_by_nvr.assert_called_once_with("package-name-1-4-12.10")
 
     def test_resolve_published_unpublished(self):
         image = ContainerImage.create(
@@ -425,21 +426,19 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
                 "brew": {
                     "build": "package-name-1-4-12.10",
                 },
+                "repositories": [
+                    {"published": False}
+                ],
+                "edges": {"rpm_manifest": {"data": {"rpms": [{"name": "foobar"}]}}}
             }
         )
 
         pyxis = Mock()
-        pyxis.get_images_by_nvrs.side_effect = [[], [{"rpm_manifest": "x"}]]
+        pyxis.find_images_by_nvr.return_value = [image]
         image.resolve_published(pyxis)
         self.assertEqual(image["published"], False)
-        pyxis.get_images_by_nvrs.assert_has_calls(
-            [
-                call(["package-name-1-4-12.10"], published=True),
-                call(["package-name-1-4-12.10"]),
-            ]
-        )
-
-        self.assertEqual(image["rpm_manifest"], "x")
+        pyxis.find_images_by_nvr.assert_called_once_with("package-name-1-4-12.10")
+        self.assertEqual(image["rpm_manifest"][0], {"rpms": [{'name': 'foobar'}]})
 
     def test_resolve_published_not_image_in_pyxis(self):
         image = ContainerImage.create(
@@ -452,7 +451,7 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
         )
 
         pyxis = Mock()
-        pyxis.get_images_by_nvrs.return_value = []
+        pyxis.find_images_by_nvr.return_value = []
         image.resolve_published(pyxis)
 
 
