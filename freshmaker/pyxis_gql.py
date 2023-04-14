@@ -19,11 +19,14 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import dogpile.cache
 from functools import cached_property
 
 from gql import Client, gql
 from gql.dsl import DSLQuery, DSLSchema, dsl_gql
 from gql.transport.requests import RequestsHTTPTransport
+
+from freshmaker import conf
 
 PYXIS_PAGE_SIZE = 250
 
@@ -33,6 +36,8 @@ class PyxisGQLRequestError(RuntimeError):
 
 
 class PyxisGQL:
+    region = dogpile.cache.make_region().configure(conf.dogpile_cache_backend)
+
     def __init__(self, url, cert):
         """Create authenticated Pyxis GraphQL session"""
         transport = RequestsHTTPTransport(url=url, cert=cert, retries=3)
@@ -116,6 +121,7 @@ class PyxisGQL:
 
         return projection
 
+    @region.cache_on_arguments()
     def find_repositories(self, published=None, release_categories=None, auto_rebuild_tags=None):
         """Get image repositories
 
@@ -177,6 +183,7 @@ class PyxisGQL:
 
         return repositories
 
+    @region.cache_on_arguments()
     def find_repositories_by_repository_name(self, repository: str) -> list:
         """Get image repositories by repository name
 
@@ -229,6 +236,7 @@ class PyxisGQL:
 
         return repositories
 
+    @region.cache_on_arguments()
     def find_repositories_by_registry_paths(self, registry_paths):
         """Get image repositories by registry paths
 
@@ -288,6 +296,7 @@ class PyxisGQL:
 
         return repositories
 
+    @region.cache_on_arguments()
     def get_repository_by_registry_path(self, registry, repository):
         """Get image repository by registry path
 
@@ -315,6 +324,7 @@ class PyxisGQL:
             raise PyxisGQLRequestError(str(error))
         return result["get_repository_by_registry_path"]["data"]
 
+    @region.cache_on_arguments()
     def find_images_by_nvr(self, nvr: str, include_rpms: bool = True):
         ds = self.dsl_schema
 
@@ -358,6 +368,7 @@ class PyxisGQL:
 
         return images
 
+    @region.cache_on_arguments()
     def find_images_by_nvrs(self, nvrs, include_rpms=True):
         ds = self.dsl_schema
 
@@ -402,6 +413,7 @@ class PyxisGQL:
 
         return images
 
+    @region.cache_on_arguments()
     def find_images_by_installed_rpms(
         self, rpm_names, content_sets=None, repositories=None, published=None, tags=None
     ):
@@ -479,6 +491,7 @@ class PyxisGQL:
 
         return images
 
+    @region.cache_on_arguments()
     def find_images_by_names(self, names):
         """Find all the images for a specific list of names.
 
@@ -532,6 +545,7 @@ class PyxisGQL:
 
         return images
 
+    @region.cache_on_arguments()
     def find_images_by_repository(self, repository: str, auto_rebuild_tags: list[str] = None) -> list:
         """Find images which have the provided repository name and auto_rebuild_tags
         :param string repository: repository name to filter by
@@ -587,6 +601,7 @@ class PyxisGQL:
 
         return images
 
+    @region.cache_on_arguments()
     def find_images_by_name_version(self, name, version, published=None, content_sets=None):
         """
         Find all the images with published repositories that match the specified name, version, and are filtered by the given content sets.
