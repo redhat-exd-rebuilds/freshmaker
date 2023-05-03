@@ -30,4 +30,4 @@ python-json-logger
 jsonformatter
 # requires werkzeug.security.safe_str_cmp which is removed in v2.1.0
 Werkzeug<2.1
-gql[requests]
+gql[requests, aiohttp]

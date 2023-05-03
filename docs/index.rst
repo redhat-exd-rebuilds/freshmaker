@@ -21,5 +21,6 @@ available that address those CVEs.
    configuration
    messaging_api
    db
+   pyxis_gql_async
 
 .. _Freshmaker: https://github.com/redhat-exd-rebuilds/freshmaker
