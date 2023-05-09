@@ -81,4 +81,4 @@ html_static_path = []
 htmlhelp_basename = 'Freshmakerdoc'
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/3/': 'python-intersphinx.inv'}
+intersphinx_mapping = {'python': ('https://docs.python.org/3/', 'python-intersphinx.inv')}
