@@ -307,8 +307,23 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             if not (csv_name and version):
                 log.error("CSV data is missing for bundle %s, skip it.", bundle_nvr)
                 continue
+
+            substitutes_for = None
+            if olm_substitutes:
+                substitutes_for = csv_name
+            else:
+                # olm_substitutes is not enabled, but if original image has `olm.substitutesFor`
+                # annotation, it should be kept in rebuild.
+                # When the original image was built by Freshmaker, the `olm.substitutesFor`
+                # could be added by Freshmaker via `operator_csv_modifications_url` in build
+                # task parameters, it's not in image dist-git repo, if Freshmaker doesn't add
+                # the `olm.substitutesFor` annotation in rebuild explicitly, the annotation
+                # will be lost in rebuild.
+                csv_data = self._get_bundle_csv(bundle_nvr)
+                substitutes_for = csv_data["metadata"]["annotations"].get("olm.substitutesFor")
+
             bundle_data.update(
-                self._get_csv_updates(csv_name, version, olm_substitutes=olm_substitutes)
+                self._get_csv_updates(csv_name, version, substitutes_for)
             )
             bundles_to_rebuild.append(bundle_data)
         if not bundles_to_rebuild:
@@ -368,8 +383,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             log.debug(
                 "Can't find bundle data of %s in Pyxis, trying to find that in brew.", bundle_nvr
             )
-            koji_api = KojiService(conf.koji_profile)
-            csv_data = koji_api.get_bundle_csv(bundle_nvr)
+            csv_data = self._get_bundle_csv(bundle_nvr)
             # this should not happen
             if not csv_data:
                 log.error("Bundle data of %s is not available in brew.", bundle_nvr)
@@ -378,14 +392,26 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                 version = csv_data["spec"]["version"]
         return (csv_name, version)
 
+    @staticmethod
+    def _get_bundle_csv(bundle_nvr):
+        """
+        Get bundle image's CSV data from Koji/Brew
+
+        :param str bundle_nvr: NVR of bundle image
+        :return: bundle CSV data
+        :rtype: dict
+        """
+        koji_api = KojiService(conf.koji_profile)
+        return koji_api.get_bundle_csv(bundle_nvr)
+
     @classmethod
-    def _get_csv_updates(cls, csv_name, version, olm_substitutes=True):
+    def _get_csv_updates(cls, csv_name, version, substitutes_for=None):
         """
         Determine the CSV updates required for the bundle image.
 
         :param str csv_name: the name field in the bundle's ClusterServiceVersion file
         :param str version: the version of the bundle image being rebuilt
-        :param bool olm_substitutes: add `olm.substitutesFor` annotation if True
+        :param str substitutes_for: value to add as `olm.substitutesFor` annotation
         :return: a dictionary of the CSV updates needed
         :rtype: dict
         """
@@ -403,10 +429,9 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                 "version": new_version,
             },
         }
-        if olm_substitutes:
-            # Declare that this rebuild is a substitute of the bundle being rebuilt
+        if substitutes_for is not None:
             csv_modifications["update"]["metadata"]["annotations"] = {
-                "olm.substitutesFor": csv_name
+                "olm.substitutesFor": substitutes_for
             }
 
         return csv_modifications

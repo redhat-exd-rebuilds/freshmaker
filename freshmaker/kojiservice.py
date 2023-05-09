@@ -367,6 +367,7 @@ class KojiService(object):
         return ocp_versions_range
 
     @freshmaker.utils.retry(wait_on=(requests.Timeout, requests.ConnectionError), logger=log)
+    @region.cache_on_arguments()
     def get_bundle_csv(self, build_nvr):
         """
         Return CSV(cluster service version) data of operator bundle build
