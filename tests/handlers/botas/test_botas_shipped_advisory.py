@@ -1055,7 +1055,7 @@ def test_get_csv_name():
 def test_get_csv_updates(mock_grbv, mock_gcn):
     mock_grbv.return_value = ("1.2.3+0.1608854400.p", "0.1608854400.p")
     mock_gcn.return_value = "amq-streams.1.2.3-0.1608854400.p"
-    rv = HandleBotasAdvisory._get_csv_updates("amq-streams.1.2.3", "1.2.3")
+    rv = HandleBotasAdvisory._get_csv_updates("amq-streams.1.2.3", "1.2.3", "amq-streams.1.2.3")
     assert rv == {
         "update": {
             "metadata": {
@@ -1074,7 +1074,7 @@ def test_get_csv_updates(mock_grbv, mock_gcn):
 def test_get_csv_updates_without_olm_substitutes(mock_grbv, mock_gcn):
     mock_grbv.return_value = ("1.2.3+0.1608854400.p", "0.1608854400.p")
     mock_gcn.return_value = "amq-streams.1.2.3-0.1608854400.p"
-    rv = HandleBotasAdvisory._get_csv_updates("amq-streams.1.2.3", "1.2.3", olm_substitutes=False)
+    rv = HandleBotasAdvisory._get_csv_updates("amq-streams.1.2.3", "1.2.3")
     assert rv == {
         "update": {
             "metadata": {
