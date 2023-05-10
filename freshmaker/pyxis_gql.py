@@ -47,6 +47,12 @@ class PyxisGQL:
 
     @cached_property
     def dsl_schema(self):
+        # cached_property can't be cached with dogpile.cache,
+        # call _get_graphql_schema as a workaround
+        return self._get_graphql_schema()
+
+    @region.cache_on_arguments()
+    def _get_graphql_schema(self):
         query = gql(
             """
                 query {
