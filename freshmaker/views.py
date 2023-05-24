@@ -398,6 +398,19 @@ def _validate_rebuild_request(request):
     if not isinstance(data.get('force', False), bool):
         return json_error(400, 'Bad Request', '"force" must be a boolean.')
 
+    if data.get('bundle_related_image_overrides', False) and not container_images:
+        return json_error(
+            400,
+            'Bad Request',
+            'Manual image overriding allowed only when "container_images" is set explicitly'
+        )
+
+    if (data.get('bundle_related_image_overrides', False) and
+            not isinstance(data.get('bundle_related_image_overrides'), dict)):
+        return json_error(
+            400, 'Bad Request', '"bundle_related_image_overrides" must be a dictionary'
+        )
+
     return None
 
 
