@@ -597,6 +597,225 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         assert bundles_to_rebuild[0] in self.handler._prepare_builds.call_args.args[0]
         assert bundles_to_rebuild[1] in self.handler._prepare_builds.call_args.args[0]
 
+    @patch.object(conf, "handler_build_allowlist", new={
+        "HandleBotasAdvisory": {"image": {"advisory_name": "RHBA-2020"}}
+    })
+    @patch('freshmaker.models.Event.get_artifact_build_from_event_dependencies')
+    def test_handle_bundle_rebuild_manual_nvr_override(self, get_dependent_event_build):
+
+        """ Test handling of MANUALLY triggered bundle rebuild with manual nvr override.
+
+        Bundle 1 images are left alone, bundle 2 images are manually overriden, and there
+        is an override that is introduced manually in the request (#FIXME specify)
+        """
+        # operators mapping
+        nvr_to_digest = {
+            "original_1": "original_1_digest",
+            "some_name-1-12345": "some_name-1-12345_digest",
+            "original_2": "original_2_digest",
+            "some_name_2-2-2": "some_name_2-2-2_digest",
+            "manual_name_2-2-2": "manual_name_2-2-2_digest",
+            "original_3": "original_3_digest",
+            "manual_name_3-3-3": "manual_name_3-3-3_digest",
+        }
+        # related image digest -> bundle
+        bundles_with_related_images = {
+            "original_1_digest": [
+                {
+                    "bundle_path_digest": "bundle_with_related_images_1_digest",
+                    "csv_name": "image.1.2.3",
+                    "version_original": "1.2.3",
+                },
+            ],
+            "original_2_digest": [
+                {
+                    "bundle_path_digest": "bundle_with_related_images_2_digest",
+                    "csv_name": "image.1.2.4",
+                    "version_original": "1.2.4",
+                },
+            ],
+            "original_3_digest": [
+                {
+                    "bundle_path_digest": "bundle_with_related_images_3_digest",
+                    "csv_name": "image.1.2.5",
+                    "version_original": "1.2.5",
+                },
+            ],
+        }
+        image_by_digest = {
+            "bundle_with_related_images_1_digest": {"brew": {"build": "bundle1_nvr-1-1"}},
+            "bundle_with_related_images_2_digest": {"brew": {"build": "bundle2_nvr-1-1"}},
+            "bundle_with_related_images_3_digest": {"brew": {"build": "bundle3_nvr-1-1"}},
+        }
+        image_by_nvr = {
+            "bundle1_nvr-1-1": {"brew": {"build": "bundle1_nvr-1-1"}},
+            "bundle2_nvr-1-1": {"brew": {"build": "bundle2_nvr-1-1"}},
+            "bundle3_nvr-1-1": {"brew": {"build": "bundle3_nvr-1-1"}},
+        }
+        csv_data_by_nvr = {
+            "bundle1_nvr-1-1": ("image.1.2.3", "1.2.3"),
+            "bundle2_nvr-1-1": ("image.1.2.4", "1.2.4"),
+            "bundle3_nvr-1-1": ("image.1.2.5", "1.2.5"),
+        }
+        builds = {
+            "bundle1_nvr-1-1": {
+                "task_id": 1,
+                "extra": {
+                    "image": {
+                        "operator_manifests": {
+                            "related_images": {
+                                "created_by_osbs": True,
+                                "pullspecs": [{
+                                    "new": "registry/repo/operator1@original_1_digest",
+                                    "original": "registry/repo/operator1:v2.2.0",
+                                    "pinned": True,
+                                }]
+                            },
+                        }
+                    }
+                }
+            },
+            "bundle2_nvr-1-1": {
+                "task_id": 2,
+                "extra": {
+                    "image": {
+                        "operator_manifests": {
+                            "related_images": {
+                                "created_by_osbs": True,
+                                "pullspecs": [{
+                                    "new": "registry/repo/operator2@original_2_digest",
+                                    "original": "registry/repo/operator2:v2.2.0",
+                                    "pinned": True,
+                                }]
+                            },
+                        }
+                    }
+                }
+            },
+            "bundle3_nvr-1-1": {
+                "task_id": 3,
+                "extra": {
+                    "image": {
+                        "operator_manifests": {
+                            "related_images": {
+                                "created_by_osbs": True,
+                                "pullspecs": [{
+                                    "new": "registry/repo/operator3@original_3_digest",
+                                    "original": "registry/repo/operator3:v2.2.0",
+                                    "pinned": True,
+                                }]
+                            },
+                        }
+                    }
+                }
+            }
+        }
+
+        event = ManualBundleRebuildEvent(
+            "test_msg_id", self.botas_advisory,
+            container_images=["bundle1_nvr-1-1", "bundle2_nvr-1-1"],
+            requester_metadata_json={
+                "bundle_related_image_overrides": {
+                    "original_2": "manual_name_2-2-2", "original_3": "manual_name_3-3-3"
+                }
+            }
+        )
+        db_event = Event.get_or_create_from_event(db.session, event)
+        self.handler.event = event
+        self.handler._create_original_to_rebuilt_nvrs_map = MagicMock(
+            return_value={
+                "original_1": "some_name-1-12345",
+                "original_2": "some_name_2-2-2",
+            }
+        )
+        self.handler._get_bundle_csv_name_and_version = MagicMock(
+            side_effect=lambda x: csv_data_by_nvr[x]
+        )
+        self.handler._prepare_builds = MagicMock()
+
+        def gmldbn(nvr, must_be_published=True):
+            return nvr_to_digest[nvr]
+        self.pyxis().get_manifest_list_digest_by_nvr.side_effect = gmldbn
+        self.pyxis().get_operator_indices.return_value = []
+        # Doens't matter what this method will return, because we override method
+        # that uses return value
+        self.pyxis().get_latest_bundles.return_value = ["some", "bundles", "info"]
+        # return bundles for original operator images
+        self.pyxis().get_bundles_by_related_image_digest.side_effect = lambda x, y: bundles_with_related_images[x]
+        self.pyxis().get_images_by_digest.side_effect = lambda x: [image_by_digest[x]]
+        self.pyxis().get_images_by_nvr.side_effect = lambda x: [image_by_nvr[x]]
+        self.pyxis().is_bundle.return_value = True
+        self.pyxis().is_hotfix_image.return_value = False
+        # ignore bundle because it was already built in dependent event
+        get_dependent_event_build.return_value = False
+        self.handler.image_has_auto_rebuild_tag = MagicMock(return_value=True)
+        get_build = self.patcher.patch("freshmaker.kojiservice.KojiService.get_build")
+        get_build.side_effect = lambda x: builds[x]
+
+        now = datetime(year=2020, month=12, day=25, hour=0, minute=0, second=0)
+        with freezegun.freeze_time(now):
+            self.handler.handle(event)
+
+        self.assertNotEqual(db_event.state, EventState.SKIPPED.value)
+        get_build.assert_has_calls(
+            [call("bundle1_nvr-1-1"), call("bundle2_nvr-1-1")], any_order=True
+        )
+        bundles_to_rebuild = [
+            {
+                "pullspec_replacements": [
+                    {
+                        "new": "registry/repo/operator1@some_name-1-12345_digest",
+                        "original": "registry/repo/operator1:v2.2.0",
+                        "pinned": True,
+                    }
+                ],
+                "nvr": "bundle1_nvr-1-1",
+                "update": {
+                    "metadata": {
+                        "name": "image.1.2.3-0.1608854400.p",
+                        "annotations": {"olm.substitutesFor": "image.1.2.3"},
+                    },
+                    "spec": {"version": "1.2.3+0.1608854400.p"},
+                },
+            },
+            {
+                "pullspec_replacements": [
+                    {
+                        "new": "registry/repo/operator2@manual_name_2-2-2_digest",
+                        "original": "registry/repo/operator2:v2.2.0",
+                        "pinned": True,
+                    }
+                ],
+                "nvr": "bundle2_nvr-1-1",
+                "update": {
+                    "metadata": {
+                        "name": "image.1.2.4-0.1608854400.p",
+                        "annotations": {"olm.substitutesFor": "image.1.2.4"},
+                    },
+                    "spec": {"version": "1.2.4+0.1608854400.p"},
+                },
+            },
+            {
+                "pullspec_replacements": [
+                    {
+                        "new": "registry/repo/operator3@manual_name_3-3-3_digest",
+                        "original": "registry/repo/operator3:v2.2.0",
+                        "pinned": True,
+                    }
+                ],
+                "nvr": "bundle3_nvr-1-1",
+                "update": {
+                    "metadata": {
+                        "name": "image.1.2.5-0.1608854400.p",
+                        "annotations": {"olm.substitutesFor": "image.1.2.5"},
+                    },
+                    "spec": {"version": "1.2.5+0.1608854400.p"},
+                },
+            }
+        ]
+        assert bundles_to_rebuild[0] in self.handler._prepare_builds.call_args.args[0]
+        assert bundles_to_rebuild[1] in self.handler._prepare_builds.call_args.args[0]
+
     @patch.object(conf, "dry_run", new=True)
     @patch.object(conf, "handler_build_allowlist", new={
         "HandleBotasAdvisory": {

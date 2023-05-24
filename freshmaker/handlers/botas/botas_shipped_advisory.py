@@ -143,12 +143,24 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         log.debug("Getting NVR mapping of original images to rebuilt images")
         nvrs_mapping = self._create_original_to_rebuilt_nvrs_map()
 
+        # Apply manual NVR remapping, if the user requested it. All the requested overrides are
+        # kept, and nvrs_mapping is incremented with new mappings if they are requested but were
+        # not present previously. E.g., if nvr_mapping={or_nvr1:new_nvr1, or_nvr2:new_nvr2} and
+        # manual_remapping = {or_nvr2:man_nvr2, or_nvr3:man_nvr3}, then after the manual remapping
+        # nvr_mapping={or_nvr1:new_nvr1, or_nvr2:man_nvr2, or_nvr3:man_nvr3}.
+        if (self.event.get("requester_metadata_json", False) and
+                self.event.requester_metadata_json.get("bundle_related_image_overrides", False)):
+            log.info("Performing manual NVR remapping")
+            manual_remapping = self.event.requester_metadata_json["bundle_related_image_overrides"]
+            for x in manual_remapping:
+                nvrs_mapping[x] = manual_remapping[x]
+
         original_nvrs = nvrs_mapping.keys()
         if not original_nvrs:
             return None, "Can't find any published original builds for images in advisory."
 
         log.info(
-            "Orignial NVRs of build in advisory %s are: %s",
+            "Original NVRs of build in advisory %s are: %s",
             self.event.advisory.errata_id,
             " ".join(original_nvrs),
         )
