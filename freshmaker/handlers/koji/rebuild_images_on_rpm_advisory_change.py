@@ -405,9 +405,9 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
         # up eventually when advisories are shipped.
         pulp_repo_ids = list(set(errata.get_pulp_repository_ids(errata_id)))
 
-        pulp = Pulp(server_url=conf.pulp_server_url,
-                    username=conf.pulp_username,
-                    password=conf.pulp_password)
+        pulp = Pulp(
+            server_url=conf.pulp_server_url, cert=(conf.pulp_crt_path, conf.pulp_key_path)
+        )
         content_sets = pulp.get_content_set_by_repo_ids(pulp_repo_ids)
         # Some container builds declare Pulp repos directly instead of content
         # sets, but they are stored in the same location as content sets so they

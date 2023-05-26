@@ -295,14 +295,14 @@ class Config(object):
             'type': str,
             'default': '',
             'desc': 'Server URL of Pulp.'},
-        'pulp_username': {
+        'pulp_crt_path': {
             'type': str,
             'default': '',
-            'desc': 'Username to login Pulp.'},
-        'pulp_password': {
+            'desc': 'Path to certificate file to authenticate to Pulp.'},
+        'pulp_key_path': {
             'type': str,
             'default': '',
-            'desc': 'Password to login Pulp.'},
+            'desc': 'Path to key file to authenticate to Pulp.'},
         'odcs_server_url': {
             'type': str,
             'default': '',
