@@ -37,8 +37,7 @@ class TestPulp(helpers.FreshmakerTestCase):
     def setUp(self):
         super(TestPulp, self).setUp()
         self.server_url = 'http://localhost/'
-        self.username = 'qa'
-        self.password = 'qa'
+        self.cert = ("path/to/crt", "path/to/key")
 
     @patch('freshmaker.pulp.requests.post')
     def test_query_content_set_by_repo_ids(self, post):
@@ -77,7 +76,7 @@ class TestPulp(helpers.FreshmakerTestCase):
             }
         ]
 
-        pulp = Pulp(self.server_url, username=self.username, password=self.password)
+        pulp = Pulp(self.server_url, cert=self.cert)
         repo_ids = [
             'rhel-7-hpc-node-rpms__7ComputeNode__x86_64',
             'rhel-7-workstation-rpms__7Workstation__x86_64',
@@ -95,7 +94,7 @@ class TestPulp(helpers.FreshmakerTestCase):
                     'fields': ['notes'],
                 }
             }),
-            auth=(self.username, self.password),
+            cert=self.cert,
             timeout=conf.requests_timeout)
 
         self.assertEqual(
@@ -139,7 +138,7 @@ class TestPulp(helpers.FreshmakerTestCase):
             }
         ]
 
-        pulp = Pulp(self.server_url, username=self.username, password=self.password)
+        pulp = Pulp(self.server_url, cert=self.cert)
         repo_ids = [
             'rhel-7-hpc-node-rpms__7ComputeNode__x86_64',
             'rhel-7-workstation-rpms__7Workstation__x86_64',
@@ -157,7 +156,7 @@ class TestPulp(helpers.FreshmakerTestCase):
                     'fields': ['notes'],
                 }
             }),
-            auth=(self.username, self.password),
+            cert=self.cert,
             timeout=conf.requests_timeout)
 
         self.assertEqual(['rhel-7-workstation-rpms', 'rhel-7-desktop-rpms'],
@@ -175,13 +174,13 @@ class TestPulp(helpers.FreshmakerTestCase):
             ]
         }
 
-        pulp = Pulp(self.server_url, username=self.username, password=self.password)
+        pulp = Pulp(self.server_url, cert=self.cert)
         repo_name = pulp.get_docker_repository_name("foo-526")
 
         get.assert_called_once_with(
             '{}pulp/api/v2/repositories/foo-526/'.format(self.server_url),
             params={"distributors": True},
-            auth=(self.username, self.password),
+            cert=self.cert,
             timeout=conf.requests_timeout)
 
         self.assertEqual(repo_name, "scl/foo-526")
@@ -192,8 +191,7 @@ class TestPulp(helpers.FreshmakerTestCase):
         get.side_effect = exceptions.HTTPError("Connection error: get")
         post.side_effect = exceptions.HTTPError("Connection error: post")
 
-        pulp = Pulp(self.server_url, username=self.username,
-                    password=self.password)
+        pulp = Pulp(self.server_url, cert=self.cert)
 
         with self.assertRaises(exceptions.HTTPError):
             pulp.get_docker_repository_name("test")

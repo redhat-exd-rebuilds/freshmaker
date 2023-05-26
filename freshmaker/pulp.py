@@ -22,36 +22,42 @@
 # Written by Chenxiong Qi <cqi@redhat.com>
 
 import json
+
 import requests
 
-from freshmaker.utils import retry
 from freshmaker import conf
+from freshmaker.utils import retry
 
 
 class Pulp(object):
     """Interface to Pulp"""
 
-    def __init__(self, server_url, username, password):
-        self.username = username
-        self.password = password
+    def __init__(self, server_url: str, cert: str | tuple[str, str]):
+        """
+        :param server_url: url of the pulp server
+        :param cert: if string, path to ssl client cert file (.pem); if tuple, ('cert', 'key') path pair
+        """
+        self.cert: str | tuple[str, str] = cert
         self.server_url = server_url
-        self.rest_api_root = '{0}/pulp/api/v2/'.format(self.server_url.rstrip('/'))
+        self.rest_api_root = "{0}/pulp/api/v2/".format(self.server_url.rstrip("/"))
 
     def _rest_post(self, endpoint, post_data):
         r = requests.post(
-            '{0}{1}'.format(self.rest_api_root, endpoint.lstrip('/')),
+            "{0}{1}".format(self.rest_api_root, endpoint.lstrip("/")),
             post_data,
-            auth=(self.username, self.password),
-            timeout=conf.requests_timeout)
+            cert=self.cert,
+            timeout=conf.requests_timeout,
+        )
         r.raise_for_status()
         return r.json()
 
     def _rest_get(self, endpoint, **kwargs):
         r = requests.get(
-            '{0}{1}'.format(self.rest_api_root, endpoint.lstrip('/')),
+            "{0}{1}".format(self.rest_api_root, endpoint.lstrip("/")),
             params=kwargs,
-            auth=(self.username, self.password),
-            timeout=conf.requests_timeout)
+            cert=self.cert,
+            timeout=conf.requests_timeout,
+        )
         r.raise_for_status()
         return r.json()
 
@@ -64,16 +70,15 @@ class Pulp(object):
         :rtype: list
         """
         query_data = {
-            'criteria': {
-                'filters': {
-                    'id': {'$in': repo_ids},
+            "criteria": {
+                "filters": {
+                    "id": {"$in": repo_ids},
                 },
-                'fields': ['notes'],
+                "fields": ["notes"],
             }
         }
-        repos = self._rest_post('repositories/search/', json.dumps(query_data))
-        return [repo['notes']['content_set'] for repo in repos
-                if 'content_set' in repo['notes']]
+        repos = self._rest_post("repositories/search/", json.dumps(query_data))
+        return [repo["notes"]["content_set"] for repo in repos if "content_set" in repo["notes"]]
 
     @retry(wait_on=requests.exceptions.RequestException)
     def get_docker_repository_name(self, cdn_repo):
@@ -84,13 +89,11 @@ class Pulp(object):
         :rtype: str
         :return: Docker repository name.
         """
-        response = self._rest_get(
-            'repositories/%s/' % cdn_repo, distributors=True)
+        response = self._rest_get("repositories/%s/" % cdn_repo, distributors=True)
 
         docker_repository_name = None
-        for distributor in response['distributors']:
-            if distributor['distributor_type_id'] == 'docker_distributor_web':
-                docker_repository_name = \
-                    distributor['config']['repo-registry-id']
+        for distributor in response["distributors"]:
+            if distributor["distributor_type_id"] == "docker_distributor_web":
+                docker_repository_name = distributor["config"]["repo-registry-id"]
                 break
         return docker_repository_name
