@@ -608,14 +608,17 @@ class PyxisGQL:
         return images
 
     @region.cache_on_arguments()
-    def find_images_by_name_version(self, name, version, published=None, content_sets=None):
+    def find_images_by_name_version(self, name, version, published=None, content_sets=None, limit=20):
         """
-        Find all the images with published repositories that match the specified name, version, and are filtered by the given content sets.
+        Find all the images that match the specified name, version, and are filtered by the given content sets.
 
-         all the images for a specific list of names.
-        :param names list: list of names we want to find images for.
-        :return: list of container images matching the requested names.
-        :rtype: list of ContainerImages
+        :param name str: image name
+        :param version str: image version
+        :param published bool: image is published or not
+        :param content_sets list: list of content set names
+        :param limit int: the maximum number of images to be returned
+        :return: list of container images matching the name and version
+        :rtype: list of image data
         """
         images = []
 
@@ -632,12 +635,16 @@ class PyxisGQL:
 
         ds = self.dsl_schema
         page_num = 0
-        page_size = PYXIS_PAGE_SIZE
+        # Pyxis is having an issue of returning images for such query criteria (ISV-3642),
+        # so we use a much smaller page size in this particular query
+        page_size = 20
 
         while True:
             query_dsl = ds.Query.find_images(
                 page=page_num,
                 page_size=page_size,
+                # Sort by image NVR (brew.build), newer image should have higher NVR
+                sort_by=[{"field": "brew.build", "order": "DESC"}],
                 filter=query_filter,
             ).select(
                 ds.ContainerImagePaginatedResponse.error.select(
@@ -660,9 +667,16 @@ class PyxisGQL:
                 break
             images.extend(data)
 
+            if len(images) >= limit:
+                break
+
             # If page_size >= total, means all results have been fetched in the first page
             if result["find_images"]["page_size"] >= result["find_images"]["total"]:
                 break
             page_num += 1
 
-        return images
+        # Note: this can truncate the list with keeping some arches of an image build but
+        # removing other arches, but we don't care about it in our use cases, we just want
+        # the most higher NVR builds, if you're calling this with a much smaller limit
+        # number (e.g.: 1, 2, 3) or for different purpose, you should pay attention to this.
+        return images[:limit]
