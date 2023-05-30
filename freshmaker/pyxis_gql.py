@@ -28,7 +28,7 @@ from gql.transport.requests import RequestsHTTPTransport
 
 from freshmaker import conf
 
-PYXIS_PAGE_SIZE = 250
+PYXIS_PAGE_SIZE = 200
 
 
 class PyxisGQLRequestError(RuntimeError):
