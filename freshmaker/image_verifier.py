@@ -21,9 +21,11 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
+from mypy_extensions import TypedDict
+from typing import Optional
+
 from freshmaker import conf
 from freshmaker.pyxis_gql import PyxisGQL
-from mypy_extensions import TypedDict
 
 
 class DataElements(TypedDict):
@@ -32,7 +34,7 @@ class DataElements(TypedDict):
 
 
 class ImageVerifier(object):
-    def __init__(self, pyxis: PyxisGQL = None):
+    def __init__(self, pyxis: Optional[PyxisGQL] = None):
         """
         Creates new ImageVerifier. When None, new default PyxisGQL class is created.
 
