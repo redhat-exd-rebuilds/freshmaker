@@ -21,6 +21,7 @@
 
 import dogpile.cache
 from functools import cached_property
+from typing import Optional
 
 from gql import Client, gql
 from gql.dsl import DSLQuery, DSLSchema, dsl_gql
@@ -552,7 +553,9 @@ class PyxisGQL:
         return images
 
     @region.cache_on_arguments()
-    def find_images_by_repository(self, repository: str, auto_rebuild_tags: list[str] = None) -> list:
+    def find_images_by_repository(
+        self, repository: str, auto_rebuild_tags: Optional[list[str]] = None
+    ) -> list:
         """Find images which have the provided repository name and auto_rebuild_tags
         :param string repository: repository name to filter by
         :param list[string] auto_rebuild_tags: repository auto_rebuild_tags to filter by
