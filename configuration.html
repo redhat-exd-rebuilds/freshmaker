@@ -11,6 +11,8 @@
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
+        <script src="_static/jquery.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/doctools.js"></script>
         <script src="_static/sphinx_highlight.js"></script>
@@ -57,6 +59,7 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="messaging_api.html">Messaging API</a></li>
 <li class="toctree-l1"><a class="reference internal" href="db.html">Freshmaker database</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pyxis_gql_async.html">Async Pyxis GQL Usage</a></li>
 </ul>
 
         </div>
@@ -134,10 +137,6 @@ configuration:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">rebuilt_nvr_release_suffix</span></code> - a suffix to add to the <code class="docutils literal notranslate"><span class="pre">rebuilt_nvr</span></code>
 release in addition to the timestamp. This defaults to an empty string.</p></li>
-<li><p>vcrpy - use this library for recording the Lightblue queries per
-Freshmaker event. The importing of vcrpy and the recording of Lightblue queries is performed if
-the vcrpy configuration variables (<code class="docutils literal notranslate"><span class="pre">vcrpy_path</span></code> and <code class="docutils literal notranslate"><span class="pre">vcrpy_mode</span></code>) are set in
-<code class="docutils literal notranslate"><span class="pre">freshmaker/config.py</span></code></p></li>
 </ul>
 </section>
 </section>

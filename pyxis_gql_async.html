@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Async Pyxis GQL Usage &mdash; Freshmaker  documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="about.html" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Freshmaker database" href="db.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Freshmaker
+          </a>
+              <div class="version">
+                0.1.2
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="about.html">About Freshmaker</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_v1.html">API version 1</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_v2.html">API version 2</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="messaging_api.html">Messaging API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="db.html">Freshmaker database</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Async Pyxis GQL Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#general-remarks-about-asynchronous-code">General remarks about asynchronous code</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#usage-examples">Usage examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#basic-calls">Basic calls</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#scheduling-tasks-and-collecting-results-with-gather">Scheduling tasks and collecting results with <code class="docutils literal notranslate"><span class="pre">gather</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chaining-results">Chaining results</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#usual-structure-of-async-code">Usual structure of async code</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#concrete-example-for-using-pyxisasyncgql">Concrete example for using PyxisAsyncGQL</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#references">References</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Freshmaker</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Async Pyxis GQL Usage</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/pyxis_gql_async.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="async-pyxis-gql-usage">
+<h1>Async Pyxis GQL Usage<a class="headerlink" href="#async-pyxis-gql-usage" title="Permalink to this heading"></a></h1>
+<p>In this page we will give some examples on how to use the asynchronous Pyxis GQL module
+(<code class="docutils literal notranslate"><span class="pre">pyxis_gql_async.py</span></code>).</p>
+<section id="general-remarks-about-asynchronous-code">
+<h2>General remarks about asynchronous code<a class="headerlink" href="#general-remarks-about-asynchronous-code" title="Permalink to this heading"></a></h2>
+<p>To start, let’s take a good analogy from Miguel Grinberg’s 2017 PyCon talk about how asynchronous
+code works:</p>
+<blockquote>
+<div><p>Chess master Judit Polgár hosts a chess exhibition in which she plays multiple amateur players.
+She has two ways of conducting the exhibition: synchronously and asynchronously.</p>
+<dl class="simple">
+<dt>Assumptions:</dt><dd><ul class="simple">
+<li><p>24 opponents</p></li>
+<li><p>Judit makes each chess move in 5 seconds</p></li>
+<li><p>Opponents each take 55 seconds to make a move</p></li>
+<li><p>Games average 30 pair-moves (60 moves total)</p></li>
+</ul>
+</dd>
+</dl>
+<p><em>Synchronous version</em>: Judit plays one game at a time, never two at the same time, until the
+game is complete. Each game takes (55 + 5) * 30 == 1800 seconds, or 30 minutes. The entire
+exhibition takes 24 * 30 == 720 minutes, or 12 hours.</p>
+<p><em>Asynchronous version</em>: Judit moves from table to table, making one move at each table. She
+leaves the table and lets the opponent make their next move during the wait time. One move
+on all 24 games takes Judit 24 * 5 == 120 seconds, or 2 minutes. The entire exhibition is now
+cut down to 120 * 30 == 3600 seconds, or just 1 hour.</p>
+<p>Source: <a class="reference internal" href="#realpython" id="id1"><span>[RealPython]</span></a> and <a class="reference internal" href="#miguelgrinberg" id="id2"><span>[MiguelGrinberg]</span></a></p>
+</div></blockquote>
+<p>Therefore, async code can have a speedup in IO-bound scenarios by “freeing” the execution runtime
+to do other things while a certain function waits for a response. This is different than
+<strong>parallellizing</strong> and <strong>threading</strong>.</p>
+<p>In async code, it is fundamental that the the functions that are being alternated are
+<strong>non-blocking</strong>. Otherwise, the runtime will not be able to alternate between them.</p>
+<p>When calling async functions, we have to create an <strong>async loop</strong>, which contains the
+functions that will be alternated. In the analogy, this is similar to setting up the set of tables
+and boards for the exhibition. The runtime will alternate between the functions in that context,
+and then resume usual synchronous execution.</p>
+<p>Consequently, async functions cannot be run directly, as the usual synchronous python functions
+can. Instead, they need to be <strong>awaited</strong> inside some async loop. Python reserves a few special
+keywords (<code class="docutils literal notranslate"><span class="pre">await</span></code>, <code class="docutils literal notranslate"><span class="pre">async</span> <span class="pre">with</span></code>, <code class="docutils literal notranslate"><span class="pre">async</span> <span class="pre">for</span></code>) to be used only inside asynchronous functions,
+which are created with create <code class="docutils literal notranslate"><span class="pre">async</span> <span class="pre">def</span></code>.</p>
+<p>Finally, if you put only one function inside an async loop, you will make things work as if they
+were synchronous, and therefore you will lose the async speedup. This would be analogous to
+organizing an exhibition with just one board for Polgár – it is a standard match.</p>
+<p>If you have never used asynchronous code in python, references <a class="reference internal" href="#realpython" id="id3"><span>[RealPython]</span></a> and <a class="reference internal" href="#asyncio" id="id4"><span>[AsyncIO]</span></a> are
+good sources.</p>
+</section>
+<section id="usage-examples">
+<h2>Usage examples<a class="headerlink" href="#usage-examples" title="Permalink to this heading"></a></h2>
+<section id="basic-calls">
+<h3>Basic calls<a class="headerlink" href="#basic-calls" title="Permalink to this heading"></a></h3>
+<p>Usually, when we write async code, we will rely on other async libraries that implement lower-level
+functionality. Our code will then have to <code class="docutils literal notranslate"><span class="pre">await</span></code> the async functions of those libraries. For
+example, we could await a <code class="docutils literal notranslate"><span class="pre">get</span></code> request made with <code class="docutils literal notranslate"><span class="pre">aiohttp</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;https://docs.aiohttp.org/en/stable/index.html&quot;</span>
+<span class="k">async</span> <span class="k">with</span> <span class="n">aiohttp</span><span class="o">.</span><span class="n">ClientSession</span><span class="p">()</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+<span class="hll">    <span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+</span></pre></div>
+</div>
+<p>We can than make an async loop with <code class="docutils literal notranslate"><span class="pre">asyncio.run</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">async</span> <span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;https://docs.aiohttp.org/en/stable/index.html&quot;</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">aiohttp</span><span class="o">.</span><span class="n">ClientSession</span><span class="p">()</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">response</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+<span class="hll">    <span class="n">response</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">main</span><span class="p">())</span>
+</span>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">response</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="scheduling-tasks-and-collecting-results-with-gather">
+<h3>Scheduling tasks and collecting results with <code class="docutils literal notranslate"><span class="pre">gather</span></code><a class="headerlink" href="#scheduling-tasks-and-collecting-results-with-gather" title="Permalink to this heading"></a></h3>
+<p>We can shedule a batch of tasks to run “together” (in the async sense) and then gather their results
+with <code class="docutils literal notranslate"><span class="pre">asyncio.create_task</span></code> and <code class="docutils literal notranslate"><span class="pre">asyncio.gather</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">task1</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">async_function1</span><span class="p">(</span><span class="o">...</span><span class="p">))</span>
+<span class="n">task2</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">async_function2</span><span class="p">(</span><span class="o">...</span><span class="p">))</span>
+<span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span><span class="n">task1</span><span class="p">,</span> <span class="n">task2</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This is a simple option for when we just need to collect a set of results, without acting on each
+of them separately.</p>
+<p>If you have a variable number of tasks that need to be gathered, you could use a generator:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="hll"><span class="k">async</span> <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">my_async_generator</span><span class="p">:</span>
+</span>    <span class="n">task</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">process_obj</span><span class="p">(</span><span class="n">obj</span><span class="p">))</span>
+    <span class="n">tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">task</span><span class="p">)</span>
+
+<span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span><span class="o">*</span><span class="n">tasks</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The discussions in <a class="reference internal" href="#asyncfor" id="id5"><span>[AsyncFor]</span></a> are very good to check.</p>
+</section>
+<section id="chaining-results">
+<h3>Chaining results<a class="headerlink" href="#chaining-results" title="Permalink to this heading"></a></h3>
+<p>If, on the other hand, you want to process each result as they become available, you can use
+<code class="docutils literal notranslate"><span class="pre">asyncio.as_completed</span></code>. In this example, there are a few results that we want to ignore, so we
+make a conditional aggregation after awaiting each execution:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">x_values</span> <span class="o">=</span> <span class="p">[</span><span class="o">...</span><span class="p">]</span>
+<span class="n">results_to_skip</span> <span class="o">=</span> <span class="p">[</span><span class="o">...</span><span class="p">]</span>
+<span class="n">collected_results</span> <span class="o">=</span> <span class="p">[]</span>
+
+<span class="hll"><span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">as_completed</span><span class="p">(</span>
+</span>    <span class="p">[</span><span class="n">async_function</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">x_values</span><span class="p">]</span>
+<span class="p">):</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">f</span>
+    <span class="k">if</span> <span class="n">result</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">results_to_skip</span><span class="p">:</span>
+        <span class="n">collected_results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Again, the discussions in <a class="reference internal" href="#asyncfor" id="id6"><span>[AsyncFor]</span></a> are very good to check.</p>
+</section>
+<section id="usual-structure-of-async-code">
+<h3>Usual structure of async code<a class="headerlink" href="#usual-structure-of-async-code" title="Permalink to this heading"></a></h3>
+<p>We will usually have the following elements when we use async code:</p>
+<ul class="simple">
+<li><p>lower level async functions that implement a given task</p></li>
+<li><p>async orchestrators, which create an async loop and aggregates several lower level async functions
+(for example using <code class="docutils literal notranslate"><span class="pre">asyncio.gather</span></code> or <code class="docutils literal notranslate"><span class="pre">async</span> <span class="pre">for</span></code>)</p></li>
+<li><p>a synchronous wrapper function, that calls the async orchestrator and integrates it in the context
+of the synchronous flow (for example with <code class="docutils literal notranslate"><span class="pre">asyncio.run</span></code>)</p></li>
+</ul>
+<p>It might be the case that a given module or package the latter two cases reside in
+externally-calling code. For the asynchronous Pyxis GQL module in Freshmaker
+(<code class="docutils literal notranslate"><span class="pre">pyxis_gql_async.py</span></code>), this is precisely the case: the module itself provides the PyxisAsyncGQL
+class with several async functions; it is up to the other modules that will use it
+to build the async loop and aggregate those functions in them as needed.</p>
+</section>
+<section id="concrete-example-for-using-pyxisasyncgql">
+<h3>Concrete example for using PyxisAsyncGQL<a class="headerlink" href="#concrete-example-for-using-pyxisasyncgql" title="Permalink to this heading"></a></h3>
+<p>In this next example, we will call <code class="docutils literal notranslate"><span class="pre">PyxisAsyncGQL.get_repository_by_path</span></code> several times, each for
+a given path and registry, and aggregate each result conditionally.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">async</span> <span class="k">def</span> <span class="nf">aggregate_paths</span><span class="p">():</span>
+
+    <span class="n">path_registry_vals</span><span class="p">:</span><span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[</span><span class="o">...</span><span class="p">]</span>
+    <span class="n">results_to_skip</span> <span class="o">=</span> <span class="p">[</span><span class="o">...</span><span class="p">]</span>
+    <span class="n">collected_results</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">as_completed</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">PyxisAsyncGQL</span><span class="o">.</span><span class="n">get_repository_by_path</span><span class="p">(</span><span class="o">*</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">path_registry_vals</span><span class="p">]</span>
+    <span class="p">):</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">f</span>
+        <span class="k">if</span> <span class="n">result</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">results_to_skip</span><span class="p">:</span>
+            <span class="n">collected_results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="n">asyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">aggregate_paths</span><span class="p">())</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="references">
+<h2>References<a class="headerlink" href="#references" title="Permalink to this heading"></a></h2>
+<div role="list" class="citation-list">
+<div class="citation" id="realpython" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>RealPython<span class="fn-bracket">]</span></span>
+<span class="backrefs">(<a role="doc-backlink" href="#id1">1</a>,<a role="doc-backlink" href="#id3">2</a>)</span>
+<p><a class="reference external" href="https://realpython.com/async-io-python/">https://realpython.com/async-io-python/</a></p>
+</div>
+<div class="citation" id="miguelgrinberg" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id2">MiguelGrinberg</a><span class="fn-bracket">]</span></span>
+<p><a class="reference external" href="https://youtu.be/iG6fr81xHKA?t=4m29s">https://youtu.be/iG6fr81xHKA?t=4m29s</a></p>
+</div>
+<div class="citation" id="asyncio" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id4">AsyncIO</a><span class="fn-bracket">]</span></span>
+<p><a class="reference external" href="https://docs.python.org/3/library/asyncio-task">https://docs.python.org/3/library/asyncio-task</a>.html#</p>
+</div>
+<div class="citation" id="asyncfor" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>AsyncFor<span class="fn-bracket">]</span></span>
+<span class="backrefs">(<a role="doc-backlink" href="#id5">1</a>,<a role="doc-backlink" href="#id6">2</a>)</span>
+<p><a class="reference external" href="https://stackoverflow.com/questions/56161595/how-to-use-async-for-in-python">https://stackoverflow.com/questions/56161595/how-to-use-async-for-in-python</a></p>
+</div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="db.html" class="btn btn-neutral float-left" title="Freshmaker database" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2020, Red Hat, Inc. and others.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
