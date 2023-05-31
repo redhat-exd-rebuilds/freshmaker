@@ -256,7 +256,7 @@ werkzeug==2.0.1
     # via
     #   -r requirements.in
     #   flask
-yarl==1.7.2
+yarl==1.9.2
     # via
     #   aiohttp
     #   gql
