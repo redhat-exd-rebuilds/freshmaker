@@ -82,7 +82,10 @@ class ViewBaseTest(helpers.ModelsTestCase):
                 if not models.User.find_user_by_name(user):
                     models.User.create_user(username=user)
                     db.session.commit()
-                flask.g.user = models.User.find_user_by_name(user)
+
+                login_user = models.User.find_user_by_name(user)
+                flask.g.user = login_user
+                login_manager._update_request_context_with_user(login_user)
 
                 if groups is not None:
                     if isinstance(groups, list):
@@ -91,14 +94,6 @@ class ViewBaseTest(helpers.ModelsTestCase):
                         flask.g.groups = [groups]
                 else:
                     flask.g.groups = []
-                with self.client.session_transaction() as sess:
-                    # prior to version 0.5, flask_login gets user_id from
-                    # session['user_id'], and then in version 0.5, it's
-                    # changed to get from session['_user_id'], so we set
-                    # both here to make it work for both old and new versions
-                    sess['user_id'] = user
-                    sess['_user_id'] = user
-                    sess['_fresh'] = True
 
                 oidc_scopes = oidc_scopes if oidc_scopes else []
                 oidc_namespace = freshmaker.auth.conf.oidc_base_namespace
@@ -108,6 +103,7 @@ class ViewBaseTest(helpers.ModelsTestCase):
             try:
                 yield
             finally:
+                login_manager._update_request_context_with_user()
                 if patch_auth_backend is not None:
                     patch_auth_backend.stop()
 
