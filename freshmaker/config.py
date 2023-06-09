@@ -398,6 +398,16 @@ class Config(object):
             'default': [],
             'desc': 'Query Pyxis for index images only with these organizations'
         },
+        'pyxis_default_page_size': {
+            'type': int,
+            'default': 200,
+            'desc': 'Default page size to be used in Pyxis requests'
+        },
+        'pyxis_small_page_size': {
+            'type': int,
+            'default': 50,
+            'desc': 'Small page size to be used in Pyxis requests'
+        },
         'product_pages_api_url': {
             'type': str,
             'default': '',

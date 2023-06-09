@@ -29,8 +29,9 @@ from gql.dsl import DSLField, DSLQuery, DSLSchema, dsl_gql
 from gql.transport.aiohttp import AIOHTTPTransport
 from graphql import ExecutionResult
 
+from freshmaker import conf
+
 ASYNCIO_TIMEOUT_S = 5 * 60
-PYXIS_PAGE_SIZE = 250
 
 # TODO implement caching with an async-friendly lib (e.g. https://github.com/aio-libs/aiocache)
 # TODO implement backoffs to handle retries (see backoff module: https://github.com/litl/backoff)
@@ -190,7 +191,7 @@ class PyxisAsyncGQL:
         while True:
             query_dsl = ds.Query.find_repositories(
                 page=page_num,
-                page_size=PYXIS_PAGE_SIZE,
+                page_size=conf.pyxis_default_page_size,
                 filter=query_filter,
             ).select(
                 ds.ContainerRepositoryPaginatedResponse.error.select(
@@ -241,7 +242,7 @@ class PyxisAsyncGQL:
         while True:
             query_dsl = ds.Query.find_repositories(
                 page=page_num,
-                page_size=PYXIS_PAGE_SIZE,
+                page_size=conf.pyxis_default_page_size,
                 filter=query_filter,
             ).select(
                 ds.ContainerRepositoryPaginatedResponse.error.select(
@@ -302,7 +303,7 @@ class PyxisAsyncGQL:
         while True:
             query_dsl = ds.Query.find_repositories(
                 page=page_num,
-                page_size=PYXIS_PAGE_SIZE,
+                page_size=conf.pyxis_default_page_size,
                 filter=query_filter,
             ).select(
                 ds.ContainerRepositoryPaginatedResponse.error.select(
@@ -373,7 +374,7 @@ class PyxisAsyncGQL:
         while True:
             query_dsl = ds.Query.find_images_by_nvr(
                 page=page_num,
-                page_size=PYXIS_PAGE_SIZE,
+                page_size=conf.pyxis_default_page_size,
                 nvr=nvr,
             ).select(
                 ds.ContainerImagePaginatedResponse.error.select(
@@ -419,7 +420,7 @@ class PyxisAsyncGQL:
             query_filter = {"brew": {"build": {"in": nvrs}}}
             query_dsl = ds.Query.find_images(
                 page=page_num,
-                page_size=PYXIS_PAGE_SIZE,
+                page_size=conf.pyxis_default_page_size,
                 filter=query_filter,
             ).select(
                 ds.ContainerImagePaginatedResponse.error.select(
@@ -493,11 +494,14 @@ class PyxisAsyncGQL:
         ds = self.dsl_schema
         page_num = 0
 
+        # This query is resource consuming and Pyxis may not be able to handle it in a time
+        # manner when the page_size is large, use the configured small page size to avoid errors.
+
         # Iterate all pages
         while True:
             query_dsl = ds.Query.find_images(
                 page=page_num,
-                page_size=PYXIS_PAGE_SIZE,
+                page_size=conf.pyxis_small_page_size,
                 filter=query_filter,
             ).select(
                 ds.ContainerImagePaginatedResponse.error.select(
@@ -555,7 +559,7 @@ class PyxisAsyncGQL:
         while True:
             query_dsl = ds.Query.find_images(
                 page=page_num,
-                page_size=PYXIS_PAGE_SIZE,
+                page_size=conf.pyxis_default_page_size,
                 filter=query_filter,
             ).select(
                 ds.ContainerImagePaginatedResponse.error.select(
@@ -616,7 +620,7 @@ class PyxisAsyncGQL:
         while True:
             query_dsl = ds.Query.find_images(
                 page=page_num,
-                page_size=PYXIS_PAGE_SIZE,
+                page_size=conf.pyxis_default_page_size,
                 filter=query_filter,
             ).select(
                 ds.ContainerImagePaginatedResponse.error.select(
@@ -682,7 +686,7 @@ class PyxisAsyncGQL:
 
         ds = self.dsl_schema
         page_num = 0
-        page_size = PYXIS_PAGE_SIZE
+        page_size = conf.pyxis_default_page_size
 
         while True:
             query_dsl = ds.Query.find_images(
