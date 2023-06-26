@@ -77,8 +77,8 @@ class Pyxis(object):
             response_text = response.text
 
         trace_id = None
-        if response.headers.get("trace-id", False):
-            trace_id = response.headers["trace-id"]
+        if response.headers.get("trace_id", False):
+            trace_id = response.headers["trace_id"]
 
         raise PyxisRequestError(response.status_code, response_text, trace_id)
 
