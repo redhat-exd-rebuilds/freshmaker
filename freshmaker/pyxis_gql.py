@@ -19,10 +19,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import dogpile.cache
 from functools import cached_property
 from typing import Optional
 
+import dogpile.cache
 from gql import Client, gql
 from gql.dsl import DSLQuery, DSLSchema, dsl_gql
 from gql.transport.requests import RequestsHTTPTransport
@@ -30,8 +30,19 @@ from gql.transport.requests import RequestsHTTPTransport
 from freshmaker import conf
 
 
-class PyxisGQLRequestError(RuntimeError):
-    pass
+class PyxisGQLRequestError(Exception):
+    """The server returned an error for a specific query"""
+
+    error: str
+    trace_id: Optional[str]
+
+    def __init__(self, error: str | list[str], trace_id: Optional[str] = None):
+        self.error = str(error)
+        self.trace_id = trace_id
+
+        trace_msg = f" trace_id={trace_id}" if trace_id else ""
+        msg = str(error) + str(trace_msg)
+        super().__init__(msg)
 
 
 class PyxisGQL:
@@ -68,7 +79,15 @@ class PyxisGQL:
         :params gql.dsl.DSLField query_dsl: a DSL query
         :return: The result of execution.
         """
-        return self._client.execute(dsl_gql(DSLQuery(query_dsl)))
+        response = self._client.execute(dsl_gql(DSLQuery(query_dsl)))
+
+        response_field_name = query_dsl.name
+        error = response[response_field_name]["error"]
+        if error is not None:
+            trace_id = self._client.transport.response_headers.get("trace_id", False)
+            raise PyxisGQLRequestError(error=error, trace_id=trace_id)
+
+        return response
 
     def _get_repo_projection(self):
         ds = self.dsl_schema
@@ -172,9 +191,6 @@ class PyxisGQL:
             )
 
             result = self.query(query_dsl)
-            error = result["find_repositories"]["error"]
-            if error is not None:
-                raise PyxisGQLRequestError(str(error))
             data = result["find_repositories"]["data"]
             # Data is empty when there are no more results
             if not data:
@@ -225,9 +241,6 @@ class PyxisGQL:
             )
 
             result = self.query(query_dsl)
-            error = result["find_repositories"]["error"]
-            if error is not None:
-                raise PyxisGQLRequestError(str(error))
             data = result["find_repositories"]["data"]
             # Data is empty when there are no more results
             if not data:
@@ -285,9 +298,6 @@ class PyxisGQL:
             )
 
             result = self.query(query_dsl)
-            error = result["find_repositories"]["error"]
-            if error is not None:
-                raise PyxisGQLRequestError(str(error))
             data = result["find_repositories"]["data"]
             # Data is empty when there are no more results
             if not data:
@@ -324,9 +334,6 @@ class PyxisGQL:
         )
 
         result = self.query(query_dsl)
-        error = result["get_repository_by_registry_path"]["error"]
-        if error is not None:
-            raise PyxisGQLRequestError(str(error))
         return result["get_repository_by_registry_path"]["data"]
 
     @region.cache_on_arguments()
@@ -356,9 +363,6 @@ class PyxisGQL:
             )
 
             result = self.query(query_dsl)
-            error = result["find_images_by_nvr"]["error"]
-            if error is not None:
-                raise PyxisGQLRequestError(str(error))
             data = result["find_images_by_nvr"]["data"]
             # Data is empty when there are no more results
             if not data:
@@ -401,9 +405,6 @@ class PyxisGQL:
             )
 
             result = self.query(query_dsl)
-            error = result["find_images"]["error"]
-            if error is not None:
-                raise PyxisGQLRequestError(str(error))
             data = result["find_images"]["data"]
             # Data is empty when there are no more results
             if not data:
@@ -476,9 +477,6 @@ class PyxisGQL:
             )
 
             result = self.query(query_dsl)
-            error = result["find_images"]["error"]
-            if error is not None:
-                raise PyxisGQLRequestError(str(error))
             data = result["find_images"]["data"]
             # Data is empty when there are no more results
             if not data:
@@ -537,9 +535,6 @@ class PyxisGQL:
             )
 
             result = self.query(query_dsl)
-            error = result["find_images"]["error"]
-            if error is not None:
-                raise PyxisGQLRequestError(str(error))
             data = result["find_images"]["data"]
             # Data is empty when there are no more results
             if not data:
@@ -571,7 +566,9 @@ class PyxisGQL:
         query_filter["and"].append({"repositories": {"repository": {"eq": repository}}})
         query_filter["and"].append({"repositories": {"published": {"eq": True}}})
         if auto_rebuild_tags:
-            query_filter["and"].append({"repositories": {"tags": {"name": {"in": auto_rebuild_tags}}}})
+            query_filter["and"].append(
+                {"repositories": {"tags": {"name": {"in": auto_rebuild_tags}}}}
+            )
 
         ds = self.dsl_schema
         page_num = 0
@@ -590,13 +587,12 @@ class PyxisGQL:
                 ds.ContainerImagePaginatedResponse.page,
                 ds.ContainerImagePaginatedResponse.page_size,
                 ds.ContainerImagePaginatedResponse.total,
-                ds.ContainerImagePaginatedResponse.data.select(*self._get_image_projection(include_rpms=False)),
+                ds.ContainerImagePaginatedResponse.data.select(
+                    *self._get_image_projection(include_rpms=False)
+                ),
             )
 
             result = self.query(query_dsl)
-            error = result["find_images"]["error"]
-            if error is not None:
-                raise PyxisGQLRequestError(str(error))
             data = result["find_images"]["data"]
             # Data is empty when there are no more results
             if not data:
@@ -612,7 +608,9 @@ class PyxisGQL:
         return images
 
     @region.cache_on_arguments()
-    def find_images_by_name_version(self, name, version, published=None, content_sets=None, limit=20):
+    def find_images_by_name_version(
+        self, name, version, published=None, content_sets=None, limit=20
+    ):
         """
         Find all the images that match the specified name, version, and are filtered by the given content sets.
 
@@ -662,9 +660,6 @@ class PyxisGQL:
             )
 
             result = self.query(query_dsl)
-            error = result["find_images"]["error"]
-            if error is not None:
-                raise PyxisGQLRequestError(str(error))
             data = result["find_images"]["data"]
             # Data is empty when there are no more results
             if not data:

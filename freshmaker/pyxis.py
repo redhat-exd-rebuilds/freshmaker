@@ -1,10 +1,11 @@
-import dogpile.cache
-import requests
 import urllib
 from datetime import datetime
-from requests_kerberos import HTTPKerberosAuth, OPTIONAL
 
-from freshmaker import log, conf
+import dogpile.cache
+import requests
+from requests_kerberos import OPTIONAL, HTTPKerberosAuth
+
+from freshmaker import conf, log
 from freshmaker.utils import get_ocp_release_date, is_valid_semver
 
 
@@ -13,16 +14,18 @@ class PyxisRequestError(Exception):
     Error return as a response from Pyxis
     """
 
-    def __init__(self, status_code, error_response):
+    def __init__(self, status_code, error_response, trace_id=None):
         """
         Initialize Pyxis request error
 
         :param int status_code: response status code
         :param str or dict error_response: response content returned from Pyxis
+        :param str trace_id: trace identifier related to the error response
         """
 
         self._status_code = status_code
         self._raw = error_response
+        self._trace_id = trace_id
 
     @property
     def raw(self):
@@ -31,6 +34,10 @@ class PyxisRequestError(Exception):
     @property
     def status_code(self):
         return self._status_code
+
+    @property
+    def trace_id(self):
+        return self._trace_id
 
 
 class Pyxis(object):
@@ -70,7 +77,11 @@ class Pyxis(object):
         except ValueError:
             response_text = response.text
 
-        raise PyxisRequestError(response.status_code, response_text)
+        trace_id = None
+        if hasattr(response, "headers") and response.headers.get("trace_id", False):
+            trace_id = response.headers["trace_id"]
+
+        raise PyxisRequestError(response.status_code, response_text, trace_id)
 
     def _get(self, path, params=None):
         """

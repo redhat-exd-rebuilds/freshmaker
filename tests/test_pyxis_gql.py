@@ -22,16 +22,17 @@
 
 import copy
 import os
+from unittest.mock import patch
+
 from flexmock import flexmock
 from gql import Client
 from gql.dsl import DSLSchema
 from graphql import build_ast_schema, parse
 
-from freshmaker.pyxis_gql import PyxisGQL
+from freshmaker.pyxis_gql import PyxisGQL, PyxisGQLRequestError
 
 
 def test_pyxis_graphql_find_repositories():
-
     pyxis_schema_path = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         "fixtures",
@@ -75,7 +76,6 @@ def test_pyxis_graphql_find_repositories():
 
 
 def test_pyxis_graphql_get_repository_by_registry_path():
-
     pyxis_schema_path = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         "fixtures",
@@ -528,5 +528,52 @@ def test_pyxis_graphql_find_images_by_name_version():
     pyxis_gql = PyxisGQL(url="graphql.pyxis.local", cert="/path/to/cert")
     flexmock(Client).should_receive("execute").and_return(copy.deepcopy(result))
 
-    images = pyxis_gql.find_images_by_name_version("foobar-container", "v0.13.0", published=True, content_sets=["rhel-8-for-x86_64-baseos-rpms"])
+    images = pyxis_gql.find_images_by_name_version(
+        "foobar-container",
+        "v0.13.0",
+        published=True,
+        content_sets=["rhel-8-for-x86_64-baseos-rpms"],
+    )
     assert images == result["find_images"]["data"]
+
+
+@patch("freshmaker.pyxis_gql.RequestsHTTPTransport", autospec=True)
+@patch("freshmaker.pyxis_gql.Client", autospec=True)
+def test_log_trace_id(mock_client, mock_transport):
+    pyxis_schema_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "fixtures",
+        "pyxis.graphql",
+    )
+    with open(pyxis_schema_path) as source:
+        document = parse(source.read())
+    schema = build_ast_schema(document)
+
+    result = {
+        "find_images": {
+            "data": [],
+            "error": ["something went wrong"],
+            "page": 0,
+            "page_size": 250,
+            "total": 2,
+        }
+    }
+
+    mock_transport.return_value.response_headers = {"trace_id": "123"}
+    mock_client.return_value.transport = mock_transport.return_value
+    mock_client.return_value.execute.return_value = copy.deepcopy(result)
+
+    flexmock(PyxisGQL).should_receive("dsl_schema").and_return(DSLSchema(schema))
+    pyxis_gql = PyxisGQL(url="graphql.pyxis.local", cert="/path/to/cert")
+
+    try:
+        pyxis_gql.find_images_by_name_version(
+            "foobar-container",
+            "v0.13.0",
+            published=True,
+            content_sets=["rhel-8-for-x86_64-baseos-rpms"],
+        )
+    except PyxisGQLRequestError as e:
+        print(e)
+        assert e.error == str(result["find_images"]["error"])
+        assert e.trace_id == mock_transport.return_value.response_headers["trace_id"]

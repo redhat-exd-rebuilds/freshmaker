@@ -20,18 +20,17 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from copy import deepcopy
+from datetime import datetime
+from http import HTTPStatus
+from unittest.mock import Mock, call, create_autospec, patch
+
 import requests
 import requests_mock
-
-from datetime import datetime
 from freezegun import freeze_time
-from http import HTTPStatus
-from copy import deepcopy
-from unittest.mock import call, patch, create_autospec, Mock
 
 from freshmaker import conf
 from freshmaker.pyxis import Pyxis, PyxisRequestError
-
 from tests import helpers
 
 
@@ -340,9 +339,13 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
         self.response.json.text = 'test message'
         self.response.request = Mock()
         self.response.request.url = 'test/url'
+        self.response.headers = {"trace_id": "123"}
 
-        with self.assertRaises(PyxisRequestError, msg='test message'):
+        with self.assertRaises(PyxisRequestError, msg='test message') as cm:
             self.px._make_request('test', {})
+
+        pyxis_exception = cm.exception
+        self.assertEqual(pyxis_exception.trace_id, "123")
 
     @patch('freshmaker.pyxis.HTTPKerberosAuth')
     @patch('freshmaker.pyxis.Pyxis._make_request')

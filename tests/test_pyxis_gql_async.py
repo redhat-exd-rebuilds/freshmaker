@@ -30,7 +30,7 @@ from flexmock import flexmock
 from gql.dsl import DSLSchema
 from graphql import GraphQLSchema, build_ast_schema, parse
 
-from freshmaker.pyxis_gql_async import PyxisAsyncGQL
+from freshmaker.pyxis_gql_async import PyxisAsyncGQL, PyxisGQLRequestError
 
 
 def load_schema() -> GraphQLSchema:
@@ -74,7 +74,7 @@ class TestPyxisAsyncGQL(TestCase):
                 *self.pyxis_gql_async._get_repo_projection()
             ),
         )
-        expected = {"fake_query": {"data": ["fake_data"]}}
+        expected = {"find_repositories": {"data": ["fake_data"], "error": None}}
         mock_gql_client.return_value.__aenter__.return_value.execute.return_value = deepcopy(
             expected
         )
@@ -529,3 +529,29 @@ class TestPyxisAsyncGQL(TestCase):
         )
         mock_gql_client.return_value.__aenter__.return_value.execute.assert_awaited()
         assert images == result["find_images"]["data"]
+
+    @patch("freshmaker.pyxis_gql.RequestsHTTPTransport", autospec=True)
+    def test_log_trace_id(self, mock_transport, mock_gql_client):
+        result = {
+            "find_images": {
+                "data": [],
+                "error": ["something went wrong"],
+                "page": 0,
+                "page_size": 250,
+                "total": 2,
+            }
+        }
+
+        mock_transport.return_value.response_headers = {"trace_id": "123"}
+        mock_gql_client.return_value.__aenter__.return_value.transport = mock_transport.return_value
+        mock_gql_client.return_value.__aenter__.return_value.execute.return_value = deepcopy(result)
+
+        with self.assertRaises(PyxisGQLRequestError) as cm:
+            asyncio.run(
+                self.pyxis_gql_async.find_images_by_name_version(name="foo-repo", version="1.23")
+            )
+        exception = cm.exception
+        self.assertEqual(exception.error, str(result["find_images"]["error"]))
+        self.assertEqual(
+            exception.trace_id, mock_transport.return_value.response_headers["trace_id"]
+        )
