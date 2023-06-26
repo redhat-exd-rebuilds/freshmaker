@@ -33,6 +33,8 @@ from freshmaker import conf
 class PyxisGQLRequestError(RuntimeError):
     pass
 
+#FIXME store trace id in raises across the module
+
 
 class PyxisGQL:
     region = dogpile.cache.make_region().configure(conf.dogpile_cache_backend)
@@ -174,7 +176,11 @@ class PyxisGQL:
             result = self.query(query_dsl)
             error = result["find_repositories"]["error"]
             if error is not None:
-                raise PyxisGQLRequestError(str(error))
+                trace_msg = ""
+                if error.get("detail", False) and error["detail"].get("trace_id", False):
+                    trace_id = error["detail"]["trace"]
+                    trace_msg = f" trace_id={trace_id}"
+                raise PyxisGQLRequestError(str(error) + str(trace_msg))
             data = result["find_repositories"]["data"]
             # Data is empty when there are no more results
             if not data:
