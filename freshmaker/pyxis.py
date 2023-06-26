@@ -13,16 +13,18 @@ class PyxisRequestError(Exception):
     Error return as a response from Pyxis
     """
 
-    def __init__(self, status_code, error_response):
+    def __init__(self, status_code, error_response, trace_id=None):
         """
         Initialize Pyxis request error
 
         :param int status_code: response status code
         :param str or dict error_response: response content returned from Pyxis
+        :param str trace_id: trace identifier related to the error response
         """
 
         self._status_code = status_code
         self._raw = error_response
+        self._trace_id = trace_id
 
     @property
     def raw(self):
@@ -31,6 +33,10 @@ class PyxisRequestError(Exception):
     @property
     def status_code(self):
         return self._status_code
+
+    @property
+    def trace_id(self):
+        return self._trace_id
 
 
 class Pyxis(object):
@@ -70,7 +76,11 @@ class Pyxis(object):
         except ValueError:
             response_text = response.text
 
-        raise PyxisRequestError(response.status_code, response_text)
+        trace_id = None
+        if response.headers.get("trace-id", False):
+            trace_id = response.headers["trace-id"]
+
+        raise PyxisRequestError(response.status_code, response_text, trace_id)
 
     def _get(self, path, params=None):
         """
