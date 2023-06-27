@@ -33,8 +33,6 @@ from freshmaker import conf
 class PyxisGQLRequestError(RuntimeError):
     pass
 
-#FIXME store trace id in raises across the module
-
 
 class PyxisGQL:
     region = dogpile.cache.make_region().configure(conf.dogpile_cache_backend)
@@ -70,7 +68,16 @@ class PyxisGQL:
         :params gql.dsl.DSLField query_dsl: a DSL query
         :return: The result of execution.
         """
-        return self._client.execute(dsl_gql(DSLQuery(query_dsl)))
+        response = self._client.execute(dsl_gql(DSLQuery(query_dsl)))
+
+        response_field_name = query_dsl.name
+        error = response[response_field_name]["error"]
+        if error is not None:
+            trace_id = self._client.transport.response_headers.get("trace_id", False)
+            trace_msg = f" trace_id={trace_id}" if trace_id else ""
+            raise PyxisGQLRequestError(str(error) + str(trace_msg))
+
+        return response
 
     def _get_repo_projection(self):
         ds = self.dsl_schema
@@ -174,13 +181,6 @@ class PyxisGQL:
             )
 
             result = self.query(query_dsl)
-            error = result["find_repositories"]["error"]
-            if error is not None:
-                trace_msg = ""
-                if error.get("detail", False) and error["detail"].get("trace_id", False):
-                    trace_id = error["detail"]["trace"]
-                    trace_msg = f" trace_id={trace_id}"
-                raise PyxisGQLRequestError(str(error) + str(trace_msg))
             data = result["find_repositories"]["data"]
             # Data is empty when there are no more results
             if not data:
@@ -231,9 +231,6 @@ class PyxisGQL:
             )
 
             result = self.query(query_dsl)
-            error = result["find_repositories"]["error"]
-            if error is not None:
-                raise PyxisGQLRequestError(str(error))
             data = result["find_repositories"]["data"]
             # Data is empty when there are no more results
             if not data:
@@ -291,9 +288,6 @@ class PyxisGQL:
             )
 
             result = self.query(query_dsl)
-            error = result["find_repositories"]["error"]
-            if error is not None:
-                raise PyxisGQLRequestError(str(error))
             data = result["find_repositories"]["data"]
             # Data is empty when there are no more results
             if not data:
@@ -330,9 +324,6 @@ class PyxisGQL:
         )
 
         result = self.query(query_dsl)
-        error = result["get_repository_by_registry_path"]["error"]
-        if error is not None:
-            raise PyxisGQLRequestError(str(error))
         return result["get_repository_by_registry_path"]["data"]
 
     @region.cache_on_arguments()
@@ -362,9 +353,6 @@ class PyxisGQL:
             )
 
             result = self.query(query_dsl)
-            error = result["find_images_by_nvr"]["error"]
-            if error is not None:
-                raise PyxisGQLRequestError(str(error))
             data = result["find_images_by_nvr"]["data"]
             # Data is empty when there are no more results
             if not data:
@@ -407,9 +395,6 @@ class PyxisGQL:
             )
 
             result = self.query(query_dsl)
-            error = result["find_images"]["error"]
-            if error is not None:
-                raise PyxisGQLRequestError(str(error))
             data = result["find_images"]["data"]
             # Data is empty when there are no more results
             if not data:
@@ -482,9 +467,6 @@ class PyxisGQL:
             )
 
             result = self.query(query_dsl)
-            error = result["find_images"]["error"]
-            if error is not None:
-                raise PyxisGQLRequestError(str(error))
             data = result["find_images"]["data"]
             # Data is empty when there are no more results
             if not data:
@@ -543,9 +525,6 @@ class PyxisGQL:
             )
 
             result = self.query(query_dsl)
-            error = result["find_images"]["error"]
-            if error is not None:
-                raise PyxisGQLRequestError(str(error))
             data = result["find_images"]["data"]
             # Data is empty when there are no more results
             if not data:
@@ -600,9 +579,6 @@ class PyxisGQL:
             )
 
             result = self.query(query_dsl)
-            error = result["find_images"]["error"]
-            if error is not None:
-                raise PyxisGQLRequestError(str(error))
             data = result["find_images"]["data"]
             # Data is empty when there are no more results
             if not data:
@@ -668,9 +644,6 @@ class PyxisGQL:
             )
 
             result = self.query(query_dsl)
-            error = result["find_images"]["error"]
-            if error is not None:
-                raise PyxisGQLRequestError(str(error))
             data = result["find_images"]["data"]
             # Data is empty when there are no more results
             if not data:
