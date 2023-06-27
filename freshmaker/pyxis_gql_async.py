@@ -95,9 +95,17 @@ class PyxisAsyncGQL:
         :params gql.dsl.DSLField query_dsl: a DSL query
         :return: The result of execution.
         """
+        response_field_name = query_dsl.name
         async with self._client() as session:
-            result = await session.execute(dsl_gql(DSLQuery(query_dsl)))
-        return result
+            response = await session.execute(dsl_gql(DSLQuery(query_dsl)))
+
+            error = response[response_field_name]["error"]
+            if error is not None:
+                trace_id = session.transport.response_headers.get("trace_id", False)
+                trace_msg = f" trace_id={trace_id}" if trace_id else ""
+                raise PyxisGQLRequestError(str(error) + str(trace_msg))
+
+        return response
 
     def _get_repo_projection(self) -> list[DSLField]:
         ds = self.dsl_schema
@@ -204,9 +212,6 @@ class PyxisAsyncGQL:
                 ds.ContainerRepositoryPaginatedResponse.data.select(*self._get_repo_projection()),
             )
             result = await self.query(query_dsl)
-            error = result["find_repositories"]["error"]  # type: ignore[index]
-            if error is not None:
-                raise PyxisGQLRequestError(str(error))
             data = result["find_repositories"]["data"]  # type: ignore[index]
             # Data is empty when there are no more results
             if not data:
@@ -256,9 +261,6 @@ class PyxisAsyncGQL:
             )
 
             result = await self.query(query_dsl)
-            error = result["find_repositories"]["error"]  # type: ignore[index]
-            if error is not None:
-                raise PyxisGQLRequestError(str(error))
             data = result["find_repositories"]["data"]  # type: ignore[index]
             # Data is empty when there are no more results
             if not data:
@@ -317,9 +319,6 @@ class PyxisAsyncGQL:
             )
 
             result = await self.query(query_dsl)
-            error = result["find_repositories"]["error"]  # type: ignore[index]
-            if error is not None:
-                raise PyxisGQLRequestError(str(error))
             data = result["find_repositories"]["data"]  # type: ignore[index]
             # Data is empty when there are no more results
             if not data:
@@ -357,9 +356,6 @@ class PyxisAsyncGQL:
         )
 
         result = await self.query(query_dsl)
-        error = result["get_repository_by_registry_path"]["error"]  # type: ignore[index]
-        if error is not None:
-            raise PyxisGQLRequestError(str(error))
         return result["get_repository_by_registry_path"]["data"]  # type: ignore[index]
 
     async def find_images_by_nvr(
@@ -390,9 +386,6 @@ class PyxisAsyncGQL:
             )
 
             result = await self.query(query_dsl)
-            error = result["find_images_by_nvr"]["error"]  # type: ignore[index]
-            if error is not None:
-                raise PyxisGQLRequestError(str(error))
             data = result["find_images_by_nvr"]["data"]  # type: ignore[index]
             # Data is empty when there are no more results
             if not data:
@@ -436,9 +429,6 @@ class PyxisAsyncGQL:
             )
 
             result = await self.query(query_dsl)
-            error = result["find_images"]["error"]  # type: ignore[index]
-            if error is not None:
-                raise PyxisGQLRequestError(str(error))
             data = result["find_images"]["data"]  # type: ignore[index]
             # Data is empty when there are no more results
             if not data:
@@ -515,9 +505,6 @@ class PyxisAsyncGQL:
             )
 
             result = await self.query(query_dsl)
-            error = result["find_images"]["error"]  # type: ignore[index]
-            if error is not None:
-                raise PyxisGQLRequestError(str(error))
             data = result["find_images"]["data"]  # type: ignore[index]
             # Data is empty when there are no more results
             if not data:
@@ -576,9 +563,6 @@ class PyxisAsyncGQL:
 
             async with asyncio.timeout(self.timeout):
                 result = await self.query(query_dsl)
-            error = result["find_images"]["error"]  # type: ignore[index]
-            if error is not None:
-                raise PyxisGQLRequestError(str(error))
             data = result["find_images"]["data"]  # type: ignore[index]
             # Data is empty when there are no more results
             if not data:
@@ -636,9 +620,6 @@ class PyxisAsyncGQL:
             )
 
             result = await self.query(query_dsl)
-            error = result["find_images"]["error"]  # type: ignore[index]
-            if error is not None:
-                raise PyxisGQLRequestError(str(error))
             data = result["find_images"]["data"]  # type: ignore[index]
             # Data is empty when there are no more results
             if not data:
@@ -705,9 +686,6 @@ class PyxisAsyncGQL:
             )
             async with asyncio.timeout(self.timeout):
                 result = await self.query(query_dsl)
-            error = result["find_images"]["error"]  # type: ignore[index]
-            if error is not None:
-                raise PyxisGQLRequestError(str(error))
             data = result["find_images"]["data"]  # type: ignore[index]
             # Data is empty when there are no more results
             if not data:
