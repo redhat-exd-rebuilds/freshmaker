@@ -33,12 +33,6 @@ class BaseConfiguration(object):
 
     SYSTEM = 'koji'
 
-    # Available backends are: console, file, journal.
-    LOG_BACKEND = 'journal'
-
-    # Path to log file when LOG_BACKEND is set to "file".
-    LOG_FILE = 'freshmaker.log'
-
     # Available log levels are: debug, info, warn, error.
     LOG_LEVEL = 'info'
 
@@ -210,7 +204,6 @@ class BaseConfiguration(object):
 
 class DevConfiguration(BaseConfiguration):
     DEBUG = True
-    LOG_BACKEND = 'console'
     LOG_LEVEL = 'debug'
 
     MESSAGING_TOPIC_PREFIX = ['org.fedoraproject.dev', 'org.fedoraproject.stg']
@@ -236,7 +229,6 @@ class DevConfiguration(BaseConfiguration):
 
 
 class TestConfiguration(BaseConfiguration):
-    LOG_BACKEND = 'console'
     LOG_LEVEL = 'debug'
     DEBUG = True
 

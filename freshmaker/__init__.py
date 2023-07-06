@@ -49,7 +49,7 @@ conf = init_config(app)
 db = SQLAlchemy(app)  # type: Any
 
 init_logging(conf)
-setup_logger()
+setup_logger(conf)
 log = getLogger(__name__)
 
 login_manager = LoginManager()
