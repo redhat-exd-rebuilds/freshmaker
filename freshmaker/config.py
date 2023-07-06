@@ -139,14 +139,6 @@ class Config(object):
             'type': bool,
             'default': False,
             'desc': 'Debug mode'},
-        'log_backend': {
-            'type': str,
-            'default': None,
-            'desc': 'Log backend'},
-        'log_file': {
-            'type': str,
-            'default': '',
-            'desc': 'Path to log file'},
         'log_level': {
             'type': str,
             'default': 0,
@@ -506,19 +498,6 @@ class Config(object):
     #
     # Register your _setifok_* handlers here
     #
-
-    def _setifok_log_backend(self, s):
-        if s is None:
-            self._log_backend = "console"
-        elif s not in logger.supported_log_backends():
-            raise ValueError("Unsupported log backend")
-        self._log_backend = str(s)
-
-    def _setifok_log_file(self, s):
-        if s is None:
-            self._log_file = ""
-        else:
-            self._log_file = str(s)
 
     def _setifok_log_level(self, s):
         level = str(s).lower()

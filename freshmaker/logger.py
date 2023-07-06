@@ -56,16 +56,15 @@ levels = {
 
 DEV_ENV = os.environ.get("FRESHMAKER_TESTING_ENV") == "1"
 LOG_DIR = "." if DEV_ENV else "/var/log/freshmaker"
-LOG_LEVEL = "DEBUG" if os.environ.get("DEBUG") else "INFO"
 
 
-def setup_logger():
+def setup_logger(conf):
     """
     Set up and configure 'freshmaker' logger.
     """
     logger = logging.getLogger("freshmaker")
     logger.propagate = False
-    logger.setLevel(LOG_LEVEL)
+    logger.setLevel(conf.log_level)
     source = "freshmaker"
     custom_attr = {
         "environment": lambda: os.environ.get("FRESHMAKER_ENV"),
@@ -102,20 +101,9 @@ def setup_logger():
         backupCount=1,
         mode="a",
     )
-    file_handler.setLevel(LOG_LEVEL)
+    file_handler.setLevel(conf.log_level)
     file_handler.setFormatter(file_formatter)
     logger.addHandler(file_handler)
-    if os.environ.get("CONSOLE_LOGS", "").lower() != "false":
-        console_handler = logging.StreamHandler(stream=sys.stdout)
-        console_handler.setLevel(LOG_LEVEL)
-        console_handler.setFormatter(
-            logging.Formatter(
-                "[%(asctime)s.%(msecs)d] [%(processName)s - %(threadName)s] "
-                "[%(levelname)s] %(message)s",
-                "%Y-%m-%dT%H:%M:%S",
-            )
-        )
-        logger.addHandler(console_handler)
 
 
 def str_to_log_level(level):
@@ -131,32 +119,21 @@ def str_to_log_level(level):
     return levels[level]
 
 
-def supported_log_backends():
-    return ("console", "journal", "file")
-
-
 def init_logging(conf):
     """
     Initializes logging according to configuration file.
     """
-    log_format = '%(levelname)s - %(message)s'
-    log_backend = conf.log_backend
+    log = logging.getLogger()
 
-    if not log_backend or len(log_backend) == 0 or log_backend == "console":
-        logging.basicConfig(level=conf.log_level, format=log_format)
-        log = logging.getLogger()
-        log.setLevel(conf.log_level)
-    elif log_backend == "journal":
-        logging.basicConfig(level=conf.log_level, format=log_format)
-        try:
-            from systemd import journal
-        except ImportError:
-            raise ValueError("systemd.journal module is not installed")
-
-        log = logging.getLogger()
-        log.propagate = False
-        log.addHandler(journal.JournalHandler())
-    else:
-        logging.basicConfig(filename=conf.log_file, level=conf.log_level,
-                            format=log_format)
-        log = logging.getLogger()
+    formatter = logging.Formatter(
+        "[%(asctime)s.%(msecs)d] [%(processName)s - %(threadName)s] [%(levelname)s] %(message)s",
+        "%Y-%m-%dT%H:%M:%S",
+    )
+    console_handler = logging.StreamHandler(stream=sys.stdout)
+    console_handler.setLevel(conf.log_level)
+    console_handler.setFormatter(formatter)
+    # explicitly add a handler to root logger to avoid duplicated log lines:
+    # if the root logger does not have a handler, a call to logging.basicConfig() or
+    # logging.debug/warning/error/... will create and attach one, and if we set another handler
+    # to the console, we will have duplicated log lines
+    log.addHandler(console_handler)
