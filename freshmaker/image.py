@@ -798,8 +798,17 @@ class PyxisAPI(object):
             ]
 
         def _image_has_rpm(image, rpms):
-            # rpms is a list of rpm names
-            rpm_names = [x["name"] for x in image["rpm_manifest"][0]["rpms"]]
+            try:
+                # rpms is a list of rpm names
+                rpm_names = [x["name"] for x in image["rpm_manifest"][0]["rpms"]]
+            except Exception:
+                # When this is called, the image should have rpm_manifest, but Pyxis
+                # may have some invalid image data which is missing rpm_manifest; when
+                # such images are returned by Pyxis, it will trigger an exception; we need
+                # to log the image NVR for troubleshooting purposes.
+                log.error("Invalid image metadata for image %s", image["brew"]["build"])
+                raise
+
             # return True if image has any of the rpms installed
             return not set(rpms).isdisjoint(set(rpm_names))
 
