@@ -607,7 +607,6 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             for build in product_info["builds"]:
                 # Each build is a one key/value pair, and key is the build NVR
                 build_nvr = next(iter(build))
-
                 log.debug("Getting published original image of %s", build_nvr)
                 # Search for the first build that triggered the chain of rebuilds
                 # for every shipped NVR to get original NVR from it
@@ -626,7 +625,46 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                         and block_build_nvr["version"] == parsed_build_nvr["version"]  # noqa: W503
                     ):
                         nvrs_mapping[block_build] = build_nvr
+
+        if conf.bundle_include_previous_rebuilds:
+            nvrs_mapping = self._completion_with_previous_rebuilds(nvrs_mapping)
+            log.info(f"NVRs mapping udpated with previous rebuilds: {nvrs_mapping}")
+
         return nvrs_mapping
+
+    def _completion_with_previous_rebuilds(self, nvrs_mapping: dict[str, str]) -> dict[str, str]:
+        """Generates an udpated NVR mapping with the chain of previous freshmaker rebuilds
+
+        This function searches the previous rebuilds of the NVRs in the current NVR mapping
+        and adds them to the mapping, in case they are previous freshmaker rebuilds.
+
+        This is used to trigger rebuilds of bundles that lost the "link" to a latest version
+        of an image (due to problems with a former rebuild process, for example) in an automatic
+        fashion, without requiring manual overriding.
+
+        :param nvrs_maping: the current NVR mapping
+        :type nvrs_mapping: dict
+        :return: udpated NVR mapping including the previous rebuilds
+        :rtype: dict
+        """
+        nvr_mappings_to_add = {}
+        for original_nvr, latest_nvr in nvrs_mapping.items():
+            # The nvrs_mapping is construced by checking database, so the latest_rebuild always
+            # exists and has only one record.
+            latest_rebuild = ArtifactBuild.query.filter_by(rebuilt_nvr=latest_nvr).first()
+
+            # Check whether the original NVR is also a freshmaker rebuild
+            former_build = ArtifactBuild.query.filter_by(
+                rebuilt_nvr=latest_rebuild.original_nvr
+            ).first()
+            while former_build:
+                nvr_mappings_to_add[former_build.rebuilt_nvr] = latest_nvr
+                log.info(f"Found former rebuild '{former_build.rebuilt_nvr}' of '{latest_nvr}'")
+                former_build = ArtifactBuild.query.filter_by(
+                    rebuilt_nvr=former_build.original_nvr
+                ).first()
+
+        return {**nvrs_mapping, **nvr_mappings_to_add}
 
     def _prepare_builds(self, to_rebuild_bundles):
         """
