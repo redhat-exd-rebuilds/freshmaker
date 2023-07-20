@@ -434,6 +434,35 @@ class BaseHandler(object):
                        criteria, artifact_type.name.lower())
         return False
 
+    def _mark_event_complete_when_all_builds_done(self, db_event):
+        """Mark Event COMPLETE
+
+        When all builds in an event have been done (either in FAILED or DONE
+        state), the event should be marked as COMPLETE accordingly. If not all
+        builds are finished, then the state is not changed
+
+        :param Event db_event: instance of Event
+        """
+        num_failed = 0
+        for build in db_event.builds:
+            if build.state == ArtifactBuildState.FAILED.value:
+                num_failed += 1
+            elif build.state != ArtifactBuildState.DONE.value:
+                # Return when build is not DONE and also not FAILED, it means
+                # it's still building.
+                return
+
+        if num_failed:
+            db_event.transition(
+                EventState.COMPLETE,
+                'Advisory %s: %d of %d container image(s) failed to rebuild.' % (
+                    db_event.search_key, num_failed, len(db_event.builds.all()),))
+        else:
+            db_event.transition(
+                EventState.COMPLETE,
+                'Advisory %s: All %s container images have been rebuilt.' % (
+                    db_event.search_key, len(db_event.builds.all()),))
+
 
 class ContainerBuildHandler(BaseHandler):
     """Handler for building containers"""

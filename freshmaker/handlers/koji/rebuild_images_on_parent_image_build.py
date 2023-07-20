@@ -148,37 +148,6 @@ class RebuildImagesOnParentImageBuild(ContainerBuildHandler):
         # switched to FAILED or COMPLETE. If yes, mark the event COMPLETE.
         self._mark_event_complete_when_all_builds_done(found_build.event)
 
-    def _mark_event_complete_when_all_builds_done(self, db_event):
-        """Mark ErrataAdvisoryRPMsSignedEvent COMPLETE
-
-        As we know that docker images are scheduled to be rebuilt by hanlding
-        event ErrataAdvisoryRPMsSignedEvent. When all those builds are done,
-        the event should be marked as COMPLETE accordingly. If not all finish,
-        nothing change to the state.
-
-        :param Event db_event: instance of Event that represents an event
-            ErrataAdvisoryRPMsSignedEvent.
-        """
-        num_failed = 0
-        for build in db_event.builds:
-            if build.state == ArtifactBuildState.FAILED.value:
-                num_failed += 1
-            elif build.state != ArtifactBuildState.DONE.value:
-                # Return when build is not DONE and also not FAILED, it means
-                # it's still building.
-                return
-
-        if num_failed:
-            db_event.transition(
-                EventState.COMPLETE,
-                'Advisory %s: %d of %d container image(s) failed to rebuild.' % (
-                    db_event.search_key, num_failed, len(db_event.builds.all()),))
-        else:
-            db_event.transition(
-                EventState.COMPLETE,
-                'Advisory %s: All %s container images have been rebuilt.' % (
-                    db_event.search_key, len(db_event.builds.all()),))
-
     def _verify_advisory_rpms_in_container_build(self, errata_id, container_build_id):
         """
         verify container built on brew has the latest rpms from an advisory
