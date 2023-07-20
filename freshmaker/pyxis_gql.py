@@ -214,10 +214,10 @@ class PyxisGQL:
         """
         query_filter: dict = {}
         query_filter["and"] = []
-        # Query Red Hat repositories only
-        query_filter["and"].append({"vendor_label": {"eq": "redhat"}})
 
         query_filter["and"].append({"repository": {"eq": repository}})
+        # Query Red Hat repositories only
+        query_filter["and"].append({"vendor_label": {"eq": "redhat"}})
 
         repositories = []
         ds = self.dsl_schema
@@ -438,11 +438,8 @@ class PyxisGQL:
         query_filter = {}
         query_filter["and"] = []
 
-        query_filter["and"].append({"rpm_manifest": {"rpms": {"name": {"in": rpm_names}}}})
-
-        if content_sets:
-            query_filter["and"].append({"content_sets": {"in": content_sets}})
-
+        # List filters from most specific to least specific can help
+        # improving the performance of Pyxis query
         repo_matches = []
         if isinstance(published, bool):
             repo_matches.append({"published": {"eq": published}})
@@ -452,6 +449,11 @@ class PyxisGQL:
             repo_matches.append({"tags_elemMatch": {"and": [{"name": {"in": tags}}]}})
         if repo_matches:
             query_filter["and"].append({"repositories_elemMatch": {"and": repo_matches}})
+
+        if content_sets:
+            query_filter["and"].append({"content_sets": {"in": content_sets}})
+
+        query_filter["and"].append({"rpm_manifest": {"rpms": {"name": {"in": rpm_names}}}})
 
         ds = self.dsl_schema
         page_num = 0
