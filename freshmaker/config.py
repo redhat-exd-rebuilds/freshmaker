@@ -362,6 +362,13 @@ class Config(object):
             'default': '',
             'desc': 'A suffix to add to the rebuilt_nvr release in addition to the timestamp.',
         },
+        'bundle_include_previous_rebuilds': {
+            'type': bool,
+            'default': True,
+            'desc': 'When True, enables an automatic search in bundle rebuilds for previous'
+                    'Freshmaker builds of the current operator/operand images, and replace them'
+                    'in the bundle.'
+        },
         'container_release_categories': {
             'type': tuple,
             'default': ("Generally Available", "Tech Preview", "Beta",),

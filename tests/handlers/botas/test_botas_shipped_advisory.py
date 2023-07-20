@@ -29,7 +29,9 @@ from freshmaker import db, conf
 from freshmaker.events import (
     BotasErrataShippedEvent,
     ManualRebuildWithAdvisoryEvent,
-    TestingEvent, ManualBundleRebuildEvent)
+    TestingEvent,
+    ManualBundleRebuildEvent,
+)
 from freshmaker.handlers.botas import HandleBotasAdvisory
 from freshmaker.errata import ErrataAdvisory
 from freshmaker.models import Event, ArtifactBuild, ArtifactBuildState
@@ -833,6 +835,13 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
             }
         }
         get_build.return_value = "some_name-1-0"
+        db_event = Event.get_or_create_from_event(db.session, event)
+        ArtifactBuild.create(
+            db.session, db_event, "ed0", "image", original_nvr="some_name-2-12344", rebuilt_nvr="some_name-2-12345"
+        )
+        ArtifactBuild.create(
+            db.session, db_event, "ed1", "image", original_nvr="some_name_two-2-1", rebuilt_nvr="some_name_two-2-2"
+        )
 
         self.handler.handle(event)
         self.pyxis().get_manifest_list_digest_by_nvr.assert_has_calls([
@@ -1023,6 +1032,13 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         self.handler._prepare_builds.return_value = [MagicMock()]
         self.handler.image_has_auto_rebuild_tag = MagicMock(return_value=True)
         self.handler.start_to_build_images = MagicMock()
+        prep_event = Event.get_or_create_from_event(db.session, event)
+        ArtifactBuild.create(
+            db.session, prep_event, "ed0", "image", original_nvr="foo-1-2.122", rebuilt_nvr="foo-1-2.123"
+        )
+        ArtifactBuild.create(
+            db.session, prep_event, "ed1", "image", original_nvr="bar-2-2.133", rebuilt_nvr="bar-2-2.134"
+        )
 
         self.handler.handle(event)
         db_event = Event.get(db.session, message_id='test_msg_id')
@@ -1142,9 +1158,57 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         }
         self.get_blocking_advisories.return_value = {"some_name-1-1",
                                                      "some_name-2-1"}
+        db_event = Event.get_or_create_from_event(db.session, self.handler.event)
+        ArtifactBuild.create(
+            db.session, db_event, "ed0", "image", original_nvr="some_name-2-12344", rebuilt_nvr="some_name-2-12345"
+        )
+        ArtifactBuild.create(
+            db.session, db_event, "ed1", "image", original_nvr="some_name_two-2-1", rebuilt_nvr="some_name_two-2-2"
+        ),
         expected_map = {"original_1": "some_name-2-12345",
                         "original_2": "some_name_two-2-2",
                         "some_name-2-1": "some_name-2-12345"}
+
+        mapping = self.handler._create_original_to_rebuilt_nvrs_map()
+
+        self.assertEqual(get_original_build.call_count, 2)
+        self.assertEqual(mapping, expected_map)
+
+    @patch("freshmaker.handlers.botas.botas_shipped_advisory.HandleBotasAdvisory.get_published_original_nvr")
+    def test_bundle_include_previous_builds(self, get_original_build):
+        get_original_build.side_effect = ["original_1", "original_2"]
+        self.handler.event = BotasErrataShippedEvent("test_msg_id", self.botas_advisory)
+        self.botas_advisory._builds = {
+            "product_name": {
+                "builds": [{"some_name-2-12345": {"nvr": "some_name-2-12345"}},
+                           {"some_name_two-2-2": {"nvr": "some_name_two-2-2"}}]
+            }
+        }
+        self.get_blocking_advisories.return_value = {"some_name-1-1", "some_name-2-1"}
+        db_event = Event.get_or_create_from_event(db.session, self.handler.event)
+        ArtifactBuild.create(
+            db.session, db_event, "ed0", "image", original_nvr="some_name-2-12344", rebuilt_nvr="some_name-2-12345"
+        )
+        ArtifactBuild.create(
+            db.session, db_event, "ed1", "image", original_nvr="some_name-2-12343", rebuilt_nvr="some_name-2-12344"
+        )
+        ArtifactBuild.create(
+            db.session, db_event, "ed2", "image", original_nvr="some_name-2-12342", rebuilt_nvr="some_name-2-12343"
+        )
+        ArtifactBuild.create(
+            db.session, db_event, "ed2", "image", rebuilt_nvr="some_name-2-12342"
+        )
+        ArtifactBuild.create(
+            db.session, db_event, "ed3", "image", original_nvr="some_name_two-2-1", rebuilt_nvr="some_name_two-2-2"
+        ),
+        expected_map = {
+            "original_1": "some_name-2-12345",
+            "original_2": "some_name_two-2-2",
+            "some_name-2-1": "some_name-2-12345",
+            "some_name-2-12344": "some_name-2-12345",
+            "some_name-2-12343": "some_name-2-12345",
+            "some_name-2-12342": "some_name-2-12345",
+        }
 
         mapping = self.handler._create_original_to_rebuilt_nvrs_map()
 
