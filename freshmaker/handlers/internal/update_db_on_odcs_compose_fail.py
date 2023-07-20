@@ -69,3 +69,5 @@ class UpdateDBOnODCSComposeFail(BaseHandler):
                 "ODCS compose %r is in failed state." % compose_id)
 
         db.session.commit()
+        db_event = builds_with_compose[0].event
+        self._mark_event_complete_when_all_builds_done(db_event)
