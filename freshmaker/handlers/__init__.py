@@ -238,11 +238,11 @@ class BaseHandler(object):
         must set the context, so in case of a failure, the event or artifact
         build can be marked as FAILED by a consumer class.
         """
-        if type(db_object) == Event:
+        if isinstance(db_object, Event):
             self._db_event_id = db_object.id
             self._db_artifact_build_id = None
             self._log_prefix = "%s: " % str(db_object)
-        elif type(db_object) == ArtifactBuild:
+        elif isinstance(db_object, ArtifactBuild):
             self._db_event_id = db_object.event.id
             self._db_artifact_build_id = db_object.id
             # Prefix logs with "<models.Event> (<models.ArtifactBuild>):".

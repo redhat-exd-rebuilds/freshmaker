@@ -48,7 +48,7 @@ class ArtifactBuildState(Enum):
             None
         ]
 
-        if type(value) == int:
+        if isinstance(value, int):
             self.counter = counters[value]
         else:
             self.counter = None
@@ -74,7 +74,7 @@ class EventState(Enum):
             freshmaker_event_canceled_counter
         ]
 
-        if type(value) == int:
+        if isinstance(value, int):
             self.counter = counters[value]
         else:
             self.counter = None

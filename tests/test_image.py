@@ -2331,7 +2331,7 @@ class TestDeduplicateImagesToRebuild(helpers.FreshmakerTestCase):
     def _create_imgs(self, nvrs):
         images = []
         for data in nvrs:
-            if type(data) == list:
+            if isinstance(data, list):
                 nvr = data[0]
                 image = self._create_img(nvr)
                 image.update(data[1])
