@@ -22,6 +22,7 @@
 from functools import cached_property
 from typing import Optional
 
+import backoff
 import dogpile.cache
 from gql import Client, gql
 from gql.dsl import DSLQuery, DSLSchema, dsl_gql
@@ -43,6 +44,10 @@ class PyxisGQLRequestError(Exception):
         trace_msg = f" trace_id={trace_id}" if trace_id else ""
         msg = str(error) + str(trace_msg)
         super().__init__(msg)
+
+
+class PyxisGQLRequestTimeout(PyxisGQLRequestError):
+    pass
 
 
 class PyxisGQL:
@@ -73,6 +78,13 @@ class PyxisGQL:
         self._client.execute(query)
         return DSLSchema(self._client.schema)
 
+    @backoff.on_exception(
+        backoff.expo,
+        PyxisGQLRequestTimeout,
+        factor=30,
+        max_tries=3,
+        jitter=None,  # use deterministic backoff, do not apply random jitter
+    )
     def query(self, query_dsl):
         """Execute a GraphQL query with Domain Specific Language
 
@@ -85,6 +97,9 @@ class PyxisGQL:
         error = response[response_field_name]["error"]
         if error is not None:
             trace_id = self._client.transport.response_headers.get("trace_id", False)
+
+            if "Pyxis API was unable to fetch data from MongoDB in time" in error:
+                raise PyxisGQLRequestTimeout(error=error, trace_id=trace_id)
             raise PyxisGQLRequestError(error=error, trace_id=trace_id)
 
         return response

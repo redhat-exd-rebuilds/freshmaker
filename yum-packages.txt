@@ -2,6 +2,7 @@ git
 httpd
 mod_auth_gssapi
 mod_ssl
+python3-backoff
 python3-defusedxml
 python3-dogpile-cache
 python3-fedmsg
