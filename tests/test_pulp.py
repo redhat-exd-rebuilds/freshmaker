@@ -162,29 +162,6 @@ class TestPulp(helpers.FreshmakerTestCase):
         self.assertEqual(['rhel-7-workstation-rpms', 'rhel-7-desktop-rpms'],
                          content_sets)
 
-    @patch('freshmaker.pulp.requests.get')
-    def test_get_docker_repository_name(self, get):
-        get.return_value.json.return_value = {
-            'display_name': 'foo-526',
-            'description': 'Foo',
-            'distributors': [
-                {'repo_id': 'foo-526',
-                 'distributor_type_id': 'docker_distributor_web',
-                 'config': {'repo-registry-id': 'scl/foo-526'}}
-            ]
-        }
-
-        pulp = Pulp(self.server_url, cert=self.cert)
-        repo_name = pulp.get_docker_repository_name("foo-526")
-
-        get.assert_called_once_with(
-            '{}pulp/api/v2/repositories/foo-526/'.format(self.server_url),
-            params={"distributors": True},
-            cert=self.cert,
-            timeout=conf.requests_timeout)
-
-        self.assertEqual(repo_name, "scl/foo-526")
-
     @patch('freshmaker.pulp.requests.post')
     @patch('freshmaker.pulp.requests.get')
     def test_retrying_calls(self, get, post):
@@ -192,10 +169,6 @@ class TestPulp(helpers.FreshmakerTestCase):
         post.side_effect = exceptions.HTTPError("Connection error: post")
 
         pulp = Pulp(self.server_url, cert=self.cert)
-
-        with self.assertRaises(exceptions.HTTPError):
-            pulp.get_docker_repository_name("test")
-        self.assertGreater(get.call_count, 1)
 
         with self.assertRaises(exceptions.HTTPError):
             pulp.get_content_set_by_repo_ids(['test1', 'test2'])

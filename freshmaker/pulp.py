@@ -79,21 +79,3 @@ class Pulp(object):
         }
         repos = self._rest_post("repositories/search/", json.dumps(query_data))
         return [repo["notes"]["content_set"] for repo in repos if "content_set" in repo["notes"]]
-
-    @retry(wait_on=requests.exceptions.RequestException)
-    def get_docker_repository_name(self, cdn_repo):
-        """
-        Getting docker repository name from pulp using cdn repo name.
-
-        :param str cdn_repo: The CDN repo name from Errata Tool.
-        :rtype: str
-        :return: Docker repository name.
-        """
-        response = self._rest_get("repositories/%s/" % cdn_repo, distributors=True)
-
-        docker_repository_name = None
-        for distributor in response["distributors"]:
-            if distributor["distributor_type_id"] == "docker_distributor_web":
-                docker_repository_name = distributor["config"]["repo-registry-id"]
-                break
-        return docker_repository_name
