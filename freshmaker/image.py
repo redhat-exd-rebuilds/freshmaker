@@ -997,7 +997,7 @@ class PyxisAPI(object):
             images = []
             # Split the repos to small chunks to generate "small" queries
             repos_iterator = iter(repos)
-            chunk_size = 100
+            chunk_size = 50
             for i in range(0, len(repos), chunk_size):
                 repos_chunk = {k: repos[k] for k in islice(repos_iterator, chunk_size)}
                 images_chunk = self.find_images_with_included_rpms(
