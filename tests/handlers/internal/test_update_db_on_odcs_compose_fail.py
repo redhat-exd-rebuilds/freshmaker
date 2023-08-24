@@ -27,7 +27,7 @@ from freshmaker.models import (
     ArtifactBuild, ArtifactType, ArtifactBuildState, ArtifactBuildCompose,
     Compose
 )
-from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
+from freshmaker.events import ErrataRPMAdvisoryShippedEvent
 from freshmaker.handlers.internal import UpdateDBOnODCSComposeFail
 from freshmaker.events import ODCSComposeStateChangeEvent
 from tests import helpers
@@ -48,7 +48,7 @@ class TestUpdateDBOnODCSComposeFail(helpers.ModelsTestCase):
     def _create_test_event(self, event_id, search_key, build_name, compose_id):
         db_event = Event.create(
             db.session, event_id, search_key,
-            EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
+            EVENT_TYPES[ErrataRPMAdvisoryShippedEvent],
             state=EventState.INITIALIZED,
             released=False)
         build_1 = ArtifactBuild.create(

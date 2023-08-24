@@ -27,7 +27,7 @@ from freshmaker import log
 from freshmaker import db
 from freshmaker.errata import Errata
 from freshmaker.events import (
-    BrewContainerTaskStateChangeEvent, ErrataAdvisoryRPMsSignedEvent,
+    BrewContainerTaskStateChangeEvent, ErrataRPMAdvisoryShippedEvent,
     ManualRebuildWithAdvisoryEvent)
 from freshmaker.models import ArtifactBuild, EVENT_TYPES
 from freshmaker.handlers import (ContainerBuildHandler,
@@ -89,7 +89,7 @@ class RebuildImagesOnParentImageBuild(ContainerBuildHandler):
             # if build is triggered by an advisory, verify the container
             # contains latest RPMs from the advisory
             if found_build.event.event_type_id in (
-                    EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
+                    EVENT_TYPES[ErrataRPMAdvisoryShippedEvent],
                     EVENT_TYPES[ManualRebuildWithAdvisoryEvent]):
                 errata_id = found_build.event.search_key
                 # build_id is actually task id in build system, find out the actual build first
@@ -144,7 +144,7 @@ class RebuildImagesOnParentImageBuild(ContainerBuildHandler):
             self.start_to_build_images(planned_builds)
 
         # Finally, we check if all builds scheduled by event
-        # found_build.event (ErrataAdvisoryRPMsSignedEvent) have been
+        # found_build.event (ErrataRPMAdvisoryShippedEvent) have been
         # switched to FAILED or COMPLETE. If yes, mark the event COMPLETE.
         self._mark_event_complete_when_all_builds_done(found_build.event)
 

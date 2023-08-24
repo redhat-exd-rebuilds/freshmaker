@@ -183,7 +183,6 @@ class Config(object):
             'default': [
                 'freshmaker.handlers.koji:RebuildImagesOnParentImageBuild',
                 'freshmaker.handlers.koji:RebuildImagesOnRPMAdvisoryChange',
-                'freshmaker.handlers.internal:UpdateDBOnAdvisoryChange',
                 'freshmaker.handlers.koji:RebuildImagesOnODCSComposeDone',
                 'freshmaker.handlers.koji:RebuildImagesOnAsyncManualBuild',
                 'freshmaker.handlers.botas:HandleBotasAdvisory'

@@ -28,7 +28,7 @@ import re
 
 from freshmaker import conf, db
 from freshmaker.events import (
-    ErrataAdvisoryRPMsSignedEvent, ManualRebuildWithAdvisoryEvent)
+    ErrataRPMAdvisoryShippedEvent, ManualRebuildWithAdvisoryEvent)
 from freshmaker.handlers import ContainerBuildHandler, fail_event_on_handler_exception
 from freshmaker.image import PyxisAPI
 from freshmaker.pulp import Pulp
@@ -47,7 +47,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
     name = 'RebuildImagesOnRPMAdvisoryChange'
 
     def can_handle(self, event):
-        if not isinstance(event, ErrataAdvisoryRPMsSignedEvent):
+        if not isinstance(event, ErrataRPMAdvisoryShippedEvent):
             return False
 
         if not {'rpm', 'module'} & set(event.advisory.content_types):
@@ -97,7 +97,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
             )
 
         # Get and record all images to rebuild based on the current
-        # ErrataAdvisoryRPMsSignedEvent event.
+        # ErrataRPMAdvisoryShippedEvent event.
         batches = self._find_images_to_rebuild(db_event.search_key, skip_nvrs=skip_nvrs)
         builds = self._record_batches(batches, event)
 
@@ -205,7 +205,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
         Records the images from batches to database.
 
         :param batches list: Output of PyxisAPI._find_images_to_rebuild(...).
-        :param event ErrataAdvisoryRPMsSignedEvent: The event this handler
+        :param event ErrataRPMAdvisoryShippedEvent: The event this handler
             is currently handling.
         :param builds dict: mappings from docker image build NVR to
             corresponding ArtifactBuild object, e.g.

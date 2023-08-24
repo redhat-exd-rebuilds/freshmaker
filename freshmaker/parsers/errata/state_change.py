@@ -22,7 +22,7 @@
 from freshmaker.parsers import BaseParser
 from freshmaker.events import (
     BotasErrataShippedEvent,
-    ErrataAdvisoryStateChangedEvent,
+    ErrataRPMAdvisoryShippedEvent,
     FlatpakModuleAdvisoryReadyEvent,
 )
 from freshmaker.errata import Errata, ErrataAdvisory
@@ -68,4 +68,4 @@ class ErrataAdvisoryStateChangedParser(BaseParser):
         if advisory.is_flatpak_module_advisory_ready():
             return FlatpakModuleAdvisoryReadyEvent(msg_id, advisory)
 
-        return ErrataAdvisoryStateChangedEvent(msg_id, advisory)
+        return ErrataRPMAdvisoryShippedEvent(msg_id, advisory)
