@@ -28,7 +28,7 @@ from freshmaker.models import ArtifactBuild, ArtifactType
 from freshmaker.models import Event, EventState, EVENT_TYPES, EventDependency
 from freshmaker.models import Compose, ArtifactBuildCompose
 from freshmaker.types import ArtifactBuildState, RebuildReason
-from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
+from freshmaker.events import ErrataRPMAdvisoryShippedEvent
 from tests import helpers
 
 
@@ -237,7 +237,7 @@ class TestFindDependentEvents(helpers.ModelsTestCase):
 
         self.event_1 = Event.create(
             db.session, 'msg-1', 'search-key-1',
-            EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
+            EVENT_TYPES[ErrataRPMAdvisoryShippedEvent],
             state=EventState.INITIALIZED,
             released=False)
         ArtifactBuild.create(
@@ -251,7 +251,7 @@ class TestFindDependentEvents(helpers.ModelsTestCase):
 
         self.event_2 = Event.create(
             db.session, 'msg-2', 'search-key-2',
-            EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
+            EVENT_TYPES[ErrataRPMAdvisoryShippedEvent],
             state=EventState.BUILDING,
             released=False)
         ArtifactBuild.create(
@@ -263,7 +263,7 @@ class TestFindDependentEvents(helpers.ModelsTestCase):
 
         self.event_3 = Event.create(
             db.session, 'msg-3', 'search-key-3',
-            EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
+            EVENT_TYPES[ErrataRPMAdvisoryShippedEvent],
             state=EventState.COMPLETE,
             released=False)
         ArtifactBuild.create(
@@ -280,7 +280,7 @@ class TestFindDependentEvents(helpers.ModelsTestCase):
         # Failed events should not be included
         self.event_4 = Event.create(
             db.session, 'msg-4', 'search-key-4',
-            EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
+            EVENT_TYPES[ErrataRPMAdvisoryShippedEvent],
             state=EventState.FAILED,
             released=False)
         ArtifactBuild.create(
@@ -289,7 +289,7 @@ class TestFindDependentEvents(helpers.ModelsTestCase):
         # Manual triggered rebuild should not be included as well
         self.event_5 = Event.create(
             db.session, 'msg-5', 'search-key-5',
-            EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
+            EVENT_TYPES[ErrataRPMAdvisoryShippedEvent],
             state=EventState.BUILDING,
             released=False, manual=True)
         ArtifactBuild.create(
@@ -298,7 +298,7 @@ class TestFindDependentEvents(helpers.ModelsTestCase):
         # Released event should not be included also
         self.event_6 = Event.create(
             db.session, 'msg-6', 'search-key-6',
-            EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
+            EVENT_TYPES[ErrataRPMAdvisoryShippedEvent],
             state=EventState.COMPLETE,
             released=True)
         ArtifactBuild.create(
@@ -336,7 +336,7 @@ class TestArtifactBuildComposesRel(helpers.ModelsTestCase):
 
         self.event = Event.create(
             db.session, 'msg-1', 'search-key-1',
-            EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
+            EVENT_TYPES[ErrataRPMAdvisoryShippedEvent],
             state=EventState.INITIALIZED,
             released=False)
         self.build_1 = ArtifactBuild.create(

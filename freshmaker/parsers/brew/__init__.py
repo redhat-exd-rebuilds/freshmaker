@@ -19,5 +19,4 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from .sign_rpm import BrewSignRpmParser  # noqa
 from .task_state_change import BrewTaskStateChangeParser  # noqa

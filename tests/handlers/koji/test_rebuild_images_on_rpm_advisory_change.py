@@ -27,7 +27,7 @@ import freshmaker
 from freshmaker.config import all_
 from freshmaker import db, events
 from freshmaker.events import (
-    ErrataAdvisoryRPMsSignedEvent,
+    ErrataRPMAdvisoryShippedEvent,
     ManualRebuildWithAdvisoryEvent,
     BaseEvent)
 from freshmaker.handlers.koji import RebuildImagesOnRPMAdvisoryChange
@@ -217,12 +217,12 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
             [self.image_f]
         ]
 
-        self.rhba_event = ErrataAdvisoryRPMsSignedEvent(
+        self.rhba_event = ErrataRPMAdvisoryShippedEvent(
             "123",
             ErrataAdvisory(123, "RHBA-2017", "REL_PREP", [],
                            security_impact="",
                            product_short_name="product"))
-        self.rhsa_event = ErrataAdvisoryRPMsSignedEvent(
+        self.rhsa_event = ErrataRPMAdvisoryShippedEvent(
             "123",
             ErrataAdvisory(123, "RHSA-2017", "REL_PREP", [],
                            security_impact="",
@@ -409,7 +409,7 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
     def test_rebuild_if_errata_state_is_SHIPPED_LIVE(
             self, get_image_builds_in_first_batch, start_to_build_images,
             prepare_yum_repos_for_rebuilds, allow_build):
-        event = ErrataAdvisoryRPMsSignedEvent(
+        event = ErrataRPMAdvisoryShippedEvent(
             'msg-id-123',
             ErrataAdvisory(123, "RHSA-2017", "SHIPPED_LIVE", [],
                            security_impact="",
@@ -449,7 +449,7 @@ class TestFindImagesToRebuild(helpers.FreshmakerTestCase):
             'freshmaker.image.PyxisAPI.find_images_to_rebuild',
             return_value=[[]])
 
-        self.event = ErrataAdvisoryRPMsSignedEvent(
+        self.event = ErrataRPMAdvisoryShippedEvent(
             "123",
             ErrataAdvisory(123, "RHBA-2017", "REL_PREP", [],
                            security_impact="",
@@ -587,7 +587,7 @@ class TestAllowBuild(helpers.ModelsTestCase):
         """
         Tests that allow_build filters out advisories based on advisory_name.
         """
-        event = ErrataAdvisoryRPMsSignedEvent(
+        event = ErrataRPMAdvisoryShippedEvent(
             "123",
             ErrataAdvisory(123, "RHBA-2017", "REL_PREP", [],
                            security_impact="",
@@ -607,7 +607,7 @@ class TestAllowBuild(helpers.ModelsTestCase):
         Tests that allow_build does not filter out advisories based on
         advisory_name.
         """
-        event = ErrataAdvisoryRPMsSignedEvent(
+        event = ErrataRPMAdvisoryShippedEvent(
             "123",
             ErrataAdvisory(123, "RHSA-2017", "REL_PREP", [],
                            security_impact="",
@@ -639,7 +639,7 @@ class TestAllowBuild(helpers.ModelsTestCase):
         Tests that allow_build does not filter out advisories based on
         advisory_security_impact.
         """
-        event = ErrataAdvisoryRPMsSignedEvent(
+        event = ErrataRPMAdvisoryShippedEvent(
             "123",
             ErrataAdvisory(123, "RHSA-2017", "REL_PREP", [],
                            security_impact="Important",
@@ -669,7 +669,7 @@ class TestAllowBuild(helpers.ModelsTestCase):
         Tests that allow_build dost filter out advisories based on
         advisory_security_impact.
         """
-        event = ErrataAdvisoryRPMsSignedEvent(
+        event = ErrataRPMAdvisoryShippedEvent(
             "123",
             ErrataAdvisory(123, "RHSA-2017", "REL_PREP", [],
                            security_impact="None",
@@ -696,7 +696,7 @@ class TestAllowBuild(helpers.ModelsTestCase):
         """
 
         handler = RebuildImagesOnRPMAdvisoryChange()
-        handler.event = ErrataAdvisoryRPMsSignedEvent(
+        handler.event = ErrataRPMAdvisoryShippedEvent(
             "123",
             ErrataAdvisory(123, "RHSA-2017", "REL_PREP", [],
                            security_impact="None",
@@ -736,7 +736,7 @@ class TestAllowBuild(helpers.ModelsTestCase):
         """
 
         handler = RebuildImagesOnRPMAdvisoryChange()
-        handler.event = ErrataAdvisoryRPMsSignedEvent(
+        handler.event = ErrataRPMAdvisoryShippedEvent(
             "123",
             ErrataAdvisory(123, "RHSA-2017", "REL_PREP", [],
                            security_impact="None",
@@ -776,7 +776,7 @@ class TestAllowBuild(helpers.ModelsTestCase):
     def test_filter_out_not_allowed_builds_image_version(
             self, handler_build_blocklist, handler_build_allowlist):
         handler = RebuildImagesOnRPMAdvisoryChange()
-        handler.event = ErrataAdvisoryRPMsSignedEvent(
+        handler.event = ErrataRPMAdvisoryShippedEvent(
             "123",
             ErrataAdvisory(123, "RHSA-2017", "REL_PREP", [],
                            security_impact="None",
@@ -935,7 +935,7 @@ class TestCheckImagesToRebuild(helpers.ModelsTestCase):
         })
 
         self.ev = Event.create(db.session, 'msg-id', '123',
-                               EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent])
+                               EVENT_TYPES[ErrataRPMAdvisoryShippedEvent])
         self.b1 = ArtifactBuild.create(
             db.session, self.ev, "parent", "image",
             state=ArtifactBuildState.PLANNED,
@@ -1640,15 +1640,15 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
             })]
         ]
 
-        et_event = ErrataAdvisoryRPMsSignedEvent(
+        et_event = ErrataRPMAdvisoryShippedEvent(
             "msg-id-2",
             ErrataAdvisory(123, "RHSA-2017", "REL_PREP", [],
                            security_impact="None",
                            product_short_name="product"))
         event0 = Event.create(db.session, 'msg-id-1', '1230',
-                              EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent])
+                              EVENT_TYPES[ErrataRPMAdvisoryShippedEvent])
         event1 = Event.create(db.session, 'msg-id-2', '1231',
-                              EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent])
+                              EVENT_TYPES[ErrataRPMAdvisoryShippedEvent])
         ArtifactBuild.create(
             db.session, event0, "parent", "image",
             state=ArtifactBuildState.DONE,

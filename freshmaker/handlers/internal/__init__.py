@@ -19,7 +19,5 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from .update_db_on_advisory_change import UpdateDBOnAdvisoryChange  # noqa
-from .generate_advisory_signed_event_on_rpm_sign import GenerateAdvisorySignedEventOnRPMSign  # noqa
 from .update_db_on_odcs_compose_fail import UpdateDBOnODCSComposeFail  # noqa
 from .cancel_event_on_freshmaker_manage_request import CancelEventOnFreshmakerManageRequest  # noqa

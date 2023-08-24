@@ -30,7 +30,7 @@ from requests.exceptions import HTTPError
 import freshmaker
 
 from freshmaker import db
-from freshmaker.events import ErrataAdvisoryRPMsSignedEvent, BotasErrataShippedEvent
+from freshmaker.events import ErrataRPMAdvisoryShippedEvent, BotasErrataShippedEvent
 from freshmaker.handlers import ContainerBuildHandler, ODCSComposeNotReady
 from freshmaker.models import (
     ArtifactBuild, ArtifactBuildState, ArtifactBuildCompose,
@@ -60,7 +60,7 @@ class TestContext(helpers.ModelsTestCase):
 
     def test_context_event(self):
         db_event = Event.get_or_create(
-            db.session, "msg1", "current_event", ErrataAdvisoryRPMsSignedEvent)
+            db.session, "msg1", "current_event", ErrataRPMAdvisoryShippedEvent)
         db.session.commit()
         handler = MyHandler()
         handler.set_context(db_event)
@@ -70,7 +70,7 @@ class TestContext(helpers.ModelsTestCase):
 
     def test_context_artifact_build(self):
         db_event = Event.get_or_create(
-            db.session, "msg1", "current_event", ErrataAdvisoryRPMsSignedEvent)
+            db.session, "msg1", "current_event", ErrataRPMAdvisoryShippedEvent)
         build = ArtifactBuild.create(db.session, db_event, "parent1-1-4",
                                      "image")
         db.session.commit()
@@ -111,7 +111,7 @@ class TestGetRepoURLs(helpers.ModelsTestCase):
 
         self.event = Event.create(
             db.session, 'msg-1', 'search-key-1',
-            EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
+            EVENT_TYPES[ErrataRPMAdvisoryShippedEvent],
             state=EventState.BUILDING,
             released=False)
 
@@ -546,7 +546,7 @@ class TestStartToBuildImages(helpers.ModelsTestCase):
     def test_start_to_build_images(self, build_artifact):
         build_artifact.side_effect = [HTTPError('500 Server Error'), 1]
         db_event = Event.get_or_create(
-            db.session, 'msg1', 'current_event', ErrataAdvisoryRPMsSignedEvent)
+            db.session, 'msg1', 'current_event', ErrataRPMAdvisoryShippedEvent)
         build = ArtifactBuild.create(db.session, db_event, 'parent1-1-4',
                                      'image')
         build2 = ArtifactBuild.create(db.session, db_event, 'parent1-1-5',

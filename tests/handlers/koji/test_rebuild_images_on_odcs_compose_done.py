@@ -29,7 +29,7 @@ from freshmaker.models import (
     ArtifactBuild, ArtifactType, ArtifactBuildState, ArtifactBuildCompose,
     Compose
 )
-from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
+from freshmaker.events import ErrataRPMAdvisoryShippedEvent
 from freshmaker.handlers.koji import RebuildImagesOnODCSComposeDone
 from freshmaker.events import ODCSComposeStateChangeEvent
 from tests import helpers
@@ -43,7 +43,7 @@ class TestRebuildImagesOnODCSComposeDone(helpers.ModelsTestCase):
 
         # Test data
         # (Inner build depends on outer build)
-        # Event (ErrataAdvisoryRPMsSignedEvent):
+        # Event (ErrataRPMAdvisoryShippedEvent):
         #     build 1: [compose 1, pulp compose 1]
         #         build 2: [compose 1, pulp compose 2]
         #     build 3: [compose 1, pulp compose 3]
@@ -53,7 +53,7 @@ class TestRebuildImagesOnODCSComposeDone(helpers.ModelsTestCase):
 
         self.db_event = Event.create(
             db.session, 'msg-1', 'search-key-1',
-            EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
+            EVENT_TYPES[ErrataRPMAdvisoryShippedEvent],
             state=EventState.INITIALIZED,
             released=False)
 
@@ -97,7 +97,7 @@ class TestRebuildImagesOnODCSComposeDone(helpers.ModelsTestCase):
         # in database.
         another_db_event = Event.create(
             db.session, 'msg-2', 'search-key-2',
-            EVENT_TYPES[ErrataAdvisoryRPMsSignedEvent],
+            EVENT_TYPES[ErrataRPMAdvisoryShippedEvent],
             state=EventState.INITIALIZED,
             released=False)
         another_build_1 = ArtifactBuild.create(

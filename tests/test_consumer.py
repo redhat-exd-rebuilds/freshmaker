@@ -23,7 +23,6 @@ from unittest import mock
 
 import freshmaker
 
-from freshmaker.events import BrewSignRPMEvent
 from freshmaker.models import Event, ArtifactBuild
 from freshmaker import db
 from freshmaker.types import ArtifactBuildState
@@ -150,76 +149,6 @@ class ConsumerTest(helpers.ConsumerBaseTest):
         for build in db_event.builds:
             self.assertEqual(build.state, ArtifactBuildState.FAILED.value)
             self.assertTrue(build.state_reason, "Failed with traceback")
-
-
-class ParseBrewSignRPMEventTest(helpers.ModelsTestCase):
-
-    @mock.patch('freshmaker.events.conf.parsers',
-                new=['freshmaker.parsers.brew.sign_rpm:BrewSignRpmParser'])
-    @mock.patch("freshmaker.consumer.get_global_consumer")
-    def test_get_internal_event_parser(self, get_global_consumer):
-        consumer = self.create_consumer()
-        get_global_consumer.return_value = consumer
-
-        msg = {
-            'msg_id': 'fake-msg-id',
-            'topic': '/topic/VirtualTopic.eng.brew.sign.rpm',
-            'msg': {
-                'build': {
-                    'id': 562101,
-                    'nvr': 'openshift-ansible-3.3.1.32-1.git.0.3b74dea.el7',
-                }
-            }
-        }
-        msg = consumer.get_abstracted_msg(msg)
-        self.assertIsInstance(msg, BrewSignRPMEvent)
-        self.assertEqual('fake-msg-id', msg.msg_id)
-        self.assertEqual('openshift-ansible-3.3.1.32-1.git.0.3b74dea.el7', msg.nvr)
-
-    @mock.patch('freshmaker.events.conf.parsers',
-                new=['freshmaker.parsers.brew.sign_rpm:BrewSignRpmParser'])
-    @mock.patch("freshmaker.consumer.get_global_consumer")
-    def test_get_internal_event_parser_no_msg_id_fallback(
-            self, get_global_consumer):
-        consumer = self.create_consumer()
-        get_global_consumer.return_value = consumer
-
-        msg = {
-            'topic': '/topic/VirtualTopic.eng.brew.sign.rpm',
-            'msg': {
-                'build': {
-                    'id': 562101,
-                    'nvr': 'openshift-ansible-3.3.1.32-1.git.0.3b74dea.el7',
-                }
-            },
-            'headers': {
-                'message-id': 'fake-msg-id',
-            }
-        }
-        msg = consumer.get_abstracted_msg(msg)
-        self.assertIsInstance(msg, BrewSignRPMEvent)
-        self.assertEqual('fake-msg-id', msg.msg_id)
-        self.assertEqual('openshift-ansible-3.3.1.32-1.git.0.3b74dea.el7', msg.nvr)
-
-    @mock.patch('freshmaker.events.conf.parsers',
-                new=['freshmaker.parsers.brew.sign_rpm:BrewSignRpmParser'])
-    @mock.patch("freshmaker.consumer.get_global_consumer")
-    def test_get_internal_event_parser_no_msg(
-            self, get_global_consumer):
-        consumer = self.create_consumer()
-        get_global_consumer.return_value = consumer
-
-        msg = {
-            'topic': '/topic/VirtualTopic.eng.brew.sign.rpm',
-            'msg': {
-                'build': {
-                    'id': 562101,
-                    'nvr': 'openshift-ansible-3.3.1.32-1.git.0.3b74dea.el7',
-                }
-            }
-        }
-
-        self.assertRaises(ValueError, consumer.get_abstracted_msg, msg)
 
 
 if __name__ == '__main__':

@@ -309,13 +309,13 @@ class FlatpakModuleAdvisoryReadyEvent(ErrataBaseEvent):
     """
 
 
-class ErrataAdvisoryRPMsSignedEvent(ErrataBaseEvent):
+class ErrataRPMAdvisoryShippedEvent(ErrataBaseEvent):
     """
     Event when all RPMs in Errata advisory are signed.
     """
 
 
-class ManualRebuildWithAdvisoryEvent(ErrataAdvisoryRPMsSignedEvent):
+class ManualRebuildWithAdvisoryEvent(ErrataRPMAdvisoryShippedEvent):
     """
     Event representing manual rebuild of particular container images with RPMs
     from advisory.

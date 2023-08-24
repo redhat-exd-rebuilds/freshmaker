@@ -226,7 +226,7 @@ class TestRebuildImagesOnParentImageBuild(helpers.ModelsTestCase):
             ['foo-1.2.1-22.el7', 'bar-1.2.3-1.el7']
         )
 
-        e1 = models.Event.create(db.session, "test_msg_id", "2018001", events.ErrataAdvisoryRPMsSignedEvent)
+        e1 = models.Event.create(db.session, "test_msg_id", "2018001", events.ErrataRPMAdvisoryShippedEvent)
         event = self.get_event_from_msg(get_fedmsg('brew_container_task_closed'))
         build = models.ArtifactBuild.create(db.session, e1, 'test-product-docker', ArtifactType.IMAGE, event.task_id)
 
@@ -254,7 +254,7 @@ class TestRebuildImagesOnParentImageBuild(helpers.ModelsTestCase):
             ['foo-1.2.1-22.el7', 'bar-1.2.3-1.el7']
         )
 
-        e1 = models.Event.create(db.session, "test_msg_id", "2018001", events.ErrataAdvisoryRPMsSignedEvent)
+        e1 = models.Event.create(db.session, "test_msg_id", "2018001", events.ErrataRPMAdvisoryShippedEvent)
         event = self.get_event_from_msg(get_fedmsg('brew_container_task_closed'))
         build = models.ArtifactBuild.create(db.session, e1, 'test-product-docker', ArtifactType.IMAGE, event.task_id)
 

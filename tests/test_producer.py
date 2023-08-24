@@ -28,7 +28,7 @@ from unittest.mock import patch, MagicMock
 import queue
 
 from freshmaker import db
-from freshmaker.events import ErrataAdvisoryRPMsSignedEvent
+from freshmaker.events import ErrataRPMAdvisoryShippedEvent
 from freshmaker.models import ArtifactBuild, Event
 from freshmaker.types import EventState, ArtifactBuildState
 from freshmaker.producer import FreshmakerProducer, _sa_disconnect_exceptions
@@ -45,7 +45,7 @@ class TestCheckUnfinishedKojiTasks(helpers.ModelsTestCase):
         self.koji_read_config_patcher.start()
 
         db_event = Event.get_or_create(
-            db.session, "msg1", "current_event", ErrataAdvisoryRPMsSignedEvent)
+            db.session, "msg1", "current_event", ErrataRPMAdvisoryShippedEvent)
         db_event.state = EventState.BUILDING
         self.build = ArtifactBuild.create(db.session, db_event, "parent1-1-4",
                                           "image")

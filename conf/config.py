@@ -258,18 +258,7 @@ class TestConfiguration(BaseConfiguration):
     AUTH_LDAP_USER_BASE = 'ou=users,dc=example,dc=com'
     MAX_THREAD_WORKERS = 1
 
-    HANDLER_BUILD_ALLOWLIST = {
-        'GenerateAdvisorySignedEventOnRPMSign': {
-            'image': {
-                'advisory_state': 'REL_PREP|PUSH_READY|IN_PUSH|SHIPPED_LIVE',
-            },
-        },
-        'UpdateDBOnAdvisoryChange': {
-            'image': {
-                'advisory_state': 'REL_PREP|PUSH_READY|IN_PUSH|SHIPPED_LIVE',
-            },
-        },
-    }
+    HANDLER_BUILD_ALLOWLIST = {}
 
     KRB_AUTH_CCACHE_FILE = "freshmaker_cc_$pid_$tid"
     ERRATA_TOOL_SERVER_URL = "http://localhost/"  # fake URL just for tests.
