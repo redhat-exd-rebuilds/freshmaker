@@ -120,6 +120,7 @@ class PyxisGQL:
             ds.ContainerImage.architecture,
             ds.ContainerImage.brew.select(
                 ds.Brew.build,
+                ds.Brew.package,
             ),
             ds.ContainerImage.content_sets,
             ds.ContainerImage.parent_brew_build,
