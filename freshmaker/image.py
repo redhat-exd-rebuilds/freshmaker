@@ -855,6 +855,16 @@ class PyxisAPI(object):
         images = self.pyxis.find_images_by_names(names)
         return self._dicts_to_images(images)
 
+    def find_images_by_nvr(self, nvr):
+        """
+        Query Pyxis to get images of NVR
+
+        :param str nvr: image NVR
+        :rtype: list of dict
+        :return: list of images returned by Pyxis
+        """
+        return self.pyxis.find_images_by_nvr(nvr)
+
     def find_parent_brew_build_nvr_from_child(self, child_image, pyxis_api_instance=None):
         """
         Returns the parent brew build NVR of the input image. If the parent is not found it returns None.
