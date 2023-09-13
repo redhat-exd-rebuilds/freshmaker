@@ -438,7 +438,6 @@ class PyxisGQL:
 
         return images
 
-    @region.cache_on_arguments()
     def find_images_by_installed_rpms(
         self, rpm_names, content_sets=None, repositories=None, published=None, tags=None
     ):
@@ -518,7 +517,6 @@ class PyxisGQL:
 
         return images
 
-    @region.cache_on_arguments()
     def find_images_by_names(self, names):
         """Find all the images for a specific list of names.
 
@@ -569,7 +567,6 @@ class PyxisGQL:
 
         return images
 
-    @region.cache_on_arguments()
     def find_images_by_repository(
         self, repository: str, auto_rebuild_tags: Optional[list[str]] = None
     ) -> list:
@@ -628,7 +625,6 @@ class PyxisGQL:
 
         return images
 
-    @region.cache_on_arguments()
     def find_images_by_name_version(
         self, name, version, published=None, content_sets=None, limit=20
     ):
