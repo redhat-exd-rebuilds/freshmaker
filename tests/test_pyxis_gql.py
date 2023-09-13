@@ -552,7 +552,7 @@ def test_log_trace_id(mock_client, mock_transport):
     result = {
         "find_images": {
             "data": [],
-            "error": ["something went wrong"],
+            "error": {"status": 500, "detail": "something went wrong"},
             "page": 0,
             "page_size": 250,
             "total": 2,
@@ -574,6 +574,5 @@ def test_log_trace_id(mock_client, mock_transport):
             content_sets=["rhel-8-for-x86_64-baseos-rpms"],
         )
     except PyxisGQLRequestError as e:
-        print(e)
         assert e.error == str(result["find_images"]["error"])
         assert e.trace_id == mock_transport.return_value.response_headers["trace_id"]
