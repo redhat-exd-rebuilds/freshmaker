@@ -98,7 +98,10 @@ class PyxisGQL:
         if error is not None:
             trace_id = self._client.transport.response_headers.get("trace_id", False)
 
-            if "Pyxis API was unable to fetch data from MongoDB in time" in error:
+            if (
+                error["detail"]
+                and "Pyxis API was unable to fetch data from MongoDB in time" in error["detail"]
+            ):
                 raise PyxisGQLRequestTimeout(error=error, trace_id=trace_id)
             raise PyxisGQLRequestError(error=error, trace_id=trace_id)
 
