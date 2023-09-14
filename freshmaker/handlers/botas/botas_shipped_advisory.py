@@ -648,20 +648,14 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         """
         nvr_mappings_to_add = {}
         for original_nvr, latest_nvr in nvrs_mapping.items():
-            # The nvrs_mapping is construced by checking database, so the latest_rebuild always
-            # exists and has only one record.
-            latest_rebuild = ArtifactBuild.query.filter_by(rebuilt_nvr=latest_nvr).first()
-
-            # Check whether the original NVR is also a freshmaker rebuild
-            former_build = ArtifactBuild.query.filter_by(
-                rebuilt_nvr=latest_rebuild.original_nvr
-            ).first()
-            while former_build:
-                nvr_mappings_to_add[former_build.rebuilt_nvr] = latest_nvr
-                log.info(f"Found former rebuild '{former_build.rebuilt_nvr}' of '{latest_nvr}'")
-                former_build = ArtifactBuild.query.filter_by(
-                    rebuilt_nvr=former_build.original_nvr
-                ).first()
+            rebuilt_nvr = original_nvr
+            while rebuilt_nvr:
+                build = ArtifactBuild.query.filter_by(rebuilt_nvr=rebuilt_nvr).first()
+                if not build:
+                    break
+                log.info(f"Found former rebuild '{build.rebuilt_nvr}' of '{latest_nvr}'")
+                nvr_mappings_to_add[build.original_nvr] = latest_nvr
+                rebuilt_nvr = build.original_nvr
 
         return {**nvrs_mapping, **nvr_mappings_to_add}
 
