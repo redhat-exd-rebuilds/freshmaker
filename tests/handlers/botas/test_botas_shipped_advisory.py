@@ -650,7 +650,8 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         """Test handling of MANUALLY triggered bundle rebuild with manual nvr override.
 
         Bundle 1 images are left alone, bundle 2 images are manually overriden, and there
-        is an override that is introduced manually in the request (#FIXME specify)
+        is an override that is introduced manually in the request (in the
+        'bundle_related_image_overrides' field of the request data).
         """
         # operators mapping
         nvr_to_digest = {
@@ -1283,64 +1284,82 @@ class TestBotasShippedAdvisory(helpers.ModelsTestCase):
         "freshmaker.handlers.botas.botas_shipped_advisory.HandleBotasAdvisory.get_published_original_nvr"
     )
     def test_bundle_include_previous_builds(self, get_original_build):
-        get_original_build.side_effect = ["original_1", "original_2"]
+        get_original_build.side_effect = ["foo-1-100.1004", "bar-2-200.2007"]
         self.handler.event = BotasErrataShippedEvent("test_msg_id", self.botas_advisory)
         self.botas_advisory._builds = {
             "product_name": {
                 "builds": [
-                    {"some_name-2-12345": {"nvr": "some_name-2-12345"}},
-                    {"some_name_two-2-2": {"nvr": "some_name_two-2-2"}},
+                    {"foo-1-100.1005": {"nvr": "foo-1-100.1005"}},
+                    {"bar-2-200.2008": {"nvr": "bar-2-200.2008"}},
                 ]
             }
         }
-        self.get_blocking_advisories.return_value = {"some_name-1-1", "some_name-2-1"}
+        self.get_blocking_advisories.return_value = {"foo-3-300", "bar-2-300"}
         db_event = Event.get_or_create_from_event(db.session, self.handler.event)
-        ArtifactBuild.create(
-            db.session,
-            db_event,
-            "ed0",
-            "image",
-            original_nvr="some_name-2-12344",
-            rebuilt_nvr="some_name-2-12345",
-        )
         ArtifactBuild.create(
             db.session,
             db_event,
             "ed1",
             "image",
-            original_nvr="some_name-2-12343",
-            rebuilt_nvr="some_name-2-12344",
+            original_nvr="foo-1-100.1003",
+            rebuilt_nvr="foo-1-100.1004",
         )
         ArtifactBuild.create(
             db.session,
             db_event,
             "ed2",
             "image",
-            original_nvr="some_name-2-12342",
-            rebuilt_nvr="some_name-2-12343",
+            original_nvr="foo-1-100.1002",
+            rebuilt_nvr="foo-1-100.1003",
         )
-        ArtifactBuild.create(db.session, db_event, "ed2", "image", rebuilt_nvr="some_name-2-12342")
         ArtifactBuild.create(
             db.session,
             db_event,
             "ed3",
             "image",
-            original_nvr="some_name_two-2-1",
-            rebuilt_nvr="some_name_two-2-2",
+            original_nvr="foo-1-100",
+            rebuilt_nvr="foo-1-100.1002",
+        )
+        ArtifactBuild.create(db.session, db_event, "ed2", "image", rebuilt_nvr="some_name-2-12342")
+        ArtifactBuild.create(
+            db.session,
+            db_event,
+            "ed4",
+            "image",
+            original_nvr="bar-2-200.2006",
+            rebuilt_nvr="bar-2-200.2007",
+        )
+        ArtifactBuild.create(
+            db.session,
+            db_event,
+            "ed5",
+            "image",
+            original_nvr="bar-2-200.2005",
+            rebuilt_nvr="bar-2-200.2006",
+        ),
+        ArtifactBuild.create(
+            db.session,
+            db_event,
+            "ed6",
+            "image",
+            original_nvr="bar-2-200",
+            rebuilt_nvr="bar-2-200.2005",
         ),
         expected_map = {
-            "original_1": "some_name-2-12345",
-            "original_2": "some_name_two-2-2",
-            "some_name-2-1": "some_name-2-12345",
-            "some_name-2-12344": "some_name-2-12345",
-            "some_name-2-12343": "some_name-2-12345",
-            "some_name-2-12342": "some_name-2-12345",
+            "bar-2-200": "bar-2-200.2008",
+            "bar-2-200.2005": "bar-2-200.2008",
+            "bar-2-200.2006": "bar-2-200.2008",
+            "bar-2-200.2007": "bar-2-200.2008",
+            "bar-2-300": "bar-2-200.2008",
+            "foo-1-100": "foo-1-100.1005",
+            "foo-1-100.1002": "foo-1-100.1005",
+            "foo-1-100.1003": "foo-1-100.1005",
+            "foo-1-100.1004": "foo-1-100.1005",
         }
 
         mapping = self.handler._create_original_to_rebuilt_nvrs_map()
-
         self.assertEqual(get_original_build.call_count, 2)
-        self.assertEqual(mapping, expected_map)
+        self.assertDictEqual(mapping, expected_map)
 
     @patch("freshmaker.image.ContainerImage.get_additional_data_from_koji")
     def test_prepare_builds(self, get_koji_data):
