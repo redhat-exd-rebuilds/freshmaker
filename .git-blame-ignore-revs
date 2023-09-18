@@ -1,0 +1,7 @@
+# Have a look at
+# https://stackoverflow.com/questions/34957237/can-i-configure-git-blame-to-always-ignore-certain-commits-want-to-fix-git-blam/57129540#57129540
+# https://akrabat.com/ignoring-revisions-with-git-blame/
+# https://docs.github.com/en/repositories/working-with-files/using-files/viewing-a-file#ignore-commits-in-the-blame-view
+
+# Run code through black for formatting
+e3061441e1492f44386d10b1c6426162e6d0c81c
