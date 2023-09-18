@@ -492,7 +492,6 @@ class PyxisGQL:
                 ),
                 ds.ContainerImagePaginatedResponse.page,
                 ds.ContainerImagePaginatedResponse.page_size,
-                ds.ContainerImagePaginatedResponse.total,
                 ds.ContainerImagePaginatedResponse.data.select(*self._get_image_projection()),
             )
 
@@ -510,8 +509,8 @@ class PyxisGQL:
                 ]
             images.extend(data)
 
-            # If page_size >= total, means all results have been fetched in the first page
-            if result["find_images"]["page_size"] >= result["find_images"]["total"]:
+            # This page has less items than the page size, it's the last page
+            if len(data) < result["find_images"]["page_size"]:
                 break
             page_num += 1
 
