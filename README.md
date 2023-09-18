@@ -120,3 +120,23 @@ python -m pip install pip-tools
 ```
 
 more info available at: https://github.com/jazzband/pip-tools/
+
+
+# Ignoring large reformattings with git blame
+
+The commits listed in `.git-blame-ignore-revs` are automatically ignored in github blame view
+(https://docs.github.com/en/repositories/working-with-files/using-files/viewing-a-file#ignore-commits-in-the-blame-view).
+This feature is meant to ignore commits that just introduced reformatting, and maintain the logical
+contributions of each line.
+
+You can make use of the `.git-blame-ignore-revs` file locally by passing it as an argument to the
+blame command:
+```
+git blame --ignore-revs-file .git-blame-ignore-revs ...
+```
+or by adding it to your local git configurations:
+```
+git config --local blame.ignoreRevsFile .git-blame-ignore-revs
+```
+Note that this should be done for per-project, as some projects may lack the `.git-blame-ignore-revs`
+file, and in this case `git blame` would return an error.
