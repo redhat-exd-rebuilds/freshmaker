@@ -59,6 +59,9 @@ class ErrataAdvisoryStateChangedParser(BaseParser):
         # advisory has been changed to a different state other than the one
         # in message, so we override advisory state with the state in message
         advisory.state = new_state
+        # Append advisory name to message id, this makes it easier to check which
+        # type of advisory triggered the event without opening Errata tool.
+        msg_id = f"{msg_id}.{str(advisory.name)}"
 
         # If advisory created by BOTAS and it's shipped,
         # then return BotasErrataShippedEvent event
