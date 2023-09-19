@@ -228,7 +228,7 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
         }
         event = self.consumer.get_abstracted_msg(msg)
         self.assertIsInstance(event, FlatpakModuleAdvisoryReadyEvent)
-        self.assertEqual("fake-msg-id", event.msg_id)
+        self.assertEqual("fake-msg-id.RHSA-123", event.msg_id)
         self.assertEqual(self.handler.can_handle(event), True)
 
     def test_event_state_updated_when_no_auto_rebuild_images(self):
