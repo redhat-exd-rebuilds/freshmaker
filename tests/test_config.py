@@ -30,22 +30,24 @@ from tests import helpers
 
 
 class TestConfig(helpers.FreshmakerTestCase):
-
     def test_krb_auth_ccache_file(self):
         self.assertEqual(
             conf.krb_auth_ccache_file,
-            "freshmaker_cc_%s_%s" % (os.getpid(),
-                                     threading.current_thread().ident))
+            "freshmaker_cc_%s_%s" % (os.getpid(), threading.current_thread().ident),
+        )
 
 
-@pytest.mark.parametrize('value', (
-    'not a dict',
-    {'admin': 'not a dict'},
-    {'admin': {'groups': 'not a list'}},
-    {'admin': {'users': 'not a list'}},
-    {'admin': {'invalid key': []}},
-    {'admin': {'groups': [1]}},
-))
+@pytest.mark.parametrize(
+    "value",
+    (
+        "not a dict",
+        {"admin": "not a dict"},
+        {"admin": {"groups": "not a list"}},
+        {"admin": {"users": "not a list"}},
+        {"admin": {"invalid key": []}},
+        {"admin": {"groups": [1]}},
+    ),
+)
 def test_permissions(value):
-    with pytest.raises(ValueError, match='The permissions configuration must be a dictionary'):
+    with pytest.raises(ValueError, match="The permissions configuration must be a dictionary"):
         conf.permissions = value

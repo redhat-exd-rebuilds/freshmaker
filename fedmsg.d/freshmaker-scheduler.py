@@ -1,4 +1,4 @@
 config = {
-    'freshmakerconsumer': True,
-    'freshmakerproducer': True,
+    "freshmakerconsumer": True,
+    "freshmakerproducer": True,
 }

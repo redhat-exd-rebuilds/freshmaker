@@ -36,7 +36,7 @@ def clear_flask_g():
     Many of the tests end up modifying flask.g such as for testing or mocking authentication.
     If it isn't cleared, it would end up leaking into other tests which don't expect it.
     """
-    for attr in ('group', 'user'):
+    for attr in ("group", "user"):
         if hasattr(flask.g, attr):
             delattr(flask.g, attr)
 
@@ -53,8 +53,7 @@ def pyxis_graphql_schema():
     schema = build_ast_schema(document)
 
     with mock.patch(
-        "freshmaker.pyxis_gql.PyxisGQL.dsl_schema",
-        new_callable=mock.PropertyMock
+        "freshmaker.pyxis_gql.PyxisGQL.dsl_schema", new_callable=mock.PropertyMock
     ) as dsl_schema:
         dsl_schema.return_value = DSLSchema(schema)
         yield dsl_schema

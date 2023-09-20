@@ -407,9 +407,7 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
                 "brew": {
                     "build": "package-name-1-4-12.10",
                 },
-                "repositories": [
-                    {"published": True}
-                ],
+                "repositories": [{"published": True}],
             }
         )
 
@@ -426,10 +424,8 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
                 "brew": {
                     "build": "package-name-1-4-12.10",
                 },
-                "repositories": [
-                    {"published": False}
-                ],
-                "edges": {"rpm_manifest": {"data": {"rpms": [{"name": "foobar"}]}}}
+                "repositories": [{"published": False}],
+                "edges": {"rpm_manifest": {"data": {"rpms": [{"name": "foobar"}]}}},
             }
         )
 
@@ -438,7 +434,7 @@ class TestContainerImageObject(helpers.FreshmakerTestCase):
         image.resolve_published(pyxis)
         self.assertEqual(image["published"], False)
         pyxis.find_images_by_nvr.assert_called_once_with("package-name-1-4-12.10")
-        self.assertEqual(image["rpm_manifest"][0], {"rpms": [{'name': 'foobar'}]})
+        self.assertEqual(image["rpm_manifest"][0], {"rpms": [{"name": "foobar"}]})
 
     def test_resolve_published_not_image_in_pyxis(self):
         image = ContainerImage.create(
@@ -2188,7 +2184,6 @@ class TestQueryFromPyxis(helpers.FreshmakerTestCase):
     def test_content_sets_of_multiarch_images_to_rebuild(
         self, koji_task_request, koji_get_build, gql_client
     ):
-
         gql_client.return_value.execute.side_effect = [
             self.fake_pyxis_find_repos,
             self.fake_pyxis_find_images_by_nvrs,

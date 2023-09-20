@@ -33,21 +33,33 @@ from tests import helpers
 
 
 class TestModels(helpers.ModelsTestCase):
-
     def test_get_or_create_from_event(self):
-        event = events.TestingEvent('msg-1')
+        event = events.TestingEvent("msg-1")
         # First call creates new event, second call returns the same one.
         for i in range(2):
             db_event = Event.get_or_create_from_event(db.session, event)
             self.assertEqual(db_event.id, 1)
-            self.assertEqual(db_event.message_id, 'msg-1')
+            self.assertEqual(db_event.message_id, "msg-1")
 
     def test_creating_event_and_builds(self):
         event = Event.create(db.session, "test_msg_id", "RHSA-2017-284", events.TestingEvent)
-        build = ArtifactBuild.create(db.session, event, "ed", "module", 1234,
-                                     rebuild_reason=RebuildReason.DIRECTLY_AFFECTED.value)
-        ArtifactBuild.create(db.session, event, "mksh", "module", 1235, build,
-                             rebuild_reason=RebuildReason.DEPENDENCY.value)
+        build = ArtifactBuild.create(
+            db.session,
+            event,
+            "ed",
+            "module",
+            1234,
+            rebuild_reason=RebuildReason.DIRECTLY_AFFECTED.value,
+        )
+        ArtifactBuild.create(
+            db.session,
+            event,
+            "mksh",
+            "module",
+            1235,
+            build,
+            rebuild_reason=RebuildReason.DEPENDENCY.value,
+        )
         db.session.commit()
         db.session.expire_all()
 
@@ -96,17 +108,21 @@ class TestModels(helpers.ModelsTestCase):
         self.assertEqual(deps, set([build2, build3]))
 
     def test_event_transition(self):
-        for i, state in enumerate([
-                EventState.COMPLETE, EventState.COMPLETE.value, "complete"]):
-            event = Event.create(db.session, "test_msg_id_{}".format(i), "test", events.TestingEvent)
+        for i, state in enumerate([EventState.COMPLETE, EventState.COMPLETE.value, "complete"]):
+            event = Event.create(
+                db.session, "test_msg_id_{}".format(i), "test", events.TestingEvent
+            )
             event.transition(state, "reason")
             self.assertEqual(event.state, EventState.COMPLETE.value)
             self.assertTrue(event.time_done is not None)
 
     def test_build_transition_recursion(self):
-        for i, state in enumerate([ArtifactBuildState.FAILED.value,
-                                   ArtifactBuildState.CANCELED.value]):
-            event = Event.create(db.session, "test_msg_id_{}".format(i), "test", events.TestingEvent)
+        for i, state in enumerate(
+            [ArtifactBuildState.FAILED.value, ArtifactBuildState.CANCELED.value]
+        ):
+            event = Event.create(
+                db.session, "test_msg_id_{}".format(i), "test", events.TestingEvent
+            )
             build1 = ArtifactBuild.create(db.session, event, "ed", "module", 1234)
             build2 = ArtifactBuild.create(db.session, event, "mksh", "module", 1235, build1)
             build3 = ArtifactBuild.create(db.session, event, "runtime", "module", 1236, build2)
@@ -120,16 +136,20 @@ class TestModels(helpers.ModelsTestCase):
             for build in [build2, build3]:
                 self.assertEqual(build.state, state)
                 self.assertEqual(
-                    build.state_reason, "Cannot build artifact, because its "
-                    "dependency cannot be built.")
+                    build.state_reason,
+                    "Cannot build artifact, because its " "dependency cannot be built.",
+                )
 
             self.assertEqual(build4.state, ArtifactBuildState.BUILD.value)
             self.assertEqual(build4.state_reason, None)
 
     def test_build_transition_recursion_not_done_for_ok_states(self):
-        for i, state in enumerate([ArtifactBuildState.DONE.value,
-                                   ArtifactBuildState.PLANNED.value]):
-            event = Event.create(db.session, "test_msg_id_{}".format(i), "test", events.TestingEvent)
+        for i, state in enumerate(
+            [ArtifactBuildState.DONE.value, ArtifactBuildState.PLANNED.value]
+        ):
+            event = Event.create(
+                db.session, "test_msg_id_{}".format(i), "test", events.TestingEvent
+            )
             build1 = ArtifactBuild.create(db.session, event, "ed", "module", 1234)
             build2 = ArtifactBuild.create(db.session, event, "mksh", "module", 1235, build1)
             build3 = ArtifactBuild.create(db.session, event, "runtime", "module", 1236, build2)
@@ -171,17 +191,15 @@ class TestModels(helpers.ModelsTestCase):
         self.assertEqual(ret, [event3])
 
     def test_str(self):
-        event = Event.create(db.session, "test_msg_id1", "test",
-                             events.TestingEvent)
+        event = Event.create(db.session, "test_msg_id1", "test", events.TestingEvent)
         self.assertEqual(str(event), "<TestingEvent, search_key=test>")
 
     def test_str_unknown_event_type(self):
         event = Event.create(db.session, "test_msg_id1", "test", 1024)
-        self.assertEqual(
-            str(event), "<UnknownEventType 1024, search_key=test>")
+        self.assertEqual(str(event), "<UnknownEventType 1024, search_key=test>")
 
     def test_event_json_min(self):
-        with patch('freshmaker.models.datetime') as datetime_patch:
+        with patch("freshmaker.models.datetime") as datetime_patch:
             datetime_patch.utcnow.return_value = datetime.datetime(2017, 8, 21, 13, 42, 20)
             event = Event.create(db.session, "test_msg_id5", "RHSA-2017-289", events.TestingEvent)
 
@@ -189,40 +207,64 @@ class TestModels(helpers.ModelsTestCase):
         build.state = ArtifactBuildState.FAILED
         ArtifactBuild.create(db.session, event, "mksh", "module", 1235, build)
         db.session.commit()
-        self.assertEqual(event.json_min(), {
-            'builds_summary': {'BUILD': 1, 'FAILED': 1, 'total': 2},
-            'dry_run': False,
-            'event_type_id': 3,
-            'id': 1,
-            'message_id': 'test_msg_id5',
-            'requester': None,
-            'search_key': 'RHSA-2017-289',
-            'state': 0,
-            'state_name': 'INITIALIZED',
-            'state_reason': None,
-            'time_created': '2017-08-21T13:42:20Z',
-            'time_done': None,
-            'url': 'http://localhost:5001/api/1/events/1',
-            'requested_rebuilds': [],
-            'requester_metadata': {},
-            'depending_events': [],
-            'depends_on_events': [],
-        })
+        self.assertEqual(
+            event.json_min(),
+            {
+                "builds_summary": {"BUILD": 1, "FAILED": 1, "total": 2},
+                "dry_run": False,
+                "event_type_id": 3,
+                "id": 1,
+                "message_id": "test_msg_id5",
+                "requester": None,
+                "search_key": "RHSA-2017-289",
+                "state": 0,
+                "state_name": "INITIALIZED",
+                "state_reason": None,
+                "time_created": "2017-08-21T13:42:20Z",
+                "time_done": None,
+                "url": "http://localhost:5001/api/1/events/1",
+                "requested_rebuilds": [],
+                "requester_metadata": {},
+                "depending_events": [],
+                "depends_on_events": [],
+            },
+        )
 
     def test_get_rebuilt_original_nvrs_by_search_key(self):
         event = Event.create(db.session, "test_msg_id", "12345", events.TestingEvent)
-        ArtifactBuild.create(db.session, event, "foo", "image", 1001,
-                             state="done",
-                             original_nvr="foo-2-20", rebuilt_nvr="foo-2-20.1582020101",
-                             rebuild_reason=RebuildReason.DIRECTLY_AFFECTED.value)
-        ArtifactBuild.create(db.session, event, "bar", "image", 1002,
-                             state="done",
-                             original_nvr="bar-3-30", rebuilt_nvr="bar-3-30.1582020135",
-                             rebuild_reason=RebuildReason.DIRECTLY_AFFECTED.value)
-        ArtifactBuild.create(db.session, event, "qux", "image", 1003,
-                             state="failed",
-                             original_nvr="qux-1-11", rebuilt_nvr="qux-1-11.1582020218",
-                             rebuild_reason=RebuildReason.DIRECTLY_AFFECTED.value)
+        ArtifactBuild.create(
+            db.session,
+            event,
+            "foo",
+            "image",
+            1001,
+            state="done",
+            original_nvr="foo-2-20",
+            rebuilt_nvr="foo-2-20.1582020101",
+            rebuild_reason=RebuildReason.DIRECTLY_AFFECTED.value,
+        )
+        ArtifactBuild.create(
+            db.session,
+            event,
+            "bar",
+            "image",
+            1002,
+            state="done",
+            original_nvr="bar-3-30",
+            rebuilt_nvr="bar-3-30.1582020135",
+            rebuild_reason=RebuildReason.DIRECTLY_AFFECTED.value,
+        )
+        ArtifactBuild.create(
+            db.session,
+            event,
+            "qux",
+            "image",
+            1003,
+            state="failed",
+            original_nvr="qux-1-11",
+            rebuilt_nvr="qux-1-11.1582020218",
+            rebuild_reason=RebuildReason.DIRECTLY_AFFECTED.value,
+        )
         db.session.commit()
         db.session.expire_all()
         nvrs = ArtifactBuild.get_rebuilt_original_nvrs_by_search_key(db.session, "12345")
@@ -233,83 +275,89 @@ class TestFindDependentEvents(helpers.ModelsTestCase):
     """Test Event.find_dependent_events"""
 
     def setUp(self):
-        super(TestFindDependentEvents, self). setUp()
+        super(TestFindDependentEvents, self).setUp()
 
         self.event_1 = Event.create(
-            db.session, 'msg-1', 'search-key-1',
+            db.session,
+            "msg-1",
+            "search-key-1",
             EVENT_TYPES[ErrataRPMAdvisoryShippedEvent],
             state=EventState.INITIALIZED,
-            released=False)
-        ArtifactBuild.create(
-            db.session, self.event_1, 'build-1', ArtifactType.IMAGE)
-        ArtifactBuild.create(
-            db.session, self.event_1, 'build-2', ArtifactType.IMAGE)
-        ArtifactBuild.create(
-            db.session, self.event_1, 'build-3', ArtifactType.IMAGE)
-        ArtifactBuild.create(
-            db.session, self.event_1, 'build-4', ArtifactType.IMAGE)
+            released=False,
+        )
+        ArtifactBuild.create(db.session, self.event_1, "build-1", ArtifactType.IMAGE)
+        ArtifactBuild.create(db.session, self.event_1, "build-2", ArtifactType.IMAGE)
+        ArtifactBuild.create(db.session, self.event_1, "build-3", ArtifactType.IMAGE)
+        ArtifactBuild.create(db.session, self.event_1, "build-4", ArtifactType.IMAGE)
 
         self.event_2 = Event.create(
-            db.session, 'msg-2', 'search-key-2',
+            db.session,
+            "msg-2",
+            "search-key-2",
             EVENT_TYPES[ErrataRPMAdvisoryShippedEvent],
             state=EventState.BUILDING,
-            released=False)
-        ArtifactBuild.create(
-            db.session, self.event_2, 'build-2', ArtifactType.IMAGE)
-        ArtifactBuild.create(
-            db.session, self.event_2, 'build-5', ArtifactType.IMAGE)
-        ArtifactBuild.create(
-            db.session, self.event_2, 'build-6', ArtifactType.IMAGE)
+            released=False,
+        )
+        ArtifactBuild.create(db.session, self.event_2, "build-2", ArtifactType.IMAGE)
+        ArtifactBuild.create(db.session, self.event_2, "build-5", ArtifactType.IMAGE)
+        ArtifactBuild.create(db.session, self.event_2, "build-6", ArtifactType.IMAGE)
 
         self.event_3 = Event.create(
-            db.session, 'msg-3', 'search-key-3',
+            db.session,
+            "msg-3",
+            "search-key-3",
             EVENT_TYPES[ErrataRPMAdvisoryShippedEvent],
             state=EventState.COMPLETE,
-            released=False)
-        ArtifactBuild.create(
-            db.session, self.event_3, 'build-2', ArtifactType.IMAGE)
-        ArtifactBuild.create(
-            db.session, self.event_3, 'build-4', ArtifactType.IMAGE)
-        ArtifactBuild.create(
-            db.session, self.event_3, 'build-7', ArtifactType.IMAGE)
-        ArtifactBuild.create(
-            db.session, self.event_3, 'build-8', ArtifactType.IMAGE)
+            released=False,
+        )
+        ArtifactBuild.create(db.session, self.event_3, "build-2", ArtifactType.IMAGE)
+        ArtifactBuild.create(db.session, self.event_3, "build-4", ArtifactType.IMAGE)
+        ArtifactBuild.create(db.session, self.event_3, "build-7", ArtifactType.IMAGE)
+        ArtifactBuild.create(db.session, self.event_3, "build-8", ArtifactType.IMAGE)
 
         # Some noises
 
         # Failed events should not be included
         self.event_4 = Event.create(
-            db.session, 'msg-4', 'search-key-4',
+            db.session,
+            "msg-4",
+            "search-key-4",
             EVENT_TYPES[ErrataRPMAdvisoryShippedEvent],
             state=EventState.FAILED,
-            released=False)
-        ArtifactBuild.create(
-            db.session, self.event_4, 'build-3', ArtifactType.IMAGE)
+            released=False,
+        )
+        ArtifactBuild.create(db.session, self.event_4, "build-3", ArtifactType.IMAGE)
 
         # Manual triggered rebuild should not be included as well
         self.event_5 = Event.create(
-            db.session, 'msg-5', 'search-key-5',
+            db.session,
+            "msg-5",
+            "search-key-5",
             EVENT_TYPES[ErrataRPMAdvisoryShippedEvent],
             state=EventState.BUILDING,
-            released=False, manual=True)
-        ArtifactBuild.create(
-            db.session, self.event_5, 'build-4', ArtifactType.IMAGE)
+            released=False,
+            manual=True,
+        )
+        ArtifactBuild.create(db.session, self.event_5, "build-4", ArtifactType.IMAGE)
 
         # Released event should not be included also
         self.event_6 = Event.create(
-            db.session, 'msg-6', 'search-key-6',
+            db.session,
+            "msg-6",
+            "search-key-6",
             EVENT_TYPES[ErrataRPMAdvisoryShippedEvent],
             state=EventState.COMPLETE,
-            released=True)
-        ArtifactBuild.create(
-            db.session, self.event_5, 'build-4', ArtifactType.IMAGE)
+            released=True,
+        )
+        ArtifactBuild.create(db.session, self.event_5, "build-4", ArtifactType.IMAGE)
 
         db.session.commit()
 
     def test_find_dependent_events(self):
         dep_events = self.event_1.find_dependent_events()
-        self.assertEqual([self.event_2.id, self.event_3.id],
-                         sorted([event.id for event in dep_events]))
+        self.assertEqual(
+            [self.event_2.id, self.event_3.id], sorted([event.id for event in dep_events])
+        )
 
         dep_rels = db.session.query(EventDependency).all()
         dep_rels = [(rel.event_id, rel.event_dependency_id) for rel in dep_rels]
@@ -323,7 +371,7 @@ class TestArtifactBuildComposesRel(helpers.ModelsTestCase):
     """Test m2m relationship between ArtifactBuild and Compose"""
 
     def setUp(self):
-        super(TestArtifactBuildComposesRel, self). setUp()
+        super(TestArtifactBuildComposesRel, self).setUp()
 
         self.compose_1 = Compose(odcs_compose_id=-1)
         self.compose_2 = Compose(odcs_compose_id=2)
@@ -335,18 +383,18 @@ class TestArtifactBuildComposesRel(helpers.ModelsTestCase):
         db.session.add(self.compose_4)
 
         self.event = Event.create(
-            db.session, 'msg-1', 'search-key-1',
+            db.session,
+            "msg-1",
+            "search-key-1",
             EVENT_TYPES[ErrataRPMAdvisoryShippedEvent],
             state=EventState.INITIALIZED,
-            released=False)
-        self.build_1 = ArtifactBuild.create(
-            db.session, self.event, 'build-1', ArtifactType.IMAGE)
+            released=False,
+        )
+        self.build_1 = ArtifactBuild.create(db.session, self.event, "build-1", ArtifactType.IMAGE)
         self.build_1.build_id = 3
-        self.build_2 = ArtifactBuild.create(
-            db.session, self.event, 'build-2', ArtifactType.IMAGE)
+        self.build_2 = ArtifactBuild.create(db.session, self.event, "build-2", ArtifactType.IMAGE)
         self.build_2.build_id = -2
-        self.build_3 = ArtifactBuild.create(
-            db.session, self.event, 'build-3', ArtifactType.IMAGE)
+        self.build_3 = ArtifactBuild.create(db.session, self.event, "build-3", ArtifactType.IMAGE)
         self.build_3.build_id = None
 
         db.session.commit()
@@ -360,9 +408,7 @@ class TestArtifactBuildComposesRel(helpers.ModelsTestCase):
         )
 
         for build_id, compose_id in rels:
-            db.session.add(
-                ArtifactBuildCompose(
-                    build_id=build_id, compose_id=compose_id))
+            db.session.add(ArtifactBuildCompose(build_id=build_id, compose_id=compose_id))
 
         db.session.commit()
 
@@ -378,12 +424,14 @@ class TestArtifactBuildComposesRel(helpers.ModelsTestCase):
         self.assertEqual(3, len(self.build_1.composes))
         self.assertEqual(
             [self.compose_1.id, self.compose_2.id, self.compose_3.id],
-            sorted([rel.compose.id for rel in self.build_1.composes]))
+            sorted([rel.compose.id for rel in self.build_1.composes]),
+        )
 
         self.assertEqual(2, len(self.build_2.composes))
         self.assertEqual(
             [self.compose_2.id, self.compose_4.id],
-            sorted([rel.compose.id for rel in self.build_2.composes]))
+            sorted([rel.compose.id for rel in self.build_2.composes]),
+        )
 
         self.assertEqual([], self.build_3.composes)
 
@@ -397,9 +445,7 @@ class TestArtifactBuildComposesRel(helpers.ModelsTestCase):
 
         for compose, builds_count, builds in expected_rels:
             self.assertEqual(builds_count, len(compose.builds))
-            self.assertEqual(
-                builds,
-                sorted([rel.build.id for rel in compose.builds]))
+            self.assertEqual(builds, sorted([rel.build.id for rel in compose.builds]))
 
 
 class TestEventDependency(helpers.ModelsTestCase):

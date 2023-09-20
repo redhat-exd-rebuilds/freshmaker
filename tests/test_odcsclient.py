@@ -49,26 +49,23 @@ class MyHandler(ContainerBuildHandler):
 class TestCreateODCSClient(helpers.FreshmakerTestCase):
     """Test odcsclient.create_odcs_client"""
 
-    @patch.object(conf, 'odcs_auth_mech', new='kerberos')
-    @patch('freshmaker.odcsclient.RetryingODCS')
+    @patch.object(conf, "odcs_auth_mech", new="kerberos")
+    @patch("freshmaker.odcsclient.RetryingODCS")
     def test_create_with_kerberos_auth(self, ODCS):
         odcs = create_odcs_client()
 
         self.assertEqual(ODCS.return_value, odcs)
         ODCS.assert_called_once_with(
-            conf.odcs_server_url,
-            auth_mech=AuthMech.Kerberos,
-            verify_ssl=conf.odcs_verify_ssl)
+            conf.odcs_server_url, auth_mech=AuthMech.Kerberos, verify_ssl=conf.odcs_verify_ssl
+        )
 
-    @patch.object(conf, 'odcs_auth_mech', new='fas')
+    @patch.object(conf, "odcs_auth_mech", new="fas")
     def test_error_if_unsupported_auth_configured(self):
-        self.assertRaisesRegex(
-            ValueError, r'.*fas is not supported yet.',
-            create_odcs_client)
+        self.assertRaisesRegex(ValueError, r".*fas is not supported yet.", create_odcs_client)
 
-    @patch.object(conf, 'odcs_auth_mech', new='openidc')
-    @patch.object(conf, 'odcs_openidc_token', new='12345')
-    @patch('freshmaker.odcsclient.RetryingODCS')
+    @patch.object(conf, "odcs_auth_mech", new="openidc")
+    @patch.object(conf, "odcs_openidc_token", new="12345")
+    @patch("freshmaker.odcsclient.RetryingODCS")
     def test_create_with_openidc_auth(self, ODCS):
         odcs = create_odcs_client()
 
@@ -76,14 +73,13 @@ class TestCreateODCSClient(helpers.FreshmakerTestCase):
         ODCS.assert_called_once_with(
             conf.odcs_server_url,
             auth_mech=AuthMech.OpenIDC,
-            openidc_token='12345',
-            verify_ssl=conf.odcs_verify_ssl)
+            openidc_token="12345",
+            verify_ssl=conf.odcs_verify_ssl,
+        )
 
-    @patch.object(conf, 'odcs_auth_mech', new='openidc')
+    @patch.object(conf, "odcs_auth_mech", new="openidc")
     def test_error_if_missing_openidc_token(self):
-        self.assertRaisesRegex(
-            ValueError, r'Missing OpenIDC token.*',
-            create_odcs_client)
+        self.assertRaisesRegex(ValueError, r"Missing OpenIDC token.*", create_odcs_client)
 
 
 class TestGetPackagesForCompose(helpers.FreshmakerTestCase):
@@ -91,17 +87,14 @@ class TestGetPackagesForCompose(helpers.FreshmakerTestCase):
 
     @helpers.mock_koji
     def test_get_packages(self, mocked_koji):
-        build_nvr = 'chkconfig-1.7.2-1.el7_3.1'
+        build_nvr = "chkconfig-1.7.2-1.el7_3.1"
         mocked_koji.add_build(build_nvr)
-        mocked_koji.add_build_rpms(
-            build_nvr,
-            [build_nvr, "chkconfig-debuginfo-1.7.2-1.el7_3.1"])
+        mocked_koji.add_build_rpms(build_nvr, [build_nvr, "chkconfig-debuginfo-1.7.2-1.el7_3.1"])
 
         handler = MyHandler()
         packages = handler.odcs._get_packages_for_compose(build_nvr)
 
-        self.assertEqual(set(['chkconfig', 'chkconfig-debuginfo']),
-                         set(packages))
+        self.assertEqual(set(["chkconfig", "chkconfig-debuginfo"]), set(packages))
 
 
 class TestGetComposeSource(helpers.FreshmakerTestCase):
@@ -111,34 +104,31 @@ class TestGetComposeSource(helpers.FreshmakerTestCase):
     def test_get_tag(self, mocked_koji):
         mocked_koji.add_build("rh-postgresql96-3.0-9.el6")
         handler = MyHandler()
-        tag = handler.odcs._get_compose_source('rh-postgresql96-3.0-9.el6')
-        self.assertEqual('tag-candidate', tag)
+        tag = handler.odcs._get_compose_source("rh-postgresql96-3.0-9.el6")
+        self.assertEqual("tag-candidate", tag)
 
     @helpers.mock_koji
     def test_get_None_if_tag_has_new_build(self, mocked_koji):
         mocked_koji.add_build("rh-postgresql96-3.0-9.el6")
         mocked_koji.add_build("rh-postgresql96-3.0-10.el6")
         handler = MyHandler()
-        tag = handler.odcs._get_compose_source('rh-postgresql96-3.0-9.el6')
+        tag = handler.odcs._get_compose_source("rh-postgresql96-3.0-9.el6")
         self.assertEqual(None, tag)
 
     @helpers.mock_koji
     def test_get_tag_prefer_final_over_candidate(self, mocked_koji):
-        mocked_koji.add_build("rh-postgresql96-3.0-9.el6",
-                              ["tag-candidate", "tag"])
+        mocked_koji.add_build("rh-postgresql96-3.0-9.el6", ["tag-candidate", "tag"])
         handler = MyHandler()
-        tag = handler.odcs._get_compose_source('rh-postgresql96-3.0-9.el6')
-        self.assertEqual('tag', tag)
+        tag = handler.odcs._get_compose_source("rh-postgresql96-3.0-9.el6")
+        self.assertEqual("tag", tag)
 
     @helpers.mock_koji
     def test_get_tag_fallback_to_second_tag(self, mocked_koji):
-        mocked_koji.add_build("rh-postgresql96-3.0-10.el6",
-                              ["tag"])
-        mocked_koji.add_build("rh-postgresql96-3.0-9.el6",
-                              ["tag", "tag-candidate"])
+        mocked_koji.add_build("rh-postgresql96-3.0-10.el6", ["tag"])
+        mocked_koji.add_build("rh-postgresql96-3.0-9.el6", ["tag", "tag-candidate"])
         handler = MyHandler()
-        tag = handler.odcs._get_compose_source('rh-postgresql96-3.0-9.el6')
-        self.assertEqual('tag-candidate', tag)
+        tag = handler.odcs._get_compose_source("rh-postgresql96-3.0-9.el6")
+        self.assertEqual("tag-candidate", tag)
 
 
 class TestPrepareYumRepo(helpers.ModelsTestCase):
@@ -147,23 +137,23 @@ class TestPrepareYumRepo(helpers.ModelsTestCase):
     def setUp(self):
         super(TestPrepareYumRepo, self).setUp()
 
-        self.ev = Event.create(db.session, 'msg-id', '123', 100)
+        self.ev = Event.create(db.session, "msg-id", "123", 100)
         ArtifactBuild.create(
-            db.session, self.ev, "parent", "image",
-            state=ArtifactBuildState.PLANNED)
+            db.session, self.ev, "parent", "image", state=ArtifactBuildState.PLANNED
+        )
         db.session.commit()
 
-    @patch('freshmaker.odcsclient.create_odcs_client')
-    @patch('freshmaker.odcsclient.FreshmakerODCSClient._get_packages_for_compose')
-    @patch('freshmaker.odcsclient.FreshmakerODCSClient._get_compose_source')
-    @patch('time.sleep')
-    @patch('freshmaker.odcsclient.Errata')
+    @patch("freshmaker.odcsclient.create_odcs_client")
+    @patch("freshmaker.odcsclient.FreshmakerODCSClient._get_packages_for_compose")
+    @patch("freshmaker.odcsclient.FreshmakerODCSClient._get_compose_source")
+    @patch("time.sleep")
+    @patch("freshmaker.odcsclient.Errata")
     def test_get_repo_url_when_succeed_to_generate_compose(
-            self, errata, sleep, _get_compose_source,
-            _get_packages_for_compose, create_odcs_client):
+        self, errata, sleep, _get_compose_source, _get_packages_for_compose, create_odcs_client
+    ):
         odcs = create_odcs_client.return_value
-        _get_packages_for_compose.return_value = ['httpd', 'httpd-debuginfo']
-        _get_compose_source.return_value = 'rhel-7.2-candidate'
+        _get_packages_for_compose.return_value = ["httpd", "httpd-debuginfo"]
+        _get_compose_source.return_value = "rhel-7.2-candidate"
         odcs.new_compose.return_value = {
             "id": 3,
             "result_repo": "http://localhost/composes/latest-odcs-3-1/compose/Temporary",
@@ -180,35 +170,41 @@ class TestPrepareYumRepo(helpers.ModelsTestCase):
         compose = handler.odcs.prepare_yum_repo(self.ev)
 
         db.session.refresh(self.ev)
-        self.assertEqual(3, compose['id'])
+        self.assertEqual(3, compose["id"])
 
         _get_compose_source.assert_called_once_with("httpd-2.4.15-1.f27")
         _get_packages_for_compose.assert_called_once_with("httpd-2.4.15-1.f27")
 
         # Ensure new_compose is called to request a new compose
         odcs.new_compose.assert_called_once_with(
-            'rhel-7.2-candidate', 'tag', packages=['httpd', 'httpd-debuginfo'],
-            sigkeys=[], flags=["no_deps"])
+            "rhel-7.2-candidate",
+            "tag",
+            packages=["httpd", "httpd-debuginfo"],
+            sigkeys=[],
+            flags=["no_deps"],
+        )
 
         # We should get the right repo URL eventually
         self.assertEqual(
             "http://localhost/composes/latest-odcs-3-1/compose/Temporary/odcs-3.repo",
-            compose['result_repofile'])
+            compose["result_repofile"],
+        )
 
-    @patch('freshmaker.odcsclient.create_odcs_client')
-    @patch('freshmaker.odcsclient.FreshmakerODCSClient._get_packages_for_compose')
-    @patch('freshmaker.odcsclient.FreshmakerODCSClient._get_compose_source')
-    @patch('time.sleep')
-    @patch('freshmaker.odcsclient.Errata')
+    @patch("freshmaker.odcsclient.create_odcs_client")
+    @patch("freshmaker.odcsclient.FreshmakerODCSClient._get_packages_for_compose")
+    @patch("freshmaker.odcsclient.FreshmakerODCSClient._get_compose_source")
+    @patch("time.sleep")
+    @patch("freshmaker.odcsclient.Errata")
     def test_get_repo_url_packages_in_multiple_tags(
-            self, errata, sleep, _get_compose_source,
-            _get_packages_for_compose, create_odcs_client):
-        _get_packages_for_compose.return_value = ['httpd', 'httpd-debuginfo']
-        _get_compose_source.side_effect = [
-            'rhel-7.2-candidate', 'rhel-7.7-candidate']
+        self, errata, sleep, _get_compose_source, _get_packages_for_compose, create_odcs_client
+    ):
+        _get_packages_for_compose.return_value = ["httpd", "httpd-debuginfo"]
+        _get_compose_source.side_effect = ["rhel-7.2-candidate", "rhel-7.7-candidate"]
 
         errata.return_value.get_srpm_nvrs.return_value = [
-            set(["httpd-2.4.15-1.f27"]), set(["foo-2.4.15-1.f27"])]
+            set(["httpd-2.4.15-1.f27"]),
+            set(["foo-2.4.15-1.f27"]),
+        ]
 
         handler = MyHandler()
         repo_url = handler.odcs.prepare_yum_repo(self.ev)
@@ -219,22 +215,26 @@ class TestPrepareYumRepo(helpers.ModelsTestCase):
         db.session.refresh(self.ev)
         for build in self.ev.builds:
             self.assertEqual(build.state, ArtifactBuildState.FAILED.value)
-            self.assertEqual(build.state_reason, "Packages for errata "
-                             "advisory 123 found in multiple different tags.")
+            self.assertEqual(
+                build.state_reason,
+                "Packages for errata " "advisory 123 found in multiple different tags.",
+            )
 
-    @patch('freshmaker.odcsclient.create_odcs_client')
-    @patch('freshmaker.odcsclient.FreshmakerODCSClient._get_packages_for_compose')
-    @patch('freshmaker.odcsclient.FreshmakerODCSClient._get_compose_source')
-    @patch('time.sleep')
-    @patch('freshmaker.odcsclient.Errata')
+    @patch("freshmaker.odcsclient.create_odcs_client")
+    @patch("freshmaker.odcsclient.FreshmakerODCSClient._get_packages_for_compose")
+    @patch("freshmaker.odcsclient.FreshmakerODCSClient._get_compose_source")
+    @patch("time.sleep")
+    @patch("freshmaker.odcsclient.Errata")
     def test_get_repo_url_packages_not_found_in_tag(
-            self, errata, sleep, _get_compose_source,
-            _get_packages_for_compose, create_odcs_client):
-        _get_packages_for_compose.return_value = ['httpd', 'httpd-debuginfo']
+        self, errata, sleep, _get_compose_source, _get_packages_for_compose, create_odcs_client
+    ):
+        _get_packages_for_compose.return_value = ["httpd", "httpd-debuginfo"]
         _get_compose_source.return_value = None
 
         errata.return_value.get_srpm_nvrs.return_value = [
-            set(["httpd-2.4.15-1.f27"]), set(["foo-2.4.15-1.f27"])]
+            set(["httpd-2.4.15-1.f27"]),
+            set(["foo-2.4.15-1.f27"]),
+        ]
 
         handler = MyHandler()
         repo_url = handler.odcs.prepare_yum_repo(self.ev)
@@ -245,41 +245,52 @@ class TestPrepareYumRepo(helpers.ModelsTestCase):
         db.session.refresh(self.ev)
         for build in self.ev.builds:
             self.assertEqual(build.state, ArtifactBuildState.FAILED.value)
-            self.assertTrue(build.state_reason.endswith(
-                "of advisory 123 is the latest build in its candidate tag."))
+            self.assertTrue(
+                build.state_reason.endswith(
+                    "of advisory 123 is the latest build in its candidate tag."
+                )
+            )
 
-    def _get_fake_container_image(self, architecture='amd64', arches='x86_64'):
-        rpm_manifest = [{u'rpms': [{
-            u'architecture': architecture,
-            u'gpg': u'199e2f91fd431d51',
-            u'name': u'apache-commons-lang',
-            u'nvra': u'apache-commons-lang-2.6-15.el7.noarch',
-            u'release': u'15.el7',
-            u'srpm_name': u'apache-commons-lang',
-            u'srpm_nevra': u'apache-commons-lang-0:2.6-15.el7.src',
-            u'summary': u'Provides a host of helper utilities for the java.lang API',
-            u'version': u'2.6'
-        }, {
-            u'architecture': architecture,
-            u'gpg': u'199e2f91fd431d51',
-            u'name': u'avalon-logkit',
-            u'nvra': u'avalon-logkit-2.1-14.el7.noarch',
-            u'release': u'14.el7',
-            u'srpm_name': u'avalon-logkit',
-            u'srpm_nevra': u'avalon-logkit-0:2.1-14.el7.src',
-            u'summary': u'Java logging toolkit',
-            u'version': u'2.1'
-        }]}]
-        return ContainerImage.create({
-            u'arches': arches,  # Populated based on Brew build
-            u'architecture': architecture,  # Populated from Lightblue data
-            u'rpm_manifest': rpm_manifest,
-        })
+    def _get_fake_container_image(self, architecture="amd64", arches="x86_64"):
+        rpm_manifest = [
+            {
+                "rpms": [
+                    {
+                        "architecture": architecture,
+                        "gpg": "199e2f91fd431d51",
+                        "name": "apache-commons-lang",
+                        "nvra": "apache-commons-lang-2.6-15.el7.noarch",
+                        "release": "15.el7",
+                        "srpm_name": "apache-commons-lang",
+                        "srpm_nevra": "apache-commons-lang-0:2.6-15.el7.src",
+                        "summary": "Provides a host of helper utilities for the java.lang API",
+                        "version": "2.6",
+                    },
+                    {
+                        "architecture": architecture,
+                        "gpg": "199e2f91fd431d51",
+                        "name": "avalon-logkit",
+                        "nvra": "avalon-logkit-2.1-14.el7.noarch",
+                        "release": "14.el7",
+                        "srpm_name": "avalon-logkit",
+                        "srpm_nevra": "avalon-logkit-0:2.1-14.el7.src",
+                        "summary": "Java logging toolkit",
+                        "version": "2.1",
+                    },
+                ]
+            }
+        ]
+        return ContainerImage.create(
+            {
+                "arches": arches,  # Populated based on Brew build
+                "architecture": architecture,  # Populated from Lightblue data
+                "rpm_manifest": rpm_manifest,
+            }
+        )
 
-    @patch('freshmaker.odcsclient.create_odcs_client')
-    @patch('time.sleep')
-    def test_prepare_odcs_compose_with_image_rpms(
-            self, sleep, create_odcs_client):
+    @patch("freshmaker.odcsclient.create_odcs_client")
+    @patch("time.sleep")
+    def test_prepare_odcs_compose_with_image_rpms(self, sleep, create_odcs_client):
         odcs = create_odcs_client.return_value
         odcs.new_compose.return_value = {
             "id": 3,
@@ -297,18 +308,22 @@ class TestPrepareYumRepo(helpers.ModelsTestCase):
         compose = handler.odcs.prepare_odcs_compose_with_image_rpms(image)
 
         db.session.refresh(self.ev)
-        self.assertEqual(3, compose['id'])
+        self.assertEqual(3, compose["id"])
 
         # Ensure new_compose is called to request a new compose
         odcs.new_compose.assert_called_once_with(
-            '', 'build', builds=['apache-commons-lang-2.6-15.el7', 'avalon-logkit-2.1-14.el7'],
-            flags=['no_deps'], packages=[u'apache-commons-lang', u'avalon-logkit'], sigkeys=[],
-            arches=['x86_64'])
+            "",
+            "build",
+            builds=["apache-commons-lang-2.6-15.el7", "avalon-logkit-2.1-14.el7"],
+            flags=["no_deps"],
+            packages=["apache-commons-lang", "avalon-logkit"],
+            sigkeys=[],
+            arches=["x86_64"],
+        )
 
-    @patch('freshmaker.odcsclient.create_odcs_client')
-    @patch('time.sleep')
-    def test_prepare_odcs_compose_with_multi_arch_image_rpms(
-            self, sleep, create_odcs_client):
+    @patch("freshmaker.odcsclient.create_odcs_client")
+    @patch("time.sleep")
+    def test_prepare_odcs_compose_with_multi_arch_image_rpms(self, sleep, create_odcs_client):
         odcs = create_odcs_client.return_value
         odcs.new_compose.return_value = {
             "id": 3,
@@ -320,23 +335,28 @@ class TestPrepareYumRepo(helpers.ModelsTestCase):
             "state_name": "wait",
         }
 
-        arches = 's390x x86_64'
-        image_x86_64 = self._get_fake_container_image(architecture='amd64', arches=arches)
-        image_s390x = self._get_fake_container_image(architecture='s390x', arches=arches)
+        arches = "s390x x86_64"
+        image_x86_64 = self._get_fake_container_image(architecture="amd64", arches=arches)
+        image_s390x = self._get_fake_container_image(architecture="s390x", arches=arches)
 
         for image in (image_x86_64, image_s390x):
             handler = MyHandler()
             compose = handler.odcs.prepare_odcs_compose_with_image_rpms(image)
 
             db.session.refresh(self.ev)
-            self.assertEqual(3, compose['id'])
+            self.assertEqual(3, compose["id"])
 
             # Ensure new_compose is called to request a new multi-arch
             # compose regardless of which image is used.
             odcs.new_compose.assert_called_once_with(
-                '', 'build', builds=['apache-commons-lang-2.6-15.el7', 'avalon-logkit-2.1-14.el7'],
-                flags=['no_deps'], packages=[u'apache-commons-lang', u'avalon-logkit'], sigkeys=[],
-                arches=['s390x', 'x86_64'])
+                "",
+                "build",
+                builds=["apache-commons-lang-2.6-15.el7", "avalon-logkit-2.1-14.el7"],
+                flags=["no_deps"],
+                packages=["apache-commons-lang", "avalon-logkit"],
+                sigkeys=[],
+                arches=["s390x", "x86_64"],
+            )
 
             odcs.reset_mock()
 
@@ -352,11 +372,11 @@ class TestPrepareYumRepo(helpers.ModelsTestCase):
             handler = MyHandler()
             handler.force_dry_run()
             compose = handler.odcs.prepare_odcs_compose_with_image_rpms(image)
-            db_compose = Compose(odcs_compose_id=compose['id'])
+            db_compose = Compose(odcs_compose_id=compose["id"])
             db.session.add(db_compose)
             db.session.commit()
 
-            self.assertEqual(-i, compose['id'])
+            self.assertEqual(-i, compose["id"])
             event = consumer.incoming.get()
             self.assertEqual(event.msg_id, "fake_compose_msg")
 
@@ -366,20 +386,25 @@ class TestPrepareYumRepo(helpers.ModelsTestCase):
         compose = handler.odcs.prepare_odcs_compose_with_image_rpms({})
         self.assertEqual(compose, None)
 
-        compose = handler.odcs.prepare_odcs_compose_with_image_rpms(
-            {"multi_arch_rpm_manifest": {}})
+        compose = handler.odcs.prepare_odcs_compose_with_image_rpms({"multi_arch_rpm_manifest": {}})
         self.assertEqual(compose, None)
 
         compose = handler.odcs.prepare_odcs_compose_with_image_rpms(
-            {"multi_arch_rpm_manifest": {
-                "amd64": [],
-            }})
+            {
+                "multi_arch_rpm_manifest": {
+                    "amd64": [],
+                }
+            }
+        )
         self.assertEqual(compose, None)
 
         compose = handler.odcs.prepare_odcs_compose_with_image_rpms(
-            {"multi_arch_rpm_manifest": {
-                "amd64": [{"rpms": []}],
-            }})
+            {
+                "multi_arch_rpm_manifest": {
+                    "amd64": [{"rpms": []}],
+                }
+            }
+        )
         self.assertEqual(compose, None)
 
 
@@ -392,25 +417,28 @@ class TestPrepareYumReposForRebuilds(helpers.ModelsTestCase):
         self.patcher = helpers.Patcher()
 
         self.mock_prepare_yum_repo = self.patcher.patch(
-            'freshmaker.odcsclient.FreshmakerODCSClient.prepare_yum_repo',
+            "freshmaker.odcsclient.FreshmakerODCSClient.prepare_yum_repo",
             side_effect=[
-                {'id': 1, 'result_repofile': 'http://localhost/repo/1'},
-                {'id': 2, 'result_repofile': 'http://localhost/repo/2'},
-                {'id': 3, 'result_repofile': 'http://localhost/repo/3'},
-                {'id': 4, 'result_repofile': 'http://localhost/repo/4'},
-            ])
+                {"id": 1, "result_repofile": "http://localhost/repo/1"},
+                {"id": 2, "result_repofile": "http://localhost/repo/2"},
+                {"id": 3, "result_repofile": "http://localhost/repo/3"},
+                {"id": 4, "result_repofile": "http://localhost/repo/4"},
+            ],
+        )
 
         self.mock_find_dependent_event = self.patcher.patch(
-            'freshmaker.models.Event.find_dependent_events')
+            "freshmaker.models.Event.find_dependent_events"
+        )
 
         self.db_event = Event.create(
-            db.session, 'msg-1', 'search-key-1', 1,
-            state=EventState.INITIALIZED,
-            released=False)
+            db.session, "msg-1", "search-key-1", 1, state=EventState.INITIALIZED, released=False
+        )
         self.build_1 = ArtifactBuild.create(
-            db.session, self.db_event, 'build-1', ArtifactType.IMAGE)
+            db.session, self.db_event, "build-1", ArtifactType.IMAGE
+        )
         self.build_2 = ArtifactBuild.create(
-            db.session, self.db_event, 'build-2', ArtifactType.IMAGE)
+            db.session, self.db_event, "build-2", ArtifactType.IMAGE
+        )
 
         db.session.commit()
 
@@ -426,12 +454,10 @@ class TestPrepareYumReposForRebuilds(helpers.ModelsTestCase):
 
         self.assertEqual(1, self.build_1.composes[0].compose.id)
         self.assertEqual(1, self.build_2.composes[0].compose.id)
-        self.assertEqual(['http://localhost/repo/1'], urls)
+        self.assertEqual(["http://localhost/repo/1"], urls)
 
     def test_prepare_with_dependent_events(self):
-        self.mock_find_dependent_event.return_value = [
-            Mock(), Mock(), Mock()
-        ]
+        self.mock_find_dependent_event.return_value = [Mock(), Mock(), Mock()]
 
         handler = MyHandler()
         urls = handler.odcs.prepare_yum_repos_for_rebuilds(self.db_event)
@@ -442,9 +468,12 @@ class TestPrepareYumReposForRebuilds(helpers.ModelsTestCase):
         odcs_compose_ids = [rel.compose.id for rel in self.build_2.composes]
         self.assertEqual([1, 2, 3, 4], sorted(odcs_compose_ids))
 
-        self.assertEqual([
-            'http://localhost/repo/1',
-            'http://localhost/repo/2',
-            'http://localhost/repo/3',
-            'http://localhost/repo/4',
-        ], sorted(urls))
+        self.assertEqual(
+            [
+                "http://localhost/repo/1",
+                "http://localhost/repo/2",
+                "http://localhost/repo/3",
+                "http://localhost/repo/4",
+            ],
+            sorted(urls),
+        )

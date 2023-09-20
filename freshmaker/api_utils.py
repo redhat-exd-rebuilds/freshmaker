@@ -101,7 +101,7 @@ def _order_by(flask_request, query, base_class, allowed_keys, default_key):
     If "order_by" argument starts with minus sign ('-'), the descending order
     is used.
     """
-    order_by = flask_request.args.get('order_by', default_key, type=str)
+    order_by = flask_request.args.get("order_by", default_key, type=str)
     if order_by and len(order_by) > 1 and order_by[0] == "-":
         order_asc = False
         order_by = order_by[1:]
@@ -110,8 +110,8 @@ def _order_by(flask_request, query, base_class, allowed_keys, default_key):
 
     if order_by not in allowed_keys:
         raise ValueError(
-            'An invalid order_by key was suplied, allowed keys are: '
-            '%r' % allowed_keys)
+            "An invalid order_by key was suplied, allowed keys are: " "%r" % allowed_keys
+        )
 
     order_by_attr = getattr(base_class, order_by)
     if not order_asc:
@@ -127,34 +127,33 @@ def filter_artifact_builds(flask_request):
     """
     search_query = dict()
 
-    artifact_type = flask_request.args.get('type', None)
+    artifact_type = flask_request.args.get("type", None)
     if artifact_type:
         if artifact_type.isdigit():
             if int(artifact_type) in [t.value for t in list(ArtifactType)]:
-                search_query['type'] = artifact_type
+                search_query["type"] = artifact_type
             else:
-                raise ValueError('An invalid artifact type was supplied')
+                raise ValueError("An invalid artifact type was supplied")
         else:
             if str(artifact_type).upper() in [t.name for t in list(ArtifactType)]:
-                search_query['type'] = ArtifactType[artifact_type.upper()].value
+                search_query["type"] = ArtifactType[artifact_type.upper()].value
             else:
-                raise ValueError('An invalid artifact type was supplied')
+                raise ValueError("An invalid artifact type was supplied")
 
-    state = flask_request.args.get('state', None)
+    state = flask_request.args.get("state", None)
     if state:
         if state.isdigit():
             if int(state) in [s.value for s in list(ArtifactBuildState)]:
-                search_query['state'] = state
+                search_query["state"] = state
             else:
-                raise ValueError('An invalid state was supplied')
+                raise ValueError("An invalid state was supplied")
         else:
             if str(state).upper() in [s.name for s in list(ArtifactBuildState)]:
-                search_query['state'] = ArtifactBuildState[state.upper()].value
+                search_query["state"] = ArtifactBuildState[state.upper()].value
             else:
-                raise ValueError('An invalid state was supplied')
+                raise ValueError("An invalid state was supplied")
 
-    for key in ['name', 'event_id', 'dep_on_id', 'build_id', 'original_nvr',
-                'rebuilt_nvr']:
+    for key in ["name", "event_id", "dep_on_id", "build_id", "original_nvr", "rebuilt_nvr"]:
         if flask_request.args.get(key, None):
             search_query[key] = flask_request.args[key]
 
@@ -163,23 +162,27 @@ def filter_artifact_builds(flask_request):
     if search_query:
         query = query.filter_by(**search_query)
 
-    event_type_id = flask_request.args.get('event_type_id', None)
+    event_type_id = flask_request.args.get("event_type_id", None)
     if event_type_id:
         query = query.join(Event).filter(Event.event_type_id == event_type_id)
 
-    event_search_key = flask_request.args.get('event_search_key', None)
+    event_search_key = flask_request.args.get("event_search_key", None)
     if event_search_key:
         # use alias to avoid 'ambiguous column name' error when we have both
         # event_type_id and event_search_key specified.
         ea = db.aliased(Event)
         query = query.join(ea).filter(ea.search_key == event_search_key)
 
-    query = _order_by(flask_request, query, ArtifactBuild,
-                      ["id", "name", "event_id", "dep_on_id", "build_id",
-                       "original_nvr", "rebuilt_nvr"], "-id")
+    query = _order_by(
+        flask_request,
+        query,
+        ArtifactBuild,
+        ["id", "name", "event_id", "dep_on_id", "build_id", "original_nvr", "rebuilt_nvr"],
+        "-id",
+    )
 
-    page = flask_request.args.get('page', 1, type=int)
-    per_page = flask_request.args.get('per_page', 10, type=int)
+    page = flask_request.args.get("page", 1, type=int)
+    per_page = flask_request.args.get("per_page", 10, type=int)
     return query.paginate(page, per_page, False)
 
 
@@ -192,7 +195,7 @@ def filter_events(flask_request):
 
     query = Event.query
 
-    for key in ['message_id', 'search_key', 'event_type_id', 'requester']:
+    for key in ["message_id", "search_key", "event_type_id", "requester"]:
         values = flask_request.args.getlist(key)
         if not values:
             continue
@@ -216,17 +219,14 @@ def filter_events(flask_request):
     if search_states:
         query = query.filter(Event.state.in_(search_states))
 
-    query = _order_by(flask_request, query, Event,
-                      ["id", "message_id"], "-id")
+    query = _order_by(flask_request, query, Event, ["id", "message_id"], "-id")
 
-    page = flask_request.args.get('page', 1, type=int)
-    per_page = flask_request.args.get('per_page', 10, type=int)
+    page = flask_request.args.get("page", 1, type=int)
+    per_page = flask_request.args.get("per_page", 10, type=int)
     return query.paginate(page, per_page, False)
 
 
 def json_error(status, error, message):
-    response = jsonify({'status': status,
-                        'error': error,
-                        'message': message})
+    response = jsonify({"status": status, "error": error, "message": message})
     response.status_code = status
     return response

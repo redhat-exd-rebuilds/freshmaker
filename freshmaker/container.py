@@ -94,13 +94,9 @@ class Container:
     def _convert_rpm(rpm):
         """Convert rpm data to dict of rpm names and nvr"""
         parsed_nvra = kobo.rpmlib.parse_nvra(rpm["nvra"])
-        nvr = "-".join(
-            [parsed_nvra["name"], parsed_nvra["version"], parsed_nvra["release"]]
-        )
+        nvr = "-".join([parsed_nvra["name"], parsed_nvra["version"], parsed_nvra["release"]])
         parsed_nvra = kobo.rpmlib.parse_nvra(rpm["srpm_nevra"])
-        srpm_nvr = "-".join(
-            [parsed_nvra["name"], parsed_nvra["version"], parsed_nvra["release"]]
-        )
+        srpm_nvr = "-".join([parsed_nvra["name"], parsed_nvra["version"], parsed_nvra["release"]])
         return {
             "name": rpm["name"],
             "nvr": nvr,

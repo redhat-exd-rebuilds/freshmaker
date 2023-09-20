@@ -5,10 +5,8 @@ import os
 config = {
     # Just for dev.
     "validate_signatures": False,
-
     # Talk to the relay, so things also make it to composer.stg in our dev env
     "active": True,
-
     # Since we're in active mode, we don't need to declare any of our own
     # passive endpoints.  This placeholder value needs to be here for the tests
     # to pass in Jenkins, though.  \o/
@@ -19,7 +17,6 @@ config = {
         #     "tcp://stg.fedoraproject.org:9940",
         # ],
     },
-
     # Start of code signing configuration
     # 'sign_messages': True,
     # 'validate_signatures': True,
@@ -39,12 +36,16 @@ config = {
 }
 
 # developer's instance (docker/vagrant/...)
-if 'FRESHMAKER_DEVELOPER_ENV' in os.environ and \
-   os.environ['FRESHMAKER_DEVELOPER_ENV'].lower() in (
-       '1', 'on', 'true', 'y', 'yes'):
-    config['endpoints']['relay_outbound'] = ["tcp://127.0.0.1:2001"]
-    config['relay_inbound'] = ["tcp://127.0.0.1:2003"]
+if "FRESHMAKER_DEVELOPER_ENV" in os.environ and os.environ["FRESHMAKER_DEVELOPER_ENV"].lower() in (
+    "1",
+    "on",
+    "true",
+    "y",
+    "yes",
+):
+    config["endpoints"]["relay_outbound"] = ["tcp://127.0.0.1:2001"]
+    config["relay_inbound"] = ["tcp://127.0.0.1:2003"]
 else:
     # These configuration values are reasonable for most other configurations.
-    config['endpoints']['relay_outbound'] = ["tcp://127.0.0.1:4001"]
-    config['relay_inbound'] = ["tcp://127.0.0.1:2003"]
+    config["endpoints"]["relay_outbound"] = ["tcp://127.0.0.1:4001"]
+    config["relay_inbound"] = ["tcp://127.0.0.1:2003"]

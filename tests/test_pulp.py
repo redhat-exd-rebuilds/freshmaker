@@ -36,134 +36,127 @@ class TestPulp(helpers.FreshmakerTestCase):
 
     def setUp(self):
         super(TestPulp, self).setUp()
-        self.server_url = 'http://localhost/'
+        self.server_url = "http://localhost/"
         self.cert = ("path/to/crt", "path/to/key")
 
-    @patch('freshmaker.pulp.requests.post')
+    @patch("freshmaker.pulp.requests.post")
     def test_query_content_set_by_repo_ids(self, post):
         post.return_value.json.return_value = [
             {
-                '_href': '/pulp/api/v2/repositories/rhel-7-workstation-rpms__7Workstation__x86_64/',
-                '_id':
-                {
-                    '$oid': '53853a247bc9f61b85909cfe'
-                },
-                'id': 'rhel-7-workstation-rpms__7Workstation__x86_64',
-                'notes':
-                {
-                    'content_set': 'rhel-7-workstation-rpms',
+                "_href": "/pulp/api/v2/repositories/rhel-7-workstation-rpms__7Workstation__x86_64/",
+                "_id": {"$oid": "53853a247bc9f61b85909cfe"},
+                "id": "rhel-7-workstation-rpms__7Workstation__x86_64",
+                "notes": {
+                    "content_set": "rhel-7-workstation-rpms",
                 },
             },
             {
-                '_href': '/pulp/api/v2/repositories/rhel-7-hpc-node-rpms__7ComputeNode__x86_64/',
-                '_id': {
-                    '$oid': '5384ee7c7bc9f619942a8f89',
+                "_href": "/pulp/api/v2/repositories/rhel-7-hpc-node-rpms__7ComputeNode__x86_64/",
+                "_id": {
+                    "$oid": "5384ee7c7bc9f619942a8f89",
                 },
-                'id': 'rhel-7-hpc-node-rpms__7ComputeNode__x86_64',
-                'notes': {
-                    'content_set': 'rhel-7-hpc-node-rpms'
-                },
+                "id": "rhel-7-hpc-node-rpms__7ComputeNode__x86_64",
+                "notes": {"content_set": "rhel-7-hpc-node-rpms"},
             },
             {
-                '_href': '/pulp/api/v2/repositories/rhel-7-desktop-rpms__7Client__x86_64/',
-                '_id': {
-                    '$oid': '5384ee6a7bc9f619942a8bca',
+                "_href": "/pulp/api/v2/repositories/rhel-7-desktop-rpms__7Client__x86_64/",
+                "_id": {
+                    "$oid": "5384ee6a7bc9f619942a8bca",
                 },
-                'id': 'rhel-7-desktop-rpms__7Client__x86_64',
-                'notes': {
-                    'content_set': 'rhel-7-desktop-rpms',
-                }
-            }
+                "id": "rhel-7-desktop-rpms__7Client__x86_64",
+                "notes": {
+                    "content_set": "rhel-7-desktop-rpms",
+                },
+            },
         ]
 
         pulp = Pulp(self.server_url, cert=self.cert)
         repo_ids = [
-            'rhel-7-hpc-node-rpms__7ComputeNode__x86_64',
-            'rhel-7-workstation-rpms__7Workstation__x86_64',
-            'rhel-7-desktop-rpms__7Client__x86_64',
+            "rhel-7-hpc-node-rpms__7ComputeNode__x86_64",
+            "rhel-7-workstation-rpms__7Workstation__x86_64",
+            "rhel-7-desktop-rpms__7Client__x86_64",
         ]
         content_sets = pulp.get_content_set_by_repo_ids(repo_ids)
 
         post.assert_called_once_with(
-            '{}pulp/api/v2/repositories/search/'.format(self.server_url),
-            json.dumps({
-                'criteria': {
-                    'filters': {
-                        'id': {'$in': repo_ids},
-                    },
-                    'fields': ['notes'],
+            "{}pulp/api/v2/repositories/search/".format(self.server_url),
+            json.dumps(
+                {
+                    "criteria": {
+                        "filters": {
+                            "id": {"$in": repo_ids},
+                        },
+                        "fields": ["notes"],
+                    }
                 }
-            }),
+            ),
             cert=self.cert,
-            timeout=conf.requests_timeout)
+            timeout=conf.requests_timeout,
+        )
 
         self.assertEqual(
-            ['rhel-7-workstation-rpms',
-             'rhel-7-hpc-node-rpms',
-             'rhel-7-desktop-rpms'],
-            content_sets)
+            ["rhel-7-workstation-rpms", "rhel-7-hpc-node-rpms", "rhel-7-desktop-rpms"], content_sets
+        )
 
-    @patch('freshmaker.pulp.requests.post')
+    @patch("freshmaker.pulp.requests.post")
     def test_get_content_sets_by_ignoring_nonexisting_ones(self, post):
         post.return_value.json.return_value = [
             {
-                '_href': '/pulp/api/v2/repositories/rhel-7-workstation-rpms__7Workstation__x86_64/',
-                '_id':
-                {
-                    '$oid': '53853a247bc9f61b85909cfe'
-                },
-                'id': 'rhel-7-workstation-rpms__7Workstation__x86_64',
-                'notes':
-                {
-                    'content_set': 'rhel-7-workstation-rpms',
+                "_href": "/pulp/api/v2/repositories/rhel-7-workstation-rpms__7Workstation__x86_64/",
+                "_id": {"$oid": "53853a247bc9f61b85909cfe"},
+                "id": "rhel-7-workstation-rpms__7Workstation__x86_64",
+                "notes": {
+                    "content_set": "rhel-7-workstation-rpms",
                 },
             },
             {
-                '_href': '/pulp/api/v2/repositories/rhel-7-hpc-node-rpms__7ComputeNode__x86_64/',
-                '_id': {
-                    '$oid': '5384ee7c7bc9f619942a8f89',
+                "_href": "/pulp/api/v2/repositories/rhel-7-hpc-node-rpms__7ComputeNode__x86_64/",
+                "_id": {
+                    "$oid": "5384ee7c7bc9f619942a8f89",
                 },
-                'id': 'rhel-7-hpc-node-rpms__7ComputeNode__x86_64',
-                'notes': {},
+                "id": "rhel-7-hpc-node-rpms__7ComputeNode__x86_64",
+                "notes": {},
             },
             {
-                '_href': '/pulp/api/v2/repositories/rhel-7-desktop-rpms__7Client__x86_64/',
-                '_id': {
-                    '$oid': '5384ee6a7bc9f619942a8bca',
+                "_href": "/pulp/api/v2/repositories/rhel-7-desktop-rpms__7Client__x86_64/",
+                "_id": {
+                    "$oid": "5384ee6a7bc9f619942a8bca",
                 },
-                'id': 'rhel-7-desktop-rpms__7Client__x86_64',
-                'notes': {
-                    'content_set': 'rhel-7-desktop-rpms',
-                }
-            }
+                "id": "rhel-7-desktop-rpms__7Client__x86_64",
+                "notes": {
+                    "content_set": "rhel-7-desktop-rpms",
+                },
+            },
         ]
 
         pulp = Pulp(self.server_url, cert=self.cert)
         repo_ids = [
-            'rhel-7-hpc-node-rpms__7ComputeNode__x86_64',
-            'rhel-7-workstation-rpms__7Workstation__x86_64',
-            'rhel-7-desktop-rpms__7Client__x86_64',
+            "rhel-7-hpc-node-rpms__7ComputeNode__x86_64",
+            "rhel-7-workstation-rpms__7Workstation__x86_64",
+            "rhel-7-desktop-rpms__7Client__x86_64",
         ]
         content_sets = pulp.get_content_set_by_repo_ids(repo_ids)
 
         post.assert_called_once_with(
-            '{}pulp/api/v2/repositories/search/'.format(self.server_url),
-            json.dumps({
-                'criteria': {
-                    'filters': {
-                        'id': {'$in': repo_ids},
-                    },
-                    'fields': ['notes'],
+            "{}pulp/api/v2/repositories/search/".format(self.server_url),
+            json.dumps(
+                {
+                    "criteria": {
+                        "filters": {
+                            "id": {"$in": repo_ids},
+                        },
+                        "fields": ["notes"],
+                    }
                 }
-            }),
+            ),
             cert=self.cert,
-            timeout=conf.requests_timeout)
+            timeout=conf.requests_timeout,
+        )
 
-        self.assertEqual(['rhel-7-workstation-rpms', 'rhel-7-desktop-rpms'],
-                         content_sets)
+        self.assertEqual(["rhel-7-workstation-rpms", "rhel-7-desktop-rpms"], content_sets)
 
-    @patch('freshmaker.pulp.requests.post')
-    @patch('freshmaker.pulp.requests.get')
+    @patch("freshmaker.pulp.requests.post")
+    @patch("freshmaker.pulp.requests.get")
     def test_retrying_calls(self, get, post):
         get.side_effect = exceptions.HTTPError("Connection error: get")
         post.side_effect = exceptions.HTTPError("Connection error: post")
@@ -171,5 +164,5 @@ class TestPulp(helpers.FreshmakerTestCase):
         pulp = Pulp(self.server_url, cert=self.cert)
 
         with self.assertRaises(exceptions.HTTPError):
-            pulp.get_content_set_by_repo_ids(['test1', 'test2'])
+            pulp.get_content_set_by_repo_ids(["test1", "test2"])
         self.assertGreater(post.call_count, 1)

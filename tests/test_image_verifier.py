@@ -55,7 +55,7 @@ class TestImageVerifier(helpers.FreshmakerTestCase):
                 "auto_rebuild_tags": ["latest"],
                 "published": True,
                 "repository": "foo",
-            }
+            },
         ]
         self.assertRaisesRegex(
             ValueError,

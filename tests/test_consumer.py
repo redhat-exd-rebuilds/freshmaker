@@ -53,12 +53,13 @@ class ConsumerTest(helpers.ConsumerBaseTest):
         self.assertEqual(event.msg_id, "ModuleBuilt handled")
 
     @mock.patch("freshmaker.handlers.koji.RebuildImagesOnODCSComposeDone.can_handle")
-    @mock.patch("freshmaker.handlers.internal.UpdateDBOnODCSComposeFail.order",
-                new_callable=mock.PropertyMock)
+    @mock.patch(
+        "freshmaker.handlers.internal.UpdateDBOnODCSComposeFail.order",
+        new_callable=mock.PropertyMock,
+    )
     @mock.patch("freshmaker.handlers.internal.UpdateDBOnODCSComposeFail.can_handle")
     @mock.patch("freshmaker.consumer.get_global_consumer")
-    def test_consumer_handlers_order(self, global_consumer, handler1,
-                                     handler1_order, handler2):
+    def test_consumer_handlers_order(self, global_consumer, handler1, handler1_order, handler2):
         """
         Tests that consumer parses the message, forwards the event
         to proper handler and is able to get the further work from
@@ -92,8 +93,8 @@ class ConsumerTest(helpers.ConsumerBaseTest):
     @mock.patch("freshmaker.handlers.internal.UpdateDBOnODCSComposeFail.can_handle")
     @mock.patch("freshmaker.consumer.get_global_consumer")
     def test_consumer_multiple_handlers_called(
-            self, global_consumer, handler1_can_handle, handler1, handler2_can_handle,
-            handler2):
+        self, global_consumer, handler1_can_handle, handler1, handler2_can_handle, handler2
+    ):
         consumer = self.create_consumer()
         global_consumer.return_value = consumer
 
@@ -118,11 +119,11 @@ class ConsumerTest(helpers.ConsumerBaseTest):
             self.assertIn(mock.call(topic, callback), consumer.hub.subscribe.call_args_list)
 
     @mock.patch("freshmaker.handlers.internal.UpdateDBOnODCSComposeFail.can_handle")
-    @mock.patch("freshmaker.handlers.internal.UpdateDBOnODCSComposeFail.handle",
-                autospec=True)
+    @mock.patch("freshmaker.handlers.internal.UpdateDBOnODCSComposeFail.handle", autospec=True)
     @mock.patch("freshmaker.consumer.get_global_consumer")
     def test_consumer_mark_event_as_failed_on_exception(
-            self, global_consumer, handle, handler_can_handle):
+        self, global_consumer, handle, handler_can_handle
+    ):
         """
         Tests that Consumer.consume marks the DB Event as failed in case there
         is an error in a handler.
@@ -151,5 +152,5 @@ class ConsumerTest(helpers.ConsumerBaseTest):
             self.assertTrue(build.state_reason, "Failed with traceback")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

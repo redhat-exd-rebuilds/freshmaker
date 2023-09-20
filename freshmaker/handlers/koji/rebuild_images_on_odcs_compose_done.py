@@ -22,15 +22,13 @@
 # Written by Chenxiong Qi <cqi@redhat.com>
 
 from freshmaker import db
-from freshmaker.models import (
-    ArtifactBuild, ArtifactBuildState, Compose, ArtifactBuildCompose)
-from freshmaker.handlers import (
-    ContainerBuildHandler, fail_event_on_handler_exception)
+from freshmaker.models import ArtifactBuild, ArtifactBuildState, Compose, ArtifactBuildCompose
+from freshmaker.handlers import ContainerBuildHandler, fail_event_on_handler_exception
 from freshmaker.events import ODCSComposeStateChangeEvent
 
 from odcs.common.types import COMPOSE_STATES
 
-__all__ = ('RebuildImagesOnODCSComposeDone',)
+__all__ = ("RebuildImagesOnODCSComposeDone",)
 
 
 class RebuildImagesOnODCSComposeDone(ContainerBuildHandler):
@@ -40,44 +38,50 @@ class RebuildImagesOnODCSComposeDone(ContainerBuildHandler):
         if not isinstance(event, ODCSComposeStateChangeEvent):
             return False
 
-        compose_id = event.compose['id']
+        compose_id = event.compose["id"]
 
         # check db to see whether this compose exists in db
-        found_compose = Compose.query.filter_by(odcs_compose_id=compose_id).first()  # db.session.query(ArtifactBuild).filter_by(odcs_compose_id=compose_id).first()
+        found_compose = Compose.query.filter_by(
+            odcs_compose_id=compose_id
+        ).first()  # db.session.query(ArtifactBuild).filter_by(odcs_compose_id=compose_id).first()
 
         if not found_compose:
             return False
-        return event.compose['state'] == COMPOSE_STATES['done']
+        return event.compose["state"] == COMPOSE_STATES["done"]
 
     @fail_event_on_handler_exception
     def handle(self, event):
         if event.dry_run:
             self.force_dry_run()
 
-        compose_id = event.compose['id']
+        compose_id = event.compose["id"]
 
-        self.log_info('ODCS compose %s finished', compose_id)
+        self.log_info("ODCS compose %s finished", compose_id)
 
-        builds_ready_to_rebuild = db.session.query(ArtifactBuild).join(
-            ArtifactBuildCompose).join(Compose)
+        builds_ready_to_rebuild = (
+            db.session.query(ArtifactBuild).join(ArtifactBuildCompose).join(Compose)
+        )
         # Get all the builds waiting for this compose in PLANNED state ...
         builds_ready_to_rebuild = builds_ready_to_rebuild.filter(
             ArtifactBuild.state == ArtifactBuildState.PLANNED.value,
             Compose.odcs_compose_id == compose_id,
-            ArtifactBuildCompose.compose_id == Compose.id)
+            ArtifactBuildCompose.compose_id == Compose.id,
+        )
 
         # ... and depending on DONE parent image or parent image which is
         # not planned to be built in this Event (dep_on == None).
         builds_ready_to_rebuild = [
-            b for b in builds_ready_to_rebuild if
-            b.dep_on is None or b.dep_on.state == ArtifactBuildState.DONE.value
+            b
+            for b in builds_ready_to_rebuild
+            if b.dep_on is None or b.dep_on.state == ArtifactBuildState.DONE.value
         ]
 
         if not self.dry_run:
             # In non-dry-run mode, check that all the composes are ready.
             # In dry-run mode, the composes are fake, so they are always ready.
             builds_ready_to_rebuild = filter(
-                lambda build: build.composes_ready, builds_ready_to_rebuild)
+                lambda build: build.composes_ready, builds_ready_to_rebuild
+            )
 
         # Start the rebuild.
         self.start_to_build_images(builds_ready_to_rebuild)

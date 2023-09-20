@@ -45,47 +45,66 @@ class TestViews(helpers.ModelsTestCase):
         self.client = app.test_client()
 
     def _init_data(self):
-        event = models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000001", "RHSA-2018-101", events.TestingEvent)
+        event = models.Event.create(
+            db.session,
+            "2017-00000000-0000-0000-0000-000000000001",
+            "RHSA-2018-101",
+            events.TestingEvent,
+        )
         build = models.ArtifactBuild.create(db.session, event, "ed", "module", 1234)
         build.build_args = '{"key": "value"}'
         models.ArtifactBuild.create(db.session, event, "mksh", "module", 1235)
         models.ArtifactBuild.create(db.session, event, "bash", "module", 1236)
-        models.Event.create(db.session, "2017-00000000-0000-0000-0000-000000000002", "RHSA-2018-102", events.TestingEvent)
+        models.Event.create(
+            db.session,
+            "2017-00000000-0000-0000-0000-000000000002",
+            "RHSA-2018-102",
+            events.TestingEvent,
+        )
         db.session.commit()
         db.session.expire_all()
 
     def test_monitor_api_structure(self):
-        resp = self.client.get('/api/1/monitor/metrics')
+        resp = self.client.get("/api/1/monitor/metrics")
         self.assertEqual(
-            len([line for line in resp.get_data(as_text=True).splitlines()
-                 if line.startswith('# TYPE')]), num_of_metrics)
+            len(
+                [
+                    line
+                    for line in resp.get_data(as_text=True).splitlines()
+                    if line.startswith("# TYPE")
+                ]
+            ),
+            num_of_metrics,
+        )
 
 
 class ConsumerTest(helpers.ConsumerBaseTest):
     def setUp(self):
-        super(ConsumerTest, self). setUp()
+        super(ConsumerTest, self).setUp()
         self.client = app.test_client()
 
     def tearDown(self):
-        super(ConsumerTest, self). tearDown()
+        super(ConsumerTest, self).tearDown()
 
     def _compose_state_change_msg(self, state=None):
-        msg = {'body': {
-            "msg_id": "2017-7afcb214-cf82-4130-92d2-22f45cf59cf7",
-            "topic": "org.fedoraproject.prod.odcs.state.change",
-            "signature": "qRZ6oXBpKD/q8BTjBNa4MREkAPxT+KzI8Oret+TSKazGq/6gk0uuprdFpkfBXLR5dd4XDoh3NQWp\nyC74VYTDVqJR7IsEaqHtrv01x1qoguU/IRWnzrkGwqXm+Es4W0QZjHisBIRRZ4ywYBG+DtWuskvy\n6/5Mc3dXaUBcm5TnT0c=\n",
-            "msg": {
-                "compose": {
-                    "id": 1,
-                    "state": 4,
-                }
+        msg = {
+            "body": {
+                "msg_id": "2017-7afcb214-cf82-4130-92d2-22f45cf59cf7",
+                "topic": "org.fedoraproject.prod.odcs.state.change",
+                "signature": "qRZ6oXBpKD/q8BTjBNa4MREkAPxT+KzI8Oret+TSKazGq/6gk0uuprdFpkfBXLR5dd4XDoh3NQWp\nyC74VYTDVqJR7IsEaqHtrv01x1qoguU/IRWnzrkGwqXm+Es4W0QZjHisBIRRZ4ywYBG+DtWuskvy\n6/5Mc3dXaUBcm5TnT0c=\n",
+                "msg": {
+                    "compose": {
+                        "id": 1,
+                        "state": 4,
+                    }
+                },
             }
-        }}
+        }
 
         return msg
 
     def _get_monitor_value(self, key):
-        resp = self.client.get('/api/1/monitor/metrics')
+        resp = self.client.get("/api/1/monitor/metrics")
         for line in resp.get_data(as_text=True).splitlines():
             k, v = line.split(" ")[:2]
             if k == key:
@@ -121,14 +140,15 @@ class ConsumerTest(helpers.ConsumerBaseTest):
 
 def test_standalone_metrics_server_disabled_by_default():
     with pytest.raises(requests.exceptions.ConnectionError):
-        requests.get('http://127.0.0.1:10040/metrics')
+        requests.get("http://127.0.0.1:10040/metrics")
 
 
 def test_standalone_metrics_server():
-    os.environ['MONITOR_STANDALONE_METRICS_SERVER_ENABLE'] = 'true'
+    os.environ["MONITOR_STANDALONE_METRICS_SERVER_ENABLE"] = "true"
     importlib.reload(freshmaker.monitor)
 
-    r = requests.get('http://127.0.0.1:10040/metrics')
+    r = requests.get("http://127.0.0.1:10040/metrics")
 
-    assert len([line for line in r.text.splitlines()
-                if line.startswith('# TYPE')]) == num_of_metrics
+    assert (
+        len([line for line in r.text.splitlines() if line.startswith("# TYPE")]) == num_of_metrics
+    )

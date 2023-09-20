@@ -37,9 +37,9 @@ from freshmaker.config import init_config
 from freshmaker.proxy import ReverseProxy
 
 try:
-    version = pkg_resources.get_distribution('freshmaker').version
+    version = pkg_resources.get_distribution("freshmaker").version
 except pkg_resources.DistributionNotFound:
-    version = 'unknown'
+    version = "unknown"
 
 app = Flask(__name__)  # type: Any
 app.wsgi_app = ReverseProxy(app.wsgi_app)
@@ -56,9 +56,11 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 
 from freshmaker.auth import init_auth  # noqa
+
 init_auth(login_manager, conf.auth_backend)
 
 from freshmaker import views  # noqa
 
 from freshmaker.monitor import db_hook_event_listeners  # noqa
+
 db_hook_event_listeners(target=db.engine)

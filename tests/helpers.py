@@ -80,23 +80,21 @@ class Patcher(object):
 
 
 class FreshmakerTestCase(unittest.TestCase):
-
     def get_event_from_msg(self, message):
-        event = events.BaseEvent.from_fedmsg(message['body']['topic'], message['body'])
+        event = events.BaseEvent.from_fedmsg(message["body"]["topic"], message["body"])
         return event
 
     def create_consumer(self):
         hub = MagicMock()
         hub.config = {}
-        hub.config['freshmakerconsumer'] = True
-        hub.config['validate_signatures'] = False
+        hub.config["freshmakerconsumer"] = True
+        hub.config["validate_signatures"] = False
         consumer = freshmaker.consumer.FreshmakerConsumer(hub)
         consumer.incoming = queue.Queue()
         return consumer
 
 
 class ModelsTestCase(FreshmakerTestCase):
-
     def setUp(self):
         super(ModelsTestCase, self).setUp()
         db.session.remove()
@@ -104,7 +102,7 @@ class ModelsTestCase(FreshmakerTestCase):
         db.create_all()
         db.session.commit()
 
-        self.user = User(username='tester1')
+        self.user = User(username="tester1")
         db.session.add(self.user)
         db.session.commit()
 
@@ -175,13 +173,15 @@ class MockedKoji(object):
         for nvr in rpm_nvrs:
             for arch in arches:
                 parsed_nvr = koji.parse_NVR(nvr)
-                self.rpms[build_nvr].append({
-                    'arch': arch,
-                    'name': parsed_nvr["name"],
-                    'release': parsed_nvr["release"],
-                    'version': parsed_nvr["version"],
-                    'nvr': nvr,
-                })
+                self.rpms[build_nvr].append(
+                    {
+                        "arch": arch,
+                        "name": parsed_nvr["name"],
+                        "release": parsed_nvr["release"],
+                        "version": parsed_nvr["version"],
+                        "nvr": nvr,
+                    }
+                )
 
     def _get_build_rpms(self, build_nvr, arches=None):
         """
@@ -198,12 +198,12 @@ class MockedKoji(object):
         """
         if build_target == "guest-rhel-7.4-docker":
             return {
-                'build_tag': 10052,
-                'build_tag_name': 'guest-rhel-7.4-docker-build',
-                'dest_tag': 10051,
-                'dest_tag_name': 'guest-rhel-7.4-candidate',
-                'id': 3205,
-                'name': 'guest-rhel-7.4-docker'
+                "build_tag": 10052,
+                "build_tag_name": "guest-rhel-7.4-docker-build",
+                "dest_tag": 10051,
+                "dest_tag_name": "guest-rhel-7.4-candidate",
+                "id": 3205,
+                "name": "guest-rhel-7.4-docker",
             }
         return None
 
@@ -214,9 +214,7 @@ class MockedKoji(object):
         ret = []
         for tag_name, nvrs in self.tags.items():
             if nvr in nvrs:
-                ret.append({
-                    "name": tag_name
-                })
+                ret.append({"name": tag_name})
         return ret
 
     def _session_list_tagged(self, tag, **kwargs):
@@ -236,9 +234,11 @@ class MockedKoji(object):
                 continue
 
             packages.append(package)
-            ret.append({
-                'nvr': nvr,
-            })
+            ret.append(
+                {
+                    "nvr": nvr,
+                }
+            )
 
         return ret
 
@@ -246,8 +246,7 @@ class MockedKoji(object):
         """
         Starts the Koji mocking.
         """
-        self._mocked_koji_service_patch = patch(
-            'freshmaker.kojiservice.KojiService')
+        self._mocked_koji_service_patch = patch("freshmaker.kojiservice.KojiService")
         self._koji_service = self._mocked_koji_service_patch.start().return_value
 
         self._koji_service.get_build_target.side_effect = self._get_build_target
@@ -279,10 +278,11 @@ def mock_koji(f):
     Wrapper which mocks the Koji. It adds MockedKoji instance as the last
     *arg of original ufnction.
     """
+
     @wraps(f)
     def wrapped(*args, **kwargs):
         with MockedKoji() as mocked_koji:
-            return f(*args + (mocked_koji, ), **kwargs)
+            return f(*args + (mocked_koji,), **kwargs)
 
     return wrapped
 
@@ -291,12 +291,12 @@ class FedMsgFactory(object):
     def __init__(self, *args, **kwargs):
         self.msg_id = "%s-%s" % (time.strftime("%Y"), uuid.uuid4())
         self.msg = {}
-        self.signature = '123'
-        self.source_name = 'unittest'
-        self.source_version = '0.1.1'
+        self.signature = "123"
+        self.source_name = "unittest"
+        self.source_version = "0.1.1"
         self.timestamp = time.time()
-        self.topic = ''
-        self.username = 'freshmaker'
+        self.topic = ""
+        self.username = "freshmaker"
         self.i = random.randint(0, 100)
 
     @property
@@ -305,132 +305,128 @@ class FedMsgFactory(object):
 
     def produce(self):
         message_body = {
-            'i': self.i,
-            'msg_id': self.msg_id,
-            'topic': self.topic,
-            'username': self.username,
-            'timestamp': self.timestamp,
-            'signature': self.signature,
-            'source_name': self.source_name,
-            'source_version': self.source_version,
-            'msg': self.inner_msg,
+            "i": self.i,
+            "msg_id": self.msg_id,
+            "topic": self.topic,
+            "username": self.username,
+            "timestamp": self.timestamp,
+            "signature": self.signature,
+            "source_name": self.source_name,
+            "source_version": self.source_version,
+            "msg": self.inner_msg,
         }
-        return {
-            'body': message_body,
-            'topic': self.topic
-        }
+        return {"body": message_body, "topic": self.topic}
 
 
 class ModuleStateChangeMessage(FedMsgFactory):
-    def __init__(self, name, stream, state='ready', build_id=None, *args, **kwargs):
+    def __init__(self, name, stream, state="ready", build_id=None, *args, **kwargs):
         super(ModuleStateChangeMessage, self).__init__(*args, **kwargs)
-        self.topic = 'org.fedoraproject.prod.mbs.module.state.change'
+        self.topic = "org.fedoraproject.prod.mbs.module.state.change"
         self.name = name
         self.stream = stream
         self.state = state
         self.build_id = build_id if build_id else random.randint(0, 1000)
-        self.scmurl = "git://pkgs.fedoraproject.org/modules/%s?#%s" % (self.name, '123')
+        self.scmurl = "git://pkgs.fedoraproject.org/modules/%s?#%s" % (self.name, "123")
 
         self._states_dict = {}
         for state, code in BUILD_STATES.items():
-            self._states_dict[state] = {'state_name': state, 'state': code}
+            self._states_dict[state] = {"state_name": state, "state": code}
 
     @property
     def inner_msg(self):
         return {
-            'component_builds': [],
-            'id': self.build_id,
-            'modulemd': '',
-            'name': self.name,
-            'owner': 'freshmaker',
-            'scmurl': self.scmurl,
-            'state': self._states_dict[self.state]['state'],
-            'state_name': self.state,
-            'state_reason': None,
-            'state_trace': [],
-            'state_url': u'/module-build-service/1/module-builds/%s' % self.build_id,
-            'stream': u'master',
-            'tasks': {},
-            'time_completed': None,
-            'time_modified': None,
-            'time_submitted': time.time(),
-            'version': time.strftime("%Y%m%d%H%M%S"),
+            "component_builds": [],
+            "id": self.build_id,
+            "modulemd": "",
+            "name": self.name,
+            "owner": "freshmaker",
+            "scmurl": self.scmurl,
+            "state": self._states_dict[self.state]["state"],
+            "state_name": self.state,
+            "state_reason": None,
+            "state_trace": [],
+            "state_url": "/module-build-service/1/module-builds/%s" % self.build_id,
+            "stream": "master",
+            "tasks": {},
+            "time_completed": None,
+            "time_modified": None,
+            "time_submitted": time.time(),
+            "version": time.strftime("%Y%m%d%H%M%S"),
         }
 
 
 class DistGitMessage(FedMsgFactory):
     def __init__(self, namespace, repo, branch, rev, *args, **kwargs):
         super(DistGitMessage, self).__init__(*args, **kwargs)
-        self.topic = 'org.fedoraproject.prod.git.receive'
+        self.topic = "org.fedoraproject.prod.git.receive"
         self.namespace = namespace
         self.repo = repo
         self.branch = branch
         self.rev = rev
         self.stats = {
-            'files': {},
-            'total': {
-                'additions': 0,
-                'deletions': 0,
-                'files': 0,
-                'lines': 0,
-            }
+            "files": {},
+            "total": {
+                "additions": 0,
+                "deletions": 0,
+                "files": 0,
+                "lines": 0,
+            },
         }
 
     @property
     def inner_msg(self):
         return {
-            'commit': {
-                'repo': self.repo,
-                'namespace': self.namespace,
-                'branch': self.branch,
-                'rev': self.rev,
-                'agent': 'freshmaker',
-                'name': 'freshmaker',
-                'username': 'freshmaker',
-                'email': 'freshmaker@example.com',
-                'message': 'test message',
-                'summary': 'test',
-                'path': "/srv/git/repositories/%s/%s.git" % (self.namespace, self.repo),
-                'seen': False,
-                'stats': self.stats,
+            "commit": {
+                "repo": self.repo,
+                "namespace": self.namespace,
+                "branch": self.branch,
+                "rev": self.rev,
+                "agent": "freshmaker",
+                "name": "freshmaker",
+                "username": "freshmaker",
+                "email": "freshmaker@example.com",
+                "message": "test message",
+                "summary": "test",
+                "path": "/srv/git/repositories/%s/%s.git" % (self.namespace, self.repo),
+                "seen": False,
+                "stats": self.stats,
             }
         }
 
     def add_changed_file(self, filename, additions, deletions):
-        self.stats['files'].setdefault(filename, {})['additions'] = additions
-        self.stats['files'][filename]['deletions'] = deletions
-        self.stats['files'][filename]['lines'] = additions + deletions
-        self.stats['total']['additions'] += additions
-        self.stats['total']['deletions'] += deletions
-        self.stats['total']['files'] += 1
-        self.stats['total']['lines'] += self.stats['files'][filename]['lines']
+        self.stats["files"].setdefault(filename, {})["additions"] = additions
+        self.stats["files"][filename]["deletions"] = deletions
+        self.stats["files"][filename]["lines"] = additions + deletions
+        self.stats["total"]["additions"] += additions
+        self.stats["total"]["deletions"] += deletions
+        self.stats["total"]["files"] += 1
+        self.stats["total"]["lines"] += self.stats["files"][filename]["lines"]
 
 
 class KojiTaskStateChangeMessage(FedMsgFactory):
     def __init__(self, task_id, old_state, new_state, *args, **kwargs):
         super(KojiTaskStateChangeMessage, self).__init__(*args, **kwargs)
-        self.topic = 'org.fedoraproject.prod.buildsys.task.state.change'
-        self.attribute = 'state'
+        self.topic = "org.fedoraproject.prod.buildsys.task.state.change"
+        self.attribute = "state"
         self.task_id = task_id
         self.old_state = old_state
         self.new_state = new_state
-        self.owner = 'freshmaker'
-        self.method = 'build'
+        self.owner = "freshmaker"
+        self.method = "build"
 
     @property
     def inner_msg(self):
         return {
-            'attribute': self.attribute,
-            'id': self.task_id,
-            'method': self.method,
-            'new': self.new_state,
-            'old': self.old_state,
-            'owner': self.owner,
+            "attribute": self.attribute,
+            "id": self.task_id,
+            "method": self.method,
+            "new": self.new_state,
+            "old": self.old_state,
+            "owner": self.owner,
         }
 
 
 class ConsumerBaseTest(ModelsTestCase):
-
     def setUp(self):
         super(ConsumerBaseTest, self).setUp()
         self.patched_parsers = patch(
@@ -439,7 +435,7 @@ class ConsumerBaseTest(ModelsTestCase):
             return_value=[
                 "freshmaker.parsers.internal:FreshmakerManualRebuildParser",
                 "freshmaker.parsers.odcs:ComposeStateChangeParser",
-            ]
+            ],
         )
         self.patched_parsers.start()
         self.patched_handlers = patch(
@@ -448,7 +444,7 @@ class ConsumerBaseTest(ModelsTestCase):
             return_value=[
                 "freshmaker.handlers.internal:UpdateDBOnODCSComposeFail",
                 "freshmaker.handlers.koji:RebuildImagesOnODCSComposeDone",
-            ]
+            ],
         )
         self.patched_handlers.start()
 
@@ -458,16 +454,18 @@ class ConsumerBaseTest(ModelsTestCase):
         self.patched_handlers.stop()
 
     def _compose_state_change_msg(self, state=None):
-        msg = {'body': {
-            "msg_id": "2017-7afcb214-cf82-4130-92d2-22f45cf59cf7",
-            "topic": "org.fedoraproject.prod.odcs.state.change",
-            "signature": "qRZ6oXBpKD/q8BTjBNa4MREkAPxT+KzI8Oret+TSKazGq/6gk0uuprdFpkfBXLR5dd4XDoh3NQWp\nyC74VYTDVqJR7IsEaqHtrv01x1qoguU/IRWnzrkGwqXm+Es4W0QZjHisBIRRZ4ywYBG+DtWuskvy\n6/5Mc3dXaUBcm5TnT0c=\n",
-            "msg": {
-                "compose": {
-                    "id": 1,
-                    "state": 4,
-                }
+        msg = {
+            "body": {
+                "msg_id": "2017-7afcb214-cf82-4130-92d2-22f45cf59cf7",
+                "topic": "org.fedoraproject.prod.odcs.state.change",
+                "signature": "qRZ6oXBpKD/q8BTjBNa4MREkAPxT+KzI8Oret+TSKazGq/6gk0uuprdFpkfBXLR5dd4XDoh3NQWp\nyC74VYTDVqJR7IsEaqHtrv01x1qoguU/IRWnzrkGwqXm+Es4W0QZjHisBIRRZ4ywYBG+DtWuskvy\n6/5Mc3dXaUBcm5TnT0c=\n",
+                "msg": {
+                    "compose": {
+                        "id": 1,
+                        "state": 4,
+                    }
+                },
             }
-        }}
+        }
 
         return msg

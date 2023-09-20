@@ -43,6 +43,7 @@ class ODCSComposeNotReady(Exception):
     Raised when ODCS compose is still generating and therefore not ready
     to be used to build an image.
     """
+
     pass
 
 
@@ -54,6 +55,7 @@ def fail_event_on_handler_exception(func):
 
     The exception is re-raised by this decorator once its finished.
     """
+
     @wraps(func)
     def decorator(handler, *args, **kwargs):
         try:
@@ -66,7 +68,7 @@ def fail_event_on_handler_exception(func):
                 raise
             handler._last_handled_exception = e
 
-            err = 'Could not process message handler. See the traceback.'
+            err = "Could not process message handler. See the traceback."
             log.exception(err)
 
             # In case the exception interrupted the database transaction,
@@ -75,14 +77,14 @@ def fail_event_on_handler_exception(func):
 
             # Mark the event as failed.
             db_event_id = handler.current_db_event_id
-            db_event = db.session.query(Event).filter_by(
-                id=db_event_id).first()
+            db_event = db.session.query(Event).filter_by(id=db_event_id).first()
             if db_event:
                 msg = "Handling of event failed with traceback: %s" % (str(e))
                 db_event.transition(EventState.FAILED, msg)
                 db_event.builds_transition(ArtifactBuildState.FAILED.value, msg)
                 db.session.commit()
             raise
+
     return decorator
 
 
@@ -98,6 +100,7 @@ def fail_artifact_build_on_handler_exception(allowlist=None):
         subclasses which do not cause the ArtifactBuild to fail but are instead
         just re-raised.
     """
+
     def wrapper(func):
         @wraps(func)
         def decorator(handler, *args, **kwargs):
@@ -114,7 +117,7 @@ def fail_artifact_build_on_handler_exception(allowlist=None):
                 if allowlist and type(e) in allowlist:
                     raise
 
-                err = 'Could not process message handler. See the traceback.'
+                err = "Could not process message handler. See the traceback."
                 log.exception(err)
 
                 # In case the exception interrupted the database transaction,
@@ -123,15 +126,17 @@ def fail_artifact_build_on_handler_exception(allowlist=None):
 
                 # Mark the event as failed.
                 build_id = handler.current_db_artifact_build_id
-                build = db.session.query(ArtifactBuild).filter_by(
-                    id=build_id).first()
+                build = db.session.query(ArtifactBuild).filter_by(id=build_id).first()
                 if build:
                     build.transition(
-                        ArtifactBuildState.FAILED.value, "Handling of "
-                        "build failed with traceback: %s" % (str(e)))
+                        ArtifactBuildState.FAILED.value,
+                        "Handling of " "build failed with traceback: %s" % (str(e)),
+                    )
                     db.session.commit()
                 raise
+
         return decorator
+
     return wrapper
 
 
@@ -139,6 +144,7 @@ class BaseHandler(object):
     """
     Abstract base class for event handlers.
     """
+
     __metaclass__ = abc.ABCMeta
 
     # Defines the order of this handler when evaluating multiple handlers.
@@ -248,8 +254,7 @@ class BaseHandler(object):
             # Prefix logs with "<models.Event> (<models.ArtifactBuild>):".
             self._log_prefix = "%s (%s): " % (str(db_object.event), str(db_object))
         else:
-            raise ProgrammingError(
-                "Unsupported context type passed to BaseHandler.set_context()")
+            raise ProgrammingError("Unsupported context type passed to BaseHandler.set_context()")
 
     @abc.abstractmethod
     def can_handle(self, event):
@@ -270,10 +275,18 @@ class BaseHandler(object):
         """
         raise NotImplementedError()
 
-    def record_build(self, event, name, artifact_type,
-                     build_id=None, dep_on=None, state=None,
-                     original_nvr=None, rebuilt_nvr=None,
-                     rebuild_reason=0):
+    def record_build(
+        self,
+        event,
+        name,
+        artifact_type,
+        build_id=None,
+        dep_on=None,
+        state=None,
+        original_nvr=None,
+        rebuilt_nvr=None,
+        rebuild_reason=0,
+    ):
         """
         Record build in db.
 
@@ -298,12 +311,20 @@ class BaseHandler(object):
             ev = event
         else:
             ev = models.Event.get_or_create(
-                db.session, event.msg_id, event.search_key, event.__class__)
-        build = models.ArtifactBuild.create(db.session, ev, name,
-                                            artifact_type.name.lower(),
-                                            build_id, dep_on, state,
-                                            original_nvr, rebuilt_nvr,
-                                            rebuild_reason)
+                db.session, event.msg_id, event.search_key, event.__class__
+            )
+        build = models.ArtifactBuild.create(
+            db.session,
+            ev,
+            name,
+            artifact_type.name.lower(),
+            build_id,
+            dep_on,
+            state,
+            original_nvr,
+            rebuilt_nvr,
+            rebuild_reason,
+        )
 
         db.session.commit()
         return build
@@ -347,23 +368,22 @@ class BaseHandler(object):
             if not isinstance(rule[0], str):
                 raise TypeError(
                     "Rule does not have any operator, use any_() or all_() "
-                    "methods to construct the rule: %r" % rule)
+                    "methods to construct the rule: %r" % rule
+                )
 
             if rule[0] == "any":
                 operator = any
             elif rule[0] == "all":
                 operator = all
             else:
-                raise ValueError(
-                    "Invalid operator %s in rule: %r." % (rule[0], rule))
+                raise ValueError("Invalid operator %s in rule: %r." % (rule[0], rule))
 
-            return operator([
-                self._match_allow_build_rule(criteria, subrule)
-                for subrule in rule[1]])
+            return operator(
+                [self._match_allow_build_rule(criteria, subrule) for subrule in rule[1]]
+            )
 
         if not isinstance(rule, dict):
-            raise TypeError(
-                "Rebuild rule must be dict or list, got %r." % rule)
+            raise TypeError("Rebuild rule must be dict or list, got %r." % rule)
 
         # If none of passed criteria matches configured rule, build is not allowed
         if not (set(rule.keys()) & set(criteria.keys())):
@@ -399,10 +419,8 @@ class BaseHandler(object):
         :rtype: bool
         """
         # Global rules
-        allowlist_rules = copy.deepcopy(
-            conf.handler_build_allowlist.get("global", {}))
-        blocklist_rules = copy.deepcopy(
-            conf.handler_build_blocklist.get("global", {}))
+        allowlist_rules = copy.deepcopy(conf.handler_build_allowlist.get("global", {}))
+        blocklist_rules = copy.deepcopy(conf.handler_build_blocklist.get("global", {}))
 
         # This handler rules
         handler_name = self.name
@@ -414,24 +432,23 @@ class BaseHandler(object):
             if self._match_allow_build_rule(criteria, allowlist):
                 blocklist = blocklist_rules.get(artifact_type.name.lower(), [])
                 if self._match_allow_build_rule(criteria, blocklist):
-                    self.log_debug('%r, type=%r is blocked.',
-                                   criteria, artifact_type.name.lower())
+                    self.log_debug("%r, type=%r is blocked.", criteria, artifact_type.name.lower())
                     return False
-                self.log_debug('%r, type=%r is allowed.',
-                               criteria, artifact_type.name.lower())
-                self.log_debug('name=%r, allowlist=%r', handler_name, allowlist)
+                self.log_debug("%r, type=%r is allowed.", criteria, artifact_type.name.lower())
+                self.log_debug("name=%r, allowlist=%r", handler_name, allowlist)
                 return True
         except re.error as exc:
-            err_msg = ("Error while compiling whilelist rule "
-                       "for <handler(%s) artifact(%s)>:\n"
-                       "Incorrect regular expression: %s\n"
-                       "Allowlist will not take effect" %
-                       (handler_name, artifact_type.name.lower(), str(exc)))
+            err_msg = (
+                "Error while compiling whilelist rule "
+                "for <handler(%s) artifact(%s)>:\n"
+                "Incorrect regular expression: %s\n"
+                "Allowlist will not take effect"
+                % (handler_name, artifact_type.name.lower(), str(exc))
+            )
             self.log_error(err_msg)
             raise UnprocessableEntity(err_msg)
 
-        self.log_debug('%r, type=%r is not allowed.',
-                       criteria, artifact_type.name.lower())
+        self.log_debug("%r, type=%r is not allowed.", criteria, artifact_type.name.lower())
         return False
 
     def _mark_event_complete_when_all_builds_done(self, db_event):
@@ -455,23 +472,41 @@ class BaseHandler(object):
         if num_failed:
             db_event.transition(
                 EventState.COMPLETE,
-                'Advisory %s: %d of %d container image(s) failed to rebuild.' % (
-                    db_event.search_key, num_failed, len(db_event.builds.all()),))
+                "Advisory %s: %d of %d container image(s) failed to rebuild."
+                % (
+                    db_event.search_key,
+                    num_failed,
+                    len(db_event.builds.all()),
+                ),
+            )
         else:
             db_event.transition(
                 EventState.COMPLETE,
-                'Advisory %s: All %s container images have been rebuilt.' % (
-                    db_event.search_key, len(db_event.builds.all()),))
+                "Advisory %s: All %s container images have been rebuilt."
+                % (
+                    db_event.search_key,
+                    len(db_event.builds.all()),
+                ),
+            )
 
 
 class ContainerBuildHandler(BaseHandler):
     """Handler for building containers"""
 
-    def build_container(self, scm_url, branch, target,
-                        repo_urls=None, flatpak=False, isolated=False,
-                        release=None, koji_parent_build=None,
-                        arch_override=None, compose_ids=None,
-                        operator_csv_modifications_url=None):
+    def build_container(
+        self,
+        scm_url,
+        branch,
+        target,
+        repo_urls=None,
+        flatpak=False,
+        isolated=False,
+        release=None,
+        koji_parent_build=None,
+        arch_override=None,
+        compose_ids=None,
+        operator_csv_modifications_url=None,
+    ):
         """
         Build a container in Koji.
 
@@ -489,13 +524,17 @@ class ContainerBuildHandler(BaseHandler):
         :return: task id returned from Koji buildContainer API.
         :rtype: int
         """
-        with koji_service(
-                profile=conf.koji_profile, logger=log,
-                dry_run=self.dry_run) as service:
-            log.info('Building container from source: %s, '
-                     'release=%r, parent=%r, target=%r, arch=%r, compose_ids=%r',
-                     scm_url, release, koji_parent_build, target, arch_override,
-                     compose_ids)
+        with koji_service(profile=conf.koji_profile, logger=log, dry_run=self.dry_run) as service:
+            log.info(
+                "Building container from source: %s, "
+                "release=%r, parent=%r, target=%r, arch=%r, compose_ids=%r",
+                scm_url,
+                release,
+                koji_parent_build,
+                target,
+                arch_override,
+                compose_ids,
+            )
 
             return service.build_container(
                 scm_url,
@@ -525,20 +564,21 @@ class ContainerBuildHandler(BaseHandler):
         """
         if build.state != ArtifactBuildState.PLANNED.value:
             build.transition(
-                ArtifactBuildState.FAILED.value,
-                "Container image build is not in PLANNED state.")
+                ArtifactBuildState.FAILED.value, "Container image build is not in PLANNED state."
+            )
             return
 
         if not build.build_args:
             build.transition(
                 ArtifactBuildState.FAILED.value,
-                "Container image does not have 'build_args' filled in.")
+                "Container image does not have 'build_args' filled in.",
+            )
             return
 
         if not build.original_nvr:
             build.transition(
-                ArtifactBuildState.FAILED.value,
-                "Container image does not have original_nvr set.")
+                ArtifactBuildState.FAILED.value, "Container image does not have original_nvr set."
+            )
             return
 
         # If this is a bundle rebuild, check original build's OpenShift versions
@@ -549,19 +589,18 @@ class ContainerBuildHandler(BaseHandler):
         # check ocp versions range of
         if build.event.event_type in build_bundle_event_types:
             with koji_service(
-                    profile=conf.koji_profile, logger=log,
-                    dry_run=self.dry_run, login=False
+                profile=conf.koji_profile, logger=log, dry_run=self.dry_run, login=False
             ) as service:
                 ocp_versions_range = service.get_ocp_versions_range(build.original_nvr)
                 if ocp_versions_range and not is_valid_ocp_versions_range(ocp_versions_range):
                     build.transition(
                         ArtifactBuildState.FAILED.value,
-                        "Original image has invalid openshift versions range")
+                        "Original image has invalid openshift versions range",
+                    )
                     return
 
         args = json.loads(build.build_args)
-        scm_url = "%s/%s#%s" % (conf.git_base_url, args["repository"],
-                                args["commit"])
+        scm_url = "%s/%s#%s" % (conf.git_base_url, args["repository"], args["commit"])
         branch = args["branch"]
         target = args["target"]
 
@@ -592,12 +631,12 @@ class ContainerBuildHandler(BaseHandler):
 
         for compose_id in compose_ids:
             odcs_compose = self.odcs_get_compose(compose_id)
-            if odcs_compose["state"] in [COMPOSE_STATES['wait'],
-                                         COMPOSE_STATES['generating']]:
+            if odcs_compose["state"] in [COMPOSE_STATES["wait"], COMPOSE_STATES["generating"]]:
                 # In case the ODCS compose is still generating, raise an
                 # exception.
-                msg = ("Compose %s has not been generated yet. Waiting with "
-                       "rebuild." % (str(compose_id)))
+                msg = "Compose %s has not been generated yet. Waiting with " "rebuild." % (
+                    str(compose_id)
+                )
                 self.log_info(msg)
                 raise ODCSComposeNotReady(msg)
             # OSBS can renew a compose if it needs to, so we can just pass
@@ -608,13 +647,18 @@ class ContainerBuildHandler(BaseHandler):
             self.log_debug(
                 "Artifact build %s has rebuilt_nvr %s already. "
                 "It will be replaced with a new one %s to be rebuilt.",
-                build, build.rebuilt_nvr, rebuilt_nvr)
+                build,
+                build.rebuilt_nvr,
+                rebuilt_nvr,
+            )
 
         build.rebuilt_nvr = rebuilt_nvr
         db.session.commit()
 
         return self.build_container(
-            scm_url, branch, target,
+            scm_url,
+            branch,
+            target,
             repo_urls=repo_urls,
             flatpak=flatpak,
             isolated=isolated,
@@ -633,9 +677,9 @@ class ContainerBuildHandler(BaseHandler):
         """
         if self.dry_run:
             return {
-                'id': compose_id,
-                'result_repofile': "http://localhost/%d.repo" % compose_id,
-                'state': COMPOSE_STATES['done'],
+                "id": compose_id,
+                "result_repofile": "http://localhost/%d.repo" % compose_id,
+                "state": COMPOSE_STATES["done"],
             }
 
         return create_odcs_client().get_compose(compose_id)
@@ -680,24 +724,24 @@ class ContainerBuildHandler(BaseHandler):
                 return
             except Exception:
                 self.log_except(
-                    "While processing the event with id {} exception occurred"
-                    .format(self._db_event_id))
+                    "While processing the event with id {} exception occurred".format(
+                        self._db_event_id
+                    )
+                )
                 unknown_exception_occurred = True
 
             if unknown_exception_occurred:
-                build.transition(
-                    ArtifactBuildState.FAILED.value,
-                    "An unknown error occurred.")
+                build.transition(ArtifactBuildState.FAILED.value, "An unknown error occurred.")
             elif build.state == ArtifactBuildState.FAILED.value:
                 log.debug(f"Build {build.id} failed: {build.state_reason}")
             elif not build.build_id:
                 build.transition(
-                    ArtifactBuildState.FAILED.value,
-                    "Error while building container image in Koji.")
+                    ArtifactBuildState.FAILED.value, "Error while building container image in Koji."
+                )
             else:
                 build.transition(
-                    ArtifactBuildState.BUILD.value,
-                    "Building container image in Koji.")
+                    ArtifactBuildState.BUILD.value, "Building container image in Koji."
+                )
 
             db.session.add(build)
             db.session.commit()

@@ -29,6 +29,7 @@ class KojiTaskStateChangeParser(BaseParser):
     Parser parsing task state change message from buildsys (koji), generating
     KojiTaskStateChanged event.
     """
+
     name = "KojiTaskStateChangeParser"
     topic_suffixes = ["buildsys.task.state.change"]
 
@@ -39,15 +40,14 @@ class KojiTaskStateChangeParser(BaseParser):
         return True
 
     def parse(self, topic, msg):
-        msg_id = msg.get('msg_id')
-        msg_inner_msg = msg.get('msg')
+        msg_id = msg.get("msg_id")
+        msg_inner_msg = msg.get("msg")
 
         # If there isn't a msg dict in msg then this message can be skipped
         if not msg_inner_msg:
-            log.debug(('Skipping message without any content with the '
-                      'topic "{0}"').format(topic))
+            log.debug(
+                ("Skipping message without any content with the " 'topic "{0}"').format(topic)
+            )
             return None
 
-        return KojiTaskStateChangeEvent(msg_id,
-                                        msg_inner_msg.get('id'),
-                                        msg_inner_msg.get('new'))
+        return KojiTaskStateChangeEvent(msg_id, msg_inner_msg.get("id"), msg_inner_msg.get("new"))

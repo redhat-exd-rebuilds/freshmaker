@@ -1,17 +1,17 @@
 config = dict(
     logging=dict(
         handlers={
-            'console': {
-                'class': 'logging.StreamHandler',
-                'formatter': 'bare',
-                'level': 'INFO',
-                'stream': 'ext://sys.stdout',
+            "console": {
+                "class": "logging.StreamHandler",
+                "formatter": "bare",
+                "level": "INFO",
+                "stream": "ext://sys.stdout",
             },
         },
         formatters={
-            'bare': {
-                'datefmt': '%Y-%m-%d %H:%M:%S',
-                'format': '[%(asctime)s][%(name)10s %(levelname)7s] %(message)s'
+            "bare": {
+                "datefmt": "%Y-%m-%d %H:%M:%S",
+                "format": "[%(asctime)s][%(name)10s %(levelname)7s] %(message)s",
             },
         },
         loggers=dict(

@@ -33,7 +33,7 @@ class CancelEventOnFreshmakerManageRequest(BaseHandler):
     order = 0
 
     def can_handle(self, event):
-        if isinstance(event, FreshmakerManageEvent) and event.action == 'eventcancel':
+        if isinstance(event, FreshmakerManageEvent) and event.action == "eventcancel":
             return True
 
         return False
@@ -49,26 +49,32 @@ class CancelEventOnFreshmakerManageRequest(BaseHandler):
 
         failed_to_cancel_builds_id = []
         log_fail = log.error if event.last_try else log.warning
-        with koji_service(
-                conf.koji_profile, log, dry_run=event.dry_run) as session:
-            builds = db.session.query(ArtifactBuild).filter(
-                ArtifactBuild.id.in_(event.body['builds_id'])).all()
+        with koji_service(conf.koji_profile, log, dry_run=event.dry_run) as session:
+            builds = (
+                db.session.query(ArtifactBuild)
+                .filter(ArtifactBuild.id.in_(event.body["builds_id"]))
+                .all()
+            )
             for build in builds:
                 if session.cancel_build(build.build_id):
-                    build.state_reason = 'Build canceled in external build system.'
+                    build.state_reason = "Build canceled in external build system."
                     continue
                 if event.last_try:
-                    build.state_reason = ('Build was NOT canceled in external build system.'
-                                          ' Max number of tries reached!')
+                    build.state_reason = (
+                        "Build was NOT canceled in external build system."
+                        " Max number of tries reached!"
+                    )
                 failed_to_cancel_builds_id.append(build.id)
             db.session.commit()
 
         if failed_to_cancel_builds_id:
-            log_fail("Builds which failed to cancel in external build system,"
-                     " by DB id: %s; try #%s",
-                     failed_to_cancel_builds_id, event.try_count)
+            log_fail(
+                "Builds which failed to cancel in external build system," " by DB id: %s; try #%s",
+                failed_to_cancel_builds_id,
+                event.try_count,
+            )
         if event.last_try or not failed_to_cancel_builds_id:
             return []
 
-        event.body['builds_id'] = failed_to_cancel_builds_id
+        event.body["builds_id"] = failed_to_cancel_builds_id
         return [event]

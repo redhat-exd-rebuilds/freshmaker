@@ -94,9 +94,7 @@ def test_get_ocp_versions_range(mock_koji):
 @mock.patch("freshmaker.kojiservice.ZipFile")
 @mock.patch("freshmaker.kojiservice.BytesIO")
 @mock.patch("freshmaker.kojiservice.yaml")
-def test_get_bundle_csv_success(
-    mock_yaml, mock_bytesio, mock_zipfile, mock_get, mock_koji
-):
+def test_get_bundle_csv_success(mock_yaml, mock_bytesio, mock_zipfile, mock_get, mock_koji):
     mock_session = mock.Mock()
     mock_session.getBuild.return_value = {
         "id": 123,

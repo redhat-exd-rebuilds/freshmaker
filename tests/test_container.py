@@ -709,9 +709,7 @@ def test_resolve_content_sets():
             "toplevel_url": "http://download.example.com/odcs/prod/odcs-124",
         },
     ]
-    flexmock(RetryingODCS).should_receive("get_compose").and_return(
-        odcs_composes
-    ).one_by_one()
+    flexmock(RetryingODCS).should_receive("get_compose").and_return(odcs_composes).one_by_one()
 
     pyxis_gql = PyxisGQL(url="graphql.pyxis.local", cert="/path/to/cert")
 
@@ -892,9 +890,7 @@ def test_resolve_published():
             "toplevel_url": "http://download.example.com/odcs/prod/odcs-124",
         },
     ]
-    flexmock(RetryingODCS).should_receive("get_compose").and_return(
-        odcs_composes
-    ).one_by_one()
+    flexmock(RetryingODCS).should_receive("get_compose").and_return(odcs_composes).one_by_one()
 
     pyxis_gql = PyxisGQL(url="graphql.pyxis.local", cert="/path/to/cert")
 

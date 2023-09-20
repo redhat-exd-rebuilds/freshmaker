@@ -51,22 +51,22 @@ class UpdateDBOnODCSComposeFail(BaseHandler):
 
     @fail_event_on_handler_exception
     def handle(self, event):
-
         compose_id = event.compose["id"]
 
         self.log_error("ODCS compose %s failed", compose_id)
 
         # Get all the builds waiting for this compose.
-        builds_with_compose = db.session.query(ArtifactBuild).join(
-            ArtifactBuildCompose).join(Compose)
+        builds_with_compose = (
+            db.session.query(ArtifactBuild).join(ArtifactBuildCompose).join(Compose)
+        )
         builds_with_compose = builds_with_compose.filter(
-            Compose.odcs_compose_id == compose_id,
-            ArtifactBuildCompose.compose_id == Compose.id)
+            Compose.odcs_compose_id == compose_id, ArtifactBuildCompose.compose_id == Compose.id
+        )
 
         for build in builds_with_compose:
             build.transition(
-                ArtifactBuildState.FAILED.value,
-                "ODCS compose %r is in failed state." % compose_id)
+                ArtifactBuildState.FAILED.value, "ODCS compose %r is in failed state." % compose_id
+            )
 
         db.session.commit()
         db_event = builds_with_compose[0].event

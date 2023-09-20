@@ -69,7 +69,8 @@ class ImageVerifier(object):
             else:
                 raise ValueError(
                     "Only published repositories or unpublished exceptions can be rebuilt, but "
-                    "this repository is not published.")
+                    "this repository is not published."
+                )
 
         if "auto_rebuild_tags" not in repo or repo["auto_rebuild_tags"] is None:
             raise ValueError('The "auto_rebuild_tags" in COMET is not set.')
@@ -88,8 +89,7 @@ class ImageVerifier(object):
         if not image["content_sets"]:
             raise ValueError(
                 'Found image "%s" in this repository, but it cannot be rebuilt, because '
-                'the "content_sets" are not set for this image.'
-                % image["brew"]["build"]
+                'the "content_sets" are not set for this image.' % image["brew"]["build"]
             )
 
     def _get_repository_from_name(self, repo_name: str):
@@ -102,9 +102,7 @@ class ImageVerifier(object):
             raise ValueError("Cannot get repository %s from Pyxis." % repo_name)
 
         if len(repos) != 1:
-            raise ValueError(
-                "Multiple records found in Pyxis for image repository %s." % repo_name
-            )
+            raise ValueError("Multiple records found in Pyxis for image repository %s." % repo_name)
 
         return repos[0]
 
@@ -113,13 +111,21 @@ class ImageVerifier(object):
         Returns the ContainerRepository object based on the image defined by the image NVR.
         """
         if "repositories" not in image or not image["repositories"]:
-            raise ValueError("Cannot get repository for image %s from Pyxis." % image["brew"]["build"])
+            raise ValueError(
+                "Cannot get repository for image %s from Pyxis." % image["brew"]["build"]
+            )
 
-        repos = [repo for repo in image["repositories"] if repo["registry"] != "conf.image_build_repository_registries"]
+        repos = [
+            repo
+            for repo in image["repositories"]
+            if repo["registry"] != "conf.image_build_repository_registries"
+        ]
         image_repo = repos[0]
 
         # returns a single repository
-        return self.pyxis.get_repository_by_registry_path(image_repo["registry"], image_repo["repository"])
+        return self.pyxis.get_repository_by_registry_path(
+            image_repo["registry"], image_repo["repository"]
+        )
 
     def verify_image(self, image_nvr: str) -> dict[str, list[str]]:
         """
@@ -162,7 +168,7 @@ class ImageVerifier(object):
 
         data: DataElements = {
             "repository": {"auto_rebuild_tags": repo["auto_rebuild_tags"]},
-            "images": {}
+            "images": {},
         }
 
         images = self.pyxis.find_images_by_repository(repo["repository"], repo["auto_rebuild_tags"])

@@ -39,18 +39,20 @@ class FreshmakerManageRequestParser(BaseParser):
         Parse message and call specific method according to the action
         defined within the message.
         """
-        action_from_topic = topic.split('.')[-1]
-        inner_msg = msg.get('msg')
+        action_from_topic = topic.split(".")[-1]
+        inner_msg = msg.get("msg")
 
-        if 'action' not in inner_msg:
+        if "action" not in inner_msg:
             raise ValueError("Action is not defined within the message.")
 
-        if inner_msg['action'] != action_from_topic:
-            raise ValueError("Last part of 'Freshmaker manage' message topic"
-                             " must match the action defined within the message.")
+        if inner_msg["action"] != action_from_topic:
+            raise ValueError(
+                "Last part of 'Freshmaker manage' message topic"
+                " must match the action defined within the message."
+            )
 
-        if 'try' not in inner_msg:
-            inner_msg['try'] = 0
+        if "try" not in inner_msg:
+            inner_msg["try"] = 0
 
         try:
             getattr(self, action_from_topic)(inner_msg)
@@ -64,8 +66,8 @@ class FreshmakerManageRequestParser(BaseParser):
         Parse message for event cancelation request
         """
         try:
-            inner_msg['event_id']
-            inner_msg['builds_id']
+            inner_msg["event_id"]
+            inner_msg["builds_id"]
         except KeyError:
             raise ValueError("Message doesn't contain all required information.")
 
