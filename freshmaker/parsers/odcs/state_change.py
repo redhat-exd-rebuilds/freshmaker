@@ -33,8 +33,8 @@ class ComposeStateChangeParser(BaseParser):
         return any([topic.endswith(s) for s in self.topic_suffixes])
 
     def parse(self, topic, msg):
-        msg_id = msg.get('msg_id')
-        inner_msg = msg.get('msg')
-        compose = inner_msg.get('compose')
+        msg_id = msg.get("msg_id")
+        inner_msg = msg.get("msg")
+        compose = inner_msg.get("compose")
 
         return ODCSComposeStateChangeEvent(msg_id, compose)

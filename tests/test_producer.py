@@ -36,19 +36,19 @@ from tests import helpers
 
 
 class TestCheckUnfinishedKojiTasks(helpers.ModelsTestCase):
-
     def setUp(self):
         super(TestCheckUnfinishedKojiTasks, self).setUp()
 
         self.koji_read_config_patcher = patch(
-            'koji.read_config', return_value={'server': 'http://localhost/'})
+            "koji.read_config", return_value={"server": "http://localhost/"}
+        )
         self.koji_read_config_patcher.start()
 
         db_event = Event.get_or_create(
-            db.session, "msg1", "current_event", ErrataRPMAdvisoryShippedEvent)
+            db.session, "msg1", "current_event", ErrataRPMAdvisoryShippedEvent
+        )
         db_event.state = EventState.BUILDING
-        self.build = ArtifactBuild.create(db.session, db_event, "parent1-1-4",
-                                          "image")
+        self.build = ArtifactBuild.create(db.session, db_event, "parent1-1-4", "image")
         self.build.state = ArtifactBuildState.BUILD
         self.build.build_id = 10
         db.session.commit()
@@ -56,13 +56,13 @@ class TestCheckUnfinishedKojiTasks(helpers.ModelsTestCase):
     def tearDown(self):
         self.koji_read_config_patcher.stop()
 
-    @patch('freshmaker.kojiservice.KojiService.get_task_info')
-    @patch('freshmaker.consumer.get_global_consumer')
+    @patch("freshmaker.kojiservice.KojiService.get_task_info")
+    @patch("freshmaker.consumer.get_global_consumer")
     def test_koji_task_failed(self, global_consumer, get_task_info):
         consumer = self.create_consumer()
         global_consumer.return_value = consumer
 
-        get_task_info.return_value = {'state': koji.TASK_STATES['FAILED']}
+        get_task_info.return_value = {"state": koji.TASK_STATES["FAILED"]}
 
         hub = MagicMock()
         producer = FreshmakerProducer(hub)
@@ -71,13 +71,13 @@ class TestCheckUnfinishedKojiTasks(helpers.ModelsTestCase):
         self.assertEqual(event.task_id, 10)
         self.assertEqual(event.new_state, "FAILED")
 
-    @patch('freshmaker.kojiservice.KojiService.get_task_info')
-    @patch('freshmaker.consumer.get_global_consumer')
+    @patch("freshmaker.kojiservice.KojiService.get_task_info")
+    @patch("freshmaker.consumer.get_global_consumer")
     def test_koji_task_closed(self, global_consumer, get_task_info):
         consumer = self.create_consumer()
         global_consumer.return_value = consumer
 
-        get_task_info.return_value = {'state': koji.TASK_STATES['CLOSED']}
+        get_task_info.return_value = {"state": koji.TASK_STATES["CLOSED"]}
 
         hub = MagicMock()
         producer = FreshmakerProducer(hub)
@@ -86,43 +86,44 @@ class TestCheckUnfinishedKojiTasks(helpers.ModelsTestCase):
         self.assertEqual(event.task_id, 10)
         self.assertEqual(event.new_state, "CLOSED")
 
-    @patch('freshmaker.kojiservice.KojiService.get_task_info')
-    @patch('freshmaker.consumer.get_global_consumer')
+    @patch("freshmaker.kojiservice.KojiService.get_task_info")
+    @patch("freshmaker.consumer.get_global_consumer")
     def test_koji_task_dry_run(self, global_consumer, get_task_info):
         self.build.build_id = -10
         consumer = self.create_consumer()
         global_consumer.return_value = consumer
 
-        get_task_info.return_value = {'state': koji.TASK_STATES['CLOSED']}
+        get_task_info.return_value = {"state": koji.TASK_STATES["CLOSED"]}
 
         hub = MagicMock()
         producer = FreshmakerProducer(hub)
         producer.check_unfinished_koji_tasks(db.session)
         self.assertRaises(queue.Empty, consumer.incoming.get, block=False)
 
-    @patch('freshmaker.kojiservice.KojiService.get_task_info')
-    @patch('freshmaker.consumer.get_global_consumer')
+    @patch("freshmaker.kojiservice.KojiService.get_task_info")
+    @patch("freshmaker.consumer.get_global_consumer")
     def test_koji_task_open(self, global_consumer, get_task_info):
         self.build.build_id = -10
         consumer = self.create_consumer()
         global_consumer.return_value = consumer
 
-        get_task_info.return_value = {'state': koji.TASK_STATES['OPEN']}
+        get_task_info.return_value = {"state": koji.TASK_STATES["OPEN"]}
 
         hub = MagicMock()
         producer = FreshmakerProducer(hub)
         producer.check_unfinished_koji_tasks(db.session)
         self.assertRaises(queue.Empty, consumer.incoming.get, block=False)
 
-    @patch('freshmaker.kojiservice.KojiService.get_task_info')
-    @patch('freshmaker.consumer.get_global_consumer')
+    @patch("freshmaker.kojiservice.KojiService.get_task_info")
+    @patch("freshmaker.consumer.get_global_consumer")
     def test_koji_invalid_request(self, global_consumer, get_task_info):
         from sqlalchemy import select
+
         self.build.build_id = -10
         consumer = self.create_consumer()
         global_consumer.return_value = consumer
 
-        get_task_info.return_value = {'state': koji.TASK_STATES['OPEN']}
+        get_task_info.return_value = {"state": koji.TASK_STATES["OPEN"]}
 
         hub = MagicMock()
         producer = FreshmakerProducer(hub)

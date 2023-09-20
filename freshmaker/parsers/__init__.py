@@ -28,6 +28,7 @@ class BaseParser(object):
     """
     Abstract parser class parsing fedmsg messages and generating events.
     """
+
     __metaclass__ = abc.ABCMeta
     name = "abstract_parser"
     topic_suffixes = []  # type: list[str]

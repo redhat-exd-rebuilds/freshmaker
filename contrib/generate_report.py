@@ -22,13 +22,15 @@ This ticket is created mainly for us to find out if there was any issue you hit 
 """
 
 
-ERRATA_URL = 'https://errata.devel.redhat.com/api/v1/'
-FRESHMAKER_URL = 'https://freshmaker.engineering.redhat.com/api/1/'
+ERRATA_URL = "https://errata.devel.redhat.com/api/v1/"
+FRESHMAKER_URL = "https://freshmaker.engineering.redhat.com/api/1/"
 
 
 def get_advisory(errata_id):
     krb_auth = HTTPKerberosAuth()
-    r = requests.get(ERRATA_URL + "erratum/%s" % str(errata_id), auth=krb_auth, timeout=conf.requests_timeout)
+    r = requests.get(
+        ERRATA_URL + "erratum/%s" % str(errata_id), auth=krb_auth, timeout=conf.requests_timeout
+    )
     r.raise_for_status()
     data = r.json()
     return data["errata"].values()[0]
@@ -45,7 +47,7 @@ def get_freshmaker_build(search_key, original_nvr):
     return None
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("SEARCH_KEY", help="Freshmaker's search_key")
     parser.add_argument("ORIGINAL_NVR", help="Freshmaker's original_nvr")
@@ -61,7 +63,8 @@ if __name__ == '__main__':
     template_data = {
         "freshmaker_date": build["time_completed"].split("T")[0],
         "original_nvr": build["original_nvr"],
-        "freshmaker_brew_build": "https://brewweb.engineering.redhat.com/brew/taskinfo?taskID=%d" % build["build_id"],
+        "freshmaker_brew_build": "https://brewweb.engineering.redhat.com/brew/taskinfo?taskID=%d"
+        % build["build_id"],
         "rhsa_advisory": "https://errata.devel.redhat.com/advisory/%s" % event["search_key"],
         "container_advisory": "https://errata.devel.redhat.com/advisory/%s" % container_advisory,
         "container_advisory_date": errata["issue_date"].split("T")[0],

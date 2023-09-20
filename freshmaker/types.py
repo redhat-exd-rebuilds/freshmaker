@@ -24,8 +24,11 @@ from freshmaker.monitor import (
     freshmaker_artifact_build_done_counter,
     freshmaker_artifact_build_failed_counter,
     freshmaker_artifact_build_canceled_counter,
-    freshmaker_event_complete_counter, freshmaker_event_failed_counter,
-    freshmaker_event_skipped_counter, freshmaker_event_canceled_counter)
+    freshmaker_event_complete_counter,
+    freshmaker_event_failed_counter,
+    freshmaker_event_skipped_counter,
+    freshmaker_event_canceled_counter,
+)
 
 
 class ArtifactType(Enum):
@@ -36,7 +39,6 @@ class ArtifactType(Enum):
 
 
 class ArtifactBuildState(Enum):
-
     def __init__(self, value):
         self._value_ = value
 
@@ -45,7 +47,7 @@ class ArtifactBuildState(Enum):
             freshmaker_artifact_build_done_counter,
             freshmaker_artifact_build_failed_counter,
             freshmaker_artifact_build_canceled_counter,
-            None
+            None,
         ]
 
         if isinstance(value, int):
@@ -61,7 +63,6 @@ class ArtifactBuildState(Enum):
 
 
 class EventState(Enum):
-
     def __init__(self, value):
         self._value_ = value
 
@@ -71,7 +72,7 @@ class EventState(Enum):
             freshmaker_event_complete_counter,
             freshmaker_event_failed_counter,
             freshmaker_event_skipped_counter,
-            freshmaker_event_canceled_counter
+            freshmaker_event_canceled_counter,
         ]
 
         if isinstance(value, int):

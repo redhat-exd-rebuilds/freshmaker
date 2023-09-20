@@ -50,9 +50,7 @@ class ImageGroup:
 
     def __eq__(self, other):
         return (
-            self.name == other.name and
-            self.version == other.version and
-            self.repos == other.repos
+            self.name == other.name and self.version == other.version and self.repos == other.repos
         )
 
     def __str__(self):
@@ -60,19 +58,21 @@ class ImageGroup:
 
     def issubset(self, other):
         return (
-            self.name == other.name and
-            self.version == other.version and
-            self.repos.issubset(other.repos)
+            self.name == other.name
+            and self.version == other.version
+            and self.repos.issubset(other.repos)
         )
 
 
 class KojiLookupError(ValueError):
-    """ Koji lookup error """
+    """Koji lookup error"""
+
     pass
 
 
 class ExtraRepoNotConfiguredError(ValueError):
-    """ Extra repo required but missing in config """
+    """Extra repo required but missing in config"""
+
     pass
 
 
@@ -96,11 +96,11 @@ class ContainerImage(dict):
         image = cls()
         image.update(data)
 
-        arch = data.get('architecture')
-        image['multi_arch_rpm_manifest'] = {}
-        rpm_manifest = data.get('rpm_manifest')
+        arch = data.get("architecture")
+        image["multi_arch_rpm_manifest"] = {}
+        rpm_manifest = data.get("rpm_manifest")
         if arch and rpm_manifest:
-            image['multi_arch_rpm_manifest'][arch] = rpm_manifest
+            image["multi_arch_rpm_manifest"][arch] = rpm_manifest
 
         return image
 
@@ -109,7 +109,7 @@ class ContainerImage(dict):
 
     @property
     def nvr(self):
-        return self['brew']['build']
+        return self["brew"]["build"]
 
     def log_error(self, err):
         """
@@ -118,13 +118,13 @@ class ContainerImage(dict):
         to self['error'] with ';' separator.
         """
         prefix = ""
-        if 'brew' in self and 'build' in self['brew']:
+        if "brew" in self and "build" in self["brew"]:
             prefix = self.nvr + ": "
         log.error("%s%s", prefix, err)
-        if 'error' not in self or not self['error']:
-            self['error'] = str(err)
+        if "error" not in self or not self["error"]:
+            self["error"] = str(err)
         else:
-            self['error'] += "; " + str(err)
+            self["error"] += "; " + str(err)
 
     def update_multi_arch(self, image):
         """
@@ -134,13 +134,13 @@ class ContainerImage(dict):
             arch attributes from
         :rtype: None
         """
-        image_arch = image.get('architecture')
+        image_arch = image.get("architecture")
         if not image_arch:
             return
 
-        image_rpm_manifest = image.get('rpm_manifest')
+        image_rpm_manifest = image.get("rpm_manifest")
         if image_rpm_manifest:
-            self['multi_arch_rpm_manifest'][image_arch] = image_rpm_manifest
+            self["multi_arch_rpm_manifest"][image_arch] = image_rpm_manifest
 
     @staticmethod
     def _get_default_additional_data():
@@ -167,31 +167,33 @@ class ContainerImage(dict):
         """
         data = cls._get_default_additional_data()
 
-        with koji_service(
-                conf.koji_profile, log, dry_run=conf.dry_run,
-                login=False) as session:
+        with koji_service(conf.koji_profile, log, dry_run=conf.dry_run, login=False) as session:
             build = session.get_build(nvr)
             if not build:
-                raise KojiLookupError(
-                    "Cannot find Koji build with nvr %s in Koji" % nvr)
+                raise KojiLookupError("Cannot find Koji build with nvr %s in Koji" % nvr)
 
-            if 'task_id' not in build or not build['task_id']:
-                if ("extra" in build and
-                        "container_koji_task_id" in build["extra"] and
-                        build["extra"]["container_koji_task_id"]):
-                    build['task_id'] = build["extra"]['container_koji_task_id']
+            if "task_id" not in build or not build["task_id"]:
+                if (
+                    "extra" in build
+                    and "container_koji_task_id" in build["extra"]
+                    and build["extra"]["container_koji_task_id"]
+                ):
+                    build["task_id"] = build["extra"]["container_koji_task_id"]
                 else:
                     raise KojiLookupError(
                         "Cannot find task_id or container_koji_task_id "
-                        "in the Koji build %r" % build)
+                        "in the Koji build %r" % build
+                    )
 
-            fs_koji_task_id = build.get('extra', {}).get('filesystem_koji_task_id')
+            fs_koji_task_id = build.get("extra", {}).get("filesystem_koji_task_id")
             if fs_koji_task_id:
                 parsed_nvr = koji.parse_NVR(nvr)
                 name_version = f'{parsed_nvr["name"]}-{parsed_nvr["version"]}'
                 if name_version not in conf.image_extra_repo:
-                    msg = (f'{name_version} is a base image, but extra image repo for it '
-                           f'is not specified in the Freshmaker configuration.')
+                    msg = (
+                        f"{name_version} is a base image, but extra image repo for it "
+                        f"is not specified in the Freshmaker configuration."
+                    )
                     raise ExtraRepoNotConfiguredError(msg)
 
             extra_image = build.get("extra", {}).get("image", {})
@@ -206,8 +208,7 @@ class ContainerImage(dict):
             if flatpak:
                 data["flatpak"] = flatpak
 
-            brew_task = session.get_task_request(
-                build['task_id'])
+            brew_task = session.get_task_request(build["task_id"])
             source = brew_task[0]
             data["target"] = brew_task[1]
             extra_data = brew_task[2]
@@ -240,14 +241,13 @@ class ContainerImage(dict):
                         data["commit"] = m.group("commit")
                         break
 
-            if not data['commit']:
-                raise KojiLookupError(
-                    "Cannot find valid source of Koji build %r" % build)
+            if not data["commit"]:
+                raise KojiLookupError("Cannot find valid source of Koji build %r" % build)
 
             if not conf.supply_arch_overrides:
-                data['arches'] = None
+                data["arches"] = None
             else:
-                data['arches'] = cls._get_arches_from_koji(session, build['build_id'])
+                data["arches"] = cls._get_arches_from_koji(session, build["build_id"])
 
         return data
 
@@ -255,9 +255,9 @@ class ContainerImage(dict):
     def _get_arches_from_koji(koji_session, build_id):
         archives = koji_session.list_archives(build_id=build_id)
         arches = [
-            archive['extra']['image']['arch']
-            for archive in archives if archive['btype'] == 'image']
-        return ' '.join(sorted(arches))
+            archive["extra"]["image"]["arch"] for archive in archives if archive["btype"] == "image"
+        ]
+        return " ".join(sorted(arches))
 
     def resolve_commit(self):
         """
@@ -305,8 +305,11 @@ class ContainerImage(dict):
                 compose_sources.update(source.split())
 
         self["compose_sources"] = list(compose_sources)
-        log.info("Container image %s uses following compose sources: %r",
-                 self.nvr, self["compose_sources"])
+        log.info(
+            "Container image %s uses following compose sources: %r",
+            self.nvr,
+            self["compose_sources"],
+        )
 
     def resolve_content_sets(self, pyxis_api_instance, children=None):
         """
@@ -322,8 +325,9 @@ class ContainerImage(dict):
 
         # ContainerImage now has content_sets field, so use it if available.
         if "content_sets" in self and self["content_sets"]:
-            log.info("Container image %s uses following content sets: %r",
-                     self.nvr, self["content_sets"])
+            log.info(
+                "Container image %s uses following content sets: %r", self.nvr, self["content_sets"]
+            )
             if "content_sets_source" not in self:
                 self["content_sets_source"] = "pyxis_container_image"
             return
@@ -332,9 +336,12 @@ class ContainerImage(dict):
         # try to get them from children image.
         self["content_sets_source"] = "child_image"
         if not children:
-            log.warning("Container image %s does not have 'content_sets' set "
-                        "in Pyxis and also does not have any children, "
-                        "this is suspicious.", self.nvr)
+            log.warning(
+                "Container image %s does not have 'content_sets' set "
+                "in Pyxis and also does not have any children, "
+                "this is suspicious.",
+                self.nvr,
+            )
             self.update({"content_sets": []})
             return
 
@@ -346,16 +353,22 @@ class ContainerImage(dict):
             if not child["content_sets"]:
                 continue
 
-            log.info("Container image %s does not have 'content-sets' set "
-                     "in Pyxis. Using child image %s content_sets: %r",
-                     self.nvr, child.nvr,
-                     child["content_sets"])
+            log.info(
+                "Container image %s does not have 'content-sets' set "
+                "in Pyxis. Using child image %s content_sets: %r",
+                self.nvr,
+                child.nvr,
+                child["content_sets"],
+            )
             self.update({"content_sets": child["content_sets"]})
             return
 
-        log.warning("Container image %s does not have 'content_sets' set "
-                    "in Pyxis as well as its children, this "
-                    "is suspicious.", self.nvr)
+        log.warning(
+            "Container image %s does not have 'content_sets' set "
+            "in Pyxis as well as its children, this "
+            "is suspicious.",
+            self.nvr,
+        )
         self.update({"content_sets": []})
 
     def resolve_published(self, pyxis_api_instance):
@@ -400,8 +413,9 @@ class ContainerImage(dict):
         """
         if "rpm_manifest" not in self or not self["rpm_manifest"]:
             # Do not filter if we are not sure what RPMs are in the image.
-            log.info(("Not filtering out this image because we "
-                      "are not sure what RPMs are in there."))
+            log.info(
+                ("Not filtering out this image because we " "are not sure what RPMs are in there.")
+            )
             return
         # There is always just single "rpm_manifest". Pyxis returns
         # this as a list, because it is reference to
@@ -409,30 +423,32 @@ class ContainerImage(dict):
         rpm_manifest = self["rpm_manifest"][0]
         if "rpms" not in rpm_manifest:
             # Do not filter if we are not sure what RPMs are in the image.
-            log.info(("Not filtering out this image because we "
-                      "are not sure what RPMs are in there."))
+            log.info(
+                ("Not filtering out this image because we " "are not sure what RPMs are in there.")
+            )
             return
         return rpm_manifest["rpms"]
 
     def get_registry_repositories(self, pyxis_api_instance):
-        if self['repositories']:
-            return self['repositories']
+        if self["repositories"]:
+            return self["repositories"]
 
         parsed_nvr = kobo.rpmlib.parse_nvr(self.nvr)
 
-        if '.' not in parsed_nvr['release']:
-            log.debug('There are no repositories for %s', self.nvr)
+        if "." not in parsed_nvr["release"]:
+            log.debug("There are no repositories for %s", self.nvr)
             return []
 
-        original_release = parsed_nvr['release'].rsplit('.', 1)[0]
-        parsed_nvr['release'] = original_release
-        original_nvr = '{name}-{version}-{release}'.format(**parsed_nvr)
-        log.debug('Finding repositories for %s through %s', self.nvr, original_nvr)
+        original_release = parsed_nvr["release"].rsplit(".", 1)[0]
+        parsed_nvr["release"] = original_release
+        original_nvr = "{name}-{version}-{release}".format(**parsed_nvr)
+        log.debug("Finding repositories for %s through %s", self.nvr, original_nvr)
 
         previous_images = pyxis_api_instance.get_images_by_nvrs(
-            [original_nvr], published=None, include_rpm_manifest=False)
+            [original_nvr], published=None, include_rpm_manifest=False
+        )
         if not previous_images:
-            log.warning('original_nvr %s not found in Pyxis', original_nvr)
+            log.warning("original_nvr %s not found in Pyxis", original_nvr)
             return []
 
         return previous_images[0].get_registry_repositories(pyxis_api_instance)
@@ -441,8 +457,7 @@ class ContainerImage(dict):
 class PyxisAPI(object):
     """Interface to query Pyxis"""
 
-    region = dogpile.cache.make_region().configure(
-        conf.dogpile_cache_backend, expiration_time=120)
+    region = dogpile.cache.make_region().configure(conf.dogpile_cache_backend, expiration_time=120)
 
     def __init__(self, server_url):
         """Initialize PyxisAPI instance
@@ -450,10 +465,7 @@ class PyxisAPI(object):
         :param str server_url: Pyxis GraphQL url
         """
         self.server_url = server_url
-        self.pyxis = PyxisGQL(
-            url=server_url,
-            cert=(conf.pyxis_certificate, conf.pyxis_private_key)
-        )
+        self.pyxis = PyxisGQL(url=server_url, cert=(conf.pyxis_certificate, conf.pyxis_private_key))
 
     def _dicts_to_images(self, image_dicts):
         """Convert image dictionaries to list of ContainerImage"""
@@ -487,10 +499,10 @@ class PyxisAPI(object):
         for k, temp_images in groupby(sorted_images, key=lambda item: item.nvr):
             temp_images = list(temp_images)
             img = temp_images[0]
-            if 'content_sets' in img and len(temp_images) > 1:
-                new_content_sets = set(img.get('content_sets'))
+            if "content_sets" in img and len(temp_images) > 1:
+                new_content_sets = set(img.get("content_sets"))
                 for i in temp_images[1:]:
-                    new_content_sets.update(i.get('content_sets', []))
+                    new_content_sets.update(i.get("content_sets", []))
                 img["content_sets"] = list(new_content_sets)
             images.append(img)
 
@@ -530,9 +542,11 @@ class PyxisAPI(object):
 
         repos = []
         for repo_data in repositories:
-            if auto_rebuild and not repo_data.get('auto_rebuild_tags'):
-                log.info('"auto_rebuild_tags" not set for %s repository, ignoring repository',
-                         repo_data["repository"])
+            if auto_rebuild and not repo_data.get("auto_rebuild_tags"):
+                log.info(
+                    '"auto_rebuild_tags" not set for %s repository, ignoring repository',
+                    repo_data["repository"],
+                )
                 continue
             repo = ContainerRepository()
             repo.update(repo_data)
@@ -577,8 +591,10 @@ class PyxisAPI(object):
                     #   - nvr1 older: -1
                     # We want to rebuild only images with RPM NVR lower than
                     # input RPM NVR, therefore we check for -1.
-                    if kobo.rpmlib.compare_nvr(
-                            image_rpm_nvra, input_rpm_nvr, ignore_epoch=True) == -1:
+                    if (
+                        kobo.rpmlib.compare_nvr(image_rpm_nvra, input_rpm_nvr, ignore_epoch=True)
+                        == -1
+                    ):
                         ret.append(image)
                         image_included = True
                         break
@@ -589,9 +605,11 @@ class PyxisAPI(object):
                 # The else clause executes after the loop completes normally.
                 # This means that the loop did not encounter a break statement.
                 # In our case, this means that we filtered out the image.
-                log.info("Will not rebuild %s, because it does not contain "
-                         "older version of any input package: %r" % (
-                             image.nvr, rpm_name_to_nvrs.values()))
+                log.info(
+                    "Will not rebuild %s, because it does not contain "
+                    "older version of any input package: %r"
+                    % (image.nvr, rpm_name_to_nvrs.values())
+                )
         return ret
 
     def filter_out_modularity_mismatch(self, images, rpm_name_to_nvrs):
@@ -627,8 +645,8 @@ class PyxisAPI(object):
             else:
                 log.info(
                     "Filtered out %s because there is a modularity mismatch between the RPMs "
-                    "from the image and the advisory: %r" % (
-                        image.nvr, rpm_name_to_nvrs.values()))
+                    "from the image and the advisory: %r" % (image.nvr, rpm_name_to_nvrs.values())
+                )
         return ret
 
     def filter_out_images_based_on_content_set(self, images, content_sets):
@@ -652,17 +670,19 @@ class PyxisAPI(object):
         ret = []
         for image in images:
             if not content_sets & set(image["content_sets"]):
-                log.info(f"Will not rebuild {image.nvr} because its content_sets "
-                         "({image['content_sets']}) are not related to the requested content_sets"
-                         " ({content_sets})")
+                log.info(
+                    f"Will not rebuild {image.nvr} because its content_sets "
+                    "({image['content_sets']}) are not related to the requested content_sets"
+                    " ({content_sets})"
+                )
             else:
                 ret.append(image)
         return ret
 
     @retry(wait_on=requests.exceptions.ConnectionError, logger=log)
     def find_images_with_included_rpms(
-            self, content_sets, rpm_nvrs, repositories, published=True,
-            include_rpm_manifest=True):
+        self, content_sets, rpm_nvrs, repositories, published=True, include_rpm_manifest=True
+    ):
         """
         Query Pyxis and find the containerImages in the given containerRepositories.
 
@@ -692,7 +712,9 @@ class PyxisAPI(object):
             name = koji.parse_NVR(rpm_nvr)["name"]
             rpm_name_to_nvrs.setdefault(name, []).append(rpm_nvr)
 
-        images = self.pyxis.find_images_by_installed_rpms(rpm_name_to_nvrs, content_sets, repositories, published, auto_rebuild_tags)
+        images = self.pyxis.find_images_by_installed_rpms(
+            rpm_name_to_nvrs, content_sets, repositories, published, auto_rebuild_tags
+        )
         if not images:
             return []
 
@@ -702,7 +724,11 @@ class PyxisAPI(object):
 
         for image in image_dicts:
             # modify Pyxis image data to simulate the data structure returned from LightBlue
-            rpms = [rpm for rpm in image["edges"]["rpm_manifest"]["data"]["rpms"] if rpm["name"] in rpm_name_to_nvrs]
+            rpms = [
+                rpm
+                for rpm in image["edges"]["rpm_manifest"]["data"]["rpms"]
+                if rpm["name"] in rpm_name_to_nvrs
+            ]
             image["rpm_manifest"] = [{"rpms": rpms}]
             del image["edges"]
 
@@ -752,9 +778,16 @@ class PyxisAPI(object):
             images = self.filter_out_images_based_on_content_set(images, set(content_sets))
         return images
 
-    def get_images_by_nvrs(self, nvrs, published=True, content_sets=None,
-                           rpm_nvrs=None, include_rpm_manifest=True,
-                           rpm_names=None, pyxis_api_instance=None):
+    def get_images_by_nvrs(
+        self,
+        nvrs,
+        published=True,
+        content_sets=None,
+        rpm_nvrs=None,
+        include_rpm_manifest=True,
+        rpm_names=None,
+        pyxis_api_instance=None,
+    ):
         """Query Pyxis and returns containerImages defined by list of
         `nvrs`.
 
@@ -829,6 +862,7 @@ class PyxisAPI(object):
             image_dicts = list(filter(lambda x: _image_has_rpm(x, rpm_names), image_dicts))
 
         if published is not None:
+
             def _image_visibility_is(image, published):
                 # published: boolean value, True or False
                 for repo in image["repositories"]:
@@ -837,6 +871,7 @@ class PyxisAPI(object):
                     if repo["published"] is published:
                         return True
                 return False
+
             image_dicts = list(filter(lambda x: _image_visibility_is(x, published), image_dicts))
 
         images = self._dicts_to_images(image_dicts)
@@ -896,8 +931,10 @@ class PyxisAPI(object):
         # it means we found a base image and there's no parent image.
         if child_image["parent_image_builds"]:
             parent_brew_build = [
-                i["nvr"] for i in child_image["parent_image_builds"].values()
-                if i["id"] == child_image["parent_build_id"]][0]
+                i["nvr"]
+                for i in child_image["parent_image_builds"].values()
+                if i["id"] == child_image["parent_build_id"]
+            ][0]
 
         return parent_brew_build
 
@@ -929,8 +966,10 @@ class PyxisAPI(object):
         if not parent_brew_build:
             return images
         parent_image = self.get_images_by_nvrs(
-            [parent_brew_build], rpm_names=[rpm_name], published=None,
-            pyxis_api_instance=pyxis_api_instance
+            [parent_brew_build],
+            rpm_names=[rpm_name],
+            published=None,
+            pyxis_api_instance=pyxis_api_instance,
         )
 
         if parent_image:
@@ -943,7 +982,7 @@ class PyxisAPI(object):
 
         if images:
             if parent_image:
-                images[-1]['parent'] = parent_image
+                images[-1]["parent"] = parent_image
             else:
                 # If we did not find the parent image with the package,
                 # we still want to set the parent of the last image with
@@ -958,11 +997,12 @@ class PyxisAPI(object):
                     parent.resolve(pyxis_api_instance, images)
                 else:
                     err = "Couldn't find parent image %s. Pyxis data is probably incomplete" % (
-                        parent_brew_build)
+                        parent_brew_build
+                    )
                     log.error(err)
-                    if not images[-1]['error']:
-                        images[-1]['error'] = err
-                images[-1]['parent'] = parent
+                    if not images[-1]["error"]:
+                        images[-1]["error"] = err
+                images[-1]["parent"] = parent
 
         if not parent_image:
             return images
@@ -972,9 +1012,14 @@ class PyxisAPI(object):
         )
 
     def find_images_with_packages_from_content_set(
-            self, rpm_nvrs, content_sets, filter_fnc=None, published=True,
-            release_categories=conf.container_release_categories,
-            leaf_container_images=None):
+        self,
+        rpm_nvrs,
+        content_sets,
+        filter_fnc=None,
+        published=True,
+        release_categories=conf.container_release_categories,
+        leaf_container_images=None,
+    ):
         """Query Pyxis and find containers which contain given
         package from one of content sets
 
@@ -1011,7 +1056,8 @@ class PyxisAPI(object):
             for i in range(0, len(repos), chunk_size):
                 repos_chunk = {k: repos[k] for k in islice(repos_iterator, chunk_size)}
                 images_chunk = self.find_images_with_included_rpms(
-                    content_sets, rpm_nvrs, repos_chunk, published)
+                    content_sets, rpm_nvrs, repos_chunk, published
+                )
                 if images_chunk:
                     images.extend(images_chunk)
         else:
@@ -1029,9 +1075,9 @@ class PyxisAPI(object):
                 return f"{nvr['name']}-{nvr['version']}"
 
             images = [
-                next(grouped_images) for _, grouped_images in groupby(
-                    sorted_by_nvr(images, reverse=True),
-                    key=_name_version_key
+                next(grouped_images)
+                for _, grouped_images in groupby(
+                    sorted_by_nvr(images, reverse=True), key=_name_version_key
                 )
             ]
 
@@ -1043,8 +1089,7 @@ class PyxisAPI(object):
             # We do not set "children" here in resolve_content_sets call, because
             # published images should have the content_set set.
             pyxis_api_instance = PyxisGQL(
-                url=self.server_url,
-                cert=(conf.pyxis_certificate, conf.pyxis_private_key)
+                url=self.server_url, cert=(conf.pyxis_certificate, conf.pyxis_private_key)
             )
             image.resolve(pyxis_api_instance, None)
 
@@ -1127,7 +1172,9 @@ class PyxisAPI(object):
 
             # Sort the lists in image_group_to_nvrs dict.
             for image_group in image_group_to_nvrs.keys():
-                image_group_to_nvrs[image_group] = sorted_by_nvr(image_group_to_nvrs[image_group], reverse=True)
+                image_group_to_nvrs[image_group] = sorted_by_nvr(
+                    image_group_to_nvrs[image_group], reverse=True
+                )
 
                 # There might be container image NVRs which are not released yet,
                 # but some released image is already built on top of them.
@@ -1184,19 +1231,26 @@ class PyxisAPI(object):
 
                     # Go through the older images and in case the parent image differs,
                     # update its parents according to latest image parents.
-                    for nvr in nvrs[latest_released_nvr_index + 1:]:
+                    for nvr in nvrs[latest_released_nvr_index + 1 :]:
                         image = nvr_to_image[nvr]
                         if not image.get("parent"):
                             continue
                         parent_nvr_dict = koji.parse_NVR(image["parent"].nvr)
                         parent_name = parent_nvr_dict["name"]
                         parent_version = parent_nvr_dict["version"]
-                        if (parent_name, parent_version) != (latest_parent_name, latest_parent_version):
+                        if (parent_name, parent_version) != (
+                            latest_parent_name,
+                            latest_parent_version,
+                        ):
                             for image_id, parent_id in nvr_to_coordinates[nvr]:
-                                latest_image_id, latest_parent_id = nvr_to_coordinates[latest_released_nvr][0]
-                                to_rebuild[image_id][parent_id:] = to_rebuild[latest_image_id][latest_parent_id:]
+                                latest_image_id, latest_parent_id = nvr_to_coordinates[
+                                    latest_released_nvr
+                                ][0]
+                                to_rebuild[image_id][parent_id:] = to_rebuild[latest_image_id][
+                                    latest_parent_id:
+                                ]
                 elif phase == "update_to_latest":
-                    for nvr in nvrs[latest_released_nvr_index + 1:]:
+                    for nvr in nvrs[latest_released_nvr_index + 1 :]:
                         for image_id, parent_id in nvr_to_coordinates[nvr]:
                             # At first replace the image in to_rebuild based
                             # on the coordinates from temp dict.
@@ -1206,7 +1260,9 @@ class PyxisAPI(object):
                             # the ["parent"] record for the child image to point to the image
                             # with highest NVR.
                             if parent_id != 0:
-                                to_rebuild[image_id][parent_id - 1]["parent"] = nvr_to_image[latest_released_nvr]
+                                to_rebuild[image_id][parent_id - 1]["parent"] = nvr_to_image[
+                                    latest_released_nvr
+                                ]
 
         return to_rebuild
 
@@ -1271,9 +1327,15 @@ class PyxisAPI(object):
         return batches
 
     def find_images_to_rebuild(
-            self, rpm_nvrs, content_sets, published=True,
-            release_categories=conf.container_release_categories,
-            filter_fnc=None, leaf_container_images=None, skip_nvrs=None):
+        self,
+        rpm_nvrs,
+        content_sets,
+        published=True,
+        release_categories=conf.container_release_categories,
+        filter_fnc=None,
+        leaf_container_images=None,
+        skip_nvrs=None,
+    ):
         """
         Find images to rebuild through image build layers
 
@@ -1303,8 +1365,13 @@ class PyxisAPI(object):
         :param list skip_nvrs: List of NVRs of images to be skipped.
         """
         images = self.find_images_with_packages_from_content_set(
-            rpm_nvrs, content_sets, filter_fnc, published,
-            release_categories, leaf_container_images=leaf_container_images)
+            rpm_nvrs,
+            content_sets,
+            filter_fnc,
+            published,
+            release_categories,
+            leaf_container_images=leaf_container_images,
+        )
 
         # Remove any hotfix images from list of images
         for img in images[:]:
@@ -1323,8 +1390,7 @@ class PyxisAPI(object):
             Find out parent images to rebuild, helper called from threadpool.
             """
             pyxis_api_instance = PyxisGQL(
-                url=self.server_url,
-                cert=(conf.pyxis_certificate, conf.pyxis_private_key)
+                url=self.server_url, cert=(conf.pyxis_certificate, conf.pyxis_private_key)
             )
 
             rebuild_list = {}  # per binary rpm name rebuild list.
@@ -1340,20 +1406,21 @@ class PyxisAPI(object):
                     image, rpm_name, images=[], pyxis_api_instance=pyxis_api_instance
                 )
                 if rebuild_list[rpm_name]:
-                    image['parent'] = rebuild_list[rpm_name][0]
+                    image["parent"] = rebuild_list[rpm_name][0]
                 else:
                     parent_brew_build = self.find_parent_brew_build_nvr_from_child(
                         image, pyxis_api_instance
                     )
                     if parent_brew_build:
                         parent = self.get_images_by_nvrs(
-                            [parent_brew_build], published=None,
-                            pyxis_api_instance=pyxis_api_instance
+                            [parent_brew_build],
+                            published=None,
+                            pyxis_api_instance=pyxis_api_instance,
                         )
                         if parent:
                             parent = parent[0]
                             parent.resolve(pyxis_api_instance, images)
-                            image['parent'] = parent
+                            image["parent"] = parent
                 rebuild_list[rpm_name].insert(0, image)
             return rebuild_list
 
@@ -1378,9 +1445,7 @@ class PyxisAPI(object):
         to_rebuild = self._deduplicate_images_to_rebuild(to_rebuild)
         # Get all the directly affected images so that any parents that are not marked as
         # directly affected can be set in _images_to_rebuild_to_batches
-        directly_affected_nvrs = {
-            image.nvr for image in images if image.get("directly_affected")
-        }
+        directly_affected_nvrs = {image.nvr for image in images if image.get("directly_affected")}
         # Some images that aren't marked as directly affected may have already been fixed
         # in the latest published version of the image. Use those images instead.
         self._filter_out_already_fixed_published_images(
@@ -1465,7 +1530,7 @@ class PyxisAPI(object):
             log.info(
                 "The image %s will be replaced with the latest published image of %s",
                 image.nvr,
-                fixed_published_image.nvr
+                fixed_published_image.nvr,
             )
             # On the first iteration, this is the last directly affected image in image_group
             child_image = image_group[i - 1]
@@ -1573,7 +1638,10 @@ class PyxisAPI(object):
         for candidate_image in candidate_images[1:]:
             parsed_candidate_image_nvr = kobo.rpmlib.parse_nvr(candidate_image.nvr)
             if (
-                kobo.rpmlib.compare_nvr(parsed_candidate_image_nvr, parsed_fixed_published_image_nvr) > 0
+                kobo.rpmlib.compare_nvr(
+                    parsed_candidate_image_nvr, parsed_fixed_published_image_nvr
+                )
+                > 0
             ):
                 fixed_published_image = candidate_image
 
@@ -1581,9 +1649,7 @@ class PyxisAPI(object):
         # metadata required by Freshmaker
         images = self.pyxis.find_images_by_nvr(fixed_published_image.nvr)
         if not images:
-            log.error(
-                "The image with the NVR %s was not found in Pyxis", fixed_published_image.nvr
-            )
+            log.error("The image with the NVR %s was not found in Pyxis", fixed_published_image.nvr)
             return
 
         images = self.postprocess_images(images, rpm_name_to_nvrs)

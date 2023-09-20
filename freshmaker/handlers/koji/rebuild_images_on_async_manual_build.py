@@ -36,7 +36,7 @@ from freshmaker.utils import sorted_by_nvr
 class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
     """Rebuild images on async.manual.build"""
 
-    name = 'RebuildImagesOnAsyncManualBuild'
+    name = "RebuildImagesOnAsyncManualBuild"
 
     def can_handle(self, event):
         return isinstance(event, FreshmakerAsyncManualBuildEvent)
@@ -58,8 +58,10 @@ class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
 
         # Check if we are allowed to build this image.
         if not self.event.is_allowed(self, ArtifactType.IMAGE):
-            msg = ("This image rebuild is not allowed by internal policy. "
-                   f"message_id: {event.msg_id}")
+            msg = (
+                "This image rebuild is not allowed by internal policy. "
+                f"message_id: {event.msg_id}"
+            )
             db_event.transition(EventState.SKIPPED, msg)
             db.session.commit()
             self.log_info(msg)
@@ -96,18 +98,16 @@ class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
             db.session.commit()
             return []
 
-        if all([build.state == ArtifactBuildState.FAILED.value
-                for build in builds.values()]):
+        if all([build.state == ArtifactBuildState.FAILED.value for build in builds.values()]):
             db_event.transition(
-                EventState.COMPLETE,
-                "No container images to rebuild, all are in failed state.")
+                EventState.COMPLETE, "No container images to rebuild, all are in failed state."
+            )
             db.session.commit()
             return []
 
-        self.start_to_build_images(
-            db_event.get_image_builds_in_first_batch(db.session))
+        self.start_to_build_images(db_event.get_image_builds_in_first_batch(db.session))
 
-        msg = 'Rebuilding %d container images.' % (len(db_event.builds.all()))
+        msg = "Rebuilding %d container images." % (len(db_event.builds.all()))
         db_event.transition(EventState.BUILDING, msg)
 
         return []
@@ -139,14 +139,14 @@ class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
         for batch in batches:
             # We expect the first item in the list to always be in the requested images
             # if not, there must be something wrong... maybe we should return an error.
-            if batch[0]['brew']['package'] not in self.event.container_images:
-                self.log_info('Unexpected error identifying images to rebuild.')
+            if batch[0]["brew"]["package"] not in self.event.container_images:
+                self.log_info("Unexpected error identifying images to rebuild.")
                 return []
             filtered_batch = []
             maybe_batch = []
             for image in batch:
                 maybe_batch.append(image)
-                if image['brew']['package'] in self.event.container_images:
+                if image["brew"]["package"] in self.event.container_images:
                     filtered_batch.extend(maybe_batch)
                     maybe_batch = []
             new_batches.append(filtered_batch)
@@ -155,9 +155,7 @@ class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
     def generate_batches(self, to_rebuild, images, pyxis):
         # Get all the directly affected images so that any parents that are not marked as
         # directly affected can be set in _images_to_rebuild_to_batches
-        directly_affected_nvrs = {
-            image.nvr for image in images if image.get("directly_affected")
-        }
+        directly_affected_nvrs = {image.nvr for image in images if image.get("directly_affected")}
         # Now generate batches from deduplicated list and return it.
         return pyxis._images_to_rebuild_to_batches(to_rebuild, directly_affected_nvrs)
 
@@ -194,7 +192,7 @@ class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
             if parent:
                 parent = parent[0]
                 parent.resolve(pyxis)
-                image['parent'] = parent
+                image["parent"] = parent
                 tree.append(parent)
                 return self.get_image_tree(pyxis, parent, tree)
         return tree
@@ -211,10 +209,7 @@ class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
         :return: list of images to rebuild. If the event gets skipped, return empty list.
         :rtype: list
         """
-        with koji_service(
-                conf.koji_profile, log, dry_run=conf.dry_run,
-                login=False) as session:
-
+        with koji_service(conf.koji_profile, log, dry_run=conf.dry_run, login=False) as session:
             # Sort images by nvr
             images = sorted_by_nvr(images, reverse=True)
 
@@ -237,7 +232,7 @@ class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
                 build = None
                 git_branch = None
 
-                package = image['brew']['package']
+                package = image["brew"]["package"]
                 # if package is already in images_to_rebuild we don't need to keep searching
                 # since the images were sorted by NVR in the beginning
                 if package not in images_to_rebuild:
@@ -250,8 +245,12 @@ class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
                         task_info = task[2]
                         git_branch = task_info.get("git_branch") if len(task_info) else None
 
-                    if (build and task_id and git_branch and
-                            self.event.dist_git_branch == git_branch):
+                    if (
+                        build
+                        and task_id
+                        and git_branch
+                        and self.event.dist_git_branch == git_branch
+                    ):
                         images_to_rebuild[package] = image
 
             if not images_to_rebuild or len(images_to_rebuild) < len(self.event.container_images):
@@ -261,9 +260,11 @@ class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
                 # that was never built before.
                 # We cannot return to the API with an error, because the request already completed
                 # at this point. Let's mark this build as FAILED then.
-                msg = ("One or more of the requested image was never built before for the "
-                       f"requested branch: {self.event.dist_git_branch}. "
-                       "Cannot build it, please change your request.")
+                msg = (
+                    "One or more of the requested image was never built before for the "
+                    f"requested branch: {self.event.dist_git_branch}. "
+                    "Cannot build it, please change your request."
+                )
                 missing_images = set(self.event.container_images) - set(images_to_rebuild.keys())
                 if missing_images:
                     msg += f" Problematic images are {missing_images}"
@@ -353,10 +354,13 @@ class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
                 # We don't need to rebuild the nvr this time. The release value
                 # will be automatically generated by OSBS.
                 build = self.record_build(
-                    self.event, image_name, ArtifactType.IMAGE,
+                    self.event,
+                    image_name,
+                    ArtifactType.IMAGE,
                     dep_on=dep_on,
                     state=ArtifactBuildState.PLANNED.value,
-                    original_nvr=nvr)
+                    original_nvr=nvr,
+                )
 
                 # Set context to particular build so logging shows this build
                 # in case of error.
@@ -364,18 +368,19 @@ class RebuildImagesOnAsyncManualBuild(ContainerBuildHandler):
 
                 image.resolve(pyxis)
                 build.transition(state, state_reason)
-                build_target = (
-                    self.event.brew_target if self.event.brew_target else image["target"])
-                build.build_args = json.dumps({
-                    "repository": image["repository"],
-                    "commit": image["commit"],
-                    "original_parent": parent_nvr,
-                    "target": build_target,
-                    "branch": image["git_branch"],
-                    "arches": image["arches"],
-                    "flatpak": image.get("flatpak", False),
-                    "isolated": image.get("isolated", True),
-                })
+                build_target = self.event.brew_target if self.event.brew_target else image["target"]
+                build.build_args = json.dumps(
+                    {
+                        "repository": image["repository"],
+                        "commit": image["commit"],
+                        "original_parent": parent_nvr,
+                        "target": build_target,
+                        "branch": image["git_branch"],
+                        "arches": image["arches"],
+                        "flatpak": image.get("flatpak", False),
+                        "isolated": image.get("isolated", True),
+                    }
+                )
                 db.session.commit()
 
                 builds[nvr] = build

@@ -38,10 +38,9 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
     def setUp(self):
         super().setUp()
 
-        self.patcher = helpers.Patcher(
-            'freshmaker.pyxis.')
+        self.patcher = helpers.Patcher("freshmaker.pyxis.")
 
-        self.fake_server_url = 'https://pyxis.localhost/'
+        self.fake_server_url = "https://pyxis.localhost/"
         self.px = Pyxis(self.fake_server_url)
         self.response = create_autospec(requests.Response)
         self.response.status_code = HTTPStatus.OK
@@ -50,19 +49,14 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                 "Unable to parse the filter from URL.",
                 "Please verify the 'Field Name' in the RSQL Expression.",
                 "Please visit the following end-point for more details:",
-                "    /v1/docs/filtering-language"
+                "    /v1/docs/filtering-language",
             ],
             "status": 400,
             "title": "Bad Request",
-            "type": "about:blank"
+            "type": "about:blank",
         }
 
-        self.empty_response_page = {
-            "data": [],
-            "page": 0,
-            "page_size": 100,
-            "total": 0
-        }
+        self.empty_response_page = {"data": [], "page": 0, "page_size": 100, "total": 0}
 
         self.indices = [
             {
@@ -73,7 +67,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                 "last_updated_by": "meteor",
                 "ocp_version": "4.5",
                 "organization": "org",
-                "path": "path/to/registry:v4.5"
+                "path": "path/to/registry:v4.5",
             },
             {
                 "_id": "2",
@@ -83,7 +77,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                 "last_updated_by": "meteor",
                 "ocp_version": "4.6",
                 "organization": "org",
-                "path": "path/to/registry:v4.6"
+                "path": "path/to/registry:v4.6",
             },
             {
                 "_id": "2",
@@ -93,8 +87,8 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                 "last_updated_by": "meteor",
                 "ocp_version": "4.6",
                 "organization": "org",
-                "path": ""
-            }
+                "path": "",
+            },
         ]
 
         self.bundles = [
@@ -105,25 +99,25 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                     {
                         "image": "registry/amq7/amq-streams-r-operator@sha256:111",
                         "name": "strimzi-cluster-operator",
-                        "digest": "sha256:111"
+                        "digest": "sha256:111",
                     },
                     {
                         "image": "registry/amq7/amq-streams-kafka-24-r@sha256:222",
                         "name": "strimzi-kafka-24",
-                        "digest": "sha256:222"
+                        "digest": "sha256:222",
                     },
                     {
                         "image": "registry/amq7/amq-streams-kafka-25-r@sha256:333",
                         "name": "strimzi-kafka-25",
-                        "digest": "sha256:333"
+                        "digest": "sha256:333",
                     },
                     {
                         "image": "registry/amq7/amq-streams-bridge-r@sha256:444",
                         "name": "strimzi-bridge",
-                        "digest": "sha256:444"
-                    }
+                        "digest": "sha256:444",
+                    },
                 ],
-                "version_original": "1.5.3"
+                "version_original": "1.5.3",
             },
             {
                 "channel_name": "streams-1.5.x",
@@ -132,25 +126,25 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                     {
                         "image": "registry/amq7/amq-streams-r-operator@sha256:555",
                         "name": "strimzi-cluster-operator",
-                        "digest": "sha256:555"
+                        "digest": "sha256:555",
                     },
                     {
                         "image": "registry/amq7/amq-streams-kafka-24-r@sha256:666",
                         "name": "strimzi-kafka-24",
-                        "digest": "sha256:666"
+                        "digest": "sha256:666",
                     },
                     {
                         "image": "registry/amq7/amq-streams-kafka-25-r@sha256:777",
                         "name": "strimzi-kafka-25",
-                        "digest": "sha256:777"
+                        "digest": "sha256:777",
                     },
                     {
                         "image": "registry/amq7/amq-streams-bridge-r@sha256:888",
                         "name": "strimzi-bridge",
-                        "digest": "sha256:888"
-                    }
+                        "digest": "sha256:888",
+                    },
                 ],
-                "version_original": "1.5.4"
+                "version_original": "1.5.4",
             },
             {
                 "channel_name": "stable",
@@ -159,25 +153,25 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                     {
                         "image": "registry/amq7/amq--operator@sha256:999",
                         "name": "strimzi-cluster-operator",
-                        "digest": "sha256:999"
+                        "digest": "sha256:999",
                     },
                     {
                         "image": "registry/amq7/kafka-24-r@sha256:aaa",
                         "name": "strimzi-kafka-24",
-                        "digest": "sha256:aaa"
+                        "digest": "sha256:aaa",
                     },
                     {
                         "image": "registry/amq7/kafka-25-r@sha256:bbb",
                         "name": "strimzi-kafka-25",
-                        "digest": "sha256:bbb"
+                        "digest": "sha256:bbb",
                     },
                     {
                         "image": "registry/amq7/amq-streams-bridge-r@sha256:ccc",
                         "name": "strimzi-bridge",
-                        "digest": "sha256:ccc"
-                    }
+                        "digest": "sha256:ccc",
+                    },
                 ],
-                "version_original": "1.5.3"
+                "version_original": "1.5.3",
             },
             {
                 "channel_name": "stable",
@@ -186,15 +180,15 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                     {
                         "image": "registry/tracing/j-operator:1.13.2",
                         "name": "j-1.13.2-annotation",
-                        "digest": "sha256:fff"
+                        "digest": "sha256:fff",
                     },
                     {
                         "image": "registry/tracing/j-operator:1.13.2",
                         "name": "j-operator",
-                        "digest": "sha256:ffff"
-                    }
+                        "digest": "sha256:ffff",
+                    },
                 ],
-                "version": "1.5.2"
+                "version": "1.5.2",
             },
             {
                 "channel_name": "quay-v3.3",
@@ -203,15 +197,15 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                     {
                         "image": "registry/quay/quay-operator@sha256:ddd",
                         "name": "quay-operator-annotation",
-                        "digest": "sha256:ddd"
+                        "digest": "sha256:ddd",
                     },
                     {
                         "image": "registry/quay/quay-security-r-operator@sha256:eee",
                         "name": "container-security-operator",
-                        "digest": "sha256:eee"
-                    }
+                        "digest": "sha256:eee",
+                    },
                 ],
-                "version": "3.3.1"
+                "version": "3.3.1",
             },
         ]
 
@@ -221,7 +215,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                     "build": "s2i-1-2",
                     "completion_date": "2020-08-12T11:31:39+00:00",
                     "nvra": "s2i-1-2.ppc64le",
-                    "package": "s2i-core-container"
+                    "package": "s2i-core-container",
                 },
                 "repositories": [
                     {
@@ -230,7 +224,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                         "published": False,
                         "registry": "reg1",
                         "repository": "repo1",
-                        "tags": [{"name": "tag0"}]
+                        "tags": [{"name": "tag0"}],
                     },
                     {
                         "manifest_list_digest": "sha256:1112",
@@ -238,16 +232,16 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                         "published": True,
                         "registry": "reg2",
                         "repository": "repo2",
-                        "tags": [{"name": "tag1"}, {"name": "tag2"}]
-                    }
-                ]
+                        "tags": [{"name": "tag1"}, {"name": "tag2"}],
+                    },
+                ],
             },
             {
                 "brew": {
                     "build": "s2i-1-2",
                     "completion_date": "2020-08-12T11:31:39+00:00",
                     "nvra": "s2i-1-2.s390x",
-                    "package": "s2i-core-container"
+                    "package": "s2i-core-container",
                 },
                 "repositories": [
                     {
@@ -256,16 +250,16 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                         "published": True,
                         "registry": "reg2",
                         "repository": "repo2",
-                        "tags": [{"name": "tag2"}]
+                        "tags": [{"name": "tag2"}],
                     }
-                ]
+                ],
             },
             {
                 "brew": {
                     "build": "s2i-1-2",
                     "completion_date": "2020-08-12T11:31:39+00:00",
                     "nvra": "s2i-1-2.amd64",
-                    "package": "s2i-core-container"
+                    "package": "s2i-core-container",
                 },
                 "repositories": [
                     {
@@ -274,16 +268,16 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                         "published": True,
                         "registry": "reg3",
                         "repository": "repo3",
-                        "tags": [{"name": "latest"}]
+                        "tags": [{"name": "latest"}],
                     }
-                ]
+                ],
             },
             {
                 "brew": {
                     "build": "s2i-1-2",
                     "completion_date": "2020-08-12T11:31:39+00:00",
                     "nvra": "s2i-1-2.arm64",
-                    "package": "s2i-core-container"
+                    "package": "s2i-core-container",
                 },
                 "repositories": [
                     {
@@ -292,10 +286,10 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                         "published": True,
                         "registry": "reg4",
                         "repository": "repo4",
-                        "tags": [{"name": "tag1"}]
+                        "tags": [{"name": "tag1"}],
                     }
-                ]
-            }
+                ],
+            },
         ]
 
     def tearDown(self):
@@ -314,82 +308,87 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
             args = deepcopy(args)
             kwargs = deepcopy(kwargs)
             return new_mock(*args, **kwargs)
+
         mock.side_effect = side_effect
         return new_mock
 
-    @patch('freshmaker.pyxis.HTTPKerberosAuth')
-    @patch('freshmaker.pyxis.requests.get')
+    @patch("freshmaker.pyxis.HTTPKerberosAuth")
+    @patch("freshmaker.pyxis.requests.get")
     def test_make_request(self, get, auth):
         get.return_value = self.response
-        test_params = {'key1': 'val1'}
-        self.px._make_request('test', test_params)
+        test_params = {"key1": "val1"}
+        self.px._make_request("test", test_params)
 
-        get_url = self.fake_server_url + 'v1/test'
+        get_url = self.fake_server_url + "v1/test"
         self.response.json.assert_called_once()
-        test_params['page_size'] = "100"
-        get.assert_called_once_with(get_url, params=test_params, auth=auth(),
-                                    timeout=conf.net_timeout)
+        test_params["page_size"] = "100"
+        get.assert_called_once_with(
+            get_url, params=test_params, auth=auth(), timeout=conf.net_timeout
+        )
 
-    @patch('freshmaker.pyxis.HTTPKerberosAuth')
-    @patch('freshmaker.pyxis.requests.get')
+    @patch("freshmaker.pyxis.HTTPKerberosAuth")
+    @patch("freshmaker.pyxis.requests.get")
     def test_make_request_error(self, get, auth):
         get.return_value = self.response
         self.response.ok = False
         self.response.json.side_effect = ValueError
-        self.response.json.text = 'test message'
+        self.response.json.text = "test message"
         self.response.request = Mock()
-        self.response.request.url = 'test/url'
+        self.response.request.url = "test/url"
         self.response.headers = {"trace_id": "123"}
 
-        with self.assertRaises(PyxisRequestError, msg='test message') as cm:
-            self.px._make_request('test', {})
+        with self.assertRaises(PyxisRequestError, msg="test message") as cm:
+            self.px._make_request("test", {})
 
         pyxis_exception = cm.exception
         self.assertEqual(pyxis_exception.trace_id, "123")
 
-    @patch('freshmaker.pyxis.HTTPKerberosAuth')
-    @patch('freshmaker.pyxis.Pyxis._make_request')
+    @patch("freshmaker.pyxis.HTTPKerberosAuth")
+    @patch("freshmaker.pyxis.Pyxis._make_request")
     def test_pagination(self, request, auth):
         my_request = self.copy_call_args(request)
         my_request.side_effect = [
             {"page": 0, "data": ["fake_data1"]},
             {"page": 1, "data": ["fake_data2"]},
-            {"page": 2, "data": []}
+            {"page": 2, "data": []},
         ]
-        test_params = {'include': ['total', 'field1']}
-        entity = 'test'
+        test_params = {"include": ["total", "field1"]}
+        entity = "test"
         auth.return_value = 1
         self.px._pagination(entity, test_params)
 
         self.assertEqual(request.call_count, 3)
-        default_params = {'page_size': '100', 'include': ['total', 'field1']}
-        calls = [call('test', params={**default_params, 'page': 0}),
-                 call('test', params={**default_params, 'page': 1}),
-                 call('test', params={**default_params, 'page': 2})
-                 ]
+        default_params = {"page_size": "100", "include": ["total", "field1"]}
+        calls = [
+            call("test", params={**default_params, "page": 0}),
+            call("test", params={**default_params, "page": 1}),
+            call("test", params={**default_params, "page": 2}),
+        ]
         my_request.assert_has_calls(calls)
 
-    @patch.object(conf, 'pyxis_index_image_organizations', new=['org1', 'org2'])
-    @patch('freshmaker.pyxis.Pyxis.ocp_is_released', return_value=True)
-    @patch('freshmaker.pyxis.Pyxis._pagination')
+    @patch.object(conf, "pyxis_index_image_organizations", new=["org1", "org2"])
+    @patch("freshmaker.pyxis.Pyxis.ocp_is_released", return_value=True)
+    @patch("freshmaker.pyxis.Pyxis._pagination")
     def test_get_operator_indices(self, page, is_released):
         page.return_value = self.indices
         indices = self.px.get_operator_indices()
         page.assert_called_once_with(
-            'operators/indices', {'filter': 'organization==org1 or organization==org2'})
+            "operators/indices", {"filter": "organization==org1 or organization==org2"}
+        )
         self.assertEqual(len(indices), 3)
 
-    @patch.object(conf, 'pyxis_index_image_organizations', new=['org1', 'org2'])
-    @patch('freshmaker.pyxis.Pyxis.ocp_is_released', return_value=True)
-    @patch('freshmaker.pyxis.Pyxis._pagination')
+    @patch.object(conf, "pyxis_index_image_organizations", new=["org1", "org2"])
+    @patch("freshmaker.pyxis.Pyxis.ocp_is_released", return_value=True)
+    @patch("freshmaker.pyxis.Pyxis._pagination")
     def test_get_index_paths(self, page, is_released):
         page.return_value = self.indices
         paths = self.px.get_index_paths()
         page.assert_called_once_with(
-            'operators/indices', {'filter': 'organization==org1 or organization==org2'})
+            "operators/indices", {"filter": "organization==org1 or organization==org2"}
+        )
         self.assertEqual(len(paths), 2)
-        self.assertTrue('path/to/registry:v4.5' in paths)
-        self.assertTrue('path/to/registry:v4.6' in paths)
+        self.assertTrue("path/to/registry:v4.5" in paths)
+        self.assertTrue("path/to/registry:v4.6" in paths)
 
     @patch.object(conf, "product_pages_api_url", new="http://pp.example.com/api")
     @patch("freshmaker.pyxis.Pyxis._pagination")
@@ -397,20 +396,17 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
         pp_mock_data = [
             {
                 "url": "http://pp.example.com/api/releases/openshift-4.5/schedule-tasks/",
-                "json": [{"name": "GA", "date_finish": "2020-02-05"}]
+                "json": [{"name": "GA", "date_finish": "2020-02-05"}],
             },
             {
                 "url": "http://pp.example.com/api/releases/openshift-4.6/schedule-tasks/",
-                "json": [{"name": "GA", "date_finish": "2020-05-23"}]
+                "json": [{"name": "GA", "date_finish": "2020-05-23"}],
             },
             {
                 "url": "http://pp.example.com/api/releases/openshift-4.8/schedule-tasks/",
-                "json": [{"name": "GA", "date_finish": "2021-08-12"}]
+                "json": [{"name": "GA", "date_finish": "2021-08-12"}],
             },
-            {
-                "url": "http://pp.example.com/api/releases/openshift-4.9/schedule-tasks/",
-                "json": []
-            }
+            {"url": "http://pp.example.com/api/releases/openshift-4.9/schedule-tasks/", "json": []},
         ]
         page.return_value = self.indices + [
             {
@@ -421,7 +417,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                 "last_updated_by": "meteor",
                 "ocp_version": "4.8",
                 "organization": "org",
-                "path": ""
+                "path": "",
             }
         ]
         now = datetime(year=2020, month=12, day=15, hour=0, minute=0, second=0)
@@ -437,10 +433,10 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
         assert "4.8" not in [i["ocp_version"] for i in indices]
         assert "4.9" not in [i["ocp_version"] for i in indices]
 
-    @patch('freshmaker.pyxis.Pyxis._pagination')
+    @patch("freshmaker.pyxis.Pyxis._pagination")
     def test_get_bundles_by_related_image_digest(self, page):
         self.px.get_bundles_by_related_image_digest(
-            'sha256:111', ["path/to/registry:v4.5", "path/to/registry:v4.6"]
+            "sha256:111", ["path/to/registry:v4.5", "path/to/registry:v4.6"]
         )
         request_params = {
             "include": "data.channel_name,data.version_original,data.related_images,"
@@ -448,21 +444,20 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
             "filter": "related_images.digest==sha256:111 and latest_in_channel==true and "
             "source_index_container_path=in=(path/to/registry:v4.5,path/to/registry:v4.6)",
         }
-        page.assert_called_once_with('operators/bundles', request_params)
+        page.assert_called_once_with("operators/bundles", request_params)
 
-    @patch('freshmaker.pyxis.Pyxis._pagination')
+    @patch("freshmaker.pyxis.Pyxis._pagination")
     def test_get_manifest_list_digest_by_nvr(self, page):
         page.return_value = self.images
-        digest = self.px.get_manifest_list_digest_by_nvr('s2i-1-2')
+        digest = self.px.get_manifest_list_digest_by_nvr("s2i-1-2")
 
-        expected_digest = 'sha256:1112'
+        expected_digest = "sha256:1112"
         self.assertEqual(digest, expected_digest)
         page.assert_called_once_with(
-            'images/nvr/s2i-1-2',
-            {'include': 'data.brew,data.repositories'}
+            "images/nvr/s2i-1-2", {"include": "data.brew,data.repositories"}
         )
 
-    @patch('freshmaker.pyxis.Pyxis._pagination')
+    @patch("freshmaker.pyxis.Pyxis._pagination")
     def test_get_manifest_list_digest_by_nvr_unpublished(self, page):
         page.return_value = [
             {
@@ -470,7 +465,7 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                     "build": "s2i-1-2",
                     "completion_date": "2020-08-12T11:31:39+00:00",
                     "nvra": "s2i-1-2.arm64",
-                    "package": "s2i-core-container"
+                    "package": "s2i-core-container",
                 },
                 "repositories": [
                     {
@@ -478,197 +473,221 @@ class TestQueryPyxis(helpers.FreshmakerTestCase):
                         "published": False,
                         "registry": "reg4",
                         "repository": "repo4",
-                        "tags": [{"name": "tag1"}]
+                        "tags": [{"name": "tag1"}],
                     }
-                ]
+                ],
             }
         ]
-        digest = self.px.get_manifest_list_digest_by_nvr('s2i-1-2', False)
+        digest = self.px.get_manifest_list_digest_by_nvr("s2i-1-2", False)
 
-        expected_digest = 'sha256:4444'
+        expected_digest = "sha256:4444"
         self.assertEqual(digest, expected_digest)
         page.assert_called_once_with(
-            'images/nvr/s2i-1-2',
-            {'include': 'data.brew,data.repositories'}
+            "images/nvr/s2i-1-2", {"include": "data.brew,data.repositories"}
         )
 
-    @patch('freshmaker.pyxis.Pyxis._pagination')
+    @patch("freshmaker.pyxis.Pyxis._pagination")
     def test_get_manifest_schema2_digest_by_nvr(self, page):
         page.return_value = self.images
-        digests = self.px.get_manifest_schema2_digests_by_nvr('s2i-1-2')
+        digests = self.px.get_manifest_schema2_digests_by_nvr("s2i-1-2")
 
         expected_digests = [
-            'sha256:22224444', 'sha256:33336666', 'sha256:11112222', 'sha256:44448888'
+            "sha256:22224444",
+            "sha256:33336666",
+            "sha256:11112222",
+            "sha256:44448888",
         ]
         self.assertEqual(set(digests), set(expected_digests))
         page.assert_called_once_with(
-            'images/nvr/s2i-1-2',
-            {'include': 'data.brew,data.repositories'}
+            "images/nvr/s2i-1-2", {"include": "data.brew,data.repositories"}
         )
 
-    @patch('freshmaker.pyxis.Pyxis._pagination')
+    @patch("freshmaker.pyxis.Pyxis._pagination")
     def test_get_bundles_by_digests(self, page):
         page.return_value = {"some_bundle"}
         digests = ["digest1", "digest2"]
 
         self.px.get_bundles_by_digests(digests)
 
-        page.assert_called_once_with("operators/bundles", {
-            "include": "data.version_original,data.csv_name",
-            "filter": "bundle_path_digest==digest1 or bundle_path_digest==digest2"
-        })
+        page.assert_called_once_with(
+            "operators/bundles",
+            {
+                "include": "data.version_original,data.csv_name",
+                "filter": "bundle_path_digest==digest1 or bundle_path_digest==digest2",
+            },
+        )
 
-    @patch('freshmaker.pyxis.Pyxis.get_manifest_schema2_digests_by_nvr')
-    @patch('freshmaker.pyxis.Pyxis._pagination')
+    @patch("freshmaker.pyxis.Pyxis.get_manifest_schema2_digests_by_nvr")
+    @patch("freshmaker.pyxis.Pyxis._pagination")
     def test_get_bundles_by_nvr(self, page, get_digests):
         get_digests.return_value = ["some_digest"]
 
         self.px.get_bundles_by_nvr("some-nvr")
 
-        page.assert_called_once_with("operators/bundles", {
-            "include": "data.version_original,data.csv_name",
-            "filter": "bundle_path_digest==some_digest"
-        })
+        page.assert_called_once_with(
+            "operators/bundles",
+            {
+                "include": "data.version_original,data.csv_name",
+                "filter": "bundle_path_digest==some_digest",
+            },
+        )
 
-    @patch('freshmaker.pyxis.Pyxis._pagination')
+    @patch("freshmaker.pyxis.Pyxis._pagination")
     def test_get_images_by_nvr(self, page):
         self.px.get_images_by_nvr("some-nvr")
-        page.assert_called_once_with("images/nvr/some-nvr", {
-            "include": "data.architecture,data.brew,data.repositories"
-        })
+        page.assert_called_once_with(
+            "images/nvr/some-nvr", {"include": "data.architecture,data.brew,data.repositories"}
+        )
 
-    @patch('freshmaker.pyxis.requests.get')
+    @patch("freshmaker.pyxis.requests.get")
     def test_get_images_by_digest(self, mock_get):
         image_1 = {
-            'brew': {
-                'build': 'foo-operator-2.1-2',
-                'nvra': 'foo-operator-2.1-2.amd64',
-                'package': 'foo',
+            "brew": {
+                "build": "foo-operator-2.1-2",
+                "nvra": "foo-operator-2.1-2.amd64",
+                "package": "foo",
             },
-            'repositories': [
+            "repositories": [
                 {
-                    'content_advisory_ids': [],
-                    'manifest_list_digest': 'sha256:12345',
-                    'manifest_schema2_digest': 'sha256:23456',
-                    'published': True,
-                    'registry': 'registry.example.com',
-                    'repository': 'foo/foo-operator-bundle',
-                    'tags': [{'name': '2'}, {'name': '2.1'}],
+                    "content_advisory_ids": [],
+                    "manifest_list_digest": "sha256:12345",
+                    "manifest_schema2_digest": "sha256:23456",
+                    "published": True,
+                    "registry": "registry.example.com",
+                    "repository": "foo/foo-operator-bundle",
+                    "tags": [{"name": "2"}, {"name": "2.1"}],
                 }
             ],
         }
         fake_responses = [Mock(ok=True), Mock(ok=True)]
-        fake_responses[0].json.return_value = {'data': [image_1]}
-        fake_responses[1].json.return_value = {'data': []}
+        fake_responses[0].json.return_value = {"data": [image_1]}
+        fake_responses[1].json.return_value = {"data": []}
         mock_get.side_effect = fake_responses
 
-        digest = 'sha256:23456'
+        digest = "sha256:23456"
         images = self.px.get_images_by_digest(digest)
         self.assertListEqual(images, [image_1])
 
-    @patch('freshmaker.pyxis.requests.get')
+    @patch("freshmaker.pyxis.requests.get")
     def test_get_auto_rebuild_tags(self, mock_get):
         mock_get.return_value = Mock(ok=True)
         mock_get.return_value.json.return_value = {
-            '_links': {},
-            'auto_rebuild_tags': [
-                '2.3',
-                'latest'
-            ]
+            "_links": {},
+            "auto_rebuild_tags": ["2.3", "latest"],
         }
 
-        tags = self.px.get_auto_rebuild_tags('registry.example.com', 'foo/foo-operator-bundle')
-        self.assertListEqual(tags, ['2.3', 'latest'])
+        tags = self.px.get_auto_rebuild_tags("registry.example.com", "foo/foo-operator-bundle")
+        self.assertListEqual(tags, ["2.3", "latest"])
 
-    @patch('freshmaker.pyxis.Pyxis._pagination')
+    @patch("freshmaker.pyxis.Pyxis._pagination")
     def test_is_bundle_true(self, page):
-        page.return_value = [{
-            "parsed_data": {
-                "labels": [
-                    {"name": "architecture", "value": "x86_64"},
-                    {"name": "com.redhat.delivery.operator.bundle", "value": "true"},
-                    {"name": "com.redhat.openshift.versions", "value": "v4.6"},
-                    {"name": "version", "value": "2.11.0"},
-                ]
-            },
-        }]
+        page.return_value = [
+            {
+                "parsed_data": {
+                    "labels": [
+                        {"name": "architecture", "value": "x86_64"},
+                        {"name": "com.redhat.delivery.operator.bundle", "value": "true"},
+                        {"name": "com.redhat.openshift.versions", "value": "v4.6"},
+                        {"name": "version", "value": "2.11.0"},
+                    ]
+                },
+            }
+        ]
         is_bundle = self.px.is_bundle("foobar-bundle-1-234")
         self.assertTrue(is_bundle)
 
-    @patch('freshmaker.pyxis.Pyxis._pagination')
+    @patch("freshmaker.pyxis.Pyxis._pagination")
     def test_is_bundle_false(self, page):
-        page.return_value = [{
-            "parsed_data": {
-                "labels": [
-                    {"name": "architecture", "value": "x86_64"},
-                    {"name": "com.redhat.openshift.versions", "value": "v4.6"},
-                    {"name": "version", "value": "2.11.0"},
-                ]
-            },
-        }]
+        page.return_value = [
+            {
+                "parsed_data": {
+                    "labels": [
+                        {"name": "architecture", "value": "x86_64"},
+                        {"name": "com.redhat.openshift.versions", "value": "v4.6"},
+                        {"name": "version", "value": "2.11.0"},
+                    ]
+                },
+            }
+        ]
         is_bundle = self.px.is_bundle("foobar-bundle-1-234")
         self.assertFalse(is_bundle)
 
-    @patch('freshmaker.pyxis.Pyxis._pagination')
+    @patch("freshmaker.pyxis.Pyxis._pagination")
     def test_is_hotfix_image_true(self, page):
-        page.return_value = [{
-            "parsed_data": {
-                "labels": [
-                    {"name": "com.redhat.hotfix", "value": "bz1234567"},
-                    {"name": "architecture", "value": "ppc64le"},
-                    {"name": "brew", "value": "brew_value_1"},
-                    {"name": "repositories", "value": "repositories_value_1"},
-                ]
-            },
-        }]
+        page.return_value = [
+            {
+                "parsed_data": {
+                    "labels": [
+                        {"name": "com.redhat.hotfix", "value": "bz1234567"},
+                        {"name": "architecture", "value": "ppc64le"},
+                        {"name": "brew", "value": "brew_value_1"},
+                        {"name": "repositories", "value": "repositories_value_1"},
+                    ]
+                },
+            }
+        ]
         is_hotfix_image = self.px.is_hotfix_image("foobar-bundle-1-234")
         self.assertTrue(is_hotfix_image)
 
-    @patch('freshmaker.pyxis.Pyxis._pagination')
+    @patch("freshmaker.pyxis.Pyxis._pagination")
     def test_is_hotfix_image_false(self, page):
-        page.return_value = [{
-            "parsed_data": {
-                "labels": [
-                    {"name": "not_com.redhat.hotfix", "value": "bz1234567"},
-                    {"name": "architecture", "value": "ppc64le"},
-                    {"name": "brew", "value": "brew_value_2"},
-                    {"name": "repositories", "value": "repositories_value_2"},
-                ]
-            },
-        }]
+        page.return_value = [
+            {
+                "parsed_data": {
+                    "labels": [
+                        {"name": "not_com.redhat.hotfix", "value": "bz1234567"},
+                        {"name": "architecture", "value": "ppc64le"},
+                        {"name": "brew", "value": "brew_value_2"},
+                        {"name": "repositories", "value": "repositories_value_2"},
+                    ]
+                },
+            }
+        ]
         is_hotfix_image = self.px.is_hotfix_image("foobar-bundle-1-234")
         self.assertFalse(is_hotfix_image)
 
-    @patch('freshmaker.pyxis.Pyxis.get_auto_rebuild_tags')
-    @patch('freshmaker.pyxis.Pyxis._pagination')
+    @patch("freshmaker.pyxis.Pyxis.get_auto_rebuild_tags")
+    @patch("freshmaker.pyxis.Pyxis._pagination")
     def test_image_is_tagged_auto_rebuild(self, page, get_auto_rebuild_tags):
         page.return_value = [
-            {'_links': {},
-             'repositories': [{'_links': {},
-                               'published': True,
-                               'registry': 'some.registry.com',
-                               'repository': 'product1/thunderbird-flatpak',
-                               'tags': [{'_links': {}, 'name': 'flatpak-8040020210719090808.1'}],
-                               }]
-             }]
-        get_auto_rebuild_tags.return_value = ['flatpak-8040020210719090808.1',
-                                              'latest'
-                                              ]
-        is_tagged_auto_rebuild = self.px.image_is_tagged_auto_rebuild('thunderbird-flatpak-container-flatpak-8040020210719090808.1')
+            {
+                "_links": {},
+                "repositories": [
+                    {
+                        "_links": {},
+                        "published": True,
+                        "registry": "some.registry.com",
+                        "repository": "product1/thunderbird-flatpak",
+                        "tags": [{"_links": {}, "name": "flatpak-8040020210719090808.1"}],
+                    }
+                ],
+            }
+        ]
+        get_auto_rebuild_tags.return_value = ["flatpak-8040020210719090808.1", "latest"]
+        is_tagged_auto_rebuild = self.px.image_is_tagged_auto_rebuild(
+            "thunderbird-flatpak-container-flatpak-8040020210719090808.1"
+        )
         self.assertEqual(is_tagged_auto_rebuild, True)
 
-    @patch('freshmaker.pyxis.Pyxis.get_auto_rebuild_tags')
-    @patch('freshmaker.pyxis.Pyxis._pagination')
+    @patch("freshmaker.pyxis.Pyxis.get_auto_rebuild_tags")
+    @patch("freshmaker.pyxis.Pyxis._pagination")
     def test_image_is_not_tagged_auto_rebuild(self, page, get_auto_rebuild_tags):
         page.return_value = [
-            {'_links': {},
-             'repositories': [{'_links': {},
-                               'published': True,
-                               'registry': 'some.registry.com',
-                               'repository': 'product1/thunderbird-flatpak',
-                               'tags': [{'_links': {}, 'name': 'flatpak-8040020210719090808.1'}],
-                               }]
-             }]
-        get_auto_rebuild_tags.return_value = ['latest']
-        is_tagged_auto_rebuild = self.px.image_is_tagged_auto_rebuild('thunderbird-flatpak-container-flatpak-8040020210719090808.1')
+            {
+                "_links": {},
+                "repositories": [
+                    {
+                        "_links": {},
+                        "published": True,
+                        "registry": "some.registry.com",
+                        "repository": "product1/thunderbird-flatpak",
+                        "tags": [{"_links": {}, "name": "flatpak-8040020210719090808.1"}],
+                    }
+                ],
+            }
+        ]
+        get_auto_rebuild_tags.return_value = ["latest"]
+        is_tagged_auto_rebuild = self.px.image_is_tagged_auto_rebuild(
+            "thunderbird-flatpak-container-flatpak-8040020210719090808.1"
+        )
         self.assertEqual(is_tagged_auto_rebuild, False)

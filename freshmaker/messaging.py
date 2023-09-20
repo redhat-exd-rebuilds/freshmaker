@@ -41,13 +41,15 @@ def publish(topic, msg):
     :return: the value returned from underlying backend "send" method.
     """
     from freshmaker.monitor import (
-        messaging_tx_to_send_counter, messaging_tx_sent_ok_counter,
-        messaging_tx_failed_counter)
+        messaging_tx_to_send_counter,
+        messaging_tx_sent_ok_counter,
+        messaging_tx_failed_counter,
+    )
 
     messaging_tx_to_send_counter.inc()
 
     try:
-        handler = _messaging_backends[conf.messaging_sender]['publish']
+        handler = _messaging_backends[conf.messaging_sender]["publish"]
     except KeyError:
         messaging_tx_failed_counter.inc()
         raise KeyError("No messaging backend found for %r" % conf.messaging)
@@ -64,8 +66,9 @@ def publish(topic, msg):
 def _fedmsg_publish(topic, msg):
     # fedmsg doesn't really need access to conf, however other backends do
     import fedmsg
-    config = conf.messaging_backends['fedmsg']
-    return fedmsg.publish(topic, msg=msg, modname=config['SERVICE'])
+
+    config = conf.messaging_backends["fedmsg"]
+    return fedmsg.publish(topic, msg=msg, modname=config["SERVICE"])
 
 
 @retry(wait_on=(RuntimeError,), logger=log)
@@ -79,15 +82,15 @@ def _rhmsg_publish(topic, msg):
     import proton
     from rhmsg.activemq.producer import AMQProducer
 
-    config = conf.messaging_backends['rhmsg']
+    config = conf.messaging_backends["rhmsg"]
     producer_config = {
-        'urls': config['BROKER_URLS'],
-        'certificate': config['CERT_FILE'],
-        'private_key': config['KEY_FILE'],
-        'trusted_certificates': config['CA_CERT'],
+        "urls": config["BROKER_URLS"],
+        "certificate": config["CERT_FILE"],
+        "private_key": config["KEY_FILE"],
+        "trusted_certificates": config["CA_CERT"],
     }
     with AMQProducer(**producer_config) as producer:
-        topic = '{0}.{1}'.format(config['TOPIC_PREFIX'], topic)
+        topic = "{0}.{1}".format(config["TOPIC_PREFIX"], topic)
         producer.through_topic(topic)
 
         outgoing_msg = proton.Message()
@@ -101,23 +104,24 @@ _initial_messages = []
 
 
 def _in_memory_publish(topic, msg):
-    """ Puts the message into the in memory work queue. """
+    """Puts the message into the in memory work queue."""
     # Increment the message ID.
     global _in_memory_msg_id
     _in_memory_msg_id += 1
 
-    config = conf.messaging_backends['in_memory']
+    config = conf.messaging_backends["in_memory"]
 
     # Create fake fedmsg from the message so we can reuse
     # the BaseEvent.from_fedmsg code to get the particular BaseEvent
     # class instance.
     wrapped_msg = BaseEvent.from_fedmsg(
-        config['SERVICE'] + "." + topic,
+        config["SERVICE"] + "." + topic,
         {"msg_id": str(_in_memory_msg_id), "msg": msg},
     )
 
     # Put the message to queue.
     from freshmaker.consumer import work_queue_put
+
     try:
         work_queue_put(wrapped_msg)
     except ValueError as e:
@@ -131,13 +135,7 @@ def _in_memory_publish(topic, msg):
 
 
 _messaging_backends = {
-    'fedmsg': {
-        'publish': _fedmsg_publish
-    },
-    'in_memory': {
-        'publish': _in_memory_publish
-    },
-    'rhmsg': {
-        'publish': _rhmsg_publish
-    }
+    "fedmsg": {"publish": _fedmsg_publish},
+    "in_memory": {"publish": _in_memory_publish},
+    "rhmsg": {"publish": _rhmsg_publish},
 }

@@ -10,33 +10,31 @@ from freshmaker.config import all_, any_  # noqa
 # declared properly somewhere/somehow
 confdir = os.path.abspath(os.path.dirname(__file__))
 # use parent dir as dbdir else fallback to current dir
-dbdir = os.path.abspath(os.path.join(confdir, '..')) if confdir.endswith('conf') \
-    else confdir
+dbdir = os.path.abspath(os.path.join(confdir, "..")) if confdir.endswith("conf") else confdir
 
 
 class BaseConfiguration(object):
     # Make this random (used to generate session keys)
-    SECRET_KEY = '74d9e9f9cd40e66fc6c4c2e9987dce48df3ce98542529fd0'
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///{0}'.format(os.path.join(
-        dbdir, 'freshmaker.db'))
+    SECRET_KEY = "74d9e9f9cd40e66fc6c4c2e9987dce48df3ce98542529fd0"
+    SQLALCHEMY_DATABASE_URI = "sqlite:///{0}".format(os.path.join(dbdir, "freshmaker.db"))
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    HOST = '0.0.0.0'
+    HOST = "0.0.0.0"
     PORT = 5001
 
-    SERVER_NAME = 'localhost:5001'
+    SERVER_NAME = "localhost:5001"
 
     DEBUG = False
     # Global network-related values, in seconds
     NET_TIMEOUT = 120
     NET_RETRY_INTERVAL = 30
 
-    SYSTEM = 'koji'
+    SYSTEM = "koji"
 
     # Available log levels are: debug, info, warn, error.
-    LOG_LEVEL = 'info'
+    LOG_LEVEL = "info"
 
-    MESSAGING_TOPIC_PREFIX = ['org.fedoraproject.prod']
+    MESSAGING_TOPIC_PREFIX = ["org.fedoraproject.prod"]
 
     # Base URL of git repository with source artifacts.
     GIT_BASE_URL = "git://pkgs.devel.redhat.com"
@@ -49,9 +47,9 @@ class BaseConfiguration(object):
 
     # Read Koji configuration from profile instead of reading them from
     # configuration file directly. For staging Koji, it is stg.
-    KOJI_PROFILE = 'koji'
+    KOJI_PROFILE = "koji"
     KOJI_PROXYUSER = False
-    KOJI_BUILD_OWNER = 'freshmaker'
+    KOJI_BUILD_OWNER = "freshmaker"
 
     # Settings for docker image rebuild handler
     KOJI_CONTAINER_SCRATCH_BUILD = False
@@ -121,12 +119,12 @@ class BaseConfiguration(object):
 
     # ODCS configs
     # URL to ODCS to call APIs
-    ODCS_SERVER_URL = 'https://odcs.localhost/'
+    ODCS_SERVER_URL = "https://odcs.localhost/"
     ODCS_VERIFY_SSL = True
     # Valid authentication method would be kerberos or openidc
-    ODCS_AUTH_MECH = 'kerberos'
+    ODCS_AUTH_MECH = "kerberos"
     # When use openidc authentcation, set the openidc token for accessing ODCS
-    ODCS_OPENIDC_TOKEN = ''
+    ODCS_OPENIDC_TOKEN = ""
 
     # Kerberos authentication Settings used to authenticated freshmaker itself
     # by other services
@@ -137,65 +135,66 @@ class BaseConfiguration(object):
     # Principal used to acquire credential cache. When using a client keytab,
     # this value must be present in that keytab file. Otherwise, principal must
     # match the one in specified ccache file.
-    KRB_AUTH_PRINCIPAL = ''
+    KRB_AUTH_PRINCIPAL = ""
     # Path to freshmaker's client keytab file.
-    KRB_AUTH_CLIENT_KEYTAB = ''
+    KRB_AUTH_CLIENT_KEYTAB = ""
     # Path to credential cache file. This optional could be None when not using
     # a client keytab to acquire credential.
     KRB_AUTH_CCACHE_FILE = tempfile.mkstemp(
-        suffix=str(os.getpid()), prefix="freshmaker_cc_")  # type: Union[Tuple[int, str], Optional[str]]
+        suffix=str(os.getpid()), prefix="freshmaker_cc_"
+    )  # type: Union[Tuple[int, str], Optional[str]]
 
     # Select which authentication backend to work with. There are 3 choices Tuple[int, str]
     # noauth: no authentication is enabled. Useful for development particularly.
     # kerberos: Kerberos authentication is enabled.
     # openidc: OpenIDC authentication is enabled.
-    AUTH_BACKEND = ''
+    AUTH_BACKEND = ""
 
     # Used for Kerberos authentication and to query user's groups.
     # Format: ldap://hostname[:port]
     # For example: ldap://ldap.example.com/
-    AUTH_LDAP_SERVER = ''
+    AUTH_LDAP_SERVER = ""
 
     # The base to query for users in LDAP. For example, ou=users,dc=example,dc=com.
-    AUTH_LDAP_USER_BASE = ''
+    AUTH_LDAP_USER_BASE = ""
 
     # OIDC provider
-    AUTH_OPENIDC_USERINFO_URI = 'https://id.fedoraproject.org/openidc/UserInfo'
+    AUTH_OPENIDC_USERINFO_URI = "https://id.fedoraproject.org/openidc/UserInfo"
 
     # OIDC base namespace
-    OIDC_BASE_NAMESPACE = ''
+    OIDC_BASE_NAMESPACE = ""
 
     # Scope requested from Fedora Infra for permission of submitting request to
     # run a new compose.
     # See also: https://fedoraproject.org/wiki/Infrastructure/Authentication
     # Add additional required scope in following list
     AUTH_OPENIDC_REQUIRED_SCOPES = [
-        'openid',
-        'https://id.fedoraproject.org/scope/groups',
+        "openid",
+        "https://id.fedoraproject.org/scope/groups",
     ]
 
     # Select which messaging backend will be used, that could be fedmsg, amq,
     # in_memory or rhmsg.
-    MESSAGING = 'fedmsg'
+    MESSAGING = "fedmsg"
     MESSAGING_BACKENDS = {
-        'fedmsg': {
-            'SERVICE': 'freshmaker',
+        "fedmsg": {
+            "SERVICE": "freshmaker",
         },
-        'rhmsg': {
+        "rhmsg": {
             # Brokers to connect, e.g.
             # ['amqps://host:5671', 'amqps://anotherhost:5671']
-            'BROKER_URLS': [],
+            "BROKER_URLS": [],
             # Path to certificate file used to authenticate freshmaker
-            'CERT_FILE': '',
+            "CERT_FILE": "",
             # Path to private key file used to authenticate freshmaker
-            'KEY_FILE': '',
+            "KEY_FILE": "",
             # Path to trusted CA certificate bundle.
-            'CA_CERT': '',
-            'TOPIC_PREFIX': 'VirtualTopic.eng.freshmaker',
+            "CA_CERT": "",
+            "TOPIC_PREFIX": "VirtualTopic.eng.freshmaker",
         },
-        'in_memory': {
-            'SERVICE': 'freshmaker',
-        }
+        "in_memory": {
+            "SERVICE": "freshmaker",
+        },
     }
 
     # repositories that should be searched for unpublished images, specifically because of EUS base images
@@ -204,9 +203,9 @@ class BaseConfiguration(object):
 
 class DevConfiguration(BaseConfiguration):
     DEBUG = True
-    LOG_LEVEL = 'debug'
+    LOG_LEVEL = "debug"
 
-    MESSAGING_TOPIC_PREFIX = ['org.fedoraproject.dev', 'org.fedoraproject.stg']
+    MESSAGING_TOPIC_PREFIX = ["org.fedoraproject.dev", "org.fedoraproject.stg"]
 
     # Global network-related values, in seconds
     NET_TIMEOUT = 5
@@ -220,24 +219,24 @@ class DevConfiguration(BaseConfiguration):
     # credential. Instead, kinit in default ccache with personal principal
     # often.
     KRB_AUTH_USE_KEYTAB = False
-    KRB_AUTH_PRINCIPAL = ''  # Should be in form name@REAL
+    KRB_AUTH_PRINCIPAL = ""  # Should be in form name@REAL
     # Use the default ccache
     KRB_AUTH_CCACHE_FILE = None
 
-    AUTH_BACKEND = 'noauth'
-    AUTH_OPENIDC_USERINFO_URI = 'https://iddev.fedorainfracloud.org/openidc/UserInfo'
+    AUTH_BACKEND = "noauth"
+    AUTH_OPENIDC_USERINFO_URI = "https://iddev.fedorainfracloud.org/openidc/UserInfo"
 
 
 class TestConfiguration(BaseConfiguration):
-    LOG_LEVEL = 'debug'
+    LOG_LEVEL = "debug"
     DEBUG = True
 
     FRESHMAKER_ROOT_URL = "https://localhost"  # Root url of Freshmaker's endpoints
 
-    SQLALCHEMY_DATABASE_URI = 'sqlite://'
+    SQLALCHEMY_DATABASE_URI = "sqlite://"
 
-    MESSAGING = 'in_memory'
-    MESSAGING_SENDER = 'in_memory'
+    MESSAGING = "in_memory"
+    MESSAGING_SENDER = "in_memory"
 
     # Global network-related values, in seconds
     NET_TIMEOUT = 1
@@ -245,17 +244,17 @@ class TestConfiguration(BaseConfiguration):
 
     KOJI_CONTAINER_SCRATCH_BUILD = True
 
-    LIGHTBLUE_SERVER_URL = ''  # replace with real dev server url
+    LIGHTBLUE_SERVER_URL = ""  # replace with real dev server url
     LIGHTBLUE_VERIFY_SSL = False
 
-    PYXIS_SERVER_URL = 'https://localhost/'
+    PYXIS_SERVER_URL = "https://localhost/"
 
     # Disable caching for tests
     DOGPILE_CACHE_BACKEND = "dogpile.cache.null"
 
-    AUTH_BACKEND = 'noauth'
-    AUTH_LDAP_SERVER = 'ldap://ldap.example.com'
-    AUTH_LDAP_USER_BASE = 'ou=users,dc=example,dc=com'
+    AUTH_BACKEND = "noauth"
+    AUTH_LDAP_SERVER = "ldap://ldap.example.com"
+    AUTH_LDAP_USER_BASE = "ou=users,dc=example,dc=com"
     MAX_THREAD_WORKERS = 1
 
     HANDLER_BUILD_ALLOWLIST = {}

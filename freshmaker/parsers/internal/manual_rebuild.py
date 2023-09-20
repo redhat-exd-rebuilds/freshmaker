@@ -47,16 +47,16 @@ class FreshmakerManualRebuildParser(BaseParser):
         :param dict data: Dict generated from JSON from HTTP POST or parsed
             from the UMB message sent from Frontend to Backend.
         """
-        msg_id = data.get('msg_id', "manual_rebuild_%s" % (str(time.time())))
-        dry_run = data.get('dry_run', False)
+        msg_id = data.get("msg_id", "manual_rebuild_%s" % (str(time.time())))
+        dry_run = data.get("dry_run", False)
 
-        errata_id = data.get('errata_id')
+        errata_id = data.get("errata_id")
         errata = Errata()
         advisory = ErrataAdvisory.from_advisory_id(errata, errata_id)
 
         if advisory.is_flatpak_module_advisory_ready():
             klass = FlatpakApplicationManualBuildEvent
-        elif advisory.state == "SHIPPED_LIVE" and advisory.reporter.startswith('botas'):
+        elif advisory.state == "SHIPPED_LIVE" and advisory.reporter.startswith("botas"):
             klass = ManualBundleRebuildEvent
         else:
             klass = ManualRebuildWithAdvisoryEvent
@@ -66,11 +66,11 @@ class FreshmakerManualRebuildParser(BaseParser):
             advisory,
             data.get("container_images", []),
             requester_metadata_json=data.get("metadata"),
-            freshmaker_event_id=data.get('freshmaker_event_id'),
-            requester=data.get('requester'),
-            dry_run=dry_run
+            freshmaker_event_id=data.get("freshmaker_event_id"),
+            requester=data.get("requester"),
+            dry_run=dry_run,
         )
 
     def parse(self, topic, msg):
-        inner_msg = msg.get('msg')
+        inner_msg = msg.get("msg")
         return self.parse_post_data(inner_msg)

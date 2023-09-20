@@ -30,8 +30,8 @@ def get_fedmsg(name):
     this_path = path.abspath(path.dirname(__file__))
     fedmsg_path = path.join(this_path, "fedmsgs", name)
 
-    with open(fedmsg_path, 'r') as f:
-        return {'body': json.load(f)}
+    with open(fedmsg_path, "r") as f:
+        return {"body": json.load(f)}
 
 
 # There is no Flask app-context in the tests and we need some,

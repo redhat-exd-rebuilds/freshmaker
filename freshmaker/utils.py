@@ -53,11 +53,12 @@ def sorted_by_nvr(lst, get_nvr=None, reverse=False):
     :rtype: list
     :return: Sorted `lst`.
     """
+
     def _compare_items(item1, item2):
         if get_nvr:
             nvr1 = get_nvr(item1)
             nvr2 = get_nvr(item2)
-        elif hasattr(item1, 'nvr') and hasattr(item2, 'nvr'):
+        elif hasattr(item1, "nvr") and hasattr(item2, "nvr"):
             nvr1 = item1.nvr
             nvr2 = item2.nvr
         else:
@@ -70,8 +71,7 @@ def sorted_by_nvr(lst, get_nvr=None, reverse=False):
             return _cmp(nvr1_dict["name"], nvr2_dict["name"])
         return kobo.rpmlib.compare_nvr(nvr1_dict, nvr2_dict)
 
-    return sorted(
-        lst, key=functools.cmp_to_key(_compare_items), reverse=reverse)
+    return sorted(lst, key=functools.cmp_to_key(_compare_items), reverse=reverse)
 
 
 def get_url_for(*args, **kwargs):
@@ -83,11 +83,13 @@ def get_url_for(*args, **kwargs):
 
     # Localhost is right URL only when the scheduler runs on the same
     # system as the web views.
-    app.config['SERVER_NAME'] = 'localhost'
+    app.config["SERVER_NAME"] = "localhost"
     with app.app_context():
-        log.warning("get_url_for() has been called without the Flask "
-                    "app_context. That can lead to SQLAlchemy errors caused by "
-                    "multiple session being used in the same time.")
+        log.warning(
+            "get_url_for() has been called without the Flask "
+            "app_context. That can lead to SQLAlchemy errors caused by "
+            "multiple session being used in the same time."
+        )
         return url_for(*args, **kwargs)
 
 
@@ -108,20 +110,19 @@ def get_rebuilt_nvr(artifact_type, nvr):
         parsed_nvr = koji.parse_NVR(nvr)
         r_version = parsed_nvr["release"].split(".")[0]
         release = f"{r_version}.{int(time.time())}{conf.rebuilt_nvr_release_suffix}"
-        rebuilt_nvr = "%s-%s-%s" % (parsed_nvr["name"], parsed_nvr["version"],
-                                    release)
+        rebuilt_nvr = "%s-%s-%s" % (parsed_nvr["name"], parsed_nvr["version"], release)
 
     return rebuilt_nvr
 
 
 def load_class(location):
-    """ Take a string of the form 'fedmsg.consumers.ircbot:IRCBotConsumer'
+    """Take a string of the form 'fedmsg.consumers.ircbot:IRCBotConsumer'
     and return the IRCBotConsumer class.
     """
     try:
-        mod_name, cls_name = location.strip().split(':')
+        mod_name, cls_name = location.strip().split(":")
     except ValueError:
-        raise ImportError('Invalid import path.')
+        raise ImportError("Invalid import path.")
 
     __import__(mod_name)
 
@@ -136,8 +137,11 @@ def load_classes(import_paths):
     return [load_class(import_path) for import_path in import_paths]
 
 
-def retry(timeout=conf.net_timeout, interval=conf.net_retry_interval, wait_on=Exception, logger=None):
+def retry(
+    timeout=conf.net_timeout, interval=conf.net_retry_interval, wait_on=Exception, logger=None
+):
     """A decorator that allows to retry a section of code until success or timeout."""
+
     def wrapper(function):
         @functools.wraps(function)
         def inner(*args, **kwargs):
@@ -155,15 +159,25 @@ def retry(timeout=conf.net_timeout, interval=conf.net_retry_interval, wait_on=Ex
                             )
                         raise
                     if logger is not None:
-                        logger.warning("Exception %r raised from %r.  Retry in %rs",
-                                       e, function, interval)
+                        logger.warning(
+                            "Exception %r raised from %r.  Retry in %rs", e, function, interval
+                        )
                     time.sleep(interval)
+
         return inner
+
     return wrapper
 
 
-def _run_command(command, logger=None, rundir=None, output=subprocess.PIPE, error=subprocess.PIPE, env=None,
-                 log_output=True):
+def _run_command(
+    command,
+    logger=None,
+    rundir=None,
+    output=subprocess.PIPE,
+    error=subprocess.PIPE,
+    env=None,
+    log_output=True,
+):
     """Run a command, return output. Error out if command exit with non-zero code."""
 
     if rundir is None:
@@ -172,8 +186,15 @@ def _run_command(command, logger=None, rundir=None, output=subprocess.PIPE, erro
     if logger:
         logger.info("Running %s", subprocess.list2cmdline(command))
 
-    p1 = subprocess.Popen(command, cwd=rundir, stdout=output, stderr=error, universal_newlines=True, env=env,
-                          close_fds=True)
+    p1 = subprocess.Popen(
+        command,
+        cwd=rundir,
+        stdout=output,
+        stderr=error,
+        universal_newlines=True,
+        env=env,
+        close_fds=True,
+    )
     (out, err) = p1.communicate()
 
     if out and logger and log_output:
@@ -189,12 +210,12 @@ def _run_command(command, logger=None, rundir=None, output=subprocess.PIPE, erro
 
 
 def is_pkg_modular(nvr):
-    """ Returns True if the package is modular, False otherwise. """
+    """Returns True if the package is modular, False otherwise."""
     return "module+" in nvr
 
 
 def get_ocp_release_date(ocp_version):
-    """ Get the OpenShift version release date via the Product Pages API
+    """Get the OpenShift version release date via the Product Pages API
 
     :param str ocp_version: the OpenShift version
     :return: None or date in format of "%Y-%m-%d", example: 2021-02-23.
@@ -222,11 +243,11 @@ def get_ocp_release_date(ocp_version):
     if not resp.json():
         return None
 
-    return resp.json()[0]['date_finish']
+    return resp.json()[0]["date_finish"]
 
 
 def is_valid_ocp_versions_range(ocp_versions_range):
-    """ Check if an ocp_versions_range string is valid
+    """Check if an ocp_versions_range string is valid
 
     :param str ocp_versions_range: the OpenShift versions range value
     :return: True if the OpenShift versions range is valid, otherwise False
@@ -236,17 +257,14 @@ def is_valid_ocp_versions_range(ocp_versions_range):
     # For historical reasons, there are two special values that are currently allowed
     # to contain commas, "v4.5,v4.6" and "v4.6,v4.5".
     valid_commas_ranges = ["v4.5,v4.6", "v4.6,v4.5"]
-    if (
-        "," in ocp_versions_range and
-        ocp_versions_range.replace(" ", "") not in valid_commas_ranges
-    ):
+    if "," in ocp_versions_range and ocp_versions_range.replace(" ", "") not in valid_commas_ranges:
         return False
 
     return True
 
 
 def is_valid_semver(version_string):
-    """ Check if version string is a valid semantic version
+    """Check if version string is a valid semantic version
 
     :param str version_string: version string
     :return: True if version string is a valid semantic version, other False

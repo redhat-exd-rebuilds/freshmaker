@@ -66,20 +66,18 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
                     "name": "release-example",
                     "description": "For tests",
                     "type": "Zstream",
-                }
+                },
             }
         }
 
-        self.from_advisory_id = self._patch(
-            "freshmaker.errata.ErrataAdvisory.from_advisory_id"
-        )
+        self.from_advisory_id = self._patch("freshmaker.errata.ErrataAdvisory.from_advisory_id")
         self.advisory = ErrataAdvisory(123, "RHSA-123", "QE", ["module"], "Critical")
         self.from_advisory_id.return_value = self.advisory
         self.handler = RebuildFlatpakApplicationOnModuleReady()
 
         self.mock_image_modules_mapping = self._patch(
             "freshmaker.handlers.koji.RebuildFlatpakApplicationOnModuleReady._image_modules_mapping",
-            return_value={"image-foo-bar": {"module-foo-bar"}}
+            return_value={"image-foo-bar": {"module-foo-bar"}},
         )
 
         self.mock_pyxis_api = self._patch(
@@ -243,7 +241,9 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
         )
 
     def test_event_state_updated_when_no_images_with_higher_rpm_nvr(self):
-        self.mock_pyxis_api.return_value.get_images_by_nvrs.side_effect = lambda images, rpm_nvrs: []
+        self.mock_pyxis_api.return_value.get_images_by_nvrs.side_effect = (
+            lambda images, rpm_nvrs: []
+        )
         self.mock_pyxis.return_value.image_is_tagged_auto_rebuild.return_value = True
         self.handler.handle(self.event)
 
@@ -358,9 +358,7 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
         """
         Tests that builds are properly recorded in DB.
         """
-        resolve_commit = self._patch(
-            "freshmaker.image.ContainerImage.resolve_commit"
-        )
+        resolve_commit = self._patch("freshmaker.image.ContainerImage.resolve_commit")
         resolve_commit.return_value = None
 
         odcs = create_odcs_client.return_value
@@ -400,16 +398,14 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
             self.assertEqual(args["renewed_odcs_compose_ids"], [10, 11])
 
     def test_manual_event_can_handle(self):
-        event = FlatpakApplicationManualBuildEvent(
-            "123", self.advisory, container_images=[])
+        event = FlatpakApplicationManualBuildEvent("123", self.advisory, container_images=[])
         self.assertEqual(event.manual, True)
         self.assertEqual(self.handler.can_handle(event), True)
 
     @patch("freshmaker.handlers.koji.RebuildFlatpakApplicationOnModuleReady._record_builds")
     def test_manual_event_initialized(self, mock_record_builds):
         self.mock_pyxis.return_value.image_is_tagged_auto_rebuild.return_value = True
-        event = FlatpakApplicationManualBuildEvent(
-            "123", self.advisory, container_images=[])
+        event = FlatpakApplicationManualBuildEvent("123", self.advisory, container_images=[])
         self.handler.handle(event)
 
         db_event = Event.get(db.session, message_id="123")
@@ -420,7 +416,8 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
     def test_manual_event_initialized_when_matching_images(self, mock_record_builds):
         self.mock_pyxis.return_value.image_is_tagged_auto_rebuild.return_value = True
         event = FlatpakApplicationManualBuildEvent(
-            "123", self.advisory, container_images=["image-foo-bar"])
+            "123", self.advisory, container_images=["image-foo-bar"]
+        )
         self.handler.handle(event)
 
         db_event = Event.get(db.session, message_id="123")
@@ -430,7 +427,8 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
     def test_manual_event_skipped_when_no_matching_images(self):
         self.mock_pyxis.return_value.image_is_tagged_auto_rebuild.return_value = False
         event = FlatpakApplicationManualBuildEvent(
-            "123", self.advisory, container_images=["image-foo-bar2"])
+            "123", self.advisory, container_images=["image-foo-bar2"]
+        )
         self.handler.handle(event)
 
         db_event = Event.get(db.session, message_id="123")
@@ -444,8 +442,7 @@ class TestFlatpakModuleAdvisoryReadyEvent(helpers.ModelsTestCase):
 
     def test_manual_event_skipped_when_no_auto_rebuild_images(self):
         self.mock_pyxis.return_value.image_is_tagged_auto_rebuild.return_value = False
-        event = FlatpakApplicationManualBuildEvent(
-            "123", self.advisory, container_images=[])
+        event = FlatpakApplicationManualBuildEvent("123", self.advisory, container_images=[])
         self.handler.handle(event)
 
         db_event = Event.get(db.session, message_id="123")

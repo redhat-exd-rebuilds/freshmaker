@@ -51,7 +51,6 @@ def test_is_valid_ocp_versions_range():
 
 
 class TestSortedByNVR(helpers.FreshmakerTestCase):
-
     def test_simple_list(self):
         lst = ["foo-1-10", "foo-1-2", "foo-1-1"]
         expected = ["foo-1-1", "foo-1-2", "foo-1-10"]

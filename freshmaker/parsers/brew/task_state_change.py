@@ -34,24 +34,26 @@ class BrewTaskStateChangeParser(BaseParser):
     """
 
     name = "BrewTaskStateChangeParser"
-    topic_suffixes = ["brew.task.closed", 'brew.task.failed']
+    topic_suffixes = ["brew.task.closed", "brew.task.failed"]
 
     def can_parse(self, topic, msg):
         return any([topic.endswith(s) for s in self.topic_suffixes])
 
     def parse(self, topic, msg):
-        msg_id = msg.get('msg_id')
-        inner_msg = msg.get('msg')
-        old_state = inner_msg.get('old')
-        new_state = inner_msg.get('new')
-        task_info = inner_msg.get('info', {})
-        task_id = task_info.get('id')
-        task_method = task_info.get('method')
+        msg_id = msg.get("msg_id")
+        inner_msg = msg.get("msg")
+        old_state = inner_msg.get("old")
+        new_state = inner_msg.get("new")
+        task_info = inner_msg.get("info", {})
+        task_id = task_info.get("id")
+        task_method = task_info.get("method")
 
-        if task_method == 'buildContainer':
-            request = task_info.get('request')
+        if task_method == "buildContainer":
+            request = task_info.get("request")
             (git_url, target, opts) = request
-            branch = opts.get('git_branch', None)
+            branch = opts.get("git_branch", None)
             m = re.match(r".*/(?P<container>[^#]*)", git_url)
-            container = m.group('container')
-            return BrewContainerTaskStateChangeEvent(msg_id, container, branch, target, task_id, old_state, new_state)
+            container = m.group("container")
+            return BrewContainerTaskStateChangeEvent(
+                msg_id, container, branch, target, task_id, old_state, new_state
+            )

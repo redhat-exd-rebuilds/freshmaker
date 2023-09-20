@@ -17,38 +17,33 @@ from lightblue.entity import LightBlueEntity
 from lightblue.query import LightBlueQuery
 
 
-LB_DATA_URL = 'https://datasvc.periwinkle.corp.redhat.com/rest/data'
-LB_META_URL = 'https://datasvc.periwinkle.corp.redhat.com/rest/metadata'
-ERRATA_URL = 'https://errata.devel.redhat.com/api/v1/'
-FRESHMAKER_URL = 'https://freshmaker.engineering.redhat.com/api/1/'
+LB_DATA_URL = "https://datasvc.periwinkle.corp.redhat.com/rest/data"
+LB_META_URL = "https://datasvc.periwinkle.corp.redhat.com/rest/metadata"
+ERRATA_URL = "https://errata.devel.redhat.com/api/v1/"
+FRESHMAKER_URL = "https://freshmaker.engineering.redhat.com/api/1/"
 
 
 def get_images_fixing_rhsa(service, start, finish):
-    interface = LightBlueEntity(service, 'containerImage')
-    advisory_type = 'RHSA'
+    interface = LightBlueEntity(service, "containerImage")
+    advisory_type = "RHSA"
     query = LightBlueQuery(
         interface,
-        ('repositories.*.published', '=', True),
-        ('createdBy', '=', 'metaxor'),
-        ('creationDate', '$gte', '%sT00:00:00.000-0000' % start),
-        ('creationDate', '$lte', '%sT00:00:00.000-0000' % finish),
+        ("repositories.*.published", "=", True),
+        ("createdBy", "=", "metaxor"),
+        ("creationDate", "$gte", "%sT00:00:00.000-0000" % start),
+        ("creationDate", "$lte", "%sT00:00:00.000-0000" % finish),
     )
-    query.add_raw_query({
-        "field": "repositories.*.content_advisory_ids.*",
-        "regex": "%s.*" % advisory_type
-    })
-    query._add_to_projection('repositories.*.content_advisory_ids.*')
-    query._add_to_projection('brew.build')
-    return query.find()['processed']
+    query.add_raw_query(
+        {"field": "repositories.*.content_advisory_ids.*", "regex": "%s.*" % advisory_type}
+    )
+    query._add_to_projection("repositories.*.content_advisory_ids.*")
+    query._add_to_projection("brew.build")
+    return query.find()["processed"]
 
 
 def get_important_critical_ids(service):
-    interface = LightBlueEntity(service, 'redHatContainerAdvisory')
-    query = {
-        "field": "severity",
-        "op": "$in",
-        "values": ["Important", "Critical"]
-    }
+    interface = LightBlueEntity(service, "redHatContainerAdvisory")
+    query = {"field": "severity", "op": "$in", "values": ["Important", "Critical"]}
 
     projection = {"field": "_id", "include": True}
 
@@ -57,7 +52,7 @@ def get_important_critical_ids(service):
     if not interface.check_response(response):
         logging.warning(response)
         return []
-    return set([adv['_id'] for adv in response['processed']])
+    return set([adv["_id"] for adv in response["processed"]])
 
 
 def group_images_by_content_advisory(images):
@@ -89,10 +84,12 @@ def get_image_advisories_from_image_nvrs(grouped_images):
             if nvr in nvr_to_image_erratum:
                 continue
 
-            r = requests.get(ERRATA_URL + "build/" + nvr, auth=krb_auth, timeout=conf.requests_timeout)
+            r = requests.get(
+                ERRATA_URL + "build/" + nvr, auth=krb_auth, timeout=conf.requests_timeout
+            )
             r.raise_for_status()
             data = r.json()
-            if not data['all_errata']:
+            if not data["all_errata"]:
                 # Super weird.  This means we have a container that wasn't shipped via an advisory.
                 logging.warn("Failed to find errata for %s at %s" % (nvr, r.request.url))
                 continue
@@ -103,7 +100,11 @@ def get_image_advisories_from_image_nvrs(grouped_images):
             msg = "[%i/%i]: %s" % (nvrs_checks, nvrs_to_check, errata_name)
             sys.stdout.write(msg + chr(8) * len(msg))
             sys.stdout.flush()
-            r = requests.get(ERRATA_URL + "erratum/%s/builds" % (errata_name), auth=krb_auth, timeout=conf.requests_timeout)
+            r = requests.get(
+                ERRATA_URL + "erratum/%s/builds" % (errata_name),
+                auth=krb_auth,
+                timeout=conf.requests_timeout,
+            )
             r.raise_for_status()
             data = r.json()
             for builds_dict in data.values():
@@ -115,7 +116,9 @@ def get_image_advisories_from_image_nvrs(grouped_images):
 
 def is_content_advisory_rebuilt_by_freshmaker(errata_name):
     krb_auth = HTTPKerberosAuth()
-    r = requests.get(ERRATA_URL + "erratum/" + errata_name, auth=krb_auth, timeout=conf.requests_timeout)
+    r = requests.get(
+        ERRATA_URL + "erratum/" + errata_name, auth=krb_auth, timeout=conf.requests_timeout
+    )
     r.raise_for_status()
     data = r.json()
     errata_id = str(data["content"]["content"]["errata_id"])
@@ -156,8 +159,8 @@ def show_advisories(security_images, freshmaker_images):
             # content advisory, filter them out to keep only those images
             # which have not been rebuilt by Freshmaker.
             non_freshmaker_nvrs = [
-                nvr for nvr in nvrs
-                if nvr not in freshmaker_advisories[content_advisory]]
+                nvr for nvr in nvrs if nvr not in freshmaker_advisories[content_advisory]
+            ]
         else:
             # In case Freshmaker did not rebuild this advisory at all, keep
             # all the NVRs in the list.
@@ -170,37 +173,54 @@ def show_advisories(security_images, freshmaker_images):
                 continue
             errata_id, errata_name, products = nvr_to_image_erratum[nvr]
             if errata_name not in advisories:
-                freshmaker_url = is_content_advisory_rebuilt_by_freshmaker(
-                    content_advisory)
+                freshmaker_url = is_content_advisory_rebuilt_by_freshmaker(content_advisory)
                 advisories[errata_name] = {
-                    "nvrs": [], "freshmaker_url": freshmaker_url,
-                    "errata_id": errata_id, "products": products}
+                    "nvrs": [],
+                    "freshmaker_url": freshmaker_url,
+                    "errata_id": errata_id,
+                    "products": products,
+                }
             advisories[errata_name]["nvrs"].append(nvr)
 
     # Print the table
     table = [["Name", "Errata URL", "Freshmaker URL", "Products"]]
     for advisory, data in advisories.items():
-        table.append([
-            advisory,
-            "https://errata.devel.redhat.com/advisory/" + str(data["errata_id"]),
-            str(data["freshmaker_url"]), data["products"]])
+        table.append(
+            [
+                advisory,
+                "https://errata.devel.redhat.com/advisory/" + str(data["errata_id"]),
+                str(data["freshmaker_url"]),
+                data["products"],
+            ]
+        )
     print(tabulate(sorted(table, key=lambda x: x[0]), headers="firstrow"))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("FROM", help="Date to start report from (YYYYMMDD)")
-    parser.add_argument("-T", "--to", help="Date to end report at (YYYYMMDD)",
-                        default=date.today().strftime("%Y%m%d"))
+    parser.add_argument(
+        "-T",
+        "--to",
+        help="Date to end report at (YYYYMMDD)",
+        default=date.today().strftime("%Y%m%d"),
+    )
     parser.add_argument("-c", "--lb-cert", help="Path to lightblue cert")
-    parser.add_argument("-A", "--all", help="Include all RHSA in report "
-                        "(not just important/critical", action='store_true',
-                        default=False)
-    parser.add_argument("-d", "--debug", help="Debugging info",
-                        action='store_true', default=False)
-    parser.add_argument("-s", "--show-advisories",
-                        help="Show list of advisories together with stats",
-                        action='store_true', default=False)
+    parser.add_argument(
+        "-A",
+        "--all",
+        help="Include all RHSA in report " "(not just important/critical",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument("-d", "--debug", help="Debugging info", action="store_true", default=False)
+    parser.add_argument(
+        "-s",
+        "--show-advisories",
+        help="Show list of advisories together with stats",
+        action="store_true",
+        default=False,
+    )
 
     args = parser.parse_args()
 
@@ -231,15 +251,15 @@ if __name__ == '__main__':
         for image in images:
             if image in security_images:
                 continue
-            for repo in image['repositories']:
-                ids = set(repo['content_advisory_ids'])
+            for repo in image["repositories"]:
+                ids = set(repo["content_advisory_ids"])
                 if ids.intersection(important_ids):
                     security_images.append(image)
                     break
 
     freshmaker_images = []
     for image in security_images:
-        if re.match(r'.*\d{10}$', image['brew']['build']):
+        if re.match(r".*\d{10}$", image["brew"]["build"]):
             freshmaker_images.append(image)
 
     logging.debug("All shipped containers with security fixes: ")

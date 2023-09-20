@@ -43,132 +43,135 @@ from freshmaker.auth import login_required, requires_roles, require_scopes, user
 from freshmaker.parsers.internal.manual_rebuild import FreshmakerManualRebuildParser
 from freshmaker.parsers.koji.async_manual_build import FreshmakerAsyncManualbuildParser
 from freshmaker.monitor import (
-    monitor_api, freshmaker_build_api_latency, freshmaker_event_api_latency)
+    monitor_api,
+    freshmaker_build_api_latency,
+    freshmaker_event_api_latency,
+)
 from freshmaker.image_verifier import ImageVerifier
 from freshmaker.types import ArtifactBuildState, EventState
 
 api_v1 = {
-    'event_types': {
-        'event_types_list': {
-            'url': '/api/1/event-types/',
-            'options': {
-                'defaults': {'id': None},
-                'methods': ['GET'],
-            }
+    "event_types": {
+        "event_types_list": {
+            "url": "/api/1/event-types/",
+            "options": {
+                "defaults": {"id": None},
+                "methods": ["GET"],
+            },
         },
-        'event_type': {
-            'url': '/api/1/event-types/<int:id>',
-            'options': {
-                'methods': ['GET'],
-            }
-        },
-    },
-    'build_types': {
-        'build_types_list': {
-            'url': '/api/1/build-types/',
-            'options': {
-                'defaults': {'id': None},
-                'methods': ['GET'],
-            }
-        },
-        'build_type': {
-            'url': '/api/1/build-types/<int:id>',
-            'options': {
-                'methods': ['GET'],
-            }
+        "event_type": {
+            "url": "/api/1/event-types/<int:id>",
+            "options": {
+                "methods": ["GET"],
+            },
         },
     },
-    'build_states': {
-        'build_states_list': {
-            'url': '/api/1/build-states/',
-            'options': {
-                'defaults': {'id': None},
-                'methods': ['GET'],
-            }
+    "build_types": {
+        "build_types_list": {
+            "url": "/api/1/build-types/",
+            "options": {
+                "defaults": {"id": None},
+                "methods": ["GET"],
+            },
         },
-        'build_state': {
-            'url': '/api/1/build-states/<int:id>',
-            'options': {
-                'methods': ['GET'],
-            }
-        },
-    },
-    'events': {
-        'events_list': {
-            'url': '/api/1/events/',
-            'options': {
-                'defaults': {'id': None},
-                'methods': ['GET'],
-            }
-        },
-        'event': {
-            'url': '/api/1/events/<int:id>',
-            'options': {
-                'methods': ['GET', 'PATCH'],
-            }
+        "build_type": {
+            "url": "/api/1/build-types/<int:id>",
+            "options": {
+                "methods": ["GET"],
+            },
         },
     },
-    'builds': {
-        'builds_list': {
-            'url': '/api/1/builds/',
-            'options': {
-                'defaults': {'id': None},
-                'methods': ['GET'],
-            }
+    "build_states": {
+        "build_states_list": {
+            "url": "/api/1/build-states/",
+            "options": {
+                "defaults": {"id": None},
+                "methods": ["GET"],
+            },
         },
-        'build': {
-            'url': '/api/1/builds/<int:id>',
-            'options': {
-                'methods': ['GET'],
-            }
-        },
-        'manual_trigger': {
-            'url': '/api/1/builds/',
-            'options': {
-                'methods': ['POST'],
-            }
+        "build_state": {
+            "url": "/api/1/build-states/<int:id>",
+            "options": {
+                "methods": ["GET"],
+            },
         },
     },
-    'async_builds': {
-        'async_build': {
-            'url': '/api/1/async-builds/',
-            'options': {
-                'methods': ['POST'],
-            }
+    "events": {
+        "events_list": {
+            "url": "/api/1/events/",
+            "options": {
+                "defaults": {"id": None},
+                "methods": ["GET"],
+            },
+        },
+        "event": {
+            "url": "/api/1/events/<int:id>",
+            "options": {
+                "methods": ["GET", "PATCH"],
+            },
         },
     },
-    'about': {
-        'about': {
-            'url': '/api/1/about/',
-            'options': {
-                'methods': ['GET'],
-            }
+    "builds": {
+        "builds_list": {
+            "url": "/api/1/builds/",
+            "options": {
+                "defaults": {"id": None},
+                "methods": ["GET"],
+            },
+        },
+        "build": {
+            "url": "/api/1/builds/<int:id>",
+            "options": {
+                "methods": ["GET"],
+            },
+        },
+        "manual_trigger": {
+            "url": "/api/1/builds/",
+            "options": {
+                "methods": ["POST"],
+            },
         },
     },
-    'verify_image': {
-        'verify_image': {
-            'url': '/api/1/verify-image/<image>',
-            'options': {
-                'methods': ['GET'],
-            }
+    "async_builds": {
+        "async_build": {
+            "url": "/api/1/async-builds/",
+            "options": {
+                "methods": ["POST"],
+            },
         },
     },
-    'verify_image_repository': {
-        'verify_image_repository': {
-            'url': '/api/1/verify-image-repository/<project>/<repo>',
-            'options': {
-                'methods': ['GET'],
-            }
+    "about": {
+        "about": {
+            "url": "/api/1/about/",
+            "options": {
+                "methods": ["GET"],
+            },
         },
     },
-    'pullspec_overrides': {
-        'pullspec_overrides': {
-            'url': '/api/1/pullspec_overrides/<int:id>',
-            'options': {
-                'methods': ['GET'],
-            }
+    "verify_image": {
+        "verify_image": {
+            "url": "/api/1/verify-image/<image>",
+            "options": {
+                "methods": ["GET"],
+            },
         },
-    }
+    },
+    "verify_image_repository": {
+        "verify_image_repository": {
+            "url": "/api/1/verify-image-repository/<project>/<repo>",
+            "options": {
+                "methods": ["GET"],
+            },
+        },
+    },
+    "pullspec_overrides": {
+        "pullspec_overrides": {
+            "url": "/api/1/pullspec_overrides/<int:id>",
+            "options": {
+                "methods": ["GET"],
+            },
+        },
+    },
 }
 
 
@@ -176,13 +179,13 @@ class EventTypeAPI(MethodView):
     def get(self, id):
         event_types = []
         for cls, val in models.EVENT_TYPES.items():
-            event_types.append({'name': cls.__name__, 'id': val})
+            event_types.append({"name": cls.__name__, "id": val})
 
         if id is None:
-            return jsonify({'items': event_types}), 200
+            return jsonify({"items": event_types}), 200
 
         else:
-            event_type = [x for x in event_types if x['id'] == id]
+            event_type = [x for x in event_types if x["id"] == id]
 
             if event_type:
                 return jsonify(event_type.pop()), 200
@@ -194,13 +197,13 @@ class BuildTypeAPI(MethodView):
     def get(self, id):
         build_types = []
         for x in list(types.ArtifactType):
-            build_types.append({'name': x.name, 'id': x.value})
+            build_types.append({"name": x.name, "id": x.value})
 
         if id is None:
-            return jsonify({'items': build_types}), 200
+            return jsonify({"items": build_types}), 200
 
         else:
-            build_type = [x for x in build_types if x['id'] == id]
+            build_type = [x for x in build_types if x["id"] == id]
 
             if build_type:
                 return jsonify(build_type.pop()), 200
@@ -212,13 +215,13 @@ class BuildStateAPI(MethodView):
     def get(self, id):
         build_states = []
         for x in list(types.ArtifactBuildState):
-            build_states.append({'name': x.name, 'id': x.value})
+            build_states.append({"name": x.name, "id": x.value})
 
         if id is None:
-            return jsonify({'items': build_states}), 200
+            return jsonify({"items": build_states}), 200
 
         else:
-            build_state = [x for x in build_states if x['id'] == id]
+            build_state = [x for x in build_states if x["id"] == id]
 
             if build_state:
                 return jsonify(build_state.pop()), 200
@@ -227,12 +230,11 @@ class BuildStateAPI(MethodView):
 
 
 class EventAPI(MethodView):
-
-    _freshmaker_manage_prefix = 'event'
+    _freshmaker_manage_prefix = "event"
 
     @freshmaker_event_api_latency.time()
     def get(self, id):
-        """ Returns Freshmaker Events.
+        """Returns Freshmaker Events.
 
         If ``id`` is set, only the Freshmaker Event defined by that ID is
         returned.
@@ -263,24 +265,22 @@ class EventAPI(MethodView):
         # be displayed in order to increase api speed
         # For API v1, this is true by default to not break the backward compatibility
         # For API v2, this is false by default
-        value = request.args.getlist('show_full_json')
+        value = request.args.getlist("show_full_json")
         show_full_json = request.base_url.find("/api/1/") != -1
-        if len(value) == 1 and value[0] == 'False':
+        if len(value) == 1 and value[0] == "False":
             show_full_json = False
-        elif len(value) == 1 and value[0] == 'True':
+        elif len(value) == 1 and value[0] == "True":
             show_full_json = True
 
         if id is None:
             p_query = filter_events(request)
 
-            json_data = {
-                'meta': pagination_metadata(p_query, request.args)
-            }
+            json_data = {"meta": pagination_metadata(p_query, request.args)}
 
             if not show_full_json:
-                json_data['items'] = [item.json_min() for item in p_query.items]
+                json_data["items"] = [item.json_min() for item in p_query.items]
             else:
-                json_data['items'] = [item.json() for item in p_query.items]
+                json_data["items"] = [item.json() for item in p_query.items]
 
             return jsonify(json_data), 200
 
@@ -294,7 +294,7 @@ class EventAPI(MethodView):
                 return json_error(404, "Not Found", "No such event found.")
 
     @login_required
-    @requires_roles(['admin', 'manual_rebuilder'])
+    @requires_roles(["admin", "manual_rebuilder"])
     def patch(self, id):
         """
         Manage Freshmaker event defined by ID. The request must be
@@ -320,10 +320,12 @@ class EventAPI(MethodView):
         :statuscode 400: Action is missing or is unsupported.
         """
         data = request.get_json(force=True)
-        if 'action' not in data:
+        if "action" not in data:
             return json_error(
-                400, "Bad Request", "Missing action in request."
-                " Don't know what to do with the event.")
+                400,
+                "Bad Request",
+                "Missing action in request." " Don't know what to do with the event.",
+            )
 
         if data["action"] != "cancel":
             return json_error(400, "Bad Request", "Unsupported action requested.")
@@ -335,7 +337,8 @@ class EventAPI(MethodView):
         username = g.user.username if conf.auth_backend != "noauth" else None
         if username and event.requester != g.user.username and not user_has_role("admin"):
             return json_error(
-                403, "Forbidden", "You must be an admin to cancel someone else's event.")
+                403, "Forbidden", "You must be an admin to cancel someone else's event."
+            )
 
         msg = "Event id %s requested for canceling by user %s" % (event.id, username)
         log.info(msg)
@@ -344,10 +347,13 @@ class EventAPI(MethodView):
         event.builds_transition(
             ArtifactBuildState.CANCELED.value,
             "Build canceled before running on external build system.",
-            filters={'state': ArtifactBuildState.PLANNED.value})
+            filters={"state": ArtifactBuildState.PLANNED.value},
+        )
         builds_id = event.builds_transition(
-            ArtifactBuildState.CANCELED.value, None,
-            filters={'state': ArtifactBuildState.BUILD.value})
+            ArtifactBuildState.CANCELED.value,
+            None,
+            filters={"state": ArtifactBuildState.BUILD.value},
+        )
         db.session.commit()
 
         data["action"] = self._freshmaker_manage_prefix + data["action"]
@@ -368,47 +374,51 @@ def _validate_rebuild_request(request):
     """
     data = request.get_json(force=True)
 
-    for key in ('errata_id', 'freshmaker_event_id'):
+    for key in ("errata_id", "freshmaker_event_id"):
         if data.get(key) and not isinstance(data[key], int):
-            return json_error(400, 'Bad Request', f'"{key}" must be an integer.')
+            return json_error(400, "Bad Request", f'"{key}" must be an integer.')
 
-    if data.get('freshmaker_event_id'):
-        event = models.Event.get_by_event_id(db.session, data.get('freshmaker_event_id'))
+    if data.get("freshmaker_event_id"):
+        event = models.Event.get_by_event_id(db.session, data.get("freshmaker_event_id"))
         if not event:
             return json_error(
-                400, 'Bad Request', 'The provided "freshmaker_event_id" is invalid.',
+                400,
+                "Bad Request",
+                'The provided "freshmaker_event_id" is invalid.',
             )
 
-    for key in ('dist_git_branch', 'brew_target'):
+    for key in ("dist_git_branch", "brew_target"):
         if data.get(key) and not isinstance(data[key], str):
-            return json_error(400, 'Bad Request', f'"{key}" must be a string.')
+            return json_error(400, "Bad Request", f'"{key}" must be a string.')
 
-    container_images = data.get('container_images', [])
-    if (
-        not isinstance(container_images, list) or
-        any(not isinstance(image, str) for image in container_images)
+    container_images = data.get("container_images", [])
+    if not isinstance(container_images, list) or any(
+        not isinstance(image, str) for image in container_images
     ):
         return json_error(
-            400, 'Bad Request', '"container_images" must be an array of strings.',
+            400,
+            "Bad Request",
+            '"container_images" must be an array of strings.',
         )
 
-    if not isinstance(data.get('dry_run', False), bool):
-        return json_error(400, 'Bad Request', '"dry_run" must be a boolean.')
+    if not isinstance(data.get("dry_run", False), bool):
+        return json_error(400, "Bad Request", '"dry_run" must be a boolean.')
 
-    if not isinstance(data.get('force', False), bool):
-        return json_error(400, 'Bad Request', '"force" must be a boolean.')
+    if not isinstance(data.get("force", False), bool):
+        return json_error(400, "Bad Request", '"force" must be a boolean.')
 
-    if data.get('bundle_related_image_overrides', False) and not container_images:
+    if data.get("bundle_related_image_overrides", False) and not container_images:
         return json_error(
             400,
-            'Bad Request',
-            'Manual image overriding allowed only when "container_images" is set explicitly'
+            "Bad Request",
+            'Manual image overriding allowed only when "container_images" is set explicitly',
         )
 
-    if (data.get('bundle_related_image_overrides', False) and
-            not isinstance(data.get('bundle_related_image_overrides'), dict)):
+    if data.get("bundle_related_image_overrides", False) and not isinstance(
+        data.get("bundle_related_image_overrides"), dict
+    ):
         return json_error(
-            400, 'Bad Request', '"bundle_related_image_overrides" must be a dictionary'
+            400, "Bad Request", '"bundle_related_image_overrides" must be a dictionary'
         )
 
     return None
@@ -433,17 +443,21 @@ def _create_rebuild_event_from_request(db_session, parser, request):
     if conf.auth_backend != "noauth":
         db_event.requester = g.user.username
     db_event.requested_rebuilds = " ".join(event.container_images)
-    if hasattr(event, 'requester_metadata_json') and event.requester_metadata_json:
+    if hasattr(event, "requester_metadata_json") and event.requester_metadata_json:
         db_event.requester_metadata = json.dumps(event.requester_metadata_json)
-    if data.get('freshmaker_event_id'):
+    if data.get("freshmaker_event_id"):
         dependent_event = models.Event.get_by_event_id(
-            db_session, data.get('freshmaker_event_id'),
+            db_session,
+            data.get("freshmaker_event_id"),
         )
         if dependent_event:
             dependency = db_event.add_event_dependency(db_session, dependent_event)
             if not dependency:
-                log.warn('Dependency between {} and {} could not be added!'.format(
-                    event.freshmaker_event_id, dependent_event.id))
+                log.warn(
+                    "Dependency between {} and {} could not be added!".format(
+                        event.freshmaker_event_id, dependent_event.id
+                    )
+                )
     db_session.commit()
     return db_event
 
@@ -454,10 +468,8 @@ class BuildAPI(MethodView):
         if id is None:
             p_query = filter_artifact_builds(request)
 
-            json_data = {
-                'meta': pagination_metadata(p_query, request.args)
-            }
-            json_data['items'] = [item.json() for item in p_query.items]
+            json_data = {"meta": pagination_metadata(p_query, request.args)}
+            json_data["items"] = [item.json() for item in p_query.items]
 
             return jsonify(json_data), 200
 
@@ -469,8 +481,8 @@ class BuildAPI(MethodView):
                 return json_error(404, "Not Found", "No such build found.")
 
     @login_required
-    @require_scopes('submit-build')
-    @requires_roles(['admin', 'manual_rebuilder'])
+    @require_scopes("submit-build")
+    @requires_roles(["admin", "manual_rebuilder"])
     def post(self):
         """
         Trigger manual Freshmaker rebuild. The request must be
@@ -512,24 +524,23 @@ class BuildAPI(MethodView):
             return error
 
         data = request.get_json(force=True)
-        if not data.get('errata_id') and not data.get('freshmaker_event_id'):
+        if not data.get("errata_id") and not data.get("freshmaker_event_id"):
             return json_error(
                 400,
-                'Bad Request',
-                'You must at least provide "errata_id" or "freshmaker_event_id" in the request.'
+                "Bad Request",
+                'You must at least provide "errata_id" or "freshmaker_event_id" in the request.',
             )
 
         dependent_event = None
-        if data.get('freshmaker_event_id'):
-            dependent_event_id = data.get('freshmaker_event_id')
-            dependent_event = models.Event.get_by_event_id(
-                db.session, dependent_event_id)
+        if data.get("freshmaker_event_id"):
+            dependent_event_id = data.get("freshmaker_event_id")
+            dependent_event = models.Event.get_by_event_id(db.session, dependent_event_id)
 
             if dependent_event is None:
                 return json_error(
                     400,
-                    'Bad Request',
-                    f'There is no event with id {dependent_event_id}',
+                    "Bad Request",
+                    f"There is no event with id {dependent_event_id}",
                 )
 
             # requesting a CVE rebuild, the event can not be an async build event which
@@ -537,32 +548,41 @@ class BuildAPI(MethodView):
             async_build_event_type = models.EVENT_TYPES[events.FreshmakerAsyncManualBuildEvent]
             if dependent_event.event_type_id == async_build_event_type:
                 return json_error(
-                    400, 'Bad Request', f'The event (id={dependent_event_id}) is an async build'
-                                        ' event, can not be used for this build.')
+                    400,
+                    "Bad Request",
+                    f"The event (id={dependent_event_id}) is an async build"
+                    " event, can not be used for this build.",
+                )
 
-            if not data.get('errata_id'):
-                data['errata_id'] = int(dependent_event.search_key)
-            elif int(dependent_event.search_key) != data['errata_id']:
+            if not data.get("errata_id"):
+                data["errata_id"] = int(dependent_event.search_key)
+            elif int(dependent_event.search_key) != data["errata_id"]:
                 return json_error(
                     400,
-                    'Bad Request',
+                    "Bad Request",
                     'The provided "errata_id" doesn\'t match the Advisory ID associated with the '
                     'input "freshmaker_event_id".',
                 )
 
         if data.get("errata_id") or data.get("freshmaker_event_id"):
             running_events = (
-                models.Event.query.filter(models.Event.search_key == str(data['errata_id'])).filter(
+                models.Event.query.filter(models.Event.search_key == str(data["errata_id"]))
+                .filter(
                     models.Event.state.in_(
-                        [EventState.INITIALIZED.value, EventState.BUILDING.value])).all())
+                        [EventState.INITIALIZED.value, EventState.BUILDING.value]
+                    )
+                )
+                .all()
+            )
 
-            if running_events and not data.get('force', False):
+            if running_events and not data.get("force", False):
                 event_ids = [e.id for e in running_events]
                 return json_error(
                     400,
-                    'Bad Request',
+                    "Bad Request",
                     f'Events triggered by advisory {data["errata_id"]} are running: {event_ids}. '
-                    f'If you want to rebuild it anyway, use "force": true option.')
+                    f'If you want to rebuild it anyway, use "force": true option.',
+                )
 
         # Use the shared code to parse the POST data and generate right
         # event based on the data.
@@ -585,8 +605,8 @@ class BuildAPI(MethodView):
 
 class AsyncBuildAPI(MethodView):
     @login_required
-    @require_scopes('submit-build')
-    @requires_roles(['admin', 'freshmaker_async_rebuilders'])
+    @require_scopes("submit-build")
+    @requires_roles(["admin", "freshmaker_async_rebuilders"])
     def post(self):
         """
         Trigger Freshmaker async rebuild (a.k.a non-CVE rebuild). The request
@@ -635,31 +655,34 @@ class AsyncBuildAPI(MethodView):
             return error
 
         data = request.get_json(force=True)
-        if not all([data.get('dist_git_branch'), data.get('container_images')]):
+        if not all([data.get("dist_git_branch"), data.get("container_images")]):
             return json_error(
                 400,
-                'Bad Request',
+                "Bad Request",
                 '"dist_git_branch" and "container_images" are required in the request '
-                'for async builds',
+                "for async builds",
             )
 
         dependent_event = None
-        if data.get('freshmaker_event_id'):
+        if data.get("freshmaker_event_id"):
             dependent_event = models.Event.get_by_event_id(
-                db.session, data.get('freshmaker_event_id'),
+                db.session,
+                data.get("freshmaker_event_id"),
             )
             async_build_event_type = models.EVENT_TYPES[events.FreshmakerAsyncManualBuildEvent]
             if dependent_event.event_type_id != async_build_event_type:
                 return json_error(
-                    400, 'Bad Request', 'The event (id={}) is not an async build '
-                    'event.'.format(data.get('freshmaker_event_id')),
+                    400,
+                    "Bad Request",
+                    "The event (id={}) is not an async build "
+                    "event.".format(data.get("freshmaker_event_id")),
                 )
 
         # The '-container' string is optional, the user might have omitted it. But we need it to be
         # there for our query. Let's check if it's there, and if it's not, let's add it.
-        for i, image in enumerate(data.get('container_images', [])):
-            if not image.endswith('-container'):
-                data.get('container_images')[i] = f"{image}-container"
+        for i, image in enumerate(data.get("container_images", [])):
+            if not image.endswith("-container"):
+                data.get("container_images")[i] = f"{image}-container"
 
         # parse the POST data and generate FreshmakerAsyncManualBuildEvent
         parser = FreshmakerAsyncManualbuildParser()
@@ -681,14 +704,13 @@ class AsyncBuildAPI(MethodView):
 
 class AboutAPI(MethodView):
     def get(self):
-        json = {'version': version}
-        config_items = ['auth_backend']
+        json = {"version": version}
+        config_items = ["auth_backend"]
         for item in config_items:
             config_item = getattr(conf, item)
             # All config items have a default, so if doesn't exist it is an error
             if not config_item:
-                raise ValueError(
-                    'An invalid config item of "{0}" was specified'.format(item))
+                raise ValueError('An invalid config item of "{0}" was specified'.format(item))
             json[item] = config_item
         return jsonify(json), 200
 
@@ -730,8 +752,8 @@ class VerifyImageAPI(MethodView):
         images = verifier.verify_image(image)
         ret = {
             "msg": "Found %d images which are handled by Freshmaker for "
-                   "defined content_sets." % len(images),
-            "images": images
+            "defined content_sets." % len(images),
+            "images": images,
         }
         return jsonify(ret), 200
 
@@ -785,9 +807,9 @@ class VerifyImageRepositoryAPI(MethodView):
         data = verifier.verify_repository("%s/%s" % (project, repo))
         ret = {
             "msg": "Found %d images which are handled by Freshmaker for "
-                   "defined content_sets." % len(data["images"]),
+            "defined content_sets." % len(data["images"]),
             "images": data["images"],
-            "repository": data["repository"]
+            "repository": data["repository"],
         }
         return jsonify(ret), 200
 
@@ -804,43 +826,42 @@ class PullspecOverrideAPI(MethodView):
 
 
 API_V1_MAPPING = {
-    'events': EventAPI,
-    'builds': BuildAPI,
-    'async_builds': AsyncBuildAPI,
-    'event_types': EventTypeAPI,
-    'build_types': BuildTypeAPI,
-    'build_states': BuildStateAPI,
-    'about': AboutAPI,
-    'verify_image': VerifyImageAPI,
-    'verify_image_repository': VerifyImageRepositoryAPI,
-    'pullspec_overrides': PullspecOverrideAPI,
+    "events": EventAPI,
+    "builds": BuildAPI,
+    "async_builds": AsyncBuildAPI,
+    "event_types": EventTypeAPI,
+    "build_types": BuildTypeAPI,
+    "build_states": BuildStateAPI,
+    "about": AboutAPI,
+    "verify_image": VerifyImageAPI,
+    "verify_image_repository": VerifyImageRepositoryAPI,
+    "pullspec_overrides": PullspecOverrideAPI,
 }
 
 
 def register_api_v1():
-    """ Registers version 1 of Freshmaker API. """
+    """Registers version 1 of Freshmaker API."""
     for k, v in API_V1_MAPPING.items():
         view = v.as_view(k)
         for key, val in api_v1.get(k, {}).items():
-            app.add_url_rule(val['url'],
-                             endpoint=key,
-                             view_func=view,
-                             **val['options'])
+            app.add_url_rule(val["url"], endpoint=key, view_func=view, **val["options"])
 
     app.register_blueprint(monitor_api, name="monitor_api_v1")
 
 
 def register_api_v2():
-    """ Registers version 2 of Freshmaker API. """
+    """Registers version 2 of Freshmaker API."""
 
     # The API v2 has the same URL schema as v1, only semantic is different.
     for k, v in API_V1_MAPPING.items():
         view = v.as_view(k + "_v2")
         for key, val in api_v1.get(k, {}).items():
-            app.add_url_rule(val['url'].replace("/api/1/", "/api/2/"),
-                             endpoint=key + "_v2",
-                             view_func=view,
-                             **val['options'])
+            app.add_url_rule(
+                val["url"].replace("/api/1/", "/api/2/"),
+                endpoint=key + "_v2",
+                view_func=view,
+                **val["options"],
+            )
 
     app.register_blueprint(monitor_api, name="monitor_api_v2")
 

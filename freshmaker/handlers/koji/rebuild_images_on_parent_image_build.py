@@ -27,12 +27,16 @@ from freshmaker import log
 from freshmaker import db
 from freshmaker.errata import Errata
 from freshmaker.events import (
-    BrewContainerTaskStateChangeEvent, ErrataRPMAdvisoryShippedEvent,
-    ManualRebuildWithAdvisoryEvent)
+    BrewContainerTaskStateChangeEvent,
+    ErrataRPMAdvisoryShippedEvent,
+    ManualRebuildWithAdvisoryEvent,
+)
 from freshmaker.models import ArtifactBuild, EVENT_TYPES
-from freshmaker.handlers import (ContainerBuildHandler,
-                                 fail_artifact_build_on_handler_exception,
-                                 fail_event_on_handler_exception)
+from freshmaker.handlers import (
+    ContainerBuildHandler,
+    fail_artifact_build_on_handler_exception,
+    fail_event_on_handler_exception,
+)
 from freshmaker.kojiservice import koji_service
 from freshmaker.types import ArtifactType, ArtifactBuildState, EventState
 
@@ -40,7 +44,7 @@ from freshmaker.types import ArtifactType, ArtifactBuildState, EventState
 class RebuildImagesOnParentImageBuild(ContainerBuildHandler):
     """Rebuild container when a dependecy container is built in Brew"""
 
-    name = 'RebuildImagesOnParentImageBuild'
+    name = "RebuildImagesOnParentImageBuild"
 
     def can_handle(self, event):
         if not isinstance(event, BrewContainerTaskStateChangeEvent):
@@ -49,10 +53,11 @@ class RebuildImagesOnParentImageBuild(ContainerBuildHandler):
         build_id = event.task_id
 
         # check db to see whether this build exists in db
-        found_build = db.session.query(ArtifactBuild).filter_by(
-            type=ArtifactType.IMAGE.value,
-            build_id=build_id
-        ).first()
+        found_build = (
+            db.session.query(ArtifactBuild)
+            .filter_by(type=ArtifactType.IMAGE.value, build_id=build_id)
+            .first()
+        )
 
         if not found_build:
             return False
@@ -70,35 +75,38 @@ class RebuildImagesOnParentImageBuild(ContainerBuildHandler):
         build_id = event.task_id
 
         # check db to see whether this build exists in db
-        found_build = db.session.query(ArtifactBuild).filter_by(
-            type=ArtifactType.IMAGE.value,
-            build_id=build_id
-        ).first()
+        found_build = (
+            db.session.query(ArtifactBuild)
+            .filter_by(type=ArtifactType.IMAGE.value, build_id=build_id)
+            .first()
+        )
 
         self.set_context(found_build)
-        if found_build.event.state not in [EventState.INITIALIZED.value,
-                                           EventState.BUILDING.value]:
+        if found_build.event.state not in [EventState.INITIALIZED.value, EventState.BUILDING.value]:
             return
         self.update_db_build_state(build_id, found_build, event)
         self.rebuild_dependent_containers(found_build)
 
     @fail_artifact_build_on_handler_exception()
     def update_db_build_state(self, build_id, found_build, event):
-        """ Update build state in db. """
-        if event.new_state == 'CLOSED':
+        """Update build state in db."""
+        if event.new_state == "CLOSED":
             # if build is triggered by an advisory, verify the container
             # contains latest RPMs from the advisory
             if found_build.event.event_type_id in (
-                    EVENT_TYPES[ErrataRPMAdvisoryShippedEvent],
-                    EVENT_TYPES[ManualRebuildWithAdvisoryEvent]):
+                EVENT_TYPES[ErrataRPMAdvisoryShippedEvent],
+                EVENT_TYPES[ManualRebuildWithAdvisoryEvent],
+            ):
                 errata_id = found_build.event.search_key
                 # build_id is actually task id in build system, find out the actual build first
                 with koji_service(
-                        conf.koji_profile, log, login=False,
-                        dry_run=self.dry_run) as session:
+                    conf.koji_profile, log, login=False, dry_run=self.dry_run
+                ) as session:
                     container_build_id = session.get_container_build_id_from_task(build_id)
 
-                ret, msg = self._verify_advisory_rpms_in_container_build(errata_id, container_build_id)
+                ret, msg = self._verify_advisory_rpms_in_container_build(
+                    errata_id, container_build_id
+                )
                 if ret:
                     found_build.transition(ArtifactBuildState.DONE.value, "Built successfully.")
                 else:
@@ -107,7 +115,7 @@ class RebuildImagesOnParentImageBuild(ContainerBuildHandler):
             # for other builds, mark them as DONE
             else:
                 found_build.transition(ArtifactBuildState.DONE.value, "Built successfully.")
-        if event.new_state == 'FAILED':
+        if event.new_state == "FAILED":
             args = json.loads(found_build.build_args)
             if "retry_count" not in args:
                 args["retry_count"] = 0
@@ -116,28 +124,30 @@ class RebuildImagesOnParentImageBuild(ContainerBuildHandler):
             if args["retry_count"] < 3:
                 found_build.transition(
                     ArtifactBuildState.PLANNED.value,
-                    "Retrying failed build %s" % (str(found_build.build_id)))
+                    "Retrying failed build %s" % (str(found_build.build_id)),
+                )
                 self.start_to_build_images([found_build])
             else:
-                found_build.transition(
-                    ArtifactBuildState.FAILED.value,
-                    "Failed to build in Koji.")
+                found_build.transition(ArtifactBuildState.FAILED.value, "Failed to build in Koji.")
         db.session.commit()
 
     @fail_artifact_build_on_handler_exception()
     def rebuild_dependent_containers(self, found_build):
-        """ Rebuild containers depend on the success build as necessary. """
+        """Rebuild containers depend on the success build as necessary."""
         if found_build.state == ArtifactBuildState.DONE.value:
             # check db to see whether there is any planned image build
             # depends on this build
-            planned_builds = db.session.query(ArtifactBuild).filter_by(
-                type=ArtifactType.IMAGE.value,
-                state=ArtifactBuildState.PLANNED.value,
-                dep_on=found_build
-            ).all()
+            planned_builds = (
+                db.session.query(ArtifactBuild)
+                .filter_by(
+                    type=ArtifactType.IMAGE.value,
+                    state=ArtifactBuildState.PLANNED.value,
+                    dep_on=found_build,
+                )
+                .all()
+            )
 
-            log.info("Found following PLANNED builds to rebuild that "
-                     "depends on %r", found_build)
+            log.info("Found following PLANNED builds to rebuild that " "depends on %r", found_build)
             for build in planned_builds:
                 log.info("  %r", build)
 
@@ -153,7 +163,7 @@ class RebuildImagesOnParentImageBuild(ContainerBuildHandler):
         verify container built on brew has the latest rpms from an advisory
         """
         if self.dry_run:
-            return (True, '')
+            return (True, "")
 
         # Get rpms in advisory. There can be multiple versions of RPMs with
         # the same name, so we group them by a name in `advisory_rpms_by_name`
@@ -164,17 +174,14 @@ class RebuildImagesOnParentImageBuild(ContainerBuildHandler):
         if binary_rpm_nvrs:
             for nvr in binary_rpm_nvrs:
                 parsed_nvr = rpmlib.parse_nvr(nvr)
-                if parsed_nvr['name'] not in advisory_rpms_by_name:
-                    advisory_rpms_by_name[parsed_nvr['name']] = set()
-                advisory_rpms_by_name[parsed_nvr['name']].add(nvr)
+                if parsed_nvr["name"] not in advisory_rpms_by_name:
+                    advisory_rpms_by_name[parsed_nvr["name"]] = set()
+                advisory_rpms_by_name[parsed_nvr["name"]].add(nvr)
 
         # get rpms in container
-        with koji_service(
-                conf.koji_profile, log, login=False,
-                dry_run=self.dry_run) as session:
+        with koji_service(conf.koji_profile, log, login=False, dry_run=self.dry_run) as session:
             container_rpms = session.get_rpms_in_container(container_build_id)
-            container_rpms_by_name = {
-                rpmlib.parse_nvr(x)['name']: x for x in container_rpms}
+            container_rpms_by_name = {rpmlib.parse_nvr(x)["name"]: x for x in container_rpms}
 
         # For each RPM name in advisory, check that the RPM exists in the
         # built container and its version is the same as one RPM in the
@@ -188,8 +195,10 @@ class RebuildImagesOnParentImageBuild(ContainerBuildHandler):
                 unmatched_rpms.append(rpm_name)
 
         if unmatched_rpms:
-            msg = ("The following RPMs in container build (%s) do not match "
-                   "with the latest RPMs in advisory (%s):\n%s" %
-                   (container_build_id, errata_id, unmatched_rpms))
+            msg = (
+                "The following RPMs in container build (%s) do not match "
+                "with the latest RPMs in advisory (%s):\n%s"
+                % (container_build_id, errata_id, unmatched_rpms)
+            )
             return (False, msg)
         return (True, "")

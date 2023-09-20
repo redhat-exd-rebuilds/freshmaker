@@ -19,4 +19,4 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from .botas_shipped_advisory import HandleBotasAdvisory # noqa
+from .botas_shipped_advisory import HandleBotasAdvisory  # noqa

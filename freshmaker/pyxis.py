@@ -41,7 +41,7 @@ class PyxisRequestError(Exception):
 
 
 class Pyxis(object):
-    """ Interface for querying Pyxis"""
+    """Interface for querying Pyxis"""
 
     region = dogpile.cache.make_region().configure(conf.dogpile_cache_backend)
 
@@ -63,8 +63,9 @@ class Pyxis(object):
         entity_url = urllib.parse.urljoin(self._api_root, entity)
 
         auth_method = HTTPKerberosAuth(mutual_authentication=OPTIONAL)
-        response = requests.get(entity_url, params=params, auth=auth_method,
-                                timeout=conf.net_timeout)
+        response = requests.get(
+            entity_url, params=params, auth=auth_method, timeout=conf.net_timeout
+        )
 
         if response.ok:
             return response.json()
@@ -115,20 +116,19 @@ class Pyxis(object):
             local_params["page"] = page
             response_data = self._make_request(entity, params=local_params)
             # When the page after the actual last page is reached, data will be an empty list
-            if not response_data.get('data'):
+            if not response_data.get("data"):
                 break
-            ret.extend(response_data['data'])
+            ret.extend(response_data["data"])
             page += 1
 
         return ret
 
     def get_operator_indices(self):
-        """ Get all index images for organization(s)(configurable) from Pyxis """
+        """Get all index images for organization(s)(configurable) from Pyxis"""
         request_params = {}
         organizations = conf.pyxis_index_image_organizations
         if organizations:
-            rsql = " or ".join(
-                [f"organization=={organization}" for organization in organizations])
+            rsql = " or ".join([f"organization=={organization}" for organization in organizations])
             request_params["filter"] = rsql
         indices = self._pagination("operators/indices", request_params)
         log.debug("Found the following index images: %s", ", ".join(i["path"] for i in indices))
@@ -140,12 +140,12 @@ class Pyxis(object):
         return indices
 
     def get_index_paths(self):
-        """ Get paths of index images """
+        """Get paths of index images"""
         return [i["path"] for i in self.get_operator_indices() if i.get("path")]
 
     @region.cache_on_arguments()
     def ocp_is_released(self, ocp_version):
-        """ Check if ocp_version is released by comparing the GA date with current date
+        """Check if ocp_version is released by comparing the GA date with current date
 
         :param str ocp_version: the OpenShift Version
         :return: True if GA date in Product Pages is in the past, otherwise False
@@ -162,7 +162,7 @@ class Pyxis(object):
         return datetime.now() > datetime.strptime(ga_date_str, "%Y-%m-%d")
 
     def get_bundles_by_related_image_digest(self, digest, index_paths=None, latest=True):
-        """ Get bundles which include a related image with the specified digest
+        """Get bundles which include a related image with the specified digest
 
         :param str digest: digest value of related image
         :param list index_paths: list of index image paths
@@ -171,9 +171,15 @@ class Pyxis(object):
         :rtype: list
         """
         related_bundles = []
-        include_fields = ['data.channel_name', 'data.version_original', 'data.related_images',
-                          'data.bundle_path_digest', 'data.bundle_path', 'data.csv_name']
-        request_params = {'include': ','.join(include_fields)}
+        include_fields = [
+            "data.channel_name",
+            "data.version_original",
+            "data.related_images",
+            "data.bundle_path_digest",
+            "data.bundle_path",
+            "data.csv_name",
+        ]
+        request_params = {"include": ",".join(include_fields)}
 
         filters = [f"related_images.digest=={digest}"]
         if latest:
@@ -181,9 +187,9 @@ class Pyxis(object):
         if index_paths:
             index_paths = ",".join(index_paths)
             filters.append(f"source_index_container_path=in=({index_paths})")
-        request_params['filter'] = " and ".join(filters)
+        request_params["filter"] = " and ".join(filters)
 
-        bundles = self._pagination('operators/bundles', request_params)
+        bundles = self._pagination("operators/bundles", request_params)
         for bundle in bundles:
             csv_name = bundle["csv_name"]
             version = bundle["version_original"]
@@ -206,15 +212,15 @@ class Pyxis(object):
         :return: digest of image or None if manifest_list_digest not exists
         :rtype: str or None
         """
-        request_params = {'include': ','.join(['data.brew', 'data.repositories'])}
+        request_params = {"include": ",".join(["data.brew", "data.repositories"])}
 
         # get manifest_list_digest of ContainerImage from Pyxis
-        for image in self._pagination(f'images/nvr/{nvr}', request_params):
-            for repo in image['repositories']:
-                if must_be_published and not repo['published']:
+        for image in self._pagination(f"images/nvr/{nvr}", request_params):
+            for repo in image["repositories"]:
+                if must_be_published and not repo["published"]:
                     continue
-                if 'manifest_list_digest' in repo:
-                    return repo['manifest_list_digest']
+                if "manifest_list_digest" in repo:
+                    return repo["manifest_list_digest"]
         return None
 
     def get_manifest_schema2_digests_by_nvr(self, nvr, must_be_published=True):
@@ -227,16 +233,16 @@ class Pyxis(object):
         :return: a list of image manifest schema2 digests
         :rtype: list
         """
-        request_params = {'include': ','.join(['data.brew', 'data.repositories'])}
+        request_params = {"include": ",".join(["data.brew", "data.repositories"])}
 
         digests = set()
         # Each arch has a manifest schema2 digest, they're different
-        for image in self._pagination(f'images/nvr/{nvr}', request_params):
-            for repo in image['repositories']:
-                if must_be_published and not repo['published']:
+        for image in self._pagination(f"images/nvr/{nvr}", request_params):
+            for repo in image["repositories"]:
+                if must_be_published and not repo["published"]:
                     continue
-                if 'manifest_schema2_digest' in repo:
-                    digests.add(repo['manifest_schema2_digest'])
+                if "manifest_schema2_digest" in repo:
+                    digests.add(repo["manifest_schema2_digest"])
         return list(digests)
 
     def get_bundles_by_digests(self, digests):
@@ -249,11 +255,11 @@ class Pyxis(object):
         """
         q_filter = " or ".join([f"bundle_path_digest=={digest}" for digest in digests])
         params = {
-            'include': ','.join(['data.version_original', 'data.csv_name']),
-            'filter': q_filter
+            "include": ",".join(["data.version_original", "data.csv_name"]),
+            "filter": q_filter,
         }
 
-        return self._pagination('operators/bundles', params)
+        return self._pagination("operators/bundles", params)
 
     def get_bundles_by_nvr(self, nvr):
         """
@@ -282,13 +288,12 @@ class Pyxis(object):
         :rtype: list
         """
         q_filter = (
-            f"repositories.manifest_list_digest=={digest}" +
-            " or " +
-            f"repositories.manifest_schema2_digest=={digest}"
+            f"repositories.manifest_list_digest=={digest}"
+            + " or "
+            + f"repositories.manifest_schema2_digest=={digest}"
         )
-        request_params = {'include': 'data.brew,data.repositories',
-                          'filter': q_filter}
-        return self._pagination('images', request_params)
+        request_params = {"include": "data.brew,data.repositories", "filter": q_filter}
+        return self._pagination("images", request_params)
 
     def get_images_by_nvr(self, nvr, include=None):
         """
@@ -301,8 +306,8 @@ class Pyxis(object):
         """
         request_params = {"include": "data.architecture,data.brew,data.repositories"}
         if include:
-            request_params = {'include': ','.join(include)}
-        return self._pagination(f'images/nvr/{nvr}', request_params)
+            request_params = {"include": ",".join(include)}
+        return self._pagination(f"images/nvr/{nvr}", request_params)
 
     def get_auto_rebuild_tags(self, registry, repository):
         """
@@ -313,9 +318,9 @@ class Pyxis(object):
         :rtype: list
         :return: list of auto rebuild tags
         """
-        params = {'include': 'auto_rebuild_tags'}
+        params = {"include": "auto_rebuild_tags"}
         repo = self._get(f"repositories/registry/{registry}/repository/{repository}", params)
-        return repo.get('auto_rebuild_tags', [])
+        return repo.get("auto_rebuild_tags", [])
 
     def is_bundle(self, nvr):
         """
@@ -326,7 +331,7 @@ class Pyxis(object):
         :rtype: bool
         """
         request_params = {"include": "data.parsed_data.labels"}
-        images = self._pagination(f'images/nvr/{nvr}', request_params)
+        images = self._pagination(f"images/nvr/{nvr}", request_params)
         if not images:
             return False
 
@@ -336,18 +341,22 @@ class Pyxis(object):
         return False
 
     def image_is_tagged_auto_rebuild(self, nvr):
-        include = ["data.repositories.registry", "data.repositories.repository",
-                   "data.repositories.tags.name", "data.repositories.published"]
+        include = [
+            "data.repositories.registry",
+            "data.repositories.repository",
+            "data.repositories.tags.name",
+            "data.repositories.published",
+        ]
         images = self.get_images_by_nvr(nvr, include=include)
         if images:
             # Only use item 0 for getting necessary metadata as the difference between
             # different items are the arches info, the metadata we want are the same.
             image = images[0]
-            for repo in image['repositories']:
-                if not repo['published']:
+            for repo in image["repositories"]:
+                if not repo["published"]:
                     continue
-                auto_rebuild_tags = self.get_auto_rebuild_tags(repo['registry'], repo['repository'])
-                if set(tag['name'] for tag in repo['tags']) & set(auto_rebuild_tags):
+                auto_rebuild_tags = self.get_auto_rebuild_tags(repo["registry"], repo["repository"])
+                if set(tag["name"] for tag in repo["tags"]) & set(auto_rebuild_tags):
                     return True
         return False
 
@@ -363,4 +372,6 @@ class Pyxis(object):
         if not image:
             raise Exception("Image %s was not found in Pyxis", image_nvr)
         # images for different arches contain the same label names, so just check the first image
-        return any(label["name"] == "com.redhat.hotfix" for label in image[0]["parsed_data"]["labels"])
+        return any(
+            label["name"] == "com.redhat.hotfix" for label in image[0]["parsed_data"]["labels"]
+        )

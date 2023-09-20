@@ -110,7 +110,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         return []
 
     def _get_bundles_to_rebuild(self):
-        """ Get the impacted bundle to rebuild
+        """Get the impacted bundle to rebuild
 
         :return: a tuple of bundles and reason
         :rtype: tuple ([dict], str)
@@ -148,8 +148,9 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         # not present previously. E.g., if nvr_mapping={or_nvr1:new_nvr1, or_nvr2:new_nvr2} and
         # manual_remapping = {or_nvr2:man_nvr2, or_nvr3:man_nvr3}, then after the manual remapping
         # nvr_mapping={or_nvr1:new_nvr1, or_nvr2:man_nvr2, or_nvr3:man_nvr3}.
-        if (self.event.get("requester_metadata_json", False) and
-                self.event.requester_metadata_json.get("bundle_related_image_overrides", False)):
+        if self.event.get(
+            "requester_metadata_json", False
+        ) and self.event.requester_metadata_json.get("bundle_related_image_overrides", False):
             log.info("Performing manual NVR remapping")
             manual_remapping = self.event.requester_metadata_json["bundle_related_image_overrides"]
             for x in manual_remapping:
@@ -334,9 +335,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
                 csv_data = self._get_bundle_csv(bundle_nvr)
                 substitutes_for = csv_data["metadata"]["annotations"].get("olm.substitutesFor")
 
-            bundle_data.update(
-                self._get_csv_updates(csv_name, version, substitutes_for)
-            )
+            bundle_data.update(self._get_csv_updates(csv_name, version, substitutes_for))
             bundles_to_rebuild.append(bundle_data)
         if not bundles_to_rebuild:
             return (

@@ -27,8 +27,8 @@ from freshmaker.events import FreshmakerAsyncManualBuildEvent
 class FreshmakerAsyncManualbuildParser(BaseParser):
     """Parser of event async.manual.build"""
 
-    name = 'FreshmakerAsyncManualbuildParser'
-    topic_suffixes = ['freshmaker.async.manual.build']
+    name = "FreshmakerAsyncManualbuildParser"
+    topic_suffixes = ["freshmaker.async.manual.build"]
 
     def can_parse(self, topic, msg):
         return any([topic.endswith(s) for s in self.topic_suffixes])
@@ -42,16 +42,19 @@ class FreshmakerAsyncManualbuildParser(BaseParser):
         :param dict data: Dict generated from JSON from HTTP POST or parsed
             from the UMB message sent from Frontend to Backend.
         """
-        msg_id = data.get('msg_id', "async_build_%s" % (str(time.time())))
+        msg_id = data.get("msg_id", "async_build_%s" % (str(time.time())))
 
         return FreshmakerAsyncManualBuildEvent(
-            msg_id, data.get('dist_git_branch'), data.get('container_images', []),
-            freshmaker_event_id=data.get('freshmaker_event_id'),
-            brew_target=data.get('brew_target'),
-            dry_run=data.get('dry_run', False),
-            requester=data.get('requester', None),
-            requester_metadata_json=data.get("metadata", None))
+            msg_id,
+            data.get("dist_git_branch"),
+            data.get("container_images", []),
+            freshmaker_event_id=data.get("freshmaker_event_id"),
+            brew_target=data.get("brew_target"),
+            dry_run=data.get("dry_run", False),
+            requester=data.get("requester", None),
+            requester_metadata_json=data.get("metadata", None),
+        )
 
     def parse(self, topic, msg):
-        inner_msg = msg['msg']
+        inner_msg = msg["msg"]
         return self.parse_post_data(inner_msg)

@@ -30,8 +30,11 @@ import moksha.hub
 
 from freshmaker import log, conf, messaging, events, app
 from freshmaker.monitor import (
-    messaging_rx_counter, messaging_rx_ignored_counter,
-    messaging_rx_processed_ok_counter, messaging_rx_failed_counter)
+    messaging_rx_counter,
+    messaging_rx_ignored_counter,
+    messaging_rx_processed_ok_counter,
+    messaging_rx_failed_counter,
+)
 from freshmaker.utils import load_classes
 
 
@@ -40,7 +43,8 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
     This is triggered by running fedmsg-hub. This class is responsible for
     ingesting and processing messages from the message bus.
     """
-    config_key = 'freshmakerconsumer'
+
+    config_key = "freshmakerconsumer"
 
     def __init__(self, hub):
         # set topic before super, otherwise topic will not be subscribed
@@ -49,8 +53,8 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
 
         # These two values are typically provided either by the unit tests or
         # by the local build command.  They are empty in the production environ
-        self.stop_condition = hub.config.get('freshmaker.stop_condition')
-        initial_messages = hub.config.get('freshmaker.initial_messages', [])
+        self.stop_condition = hub.config.get("freshmaker.stop_condition")
+        initial_messages = hub.config.get("freshmaker.initial_messages", [])
         for msg in initial_messages:
             self.incoming.put(msg)
 
@@ -67,16 +71,17 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
         log.debug("Parser classes: %r", events.BaseEvent._parsers)
 
         self.topic = events.BaseEvent.get_parsed_topics()
-        log.debug('Setting topics: {}'.format(', '.join(self.topic)))
+        log.debug("Setting topics: {}".format(", ".join(self.topic)))
 
     def shutdown(self):
         log.info("Scheduling shutdown.")
         from moksha.hub.reactor import reactor
+
         reactor.callFromThread(self.hub.stop)
         reactor.callFromThread(reactor.stop)
 
     def validate(self, message):
-        if conf.messaging == 'fedmsg':
+        if conf.messaging == "fedmsg":
             # If this is a faked internal message, don't bother.
             if isinstance(message, events.BaseEvent):
                 return
@@ -95,7 +100,7 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
         if isinstance(message, events.BaseEvent):
             msg = message
         else:
-            msg = self.get_abstracted_msg(message['body'])
+            msg = self.get_abstracted_msg(message["body"])
 
         if not msg:
             # We do not log here anything, because it would create lot of
@@ -118,33 +123,33 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
             messaging_rx_processed_ok_counter.inc()
         except Exception:
             messaging_rx_failed_counter.inc()
-            log.exception('Failed while handling {0!r}'.format(msg))
+            log.exception("Failed while handling {0!r}".format(msg))
 
         if self.stop_condition and self.stop_condition(message):
             self.shutdown()
 
     def get_abstracted_msg(self, message):
         # Convert the message to an abstracted message
-        if 'topic' not in message:
-            raise ValueError(
-                'The messaging format "{}" is not supported'.format(conf.messaging))
+        if "topic" not in message:
+            raise ValueError('The messaging format "{}" is not supported'.format(conf.messaging))
 
         # Fallback to message['headers']['message-id'] if msg_id not defined.
-        if ('msg_id' not in message and
-                'headers' in message and
-                "message-id" in message['headers']):
-            message['msg_id'] = message['headers']['message-id']
+        if "msg_id" not in message and "headers" in message and "message-id" in message["headers"]:
+            message["msg_id"] = message["headers"]["message-id"]
 
-        if 'msg_id' not in message:
+        if "msg_id" not in message:
             raise ValueError(
-                'Received message does not contain "msg_id" or "message-id": '
-                '%r' % (message))
+                'Received message does not contain "msg_id" or "message-id": ' "%r" % (message)
+            )
 
-        return events.BaseEvent.from_fedmsg(message['topic'], message)
+        return events.BaseEvent.from_fedmsg(message["topic"], message)
 
     def process_event(self, msg):
-        log.debug('Received a message with an ID of "{0}" and of type "{1}"'
-                  .format(getattr(msg, 'msg_id', None), type(msg).__name__))
+        log.debug(
+            'Received a message with an ID of "{0}" and of type "{1}"'.format(
+                getattr(msg, "msg_id", None), type(msg).__name__
+            )
+        )
 
         handlers = load_classes(conf.handlers)
         handlers = sorted(handlers, key=lambda handler: getattr(handler, "order", 50))
@@ -159,7 +164,7 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
             try:
                 further_work = handler.handle(msg) or []
             except Exception:
-                err = 'Could not process message handler. See the traceback.'
+                err = "Could not process message handler. See the traceback."
                 log.exception(err)
             else:
                 # Handlers can *optionally* return a list of fake messages that
@@ -177,7 +182,7 @@ class FreshmakerConsumer(fedmsg.consumers.FedmsgConsumer):
 
 
 def get_global_consumer():
-    """ Return a handle to the active consumer object, if it exists. """
+    """Return a handle to the active consumer object, if it exists."""
     hub = moksha.hub._hub
     if not hub:
         raise ValueError("No global moksha-hub obj found.")
@@ -190,6 +195,6 @@ def get_global_consumer():
 
 
 def work_queue_put(msg):
-    """ Artificially put a message into the work queue of the consumer. """
+    """Artificially put a message into the work queue of the consumer."""
     consumer = get_global_consumer()
     consumer.incoming.put(msg)

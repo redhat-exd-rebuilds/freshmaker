@@ -80,7 +80,6 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
 
     @fail_event_on_handler_exception
     def handle(self, event):
-
         if event.dry_run:
             self.force_dry_run()
 
@@ -90,9 +89,7 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
         self.set_context(db_event)
 
         self.errata = Errata()
-        self.advisory_module_nvrs = self.errata.get_attached_build_nvrs(
-            event.advisory.errata_id
-        )
+        self.advisory_module_nvrs = self.errata.get_attached_build_nvrs(event.advisory.errata_id)
 
         try:
             builds = self._handle_or_skip(event)
@@ -180,9 +177,7 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
 
         image_modules_mapping = defaultdict(set)
         req_session = self._get_requests_session()
-        with koji_service(
-            conf.koji_profile, log, login=False, dry_run=self.dry_run
-        ) as session:
+        with koji_service(conf.koji_profile, log, login=False, dry_run=self.dry_run) as session:
             for advisory_module_nvr in self.advisory_module_nvrs:
                 mmd = session.get_modulemd(advisory_module_nvr)
                 content_index_url = "{}/released/contents/modules/{}:{}.json".format(
@@ -197,9 +192,7 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
                         image_nvr = image_info["ImageNvr"]
                         image_modules_mapping[image_nvr].add(advisory_module_nvr)
                 else:
-                    self.log_error(
-                        "Fetching module %s data failed.", advisory_module_nvr
-                    )
+                    self.log_error("Fetching module %s data failed.", advisory_module_nvr)
 
         return image_modules_mapping
 
@@ -212,9 +205,7 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
         :return: a list of ContainerImage instances which can be auto rebuilt.
         :rtype: list
         """
-        errata_rpm_nvrs = self.errata.get_binary_rpm_nvrs(
-            self.event.advisory.errata_id
-        )
+        errata_rpm_nvrs = self.errata.get_binary_rpm_nvrs(self.event.advisory.errata_id)
         pyxis = PyxisAPI(server_url=conf.pyxis_graphql_url)
 
         if errata_rpm_nvrs:
@@ -266,20 +257,15 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
             compose = self.odcs.get_compose(compose_id)
             source_type = compose.get("source_type")
             if source_type == PungiSourceType.MODULE:
-                name_stream_set = {
-                    f"{n}:{s}" for n, s, v, c in _compose_sources(compose)
-                }
+                name_stream_set = {f"{n}:{s}" for n, s, v, c in _compose_sources(compose)}
                 mapping = {
-                    f"{n}:{s}": f"{n}:{s}:{v}:{c}"
-                    for n, s, v, c in _compose_sources(compose)
+                    f"{n}:{s}": f"{n}:{s}:{v}:{c}" for n, s, v, c in _compose_sources(compose)
                 }
 
                 if not name_stream_set.isdisjoint(module_name_stream_set):
                     updated_composes.update(
                         mapping[name_stream]
-                        for name_stream in name_stream_set.difference(
-                            module_name_stream_set
-                        )
+                        for name_stream in name_stream_set.difference(module_name_stream_set)
                     )
                 updated_composes.update(module_nsvc_set)
 
@@ -307,9 +293,7 @@ class RebuildFlatpakApplicationOnModuleReady(ContainerBuildHandler):
         # Dict with {brew_build_nvr: ArtifactBuild, ...} mapping.
         builds = {}
 
-        with koji_service(
-            conf.koji_profile, log, login=False, dry_run=self.dry_run
-        ) as session:
+        with koji_service(conf.koji_profile, log, login=False, dry_run=self.dry_run) as session:
             for image in images:
                 self.set_context(db_event)
 

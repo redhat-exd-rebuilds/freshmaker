@@ -27,7 +27,7 @@ import koji
 # in freshmaker.handlers __init__.py. We cannot  "import koji" there, because
 # it would import freshmaker.handlers.koji, so instead, we import it here
 # and in freshmaker.handler do "from freshmaker.kojiservice import parse_NVR".
-from koji import parse_NVR # noqa
+from koji import parse_NVR  # noqa
 from kobo import rpmlib
 from io import BytesIO
 from zipfile import ZipFile
@@ -39,7 +39,8 @@ import requests
 import yaml
 
 import gi
-gi.require_version('Modulemd', '2.0')
+
+gi.require_version("Modulemd", "2.0")
 from gi.repository import Modulemd  # noqa E402
 
 import freshmaker.utils  # noqa E402
@@ -50,7 +51,8 @@ from freshmaker.models import ArtifactBuild  # noqa E402
 
 
 class KojiLookupError(ValueError):
-    """ Koji lookup error """
+    """Koji lookup error"""
+
     pass
 
 
@@ -63,21 +65,21 @@ class KojiService(object):
 
     As a wrapper of Koji API, new APIs could be added as well.
     """
+
     region = dogpile.cache.make_region().configure(conf.dogpile_cache_backend)
 
     # Used to generate incremental task id in dry run mode.
     _FAKE_TASK_ID = 0
 
     def __init__(self, profile=None, dry_run=False):
-        self._config = koji.read_config(profile or 'koji')
+        self._config = koji.read_config(profile or "koji")
         self.dry_run = dry_run
 
         # In case we run in DRY_RUN mode, we need to initialize
         # _FAKE_TASK_ID to the id of last ODCS builds to have the IDs
         # increasing and unique even between Freshmaker restarts.
         if self.dry_run:
-            KojiService._FAKE_TASK_ID = \
-                ArtifactBuild.get_lowest_build_id(db.session) - 1
+            KojiService._FAKE_TASK_ID = ArtifactBuild.get_lowest_build_id(db.session) - 1
             if KojiService._FAKE_TASK_ID >= 0:
                 KojiService._FAKE_TASK_ID = -1
 
@@ -87,21 +89,20 @@ class KojiService(object):
 
     @property
     def weburl(self):
-        return self.config['weburl']
+        return self.config["weburl"]
 
     @property
     def topurl(self):
-        return self.config['topurl']
+        return self.config["topurl"]
 
     @property
     def server(self):
-        return self.config['server']
+        return self.config["server"]
 
     @property
     def session(self):
-        if not hasattr(self, '_session'):
-            self._session = koji.ClientSession(self.config['server'],
-                                               self.config)
+        if not hasattr(self, "_session"):
+            self._session = koji.ClientSession(self.config["server"], self.config)
         return self._session
 
     @freshmaker.utils.retry(wait_on=koji.AuthError, logger=log)
@@ -111,7 +112,7 @@ class KojiService(object):
             self.session.gssapi_login(
                 principal=conf.krb_auth_principal,
                 keytab=conf.krb_auth_client_keytab,
-                ccache=conf.krb_auth_ccache_file
+                ccache=conf.krb_auth_ccache_file,
             )
         else:
             log.info("DRY RUN: Skipping login in dry run mode.")
@@ -133,8 +134,10 @@ class KojiService(object):
         :rtype: number
         :return: Fake task_id.
         """
-        log.info("DRY RUN: Calling fake buildContainer with args: %r",
-                 (source_url, build_target, build_opts))
+        log.info(
+            "DRY RUN: Calling fake buildContainer with args: %r",
+            (source_url, build_target, build_opts),
+        )
 
         # Get the task_id
         KojiService._FAKE_TASK_ID -= 1
@@ -143,10 +146,16 @@ class KojiService(object):
         # Parse the source_url to get the name of container and generate
         # fake event.
         m = re.match(r".*/(?P<container>[^#]*)", source_url)
-        container = m.group('container')
+        container = m.group("container")
         event = BrewContainerTaskStateChangeEvent(
-            "fake_koji_msg_%d" % task_id, container, build_opts["git_branch"],
-            build_target, task_id, "BUILDING", "CLOSED")
+            "fake_koji_msg_%d" % task_id,
+            container,
+            build_opts["git_branch"],
+            build_target,
+            task_id,
+            "BUILDING",
+            "CLOSED",
+        )
         event.dry_run = self.dry_run
 
         # Inject the fake event.
@@ -155,11 +164,21 @@ class KojiService(object):
 
         return task_id
 
-    def build_container(self, source_url, branch, target,
-                        scratch=None, repo_urls=None, flatpak=False, isolated=False,
-                        release=None, koji_parent_build=None,
-                        arch_override=None, compose_ids=None,
-                        operator_csv_modifications_url=None):
+    def build_container(
+        self,
+        source_url,
+        branch,
+        target,
+        scratch=None,
+        repo_urls=None,
+        flatpak=False,
+        isolated=False,
+        release=None,
+        koji_parent_build=None,
+        arch_override=None,
+        compose_ids=None,
+        operator_csv_modifications_url=None,
+    ):
         """Build container by buildContainer
 
         :param str source_url: the container repository URL.
@@ -184,41 +203,38 @@ class KojiService(object):
 
         build_target = target
         build_opts = {
-            'scratch': False if scratch is None else scratch,
-            'git_branch': branch,
+            "scratch": False if scratch is None else scratch,
+            "git_branch": branch,
         }
 
         if repo_urls:
-            build_opts['yum_repourls'] = repo_urls
+            build_opts["yum_repourls"] = repo_urls
         if compose_ids:
-            build_opts['compose_ids'] = compose_ids
+            build_opts["compose_ids"] = compose_ids
         if flatpak:
-            build_opts['flatpak'] = True
+            build_opts["flatpak"] = True
         if isolated:
-            build_opts['isolated'] = True
+            build_opts["isolated"] = True
         if koji_parent_build:
-            build_opts['koji_parent_build'] = koji_parent_build
+            build_opts["koji_parent_build"] = koji_parent_build
         # arch-override is only allowed for isolated or scratch builds
         if arch_override and (isolated or scratch):
-            build_opts['arch_override'] = arch_override
+            build_opts["arch_override"] = arch_override
         if release:
-            build_opts['release'] = release
+            build_opts["release"] = release
         if operator_csv_modifications_url:
-            build_opts['operator_csv_modifications_url'] = operator_csv_modifications_url
+            build_opts["operator_csv_modifications_url"] = operator_csv_modifications_url
 
-        log.debug('Build from target: %s', build_target)
-        log.debug('Build options: %s', build_opts)
+        log.debug("Build from target: %s", build_target)
+        log.debug("Build options: %s", build_opts)
 
         if not self.dry_run:
-            task_id = self.session.buildContainer(source_url, build_target,
-                                                  build_opts)
+            task_id = self.session.buildContainer(source_url, build_target, build_opts)
         else:
-            task_id = self._fake_build_container(source_url, build_target,
-                                                 build_opts)
+            task_id = self._fake_build_container(source_url, build_target, build_opts)
 
-        log.info('Task %s is created to build docker image for %s',
-                 task_id, source_url)
-        log.info('Task info: %s/taskinfo?taskID=%s', self.weburl, task_id)
+        log.info("Task %s is created to build docker image for %s", task_id, source_url)
+        log.info("Task info: %s/taskinfo?taskID=%s", self.weburl, task_id)
 
         return task_id
 
@@ -228,8 +244,7 @@ class KojiService(object):
     @region.cache_on_arguments()
     def get_build_rpms(self, build_nvr, arches=None):
         build_info = self.session.getBuild(build_nvr)
-        return self.session.listRPMs(buildID=build_info['id'],
-                                     arches=arches)
+        return self.session.listRPMs(buildID=build_info["id"], arches=arches)
 
     @region.cache_on_arguments()
     def get_build(self, buildinfo):
@@ -270,14 +285,14 @@ class KojiService(object):
         subtasks = self.session.getTaskChildren(task_id)
         if subtasks:
             for task in subtasks:
-                task_result = self.session.getTaskResult(task['id'])
-                builds = task_result.get('koji_builds', None)
+                task_result = self.session.getTaskResult(task["id"])
+                builds = task_result.get("koji_builds", None)
                 if builds:
                     build_id = int(builds.pop())
                     break
         else:
             task_result = self.session.getTaskResult(task_id)
-            builds = task_result.get('koji_builds', None)
+            builds = task_result.get("koji_builds", None)
             if builds:
                 build_id = int(builds.pop())
         return build_id
@@ -292,7 +307,7 @@ class KojiService(object):
         Note: it doesn't check whether the metadata.json exists or not.
         """
         build_info = self.get_build(buildinfo)
-        return koji.PathInfo(topdir=self.topurl).build(build_info) + '/metadata.json'
+        return koji.PathInfo(topdir=self.topurl).build(build_info) + "/metadata.json"
 
     @freshmaker.utils.retry(wait_on=(requests.Timeout, requests.ConnectionError), logger=log)
     def load_cg_metadata(self, buildinfo):
@@ -314,8 +329,12 @@ class KojiService(object):
             raise
         except Exception as e:
             if cg_metadata_url:
-                log.error("Unable to load CG metadata for build (%r) from url (%s): %s",
-                          buildinfo, cg_metadata_url, str(e))
+                log.error(
+                    "Unable to load CG metadata for build (%r) from url (%s): %s",
+                    buildinfo,
+                    cg_metadata_url,
+                    str(e),
+                )
             else:
                 log.error("Unable to load CG metadata for build (%r): %s", str(e))
             raise
@@ -332,11 +351,11 @@ class KojiService(object):
         """
         rpms = set()
         cg_metadata = self.load_cg_metadata(buildinfo)
-        outputs = cg_metadata['output']
+        outputs = cg_metadata["output"]
         for out in outputs:
-            if out['type'] == 'docker-image':
-                components = out['components']
-                rpms = set([rpmlib.make_nvr(rpm) for rpm in components if rpm['type'] == 'rpm'])
+            if out["type"] == "docker-image":
+                components = out["components"]
+                rpms = set([rpmlib.make_nvr(rpm) for rpm in components if rpm["type"] == "rpm"])
         return rpms
 
     @region.cache_on_arguments()
@@ -378,7 +397,7 @@ class KojiService(object):
         """
         try:
             build_info = self.get_build(build_nvr)
-            manifest_name = build_info.get('extra', {}).get('operator_manifests_archive')
+            manifest_name = build_info.get("extra", {}).get("operator_manifests_archive")
             if not manifest_name:
                 log.error("Operator manifests archive is unavaiable for build %s", build_nvr)
                 return None
@@ -417,10 +436,10 @@ class KojiService(object):
         try:
             buildinfo = self.get_build(build_nvr)
             related_images = (
-                buildinfo.get('extra', {})
-                .get('image', {})
-                .get('operator_manifests', {})
-                .get('related_images', {})
+                buildinfo.get("extra", {})
+                .get("image", {})
+                .get("operator_manifests", {})
+                .get("related_images", {})
             )
         except Exception as e:
             log.error("Unable to get related images in build %s: %s", build_nvr, str(e))
@@ -450,7 +469,8 @@ class KojiService(object):
             # If no overrides installed, it returns _ResultTuple. Reference from:
             # https://github.com/fedora-modularity/libmodulemd/blob/main/modulemd/tests/ModulemdTests/common.py#L116-L129
             if not (
-                "_overrides_module" in dir(Modulemd) and hasattr(gi.overrides.Modulemd, "read_packager_string")
+                "_overrides_module" in dir(Modulemd)
+                and hasattr(gi.overrides.Modulemd, "read_packager_string")
             ):
                 _, mmd = Modulemd.read_packager_string(modulemd_str, None, None)
             else:
@@ -464,8 +484,7 @@ class KojiService(object):
     def get_build_arches(self, build_id):
         archives = self.list_archives(build_id=build_id)
         arches = [
-            archive["extra"]["image"]["arch"]
-            for archive in archives if archive["btype"] == "image"
+            archive["extra"]["image"]["arch"] for archive in archives if archive["btype"] == "image"
         ]
         return " ".join(sorted(arches))
 
@@ -493,14 +512,13 @@ def koji_service(profile=None, logger=None, login=True, dry_run=False):
         if not conf.krb_auth_principal:
             log.error("Cannot login to Koji, krb_auth_principal not set")
         else:
-            log.debug('Logging into %s with Kerberos authentication.',
-                      service.server)
+            log.debug("Logging into %s with Kerberos authentication.", service.server)
 
             service.krb_login()
 
             # We are not logged in in dry run mode...
             if not dry_run and not service.logged_in:
-                log.error('Could not login server %s', service.server)
+                log.error("Could not login server %s", service.server)
                 yield None
 
     try:
@@ -508,5 +526,5 @@ def koji_service(profile=None, logger=None, login=True, dry_run=False):
     finally:
         if service.logged_in:
             if logger:
-                logger.debug('Logout Koji session')
+                logger.debug("Logout Koji session")
             service.logout()

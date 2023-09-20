@@ -27,14 +27,12 @@ import koji
 import re
 
 from freshmaker import conf, db
-from freshmaker.events import (
-    ErrataRPMAdvisoryShippedEvent, ManualRebuildWithAdvisoryEvent)
+from freshmaker.events import ErrataRPMAdvisoryShippedEvent, ManualRebuildWithAdvisoryEvent
 from freshmaker.handlers import ContainerBuildHandler, fail_event_on_handler_exception
 from freshmaker.image import PyxisAPI
 from freshmaker.pulp import Pulp
 from freshmaker.errata import Errata
-from freshmaker.types import (
-    ArtifactType, ArtifactBuildState, EventState, RebuildReason)
+from freshmaker.types import ArtifactType, ArtifactBuildState, EventState, RebuildReason
 from freshmaker.models import Event, Compose, ArtifactBuild
 
 
@@ -44,14 +42,14 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
     advisory.
     """
 
-    name = 'RebuildImagesOnRPMAdvisoryChange'
+    name = "RebuildImagesOnRPMAdvisoryChange"
 
     def can_handle(self, event):
         if not isinstance(event, ErrataRPMAdvisoryShippedEvent):
             return False
 
-        if not {'rpm', 'module'} & set(event.advisory.content_types):
-            self.log_info('Skip non-RPM and non-module advisory %s.', event.advisory.errata_id)
+        if not {"rpm", "module"} & set(event.advisory.content_types):
+            self.log_info("Skip non-RPM and non-module advisory %s.", event.advisory.errata_id)
             return False
 
         return True
@@ -78,8 +76,10 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
 
         # Check if we are allowed to build this advisory.
         if not self.event.is_allowed(self):
-            msg = ("Errata advisory {0} is not allowed by internal policy "
-                   "to trigger rebuilds.".format(event.advisory.errata_id))
+            msg = (
+                "Errata advisory {0} is not allowed by internal policy "
+                "to trigger rebuilds.".format(event.advisory.errata_id)
+            )
             db_event.transition(EventState.SKIPPED, msg)
             db.session.commit()
             self.log_info(msg)
@@ -102,21 +102,20 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
         builds = self._record_batches(batches, event)
 
         if not builds:
-            msg = 'No container images to rebuild for advisory %r' % event.advisory.name
+            msg = "No container images to rebuild for advisory %r" % event.advisory.name
             self.log_info(msg)
             db_event.transition(EventState.SKIPPED, msg)
             db.session.commit()
             return []
 
-        if all([build.state == ArtifactBuildState.FAILED.value
-                for build in builds.values()]):
+        if all([build.state == ArtifactBuildState.FAILED.value for build in builds.values()]):
             db_event.transition(
-                EventState.COMPLETE,
-                "No container images to rebuild, all are in failed state.")
+                EventState.COMPLETE, "No container images to rebuild, all are in failed state."
+            )
             db.session.commit()
             return []
 
-        if event.advisory.state != 'SHIPPED_LIVE':
+        if event.advisory.state != "SHIPPED_LIVE":
             # If freshmaker is configured to rebuild images only when advisory
             # moves to SHIPPED_LIVE state, there is no need to generate new
             # composes for rebuild as all signed RPMs should already be
@@ -124,18 +123,18 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
             #
             # Generate the ODCS compose with RPMs from the current advisory.
             repo_urls = self.odcs.prepare_yum_repos_for_rebuilds(db_event)
-            self.log_info(
-                "Following repositories will be used for the rebuild:")
+            self.log_info("Following repositories will be used for the rebuild:")
             for url in repo_urls:
                 self.log_info("   - %s", url)
 
         # Log what we are going to rebuild
         self._check_images_to_rebuild(db_event, builds)
-        self.start_to_build_images(
-            db_event.get_image_builds_in_first_batch(db.session))
+        self.start_to_build_images(db_event.get_image_builds_in_first_batch(db.session))
 
-        msg = 'Advisory %s: Rebuilding %d container images.' % (
-            db_event.search_key, len(db_event.builds.all()))
+        msg = "Advisory %s: Rebuilding %d container images." % (
+            db_event.search_key,
+            len(db_event.builds.all()),
+        )
         db_event.transition(EventState.BUILDING, msg)
 
         return []
@@ -147,7 +146,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
         :param builds dict: list of docker images to build as returned by
             _find_images_to_rebuild(...).
         """
-        self.log_info('Found container images to rebuild in following order:')
+        self.log_info("Found container images to rebuild in following order:")
         batch = 0
         printed = []
         printed_cnt = 0
@@ -155,7 +154,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
         db_event_builds_cnt = len(db_event.builds.all())
 
         while printed_cnt != builds_cnt or printed_cnt != db_event_builds_cnt:
-            self.log_info('   Batch %d:', batch)
+            self.log_info("   Batch %d:", batch)
 
             old_printed_count = printed_cnt
 
@@ -167,18 +166,22 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                 #   batch 0 - this handles the base images
                 # In call cases, print only builds which have not been printed
                 # so far.
-                if (build.original_nvr not in printed and
-                        ((build.dep_on and build.dep_on.original_nvr in printed) or
-                         (not build.dep_on and batch == 0))):
+                if build.original_nvr not in printed and (
+                    (build.dep_on and build.dep_on.original_nvr in printed)
+                    or (not build.dep_on and batch == 0)
+                ):
                     args = json.loads(build.build_args)
                     if build.dep_on:
                         based_on = "based on %s" % build.dep_on.rebuilt_nvr
                     else:
-                        based_on = "based on %s" % args["original_parent"] \
-                            if args["original_parent"] else "base image"
+                        based_on = (
+                            "based on %s" % args["original_parent"]
+                            if args["original_parent"]
+                            else "base image"
+                        )
                     self.log_info(
-                        '      - %s#%s (%s)' %
-                        (args["repository"], args["commit"], based_on))
+                        "      - %s#%s (%s)" % (args["repository"], args["commit"], based_on)
+                    )
                     printed.append(build.original_nvr)
 
             printed_cnt = len(printed)
@@ -188,8 +191,8 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
             # print error and stop the rebuild.
             if old_printed_count == printed_cnt:
                 db_event.builds_transition(
-                    ArtifactBuildState.FAILED.value,
-                    "No image to be built in batch %d." % (batch))
+                    ArtifactBuildState.FAILED.value, "No image to be built in batch %d." % (batch)
+                )
                 self.log_error("Dumping the builds:")
                 for build in builds.values():
                     self.log_error("   %r", build.original_nvr)
@@ -236,20 +239,20 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
 
                 nvr = image.nvr
                 if nvr in builds:
-                    self.log_debug("Skipping recording build %s, "
-                                   "it is already in db", nvr)
+                    self.log_debug("Skipping recording build %s, " "it is already in db", nvr)
                     continue
 
                 parent_build = db_event.get_artifact_build_from_event_dependencies(nvr)
                 if parent_build:
                     self.log_debug(
-                        "Skipping recording build %s, "
-                        "it is already built in dependant event %r", nvr, parent_build[0].event_id)
+                        "Skipping recording build %s, " "it is already built in dependant event %r",
+                        nvr,
+                        parent_build[0].event_id,
+                    )
                     continue
 
                 self.log_debug("Recording %s", nvr)
-                parent_nvr = image["parent"].nvr \
-                    if "parent" in image and image["parent"] else None
+                parent_nvr = image["parent"].nvr if "parent" in image and image["parent"] else None
                 dep_on = builds[parent_nvr] if parent_nvr in builds else None
 
                 if parent_nvr:
@@ -264,8 +267,9 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                 elif dep_on and dep_on.state == ArtifactBuildState.FAILED.value:
                     # If this artifact build depends on a build which cannot
                     # be built by Freshmaker, mark this one as failed too.
-                    state_reason = "Cannot build artifact, because its " \
-                        "dependency cannot be built."
+                    state_reason = (
+                        "Cannot build artifact, because its " "dependency cannot be built."
+                    )
                     state = ArtifactBuildState.FAILED.value
                 else:
                     state_reason = ""
@@ -277,17 +281,20 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                 # rebuild. If some image is not in the latest released version and
                 # it is included in a rebuild, it must be just a dependency of
                 # other image.
-                if image.get('directly_affected'):
+                if image.get("directly_affected"):
                     rebuild_reason = RebuildReason.DIRECTLY_AFFECTED.value
                 else:
                     rebuild_reason = RebuildReason.DEPENDENCY.value
 
                 build = self.record_build(
-                    event, image_name, ArtifactType.IMAGE,
+                    event,
+                    image_name,
+                    ArtifactType.IMAGE,
                     dep_on=dep_on,
                     state=ArtifactBuildState.PLANNED.value,
                     original_nvr=nvr,
-                    rebuild_reason=rebuild_reason)
+                    rebuild_reason=rebuild_reason,
+                )
 
                 # Set context to particular build so logging shows this build
                 # in case of error.
@@ -295,17 +302,19 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
 
                 build.transition(state, state_reason)
 
-                build.build_args = json.dumps({
-                    "repository": image["repository"],
-                    "commit": image["commit"],
-                    "original_parent": parent_nvr,
-                    "target": image["target"],
-                    "branch": image["git_branch"],
-                    "arches": image["arches"],
-                    "renewed_odcs_compose_ids": image["odcs_compose_ids"],
-                    "flatpak": image.get("flatpak", False),
-                    "isolated": image.get("isolated", True),
-                })
+                build.build_args = json.dumps(
+                    {
+                        "repository": image["repository"],
+                        "commit": image["commit"],
+                        "original_parent": parent_nvr,
+                        "target": image["target"],
+                        "branch": image["git_branch"],
+                        "arches": image["arches"],
+                        "renewed_odcs_compose_ids": image["odcs_compose_ids"],
+                        "flatpak": image.get("flatpak", False),
+                        "isolated": image.get("isolated", True),
+                    }
+                )
 
                 db.session.commit()
 
@@ -330,11 +339,10 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                         if cache_key in odcs_cache:
                             db_compose = odcs_cache[cache_key]
                         else:
-                            compose = self.odcs.prepare_pulp_repo(
-                                build, list(missing_content_sets))
+                            compose = self.odcs.prepare_pulp_repo(build, list(missing_content_sets))
 
                             if build.state != ArtifactBuildState.FAILED.value:
-                                db_compose = Compose(odcs_compose_id=compose['id'])
+                                db_compose = Compose(odcs_compose_id=compose["id"])
                                 db.session.add(db_compose)
                                 db.session.commit()
                                 odcs_cache[cache_key] = db_compose
@@ -351,7 +359,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
                     if not image["published"]:
                         compose = self.odcs.prepare_odcs_compose_with_image_rpms(image)
                         if compose:
-                            db_compose = Compose(odcs_compose_id=compose['id'])
+                            db_compose = Compose(odcs_compose_id=compose["id"])
                             db.session.add(db_compose)
                             db.session.commit()
                             build.add_composes(db.session, [db_compose])
@@ -377,12 +385,12 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
         parsed_nvr = koji.parse_NVR(image.nvr)
 
         if not self.event.is_allowed(
-                self, image_name=parsed_nvr["name"],
-                image_version=parsed_nvr["version"],
-                image_release=parsed_nvr["release"]):
-            self.log_info(
-                "Skipping rebuild of image %s, not allowed by configuration",
-                image.nvr)
+            self,
+            image_name=parsed_nvr["name"],
+            image_version=parsed_nvr["version"],
+            image_release=parsed_nvr["release"],
+        ):
+            self.log_info("Skipping rebuild of image %s, not allowed by configuration", image.nvr)
             return True
         return False
 
@@ -405,17 +413,14 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
         # up eventually when advisories are shipped.
         pulp_repo_ids = list(set(errata.get_pulp_repository_ids(errata_id)))
 
-        pulp = Pulp(
-            server_url=conf.pulp_server_url, cert=(conf.pulp_crt_path, conf.pulp_key_path)
-        )
+        pulp = Pulp(server_url=conf.pulp_server_url, cert=(conf.pulp_crt_path, conf.pulp_key_path))
         content_sets = pulp.get_content_set_by_repo_ids(pulp_repo_ids)
         # Some container builds declare Pulp repos directly instead of content
         # sets, but they are stored in the same location as content sets so they
         # can be treated the same
         content_sets.extend(pulp_repo_ids)
 
-        self.log_info('RPMs from advisory ends up in following content sets: '
-                      '%s', content_sets)
+        self.log_info("RPMs from advisory ends up in following content sets: " "%s", content_sets)
 
         # Query images from Pyxis by signed RPM's srpm name and found
         # content sets
@@ -443,12 +448,16 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
             affected_nvrs = errata.get_binary_rpm_nvrs(errata_id)
 
         self.log_info(
-            "Going to find all the container images to rebuild as "
-            "result of %r update.", affected_nvrs)
+            "Going to find all the container images to rebuild as " "result of %r update.",
+            affected_nvrs,
+        )
         batches = pyxis.find_images_to_rebuild(
-            affected_nvrs, content_sets,
+            affected_nvrs,
+            content_sets,
             filter_fnc=self._filter_out_not_allowed_builds,
-            published=published, release_categories=release_categories,
+            published=published,
+            release_categories=release_categories,
             leaf_container_images=leaf_container_images,
-            skip_nvrs=skip_nvrs)
+            skip_nvrs=skip_nvrs,
+        )
         return batches

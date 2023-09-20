@@ -26,7 +26,10 @@ from requests.exceptions import HTTPError
 
 from freshmaker.errata import Errata, ErrataAdvisory
 from freshmaker.events import (
-    BrewSignRPMEvent, GitRPMSpecChangeEvent, ErrataAdvisoryStateChangedEvent)
+    BrewSignRPMEvent,
+    GitRPMSpecChangeEvent,
+    ErrataAdvisoryStateChangedEvent,
+)
 from tests import helpers
 
 
@@ -34,41 +37,44 @@ class MockedErrataAPI(object):
     """
     Class mocking methods accessing Errata API in Errata class.
     """
+
     def __init__(self, errata_rest_get, errata_http_get=None):
-        errata_rest_get.side_effect = (self.errata_rest_get)
+        errata_rest_get.side_effect = self.errata_rest_get
         if errata_http_get:
             errata_http_get.side_effect = self.errata_http_get
 
         self.builds_json = {
             "PRODUCT1": [
                 {
-                    "libntirpc-1.4.3-4.el6rhs":
-                    {
-                        "PRODUCT1-3.2-NFS":
-                            {"x86_64": ["libntirpc-devel-1.4.3-4.el6rhs.x86_64.rpm"],
-                             "SRPMS": ["libntirpc-1.4.3-4.el6rhs.src.rpm"]}
+                    "libntirpc-1.4.3-4.el6rhs": {
+                        "PRODUCT1-3.2-NFS": {
+                            "x86_64": ["libntirpc-devel-1.4.3-4.el6rhs.x86_64.rpm"],
+                            "SRPMS": ["libntirpc-1.4.3-4.el6rhs.src.rpm"],
+                        }
                     }
                 }
             ],
             "PRODUCT2": [
                 {
-                    "libntirpc-1.4.3-4.el7rhgs":
-                    {
-                        "PRODUCT2-3.2-NFS":
-                            {"x86_64": ["libntirpc-devel-1.4.3-4.el7rhgs.x86_64.rpm"],
-                             "SRPMS": ["libntirpc-1.4.3-4.el7rhgs.src.rpm"]}
+                    "libntirpc-1.4.3-4.el7rhgs": {
+                        "PRODUCT2-3.2-NFS": {
+                            "x86_64": ["libntirpc-devel-1.4.3-4.el7rhgs.x86_64.rpm"],
+                            "SRPMS": ["libntirpc-1.4.3-4.el7rhgs.src.rpm"],
+                        }
                     }
                 }
-            ]
+            ],
         }
 
         self.builds = {}
         self.builds["libntirpc-1.4.3-4.el6rhs"] = {
             "all_errata": [{"id": 28484, "name": "RHSA-2017:28484", "status": "QE"}],
-            "rpms_signed": True}
+            "rpms_signed": True,
+        }
         self.builds["libntirpc-1.4.3-4.el7rhgs"] = {
             "all_errata": [{"id": 28484, "name": "RHSA-2017:28484", "status": "QE"}],
-            "rpms_signed": True}
+            "rpms_signed": True,
+        }
 
         self.advisory_json = {
             "id": 28484,
@@ -80,9 +86,7 @@ class MockedErrataAPI(object):
                 "id": 89,
                 "short_name": "product",
             },
-            "people": {
-                "reporter": "botas/dev-jenkins.some.strange.letters.redhat.com@REDHAT.COM"
-            },
+            "people": {"reporter": "botas/dev-jenkins.some.strange.letters.redhat.com@REDHAT.COM"},
         }
 
         self.advisory_rest_json = {
@@ -100,7 +104,7 @@ class MockedErrataAPI(object):
                 "content": {
                     "cve": "CVE-2015-3253 CVE-2016-6814",
                 }
-            }
+            },
         }
 
         self.bugs = [
@@ -148,29 +152,17 @@ class MockedErrataAPI(object):
                                 "is_module": False,
                                 "variant_arch": {
                                     "PRODUCT1": {
-                                        "x86_64": [
-                                            "libntirpc-1.4.3-4.el6rhs.x86_64.rpm"
-                                        ],
-                                        "ppc64le": [
-                                            "libntirpc-1.4.3-4.el6rhs.ppc64le.rpm"
-                                        ],
+                                        "x86_64": ["libntirpc-1.4.3-4.el6rhs.x86_64.rpm"],
+                                        "ppc64le": ["libntirpc-1.4.3-4.el6rhs.ppc64le.rpm"],
                                         "s390x": ["libntirpc-1.4.3-4.el6rhs.s390x.rpm"],
-                                        "aarch64": [
-                                            "libntirpc-1.4.3-4.el6rhs.aarch64.rpm"
-                                        ],
+                                        "aarch64": ["libntirpc-1.4.3-4.el6rhs.aarch64.rpm"],
                                         "SRPMS": ["libntirpc-1.4.3-4.el6rhs.src.rpm"],
                                     },
                                     "PRODUCT2": {
-                                        "x86_64": [
-                                            "libntirpc-1.4.3-4.el6rhs.x86_64.rpm"
-                                        ],
-                                        "ppc64le": [
-                                            "libntirpc-1.4.3-4.el6rhs.ppc64le.rpm"
-                                        ],
+                                        "x86_64": ["libntirpc-1.4.3-4.el6rhs.x86_64.rpm"],
+                                        "ppc64le": ["libntirpc-1.4.3-4.el6rhs.ppc64le.rpm"],
                                         "s390x": ["libntirpc-1.4.3-4.el6rhs.s390x.rpm"],
-                                        "aarch64": [
-                                            "libntirpc-1.4.3-4.el6rhs.aarch64.rpm"
-                                        ],
+                                        "aarch64": ["libntirpc-1.4.3-4.el6rhs.aarch64.rpm"],
                                         "SRPMS": ["libntirpc-1.4.3-4.el6rhs.src.rpm"],
                                     },
                                 },
@@ -192,25 +184,19 @@ class MockedErrataAPI(object):
                             "nevr": "pkg1-0:4.18.0-305.10.2.rt7.83.el8_4",
                             "id": 1000,
                             "is_module": False,
-                            "is_signed": True
+                            "is_signed": True,
                         },
                         "pkg2-4.18.0-305.10.2.rt7.83.el8_4": {
                             "nvr": "pkg2-4.18.0-305.10.2.rt7.83.el8_4",
                             "nevr": "pkg2-0:4.18.0-305.10.2.rt7.83.el8_4",
                             "id": 1001,
                             "is_module": False,
-                            "is_signed": True
-                        }
+                            "is_signed": True,
+                        },
                     }
                 ],
-                "sig_key": {
-                    "name": "releasekey",
-                    "keyid": "abcdef01"
-                },
-                "container_sig_key": {
-                    "name": "releasekey",
-                    "keyid": "abcdef01"
-                }
+                "sig_key": {"name": "releasekey", "keyid": "abcdef01"},
+                "container_sig_key": {"name": "releasekey", "keyid": "abcdef01"},
             }
         }
 
@@ -268,14 +254,12 @@ class TestErrata(helpers.FreshmakerTestCase):
         self.assertEqual(advisories[0].content_types, ["rpm"])
         self.assertEqual(advisories[0].security_impact, "important")
         self.assertEqual(advisories[0].product_short_name, "product")
-        self.assertEqual(advisories[0].cve_list,
-                         ["CVE-2015-3253", "CVE-2016-6814"])
+        self.assertEqual(advisories[0].cve_list, ["CVE-2015-3253", "CVE-2016-6814"])
         self.assertEqual(advisories[0].has_hightouch_bug, True)
 
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
-    def test_advisories_from_event_empty_cve(
-            self, errata_http_get, errata_rest_get):
+    def test_advisories_from_event_empty_cve(self, errata_http_get, errata_rest_get):
         mocked_errata = MockedErrataAPI(errata_rest_get, errata_http_get)
         mocked_errata.advisory_rest_json["content"]["content"]["cve"] = ""
         event = BrewSignRPMEvent("msgid", "libntirpc-1.4.3-4.el7rhgs")
@@ -285,8 +269,7 @@ class TestErrata(helpers.FreshmakerTestCase):
 
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
-    def test_advisories_from_event_no_bugs(
-            self, errata_http_get, errata_rest_get):
+    def test_advisories_from_event_no_bugs(self, errata_http_get, errata_rest_get):
         mocked_errata = MockedErrataAPI(errata_rest_get, errata_http_get)
         mocked_errata.bugs = []
         event = BrewSignRPMEvent("msgid", "libntirpc-1.4.3-4.el7rhgs")
@@ -296,8 +279,7 @@ class TestErrata(helpers.FreshmakerTestCase):
 
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
-    def test_advisories_from_event_empty_bug_flags(
-            self, errata_http_get, errata_rest_get):
+    def test_advisories_from_event_empty_bug_flags(self, errata_http_get, errata_rest_get):
         mocked_errata = MockedErrataAPI(errata_rest_get, errata_http_get)
         for bug in mocked_errata.bugs:
             bug["flags"] = ""
@@ -324,10 +306,12 @@ class TestErrata(helpers.FreshmakerTestCase):
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
     def test_advisories_from_event_errata_state_change_event(
-            self, errata_http_get, errata_rest_get):
+        self, errata_http_get, errata_rest_get
+    ):
         MockedErrataAPI(errata_rest_get, errata_http_get)
         event = ErrataAdvisoryStateChangedEvent(
-            "msgid", ErrataAdvisory(28484, "name", "SHIPPED_LIVE", ['rpm']))
+            "msgid", ErrataAdvisory(28484, "name", "SHIPPED_LIVE", ["rpm"])
+        )
         advisories = self.errata.advisories_from_event(event)
         self.assertEqual(len(advisories), 1)
         self.assertEqual(advisories[0].errata_id, 28484)
@@ -354,77 +338,77 @@ class TestErrata(helpers.FreshmakerTestCase):
         builds["pkg1-4.18.0-305.10.2.rt7.83.el8_4"] = {}
         self.assertFalse(self.errata.builds_signed(28484))
 
-    @patch('freshmaker.errata.requests.get')
+    @patch("freshmaker.errata.requests.get")
     def test_get_errata_repo_ids(self, get):
         get.return_value.json.return_value = {
-            'rhel-6-server-eus-source-rpms__6_DOT_7__x86_64': [
+            "rhel-6-server-eus-source-rpms__6_DOT_7__x86_64": [],
+            "rhel-6-server-eus-optional-debug-rpms__6_DOT_7__i386": [
+                "/path/to/package.rpm",
+                "/path/to/package1.rpm",
+                "/path/to/package2.rpm",
             ],
-            'rhel-6-server-eus-optional-debug-rpms__6_DOT_7__i386': [
-                '/path/to/package.rpm',
-                '/path/to/package1.rpm',
-                '/path/to/package2.rpm',
-            ],
-            'rhel-6-server-eus-rpms__6_DOT_7__x86_64': [
-            ],
+            "rhel-6-server-eus-rpms__6_DOT_7__x86_64": [],
         }
 
         repo_ids = self.errata.get_pulp_repository_ids(25718)
 
-        self.assertEqual(set(['rhel-6-server-eus-source-rpms__6_DOT_7__x86_64',
-                              'rhel-6-server-eus-optional-debug-rpms__6_DOT_7__i386',
-                              'rhel-6-server-eus-rpms__6_DOT_7__x86_64']),
-                         set(repo_ids))
+        self.assertEqual(
+            set(
+                [
+                    "rhel-6-server-eus-source-rpms__6_DOT_7__x86_64",
+                    "rhel-6-server-eus-optional-debug-rpms__6_DOT_7__i386",
+                    "rhel-6-server-eus-rpms__6_DOT_7__x86_64",
+                ]
+            ),
+            set(repo_ids),
+        )
 
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
-    def test_rhel_release_from_product_version(
-            self, errata_http_get, errata_rest_get):
+    def test_rhel_release_from_product_version(self, errata_http_get, errata_rest_get):
         MockedErrataAPI(errata_rest_get, errata_http_get)
-        ret = self.errata._rhel_release_from_product_version(
-            28484, "PRODUCT1-3.2-NFS")
+        ret = self.errata._rhel_release_from_product_version(28484, "PRODUCT1-3.2-NFS")
         self.assertEqual(ret, "RHEL-6-foobar")
 
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
     def test_rhel_release_from_product_version_unknown_product_ver(
-            self, errata_http_get, errata_rest_get):
+        self, errata_http_get, errata_rest_get
+    ):
         MockedErrataAPI(errata_rest_get, errata_http_get)
         with self.assertRaises(ValueError):
-            self.errata._rhel_release_from_product_version(
-                28484, "PRODUCT1-2.9-NFS")
+            self.errata._rhel_release_from_product_version(28484, "PRODUCT1-2.9-NFS")
 
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
-    def test_get_nvrs(
-            self, errata_http_get, errata_rest_get):
+    def test_get_nvrs(self, errata_http_get, errata_rest_get):
         MockedErrataAPI(errata_rest_get, errata_http_get)
         srpms = self.errata.get_srpm_nvrs(28484, "")
         binary_rpms = self.errata.get_binary_rpm_nvrs(28484)
-        self.assertEqual(set(srpms), set(['libntirpc-1.4.3-4.el7rhgs',
-                                          'libntirpc-1.4.3-4.el6rhs']))
-        self.assertEqual(set(binary_rpms), set(['libntirpc-devel-1.4.3-4.el6rhs',
-                                                'libntirpc-devel-1.4.3-4.el7rhgs']))
+        self.assertEqual(set(srpms), set(["libntirpc-1.4.3-4.el7rhgs", "libntirpc-1.4.3-4.el6rhs"]))
+        self.assertEqual(
+            set(binary_rpms),
+            set(["libntirpc-devel-1.4.3-4.el6rhs", "libntirpc-devel-1.4.3-4.el7rhgs"]),
+        )
 
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
-    def test_get_binary_rpms_rhel_7(
-            self, errata_http_get, errata_rest_get):
+    def test_get_binary_rpms_rhel_7(self, errata_http_get, errata_rest_get):
         MockedErrataAPI(errata_rest_get, errata_http_get)
         ret = self.errata.get_binary_rpm_nvrs(28484, "RHEL-7")
-        self.assertEqual(ret, ['libntirpc-devel-1.4.3-4.el7rhgs'])
+        self.assertEqual(ret, ["libntirpc-devel-1.4.3-4.el7rhgs"])
 
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
-    def test_get_srpm_nvrs_empty(
-            self, errata_http_get, errata_rest_get):
+    def test_get_srpm_nvrs_empty(self, errata_http_get, errata_rest_get):
         api = MockedErrataAPI(errata_rest_get, errata_http_get)
         api.builds_json = {
             "PRODUCT1": [
                 {
-                    "libntirpc-1.4.3-4.el7rhgs":
-                    {
-                        "PRODUCT2-3.2-NFS":
-                            {"x86_64": ["libntirpc-devel-1.4.3-4.el7rhgs.x86_64.rpm"]}
+                    "libntirpc-1.4.3-4.el7rhgs": {
+                        "PRODUCT2-3.2-NFS": {
+                            "x86_64": ["libntirpc-devel-1.4.3-4.el7rhgs.x86_64.rpm"]
+                        }
                     }
                 }
             ]
@@ -434,18 +418,16 @@ class TestErrata(helpers.FreshmakerTestCase):
 
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
-    def test_get_binary_nvrs_empty(
-            self, errata_http_get, errata_rest_get):
+    def test_get_binary_nvrs_empty(self, errata_http_get, errata_rest_get):
         api = MockedErrataAPI(errata_rest_get, errata_http_get)
         api.builds_json = {
             "PRODUCT1": [
                 {
-                    "libntirpc-1.4.3-4.el7rhgs":
-                        {
-                            "PRODUCT2-3.2-NFS":
-                                {"SRPMS": [
-                                    "libntirpc-devel-1.4.3-4.el7rhgs.x86_64.rpm"]}
+                    "libntirpc-1.4.3-4.el7rhgs": {
+                        "PRODUCT2-3.2-NFS": {
+                            "SRPMS": ["libntirpc-devel-1.4.3-4.el7rhgs.x86_64.rpm"]
                         }
+                    }
                 }
             ]
         }
@@ -454,16 +436,17 @@ class TestErrata(helpers.FreshmakerTestCase):
 
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
-    def test_get_attached_build_nvrs(
-            self, errata_http_get, errata_rest_get):
+    def test_get_attached_build_nvrs(self, errata_http_get, errata_rest_get):
         api = MockedErrataAPI(errata_rest_get, errata_http_get)
         api.builds_json = {
             "PRODUCT1": [
                 {
-                    "libreoffice-flatpak-8050020220215203934.84f422e1":
-                    {
-                        "Hidden-PRODUCT2":
-                            {"x86_64": ["libfontenc-1.1.3-8.module+el8.5.0+12446+59af0ebd.x86_64.rpm"]}
+                    "libreoffice-flatpak-8050020220215203934.84f422e1": {
+                        "Hidden-PRODUCT2": {
+                            "x86_64": [
+                                "libfontenc-1.1.3-8.module+el8.5.0+12446+59af0ebd.x86_64.rpm"
+                            ]
+                        }
                     }
                 }
             ]
@@ -476,13 +459,12 @@ class TestErrata(helpers.FreshmakerTestCase):
     def test_errata_get_cve_affected_rpm_nvrs(self, errata_http_get, errata_rest_get):
         MockedErrataAPI(errata_rest_get, errata_http_get)
         ret = self.errata.get_cve_affected_rpm_nvrs(28484)
-        self.assertEqual(ret, ['libntirpc-1.4.3-4.el6rhs'])
+        self.assertEqual(ret, ["libntirpc-1.4.3-4.el6rhs"])
 
     @patch.object(Errata, "_get_attached_builds")
     @patch.object(Errata, "_get_blocking_advisories")
     def test_get_blocking_advisories_builds(self, get_blocks, get_builds):
-        get_builds.return_value = {"product3": [{"nvr1": "some_info"},
-                                                {"nvr2": "some_info"}]}
+        get_builds.return_value = {"product3": [{"nvr1": "some_info"}, {"nvr2": "some_info"}]}
         get_blocks.side_effect = [["28484"], []]
 
         builds = self.errata.get_blocking_advisories_builds("123")
@@ -492,16 +474,15 @@ class TestErrata(helpers.FreshmakerTestCase):
 
     @patch.object(Errata, "_get_attached_builds")
     @patch.object(Errata, "_get_blocking_advisories")
-    def test_get_recursive_blocking_advisories_builds(self, get_blocks,
-                                                      get_builds):
+    def test_get_recursive_blocking_advisories_builds(self, get_blocks, get_builds):
         get_blocks.side_effect = [["12:34"], ["56:78"], []]
-        get_builds.side_effect = [{"product1": [{"nvr1": "some_info",
-                                                 "nvr2": "some_info"}],
-                                  "product2": [{"nvr3": "some_info",
-                                                "nvr4": "some_info"}]
-                                   },
-                                  {"product3": [{"nvr5": "some_info"}]}
-                                  ]
+        get_builds.side_effect = [
+            {
+                "product1": [{"nvr1": "some_info", "nvr2": "some_info"}],
+                "product2": [{"nvr3": "some_info", "nvr4": "some_info"}],
+            },
+            {"product3": [{"nvr5": "some_info"}]},
+        ]
 
         builds = self.errata.get_blocking_advisories_builds("123")
 
@@ -514,8 +495,7 @@ class TestErrataAuthorizedGet(helpers.FreshmakerTestCase):
         super(TestErrataAuthorizedGet, self).setUp()
         self.errata = Errata("https://localhost/")
 
-        self.patcher = helpers.Patcher(
-            'freshmaker.errata.')
+        self.patcher = helpers.Patcher("freshmaker.errata.")
         self.requests_get = self.patcher.patch("requests.get")
         self.response = MagicMock()
         self.response.json.return_value = {"foo": "bar"}
@@ -545,7 +525,8 @@ class TestErrataAuthorizedGet(helpers.FreshmakerTestCase):
         error_response = MagicMock()
         error_response.status_code = 401
         error_response.raise_for_status.side_effect = HTTPError(
-            "Expected exception", response=error_response)
+            "Expected exception", response=error_response
+        )
         self.requests_get.side_effect = [error_response, self.response]
 
         data = self.errata._errata_authorized_get("http://localhost/test")

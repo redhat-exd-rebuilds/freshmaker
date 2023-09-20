@@ -52,10 +52,7 @@ class Forbidden(ValueError):
 
 
 def json_error(status, error, message):
-    response = jsonify(
-        {'status': status,
-         'error': error,
-         'message': message})
+    response = jsonify({"status": status, "error": error, "message": message})
     response.status_code = status
     return response
 
@@ -63,30 +60,30 @@ def json_error(status, error, message):
 @app.errorhandler(NotFound)
 def notfound_error(e):
     """Flask error handler for NotFound exceptions"""
-    return json_error(404, 'Not Found', e.args[0])
+    return json_error(404, "Not Found", e.args[0])
 
 
 @app.errorhandler(Unauthorized)
 def unauthorized_error(e):
     """Flask error handler for Unauthorized exceptions"""
-    return json_error(401, 'Unauthorized', e.description)
+    return json_error(401, "Unauthorized", e.description)
 
 
 @app.errorhandler(Forbidden)
 def forbidden_error(e):
     """Flask error handler for Forbidden exceptions"""
-    return json_error(403, 'Forbidden', e.args[0])
+    return json_error(403, "Forbidden", e.args[0])
 
 
 @app.errorhandler(ValueError)
 def validationerror_error(e):
     """Flask error handler for ValueError exceptions"""
-    log.exception('Bad Request: %s', e)
-    return json_error(400, 'Bad Request', str(e))
+    log.exception("Bad Request: %s", e)
+    return json_error(400, "Bad Request", str(e))
 
 
 @app.errorhandler(Exception)
 def internal_server_error(e):
     """Flask error handler for RuntimeError exceptions"""
-    log.exception('Internal server error: %s', e)
-    return json_error(500, 'Internal Server Error', str(e))
+    log.exception("Internal server error: %s", e)
+    return json_error(500, "Internal Server Error", str(e))

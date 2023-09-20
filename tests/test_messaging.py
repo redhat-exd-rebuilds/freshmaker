@@ -37,7 +37,7 @@ except ImportError:
 
 
 class BaseMessagingTest(helpers.FreshmakerTestCase):
-    """ Base class for messaging related tests """
+    """Base class for messaging related tests"""
 
     def setUp(self):
         super(BaseMessagingTest, self).setUp()
@@ -51,106 +51,95 @@ class BaseMessagingTest(helpers.FreshmakerTestCase):
 class TestSelectMessagingBackend(BaseMessagingTest):
     """Test messaging backend is selected correctly in publish method"""
 
-    @patch('freshmaker.messaging._fedmsg_publish')
-    @patch('freshmaker.messaging._rhmsg_publish')
-    @patch('freshmaker.messaging._in_memory_publish')
-    def test_select_backend(
-            self, _in_memory_publish, _rhmsg_publish, _fedmsg_publish):
-        fake_msg = {'build': 'n-v-r'}
+    @patch("freshmaker.messaging._fedmsg_publish")
+    @patch("freshmaker.messaging._rhmsg_publish")
+    @patch("freshmaker.messaging._in_memory_publish")
+    def test_select_backend(self, _in_memory_publish, _rhmsg_publish, _fedmsg_publish):
+        fake_msg = {"build": "n-v-r"}
 
         mock_messaging_backends = {
-            'fedmsg': {'publish': _fedmsg_publish},
-            'rhmsg': {'publish': _rhmsg_publish},
-            'in_memory': {'publish': _in_memory_publish},
+            "fedmsg": {"publish": _fedmsg_publish},
+            "rhmsg": {"publish": _rhmsg_publish},
+            "in_memory": {"publish": _in_memory_publish},
         }
-        with patch.dict('freshmaker.messaging._messaging_backends',
-                        mock_messaging_backends):
-            with patch.object(conf, 'messaging_sender', new='fedmsg'):
-                publish('images.ready', fake_msg)
-                _fedmsg_publish.assert_called_once_with(
-                    'images.ready', fake_msg)
+        with patch.dict("freshmaker.messaging._messaging_backends", mock_messaging_backends):
+            with patch.object(conf, "messaging_sender", new="fedmsg"):
+                publish("images.ready", fake_msg)
+                _fedmsg_publish.assert_called_once_with("images.ready", fake_msg)
 
-            with patch.object(conf, 'messaging_sender', new='rhmsg'):
-                publish('images.ready', fake_msg)
-                _rhmsg_publish.assert_called_once_with(
-                    'images.ready', fake_msg)
+            with patch.object(conf, "messaging_sender", new="rhmsg"):
+                publish("images.ready", fake_msg)
+                _rhmsg_publish.assert_called_once_with("images.ready", fake_msg)
 
-            with patch.object(conf, 'messaging_sender', new='in_memory'):
-                publish('images.ready', fake_msg)
-                _in_memory_publish.assert_called_once_with(
-                    'images.ready', fake_msg)
+            with patch.object(conf, "messaging_sender", new="in_memory"):
+                publish("images.ready", fake_msg)
+                _in_memory_publish.assert_called_once_with("images.ready", fake_msg)
 
     def test_raise_error_if_backend_not_exists(self):
-        messaging_patcher = patch.object(conf, 'messaging_sender', new='XXXX')
-        self.assertRaisesRegex(
-            ValueError, 'Unsupported messaging system',
-            messaging_patcher.start)
+        messaging_patcher = patch.object(conf, "messaging_sender", new="XXXX")
+        self.assertRaisesRegex(ValueError, "Unsupported messaging system", messaging_patcher.start)
 
 
 class TestPublishToFedmsg(BaseMessagingTest):
     """Test publish message to fedmsg using _fedmsg_publish backend"""
 
-    @patch.object(conf, 'messaging_sender', new='fedmsg')
-    @patch.object(conf, 'messaging_backends',
-                  new={'fedmsg': {'SERVICE': 'freshmaker'}})
-    @patch('fedmsg.publish')
+    @patch.object(conf, "messaging_sender", new="fedmsg")
+    @patch.object(conf, "messaging_backends", new={"fedmsg": {"SERVICE": "freshmaker"}})
+    @patch("fedmsg.publish")
     def test_publish(self, fedmsg_publish):
         fake_msg = {}
-        publish('images.ready', fake_msg)
+        publish("images.ready", fake_msg)
 
-        fedmsg_publish.assert_called_once_with(
-            'images.ready', msg=fake_msg, modname='freshmaker')
+        fedmsg_publish.assert_called_once_with("images.ready", msg=fake_msg, modname="freshmaker")
 
 
-@unittest.skipUnless(rhmsg, 'rhmsg is not available in Fedora yet.')
+@unittest.skipUnless(rhmsg, "rhmsg is not available in Fedora yet.")
 class TestPublishToRhmsg(BaseMessagingTest):
     """Test publish message to UMB using _rhmsg_publish backend"""
 
-    @patch.object(conf, 'messaging_sender', new='rhmsg')
-    @patch('rhmsg.activemq.producer.AMQProducer')
-    @patch('proton.Message')
+    @patch.object(conf, "messaging_sender", new="rhmsg")
+    @patch("rhmsg.activemq.producer.AMQProducer")
+    @patch("proton.Message")
     def test_publish(self, Message, AMQProducer):
         fake_msg = {}
         rhmsg_config = {
-            'rhmsg': {
-                'BROKER_URLS': ['amqps://localhost:5671'],
-                'CERT_FILE': '/path/to/cert',
-                'KEY_FILE': '/path/to/key',
-                'CA_CERT': '/path/to/ca-cert',
-                'TOPIC_PREFIX': 'VirtualTopic.eng.freshmaker',
+            "rhmsg": {
+                "BROKER_URLS": ["amqps://localhost:5671"],
+                "CERT_FILE": "/path/to/cert",
+                "KEY_FILE": "/path/to/key",
+                "CA_CERT": "/path/to/ca-cert",
+                "TOPIC_PREFIX": "VirtualTopic.eng.freshmaker",
             }
         }
-        with patch.object(conf, 'messaging_backends', new=rhmsg_config):
-            publish('images.ready', fake_msg)
+        with patch.object(conf, "messaging_backends", new=rhmsg_config):
+            publish("images.ready", fake_msg)
 
-        AMQProducer.assert_called_with(**{
-            'urls': ['amqps://localhost:5671'],
-            'certificate': '/path/to/cert',
-            'private_key': '/path/to/key',
-            'trusted_certificates': '/path/to/ca-cert',
-        })
+        AMQProducer.assert_called_with(
+            **{
+                "urls": ["amqps://localhost:5671"],
+                "certificate": "/path/to/cert",
+                "private_key": "/path/to/key",
+                "trusted_certificates": "/path/to/ca-cert",
+            }
+        )
         producer = AMQProducer.return_value.__enter__.return_value
-        producer.through_topic.assert_called_once_with(
-            'VirtualTopic.eng.freshmaker.images.ready')
-        producer.send.assert_called_once_with(
-            Message.return_value)
+        producer.through_topic.assert_called_once_with("VirtualTopic.eng.freshmaker.images.ready")
+        producer.send.assert_called_once_with(Message.return_value)
 
 
 class TestInMemoryPublish(BaseMessagingTest):
     """Test publish message in memory using _in_memory_publish backend"""
 
-    @patch('freshmaker.consumer.work_queue_put')
-    @patch('freshmaker.events.BaseEvent.from_fedmsg')
+    @patch("freshmaker.consumer.work_queue_put")
+    @patch("freshmaker.events.BaseEvent.from_fedmsg")
     def test_publish(self, from_fedmsg, work_queue_put):
         fake_msg = {}
-        in_memory_config = {
-            'in_memory': {'SERVICE': 'freshmaker'}
-        }
+        in_memory_config = {"in_memory": {"SERVICE": "freshmaker"}}
 
-        with patch.object(conf, 'messaging_backends', new=in_memory_config):
-            publish('images.ready', fake_msg)
+        with patch.object(conf, "messaging_backends", new=in_memory_config):
+            publish("images.ready", fake_msg)
 
         from_fedmsg.assert_called_once_with(
-            'freshmaker.images.ready',
-            {'msg_id': '1', 'msg': fake_msg})
+            "freshmaker.images.ready", {"msg_id": "1", "msg": fake_msg}
+        )
         work_queue_put.assert_called_once_with(from_fedmsg.return_value)
