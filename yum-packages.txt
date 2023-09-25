@@ -16,7 +16,6 @@ python3-kerberos
 python3-kobo
 python3-kobo-rpmlib
 python3-koji
-python3-krbcontext
 python3-ldap
 python3-libmodulemd
 python3-mock
