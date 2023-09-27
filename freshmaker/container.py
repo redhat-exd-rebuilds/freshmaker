@@ -22,7 +22,6 @@
 import kobo.rpmlib
 import re
 
-from dataclasses import dataclass, field, fields
 from typing import Any, Optional, Union
 
 from freshmaker import conf, log
@@ -37,88 +36,86 @@ class ExtraRepoNotConfiguredError(ValueError):
     pass
 
 
-@dataclass
 class Container:
-    # Image NVR
-    nvr: str
+    def __new__(cls, *args, **kwargs):
+        raise TypeError(
+            f"Instances of {cls.__name__} should not be created using __init__. "
+            f"Use {cls.__name__}.create_from_images instead."
+        )
 
-    parsed_data: dict = field(repr=False, default_factory=dict)
-    repositories: list[dict[str, Any]] = field(repr=False, default_factory=list)
-    parent_brew_build: Optional[str] = field(repr=False, default=None)
-    published: Optional[bool] = field(repr=False, default=None)
+    def __init__(self, nvr: str):
+        # Avoid direct instantiation with `Container(nvr)`, use create_from_images method instead
+        self.nvr = nvr
+        self.package = None
 
-    # Content sets by architechure
-    content_sets_by_arch: dict[str, list[str]] = field(repr=False, default_factory=dict)
-    # Installed rpms without architechure info
-    rpms: Optional[list[dict[str, Any]]] = field(repr=False, default=None)
+        self.parent_brew_build: Optional[str] = None
+        self.published: Optional[bool] = None
+
+        # Per-arch data
+        self.content_sets_by_arch: dict[str, list[str]] = {}
+        self.rpms_by_arch: dict[str, list[dict]] = {}
+
+        self.parsed_data: Optional[dict[str, Any]] = None
+        self.repositories: Optional[list[dict[str, Any]]] = None
+
+        # Store build related metadata from Brew
+        self.build_metadata: Optional[dict[str, Any]] = None
+
+        # Store ODCS composes
+        self.compose_sources: Optional[list[str]] = None
 
     @classmethod
-    def load(cls, data: dict[str, Any]):
-        """Load container data from given image data"""
-        container = cls(data["brew"]["build"])
+    def create_from_images(cls, images: list[dict[str, Any]]):
+        """Create an instance with the provided list of images"""
+        nvrs = {x["brew"]["build"] for x in images}
+        if len(nvrs) > 1:
+            raise RuntimeError(
+                "Images associated with a container should share the same build NVR. "
+                f"The following NVRs are found: {', '.join(nvrs)}."
+            )
 
-        exclude_fields = ["nvr", "content_sets_by_arch", "rpms"]
-        defined_fields = set(f.name for f in fields(cls) if f.name not in exclude_fields)
+        nvr = nvrs.pop()
+        container = super().__new__(cls)
+        container.__init__(nvr)  # type: ignore
 
-        container.content_sets_by_arch[data["architecture"]] = data["content_sets"]
-        rpms = data.get("edges", {}).get("rpm_manifest", {}).get("data", {}).get("rpms", None)
-        if isinstance(rpms, list):
-            container.rpms = []
-            # We don't care about rpm architecture, just keep NVR
-            for rpm in rpms:
-                parsed_nvra = kobo.rpmlib.parse_nvra(rpm["nvra"])
-                nvr = "-".join(
-                    [parsed_nvra["name"], parsed_nvra["version"], parsed_nvra["release"]]
-                )
-                parsed_nvra = kobo.rpmlib.parse_nvra(rpm["srpm_nevra"])
-                srpm_nvr = "-".join(
-                    [parsed_nvra["name"], parsed_nvra["version"], parsed_nvra["release"]]
-                )
-                container.rpms.append(
-                    {
-                        "name": rpm["name"],
-                        "nvr": nvr,
-                        "srpm_name": rpm["srpm_name"],
-                        "srpm_nvr": srpm_nvr,
-                    }
-                )
+        # Get the following data from the first image, they're same for all arches
+        container.package = images[0]["brew"]["package"]
+        container.parent_brew_build = images[0]["parent_brew_build"]
+        container.repositories = images[0]["repositories"]
 
-        for name, value in data.items():
-            if name not in defined_fields:
-                # Silently ignore unknown fields
-                continue
-            setattr(container, name, value)
+        # The `parsed_data` can contain arch-specific data, but what we'll consume later is
+        # not arch-specific
+        container.parsed_data = images[0]["parsed_data"]
+
+        container.published = any(
+            any(repo["published"] for repo in img["repositories"]) for img in images
+        )
+
+        # Store per-arch data for content_sets and rpms
+        for image in images:
+            arch = image["architecture"]
+            container.content_sets_by_arch[arch] = image["content_sets"]
+
+            rpms = image.get("edges", {}).get("rpm_manifest", {}).get("data", {}).get("rpms", None)
+            if isinstance(rpms, list):
+                container.rpms_by_arch[arch] = rpms
+
         return container
-
-    @staticmethod
-    def _convert_rpm(rpm):
-        """Convert rpm data to dict of rpm names and nvr"""
-        parsed_nvra = kobo.rpmlib.parse_nvra(rpm["nvra"])
-        nvr = "-".join([parsed_nvra["name"], parsed_nvra["version"], parsed_nvra["release"]])
-        parsed_nvra = kobo.rpmlib.parse_nvra(rpm["srpm_nevra"])
-        srpm_nvr = "-".join([parsed_nvra["name"], parsed_nvra["version"], parsed_nvra["release"]])
-        return {
-            "name": rpm["name"],
-            "nvr": nvr,
-            "srpm_name": rpm["srpm_name"],
-            "srpm_nvr": srpm_nvr,
-        }
 
     @property
     def arches(self) -> list[str]:
         """All supported architectures"""
         return list(self.content_sets_by_arch.keys())
 
-    def add_arch(self, data: dict[str, Any]) -> None:
-        """Update container data to add arch specific data for other arches.
+    @property
+    def rpms(self) -> list[dict]:
+        """RPMs for all architectures"""
+        if not self.rpms_by_arch:
+            return []
 
-        :param dict data: data for an arch specific image
-        """
-        if data["architecture"] not in self.arches:
-            self.content_sets_by_arch[data["architecture"]] = data["content_sets"]
-
-    def as_dict(self) -> dict[str, Any]:
-        return {field.name: getattr(self, field.name) for field in fields(self)}
+        all_rpms = [rpm for rpms in self.rpms_by_arch.values() for rpm in rpms]
+        unique_rpms = {tuple(dct.items()) for dct in all_rpms}
+        return [dict(rpm) for rpm in unique_rpms]
 
     def has_older_rpms(self, rpm_nvrs: list[str]) -> bool:
         """Check if container has any installed rpms is older than the provided NVRs
@@ -127,16 +124,20 @@ class Container:
         :return: True if container has older rpms installed than provided NVRs, otherwise False
         :rtype: bool
         """
-        if self.rpms is None:
+        if not self.rpms:
             return False
 
-        for rpm in self.rpms:
-            installed_nvr = kobo.rpmlib.parse_nvr(rpm["nvr"])
-            if any(
-                kobo.rpmlib.compare_nvr(installed_nvr, kobo.rpmlib.parse_nvr(nvr)) < 0
-                for nvr in rpm_nvrs
-            ):
-                return True
+        parsed_nvrs = [kobo.rpmlib.parse_nvr(nvr) for nvr in rpm_nvrs]
+
+        for installed_rpm in self.rpms:
+            parsed_installed_nvr = kobo.rpmlib.parse_nvra(installed_rpm["nvra"])
+
+            for parsed_nvr in parsed_nvrs:
+                if parsed_installed_nvr["name"] != parsed_nvr["name"]:
+                    continue
+                # If any installed rpm has lower NVR, return True
+                if kobo.rpmlib.compare_nvr(parsed_installed_nvr, parsed_nvr) < 0:
+                    return True
         return False
 
     def resolve_build_metadata(self, koji_session: KojiService) -> None:
@@ -145,6 +146,10 @@ class Container:
 
         :param KojiService koji_session: koji session to connect
         """
+        # This has been populated, skip.
+        if getattr(self, "build_metadata", None) is not None:
+            return
+
         self.build_metadata = {}
 
         build = koji_session.get_build(self.nvr)
@@ -160,14 +165,7 @@ class Container:
 
         fs_koji_task_id = build.get("extra", {}).get("filesystem_koji_task_id")
         if fs_koji_task_id:
-            parsed_nvr = kobo.rpmlib.parse_nvr(self.nvr)
-            name_version = f"{parsed_nvr['name']}-{parsed_nvr['version']}"
-            if name_version not in conf.image_extra_repo:
-                msg = (
-                    f"{name_version} is a base image, but extra image repo for it "
-                    "is not specified in the Freshmaker configuration."
-                )
-                raise ExtraRepoNotConfiguredError(msg)
+            self.build_metadata["filesystem_koji_task_id"] = fs_koji_task_id
 
         extra_image = build.get("extra", {}).get("image", {})
         # Get the list of ODCS composes used to build the image.
@@ -204,8 +202,8 @@ class Container:
                 # submitting those builds include this character in source URL
                 # to mark the query part of URL. We need to handle that by
                 # stripping that character.
-                container = m.group("container").rstrip("?")
-                self.build_metadata["repository"] = namespace + "/" + container
+                container_name = m.group("container").rstrip("?")
+                self.build_metadata["repository"] = namespace + "/" + container_name
 
                 # There might be tasks which have branch name in
                 # "origin/branch_name" format, so detect it set commit
@@ -224,9 +222,8 @@ class Container:
 
     def resolve_compose_sources(self):
         """Get source values of ODCS composes used in image build task"""
-        compose_sources = getattr(self, "compose_sources", None)
         # This has been populated, skip.
-        if compose_sources is not None:
+        if getattr(self, "compose_sources", None) is not None:
             return
 
         self.compose_sources = []
@@ -288,33 +285,10 @@ class Container:
             return
 
         log.warning(
-            "Container image %s does not have 'content_sets' set "
-            "in Pyxis as well as its children, this "
-            "is suspicious.",
+            "Container image %s does not have 'content_sets' set in Pyxis as well "
+            "as its children, this is suspicious.",
             self.nvr,
         )
-
-    def resolve_published(self, pyxis_instance: PyxisGQL):
-        # Get the published version of this image to find out if the image
-        # was actually published.
-        if self.published is not None:
-            return
-        images = pyxis_instance.find_images_by_nvr(self.nvr, include_rpms=False)
-        for image in images[:1]:
-            for repo in image["repositories"]:
-                if repo["published"] is True:
-                    self.published = True
-                    return
-
-        self.published = False
-        images = pyxis_instance.find_images_by_nvr(self.nvr)
-        if not self.rpms:
-            return
-        exist_rpms = [rpm["rpm_name"] for rpm in self.rpms]
-        for rpm in images[0]["edges"]["rpm_manifest"]["data"]["rpms"]:
-            new_rpm = self._convert_rpm(rpm)
-            if new_rpm["nvr"] not in exist_rpms:
-                self.rpms.append(new_rpm)
 
 
 class ContainerAPI:
@@ -395,13 +369,9 @@ class ContainerAPI:
 
         containers = []
         for nvr, images in images_by_nvr.items():
-            # Create a ContainerImage instance with the first architecture image data
-            image = Container.load(images[0])
-            # Update the instance to add data for other arches
-            for img in images[1:]:
-                image.add_arch(img)
-
-            containers.append(image)
+            # Create Container instance with the images data
+            container = Container.create_from_images(images)
+            containers.append(container)
 
         # Filter out images which don't have older rpms installed
         containers = list(filter(lambda x: x.has_older_rpms(rpm_nvrs), containers))

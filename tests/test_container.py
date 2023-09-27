@@ -67,7 +67,10 @@ def test_find_auto_rebuild_containers_with_older_rpms():
                 "data": [
                     {
                         "architecture": "amd64",
-                        "brew": {"build": "foobar-container-v0.13.0-12.1582340001"},
+                        "brew": {
+                            "build": "foobar-container-v0.13.0-12.1582340001",
+                            "package": "foobar-container",
+                        },
                         "content_sets": ["rhel-8-for-x86_64-baseos-rpms"],
                         "edges": {
                             "rpm_manifest": {
@@ -96,7 +99,10 @@ def test_find_auto_rebuild_containers_with_older_rpms():
                     },
                     {
                         "architecture": "arm64",
-                        "brew": {"build": "foobar-container-v0.13.0-12.1582340001"},
+                        "brew": {
+                            "build": "foobar-container-v0.13.0-12.1582340001",
+                            "package": "foobar-container",
+                        },
                         "content_sets": ["rhel-8-for-aarch64-baseos-rpms"],
                         "edges": {
                             "rpm_manifest": {
@@ -125,7 +131,10 @@ def test_find_auto_rebuild_containers_with_older_rpms():
                     },
                     {
                         "architecture": "arm64",
-                        "brew": {"build": "foobar-container-v0.12.2-5"},
+                        "brew": {
+                            "build": "foobar-container-v0.12.2-5",
+                            "package": "foobar-container",
+                        },
                         "content_sets": ["rhel-8-for-aarch64-baseos-rpms"],
                         "edges": {
                             "rpm_manifest": {
@@ -154,7 +163,10 @@ def test_find_auto_rebuild_containers_with_older_rpms():
                     },
                     {
                         "architecture": "amd64",
-                        "brew": {"build": "foobar-container-v0.12.2-5"},
+                        "brew": {
+                            "build": "foobar-container-v0.12.2-5",
+                            "package": "foobar-container",
+                        },
                         "content_sets": ["rhel-8-for-x86_64-baseos-rpms"],
                         "edges": {
                             "rpm_manifest": {
@@ -220,7 +232,10 @@ def test_resolve_image_build_metadata():
             "data": [
                 {
                     "architecture": "amd64",
-                    "brew": {"build": "foobar-container-v0.13.0-12.1582340001"},
+                    "brew": {
+                        "build": "foobar-container-v0.13.0-12.1582340001",
+                        "package": "foobar-container",
+                    },
                     "content_sets": ["rhel-8-for-x86_64-baseos-rpms"],
                     "edges": {
                         "rpm_manifest": {
@@ -249,7 +264,10 @@ def test_resolve_image_build_metadata():
                 },
                 {
                     "architecture": "arm64",
-                    "brew": {"build": "foobar-container-v0.13.0-12.1582340001"},
+                    "brew": {
+                        "build": "foobar-container-v0.13.0-12.1582340001",
+                        "package": "foobar-container",
+                    },
                     "content_sets": ["rhel-8-for-aarch64-baseos-rpms"],
                     "edges": {
                         "rpm_manifest": {
@@ -352,9 +370,7 @@ def test_resolve_image_build_metadata():
     pyxis_gql = PyxisGQL(url="graphql.pyxis.local", cert="/path/to/cert")
 
     images = pyxis_gql.find_images_by_nvr("foobar-container-v0.13.0-12.1582340001")
-    container = Container.load(images[0])
-    for img in images[1:]:
-        container.add_arch(img)
+    container = Container.create_from_images(images)
 
     koji_session = KojiService()
     container.resolve_build_metadata(koji_session)
@@ -384,7 +400,10 @@ def test_resolve_image_compose_sources():
             "data": [
                 {
                     "architecture": "amd64",
-                    "brew": {"build": "foobar-container-v0.13.0-12.1582340001"},
+                    "brew": {
+                        "build": "foobar-container-v0.13.0-12.1582340001",
+                        "package": "foobar-container",
+                    },
                     "content_sets": ["rhel-8-for-x86_64-baseos-rpms"],
                     "edges": {
                         "rpm_manifest": {
@@ -413,7 +432,10 @@ def test_resolve_image_compose_sources():
                 },
                 {
                     "architecture": "arm64",
-                    "brew": {"build": "foobar-container-v0.13.0-12.1582340001"},
+                    "brew": {
+                        "build": "foobar-container-v0.13.0-12.1582340001",
+                        "package": "foobar-container",
+                    },
                     "content_sets": ["rhel-8-for-aarch64-baseos-rpms"],
                     "edges": {
                         "rpm_manifest": {
@@ -534,9 +556,7 @@ def test_resolve_image_compose_sources():
     pyxis_gql = PyxisGQL(url="graphql.pyxis.local", cert="/path/to/cert")
 
     images = pyxis_gql.find_images_by_nvr("foobar-container-v0.13.0-12.1582340001")
-    container = Container.load(images[0])
-    for img in images[1:]:
-        container.add_arch(img)
+    container = Container.create_from_images(images)
 
     koji_session = KojiService()
     container.resolve_build_metadata(koji_session)
@@ -564,7 +584,10 @@ def test_resolve_content_sets():
             "data": [
                 {
                     "architecture": "amd64",
-                    "brew": {"build": "foobar-container-v0.13.0-12.1582340001"},
+                    "brew": {
+                        "build": "foobar-container-v0.13.0-12.1582340001",
+                        "package": "foobar-container",
+                    },
                     "content_sets": ["rhel-8-for-x86_64-baseos-rpms"],
                     "edges": {
                         "rpm_manifest": {
@@ -593,7 +616,10 @@ def test_resolve_content_sets():
                 },
                 {
                     "architecture": "arm64",
-                    "brew": {"build": "foobar-container-v0.13.0-12.1582340001"},
+                    "brew": {
+                        "build": "foobar-container-v0.13.0-12.1582340001",
+                        "package": "foobar-container",
+                    },
                     "content_sets": ["rhel-8-for-aarch64-baseos-rpms"],
                     "edges": {
                         "rpm_manifest": {
@@ -714,9 +740,7 @@ def test_resolve_content_sets():
     pyxis_gql = PyxisGQL(url="graphql.pyxis.local", cert="/path/to/cert")
 
     images = pyxis_gql.find_images_by_nvr("foobar-container-v0.13.0-12.1582340001")
-    container = Container.load(images[0])
-    for img in images[1:]:
-        container.add_arch(img)
+    container = Container.create_from_images(images)
 
     koji_session = KojiService()
     container.resolve_build_metadata(koji_session)
@@ -745,7 +769,10 @@ def test_resolve_published():
             "data": [
                 {
                     "architecture": "amd64",
-                    "brew": {"build": "foobar-container-v0.13.0-12.1582340001"},
+                    "brew": {
+                        "build": "foobar-container-v0.13.0-12.1582340001",
+                        "package": "foobar-container",
+                    },
                     "content_sets": ["rhel-8-for-x86_64-baseos-rpms"],
                     "edges": {
                         "rpm_manifest": {
@@ -774,7 +801,10 @@ def test_resolve_published():
                 },
                 {
                     "architecture": "arm64",
-                    "brew": {"build": "foobar-container-v0.13.0-12.1582340001"},
+                    "brew": {
+                        "build": "foobar-container-v0.13.0-12.1582340001",
+                        "package": "foobar-container",
+                    },
                     "content_sets": ["rhel-8-for-aarch64-baseos-rpms"],
                     "edges": {
                         "rpm_manifest": {
@@ -895,12 +925,9 @@ def test_resolve_published():
     pyxis_gql = PyxisGQL(url="graphql.pyxis.local", cert="/path/to/cert")
 
     images = pyxis_gql.find_images_by_nvr("foobar-container-v0.13.0-12.1582340001")
-    container = Container.load(images[0])
-    for img in images[1:]:
-        container.add_arch(img)
+    container = Container.create_from_images(images)
 
     koji_session = KojiService()
     container.resolve_build_metadata(koji_session)
     container.resolve_compose_sources()
-    container.resolve_published(pyxis_gql)
     assert container.published is True
