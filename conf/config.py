@@ -2,7 +2,7 @@
 
 import os
 import tempfile
-from typing import Optional, Tuple, Union  # noqa
+from typing import Any, Optional, Tuple, Union  # noqa
 
 from freshmaker.config import all_, any_  # noqa
 
@@ -257,7 +257,7 @@ class TestConfiguration(BaseConfiguration):
     AUTH_LDAP_USER_BASE = "ou=users,dc=example,dc=com"
     MAX_THREAD_WORKERS = 1
 
-    HANDLER_BUILD_ALLOWLIST = {}
+    HANDLER_BUILD_ALLOWLIST: dict[str, Any] = {}
 
     KRB_AUTH_CCACHE_FILE = "freshmaker_cc_$pid_$tid"
     ERRATA_TOOL_SERVER_URL = "http://localhost/"  # fake URL just for tests.
