@@ -63,12 +63,14 @@ class ErrataAdvisoryStateChangedParser(BaseParser):
         # type of advisory triggered the event without opening Errata tool.
         msg_id = f"{msg_id}.{str(advisory.name)}"
 
-        # If advisory created by BOTAS and it's shipped,
-        # then return BotasErrataShippedEvent event
-        if advisory.state == "SHIPPED_LIVE" and advisory.reporter.startswith("botas"):
-            return BotasErrataShippedEvent(msg_id, advisory)
+        if advisory.state == "SHIPPED_LIVE":
+            # If advisory created by BOTAS and it's shipped,
+            # then return BotasErrataShippedEvent event
+            if advisory.reporter.startswith("botas"):
+                return BotasErrataShippedEvent(msg_id, advisory)
+            # If advisory is shipped, but not created by BOTAS,
+            # return ErrataRPMAdvisoryShippedEvent event
+            return ErrataRPMAdvisoryShippedEvent(msg_id, advisory)
 
         if advisory.is_flatpak_module_advisory_ready():
             return FlatpakModuleAdvisoryReadyEvent(msg_id, advisory)
-
-        return ErrataRPMAdvisoryShippedEvent(msg_id, advisory)
