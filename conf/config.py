@@ -82,8 +82,8 @@ class BaseConfiguration(object):
     # For more information see <https://github.com/redhat-exd-rebuilds/freshmaker>.
     #
     # Here is an example of allowing container images to be build as soon as
-    # an RHSA advisory with critical/important severity or with hightouch bug
-    # moves to SHIPPED_LIVE:
+    # an RHSA advisory with critical/important severity or related to a major
+    # incident moves to SHIPPED_LIVE:
     #
     # HANDLER_BUILD_ALLOWLIST = {
     #     "global": {
@@ -91,7 +91,7 @@ class BaseConfiguration(object):
     #             {'advisory_name': 'RHSA-.*'
     #              'advisory_state: 'SHIPPED_LIVE'},
     #             any_(
-    #                 {'has_hightouch_bugs': True},
+    #                 {'is_major_incident': True},
     #                 {'severity': ['critical', 'important']}
     #             )
     #         )
@@ -110,7 +110,7 @@ class BaseConfiguration(object):
     #             {'advisory_name': 'RHSA-.*'
     #              'advisory_state: 'SHIPPED_LIVE'},
     #             any_(
-    #                 {'has_hightouch_bugs': True},
+    #                 {'is_major_incident': True},
     #                 {'severity': ['critical', 'important']}
     #             )
     #         )

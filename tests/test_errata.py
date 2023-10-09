@@ -218,6 +218,8 @@ class MockedErrataAPI(object):
             return self.builds_json
         elif endpoint.endswith("bugs.json"):
             return self.bugs
+        elif endpoint.endswith("jira_issues.json"):
+            return []
         elif endpoint.startswith("advisory/"):
             return self.advisory_json
         elif endpoint.startswith("products/"):
@@ -255,7 +257,7 @@ class TestErrata(helpers.FreshmakerTestCase):
         self.assertEqual(advisories[0].security_impact, "important")
         self.assertEqual(advisories[0].product_short_name, "product")
         self.assertEqual(advisories[0].cve_list, ["CVE-2015-3253", "CVE-2016-6814"])
-        self.assertEqual(advisories[0].has_hightouch_bug, True)
+        self.assertEqual(advisories[0].is_major_incident, True)
 
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
@@ -275,7 +277,7 @@ class TestErrata(helpers.FreshmakerTestCase):
         event = BrewSignRPMEvent("msgid", "libntirpc-1.4.3-4.el7rhgs")
         advisories = self.errata.advisories_from_event(event)
         self.assertEqual(len(advisories), 1)
-        self.assertEqual(advisories[0].has_hightouch_bug, False)
+        self.assertEqual(advisories[0].is_major_incident, False)
 
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
@@ -286,7 +288,7 @@ class TestErrata(helpers.FreshmakerTestCase):
         event = BrewSignRPMEvent("msgid", "libntirpc-1.4.3-4.el7rhgs")
         advisories = self.errata.advisories_from_event(event)
         self.assertEqual(len(advisories), 1)
-        self.assertEqual(advisories[0].has_hightouch_bug, False)
+        self.assertEqual(advisories[0].is_major_incident, False)
 
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
@@ -488,6 +490,54 @@ class TestErrata(helpers.FreshmakerTestCase):
 
         self.assertSetEqual(builds, {"nvr1", "nvr2", "nvr3", "nvr4", "nvr5"})
         self.assertEqual(get_blocks.call_count, 3)
+
+    @patch.object(Errata, "_get_jira_issues")
+    def test_has_jira_major_incidents(self, get_jira_issues):
+        get_jira_issues.return_value = [
+            {
+                "id_jira": 123456,
+                "key": "RHEL-3321",
+                "summary": "[Major Incident] CVE-2023-1234 foopack: Heap buffer overflow in Foo Codec [rhel-1.2.3.z]",
+                "status": "Closed",
+                "is_private": True,
+                "labels": [
+                    "CVE-2023-1234",
+                    "Security",
+                    "SecurityTracking",
+                    "flaw:bz#653421",
+                    "pscomponent:foopack",
+                ],
+            }
+        ]
+        has_major_incidents = self.errata.has_jira_major_incidents("123")
+        self.assertTrue(has_major_incidents)
+
+        get_jira_issues.return_value = [
+            {
+                "id_jira": 123456,
+                "key": "RHEL-3322",
+                "summary": "[Minor Incident] CVE-2023-1235 barpack: Heap buffer overflow in Bar Codec [rhel-1.2.3.z]",
+                "status": "Closed",
+                "is_private": True,
+                "labels": [
+                    "CVE-2023-1235",
+                    "Security",
+                    "SecurityTracking",
+                    "flaw:bz#653422",
+                    "pscomponent:barpack",
+                ],
+            }
+        ]
+        has_major_incidents = self.errata.has_jira_major_incidents("123")
+        self.assertFalse(has_major_incidents)
+
+        get_jira_issues.return_value = []
+        has_major_incidents = self.errata.has_jira_major_incidents("123")
+        self.assertFalse(has_major_incidents)
+
+        get_jira_issues.return_value = {"error": "Bad errata id given: 123"}
+        has_major_incidents = self.errata.has_jira_major_incidents("123")
+        self.assertFalse(has_major_incidents)
 
 
 class TestErrataAuthorizedGet(helpers.FreshmakerTestCase):

@@ -521,7 +521,7 @@ class TestAllowBuildBasedOnAllowlist(helpers.FreshmakerTestCase):
             "MyHandler": {
                 "image": all_(
                     {"advisory_name": r"RHSA-\d+:\d+"},
-                    any_({"has_hightouch_bugs": True}, {"severity": ["critical", "important"]}),
+                    any_({"is_major_incident": True}, {"severity": ["critical", "important"]}),
                 )
             }
         },
@@ -531,7 +531,7 @@ class TestAllowBuildBasedOnAllowlist(helpers.FreshmakerTestCase):
         allowed = handler.allow_build(
             ArtifactType.IMAGE,
             advisory_name="RHSA-2017:1000",
-            has_hightouch_bugs=True,
+            is_major_incident=True,
             severity="low",
         )
         self.assertTrue(allowed)
@@ -539,7 +539,7 @@ class TestAllowBuildBasedOnAllowlist(helpers.FreshmakerTestCase):
         allowed = handler.allow_build(
             ArtifactType.IMAGE,
             advisory_name="RHSA-2017:1000",
-            has_hightouch_bugs=False,
+            is_major_incident=False,
             severity="critical",
         )
         self.assertTrue(allowed)
@@ -547,7 +547,7 @@ class TestAllowBuildBasedOnAllowlist(helpers.FreshmakerTestCase):
         allowed = handler.allow_build(
             ArtifactType.IMAGE,
             advisory_name="RHSA-2017:1000",
-            has_hightouch_bugs=False,
+            is_major_incident=False,
             severity="low",
         )
         self.assertFalse(allowed)
@@ -555,7 +555,7 @@ class TestAllowBuildBasedOnAllowlist(helpers.FreshmakerTestCase):
         allowed = handler.allow_build(
             ArtifactType.IMAGE,
             advisory_name="RHBA-2017:1000",
-            has_hightouch_bugs=False,
+            is_major_incident=False,
             severity="critical",
         )
         self.assertFalse(allowed)

@@ -358,26 +358,26 @@ class TestRebuildImagesOnRPMAdvisoryChange(helpers.ModelsTestCase):
         new={
             "RebuildImagesOnRPMAdvisoryChange": {
                 "image": {
-                    "advisory_has_hightouch_bug": True,
+                    "advisory_is_major_incident": True,
                 }
             }
         },
     )
     @patch.object(freshmaker.conf, "dry_run", new=True)
-    def test_allow_build_has_hightouch_bug(self):
+    def test_allow_build_is_major_incident(self):
         compose_4 = Compose(odcs_compose_id=4)
         db.session.add(compose_4)
         db.session.commit()
 
-        for has_hightouch_bug in [False, True]:
-            self.rhba_event.advisory.has_hightouch_bug = has_hightouch_bug
+        for is_major_incident in [False, True]:
+            self.rhba_event.advisory.is_major_incident = is_major_incident
             self.mock_find_images_to_rebuild.return_value = [[]]
             handler = RebuildImagesOnRPMAdvisoryChange()
             handler.handle(self.rhba_event)
 
             db_event = Event.get(db.session, message_id="123")
             self.assertEqual(db_event.state, EventState.SKIPPED.value)
-            if not has_hightouch_bug:
+            if not is_major_incident:
                 self.assertTrue(
                     db_event.state_reason.endswith(
                         "is not allowed by internal policy to trigger rebuilds."
