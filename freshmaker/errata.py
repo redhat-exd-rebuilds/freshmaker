@@ -22,6 +22,7 @@
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
 import os
+import re
 import requests
 import dogpile.cache
 from requests_kerberos import HTTPKerberosAuth, OPTIONAL
@@ -45,7 +46,7 @@ class ErrataAdvisory(object):
         security_impact=None,
         product_short_name=None,
         cve_list=None,
-        has_hightouch_bug=None,
+        is_major_incident=None,
     ):
         """
         Initializes the ErrataAdvisory instance.
@@ -57,7 +58,7 @@ class ErrataAdvisory(object):
         self.security_impact = security_impact or ""
         self.product_short_name = product_short_name or ""
         self.cve_list = cve_list or []
-        self.has_hightouch_bug = has_hightouch_bug
+        self.is_major_incident = is_major_incident
 
         self._affected_rpm_nvrs = None
         self._reporter = ""
@@ -120,6 +121,8 @@ class ErrataAdvisory(object):
             if "flags" in bug and "hightouch+" in bug["flags"]:
                 has_hightouch_bug = True
                 break
+        has_jira_major_incident = errata.has_jira_major_incidents(errata_id)
+        is_major_incident = has_hightouch_bug or has_jira_major_incident
 
         return ErrataAdvisory(
             erratum_data["id"],
@@ -129,7 +132,7 @@ class ErrataAdvisory(object):
             security_impact,
             product_data["product"]["short_name"],
             cve_list,
-            has_hightouch_bug,
+            is_major_incident,
         )
 
     def is_flatpak_module_advisory_ready(self):
@@ -237,6 +240,9 @@ class Errata(object):
 
     def _get_builds_by_product(self, errata_id):
         return self._errata_rest_get(f"/erratum/{errata_id}/builds_list?with_sig_key=1")
+
+    def _get_jira_issues(self, errata_id):
+        return self._errata_http_get(f"advisory/{errata_id}/jira_issues.json")
 
     @region.cache_on_arguments()
     def _advisories_from_nvr(self, nvr):
@@ -514,3 +520,32 @@ class Errata(object):
     def is_zstream(self, errata_id):
         release = self._get_release(errata_id)
         return release["data"]["attributes"]["type"] == "Zstream"
+
+    def has_jira_major_incidents(self, errata_id: str) -> bool:
+        """
+        Checks if this errata has a 'major incident' issue in JIRA
+
+        :param errata_id: The ID of the errata advisory
+        :type errata_id: str
+
+        :return: Wether the errata has or not a major incident issue in JIRA
+        :rtype: bool
+        """
+        resp = self._get_jira_issues(errata_id=errata_id)
+
+        if isinstance(resp, dict) and resp.get("error", False):
+            log.info(
+                f"Error when querying for Jira issues for advisory {errata_id}: {resp['error']}"
+            )
+            return False
+
+        mi_pattern = re.compile(r"major\s*incident", re.IGNORECASE)
+
+        for issue in resp:
+            if mi_pattern.search(issue["summary"]):
+                log.info(
+                    f"Found 'major incident' issue for advisory {errata_id}: {issue['key']} (errata_id={errata_id})"
+                )
+                return True
+
+        return False
