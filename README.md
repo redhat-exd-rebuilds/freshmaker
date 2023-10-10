@@ -122,6 +122,23 @@ python -m pip install pip-tools
 more info available at: https://github.com/jazzband/pip-tools/
 
 
+# Formatting code with black
+
+Freshmaker currently uses `black` as formatter and style-checker. The CI workflow runs a black step
+to check for files that would be reformatted, and if it finds any such file, it will fail.
+
+You can manually run the `black-format` step in tox while developing to make sure that your code
+follows the repo standard. You can run
+```
+tox -e black-format <file1> <file2> ...
+```
+to point the reformat step to secific files that you would like, or
+```
+tox -e black-format
+```
+to run it in all the necessary files of the project.
+
+
 # Ignoring large reformattings with git blame
 
 The commits listed in `.git-blame-ignore-revs` are automatically ignored in github blame view
