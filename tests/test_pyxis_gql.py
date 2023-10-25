@@ -472,7 +472,7 @@ def test_pyxis_graphql_find_images_by_names():
     assert images == result["find_images"]["data"]
 
 
-def test_pyxis_graphql_find_images_by_name_version():
+def test_pyxis_graphql_find_latest_images_by_name_version():
     pyxis_schema_path = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
         "fixtures",
@@ -528,7 +528,7 @@ def test_pyxis_graphql_find_images_by_name_version():
     pyxis_gql = PyxisGQL(url="graphql.pyxis.local", cert="/path/to/cert")
     flexmock(Client).should_receive("execute").and_return(copy.deepcopy(result))
 
-    images = pyxis_gql.find_images_by_name_version(
+    images = pyxis_gql.find_latest_images_by_name_version(
         "foobar-container",
         "v0.13.0",
         published=True,
@@ -567,7 +567,7 @@ def test_log_trace_id(mock_client, mock_transport):
     pyxis_gql = PyxisGQL(url="graphql.pyxis.local", cert="/path/to/cert")
 
     try:
-        pyxis_gql.find_images_by_name_version(
+        pyxis_gql.find_latest_images_by_name_version(
             "foobar-container",
             "v0.13.0",
             published=True,

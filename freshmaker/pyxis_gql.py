@@ -24,6 +24,7 @@ from typing import Optional
 
 import backoff
 import dogpile.cache
+import kobo.rpmlib
 from gql import Client, gql
 from gql.dsl import DSLQuery, DSLSchema, dsl_gql
 from gql.transport.requests import RequestsHTTPTransport
@@ -624,22 +625,17 @@ class PyxisGQL:
 
         return images
 
-    def find_images_by_name_version(
-        self, name, version, published=None, content_sets=None, limit=20
-    ):
+    def find_latest_images_by_name_version(self, name, version, published=None, content_sets=None):
         """
-        Find all the images that match the specified name, version, and are filtered by the given content sets.
+        Find the latest images that match the specified name, version, and are filtered by the given content sets.
 
         :param name str: image name
         :param version str: image version
         :param published bool: image is published or not
         :param content_sets list: list of content set names
-        :param limit int: the maximum number of images to be returned
         :return: list of container images matching the name and version
         :rtype: list of image data
         """
-        images = []
-
         query_filter = {"and": []}
         query_filter["and"].append({"brew": {"package": {"eq": name}}})
         query_filter["and"].append({"brew": {"build": {"regex": f"{name}-{version}-.*"}}})
@@ -652,46 +648,36 @@ class PyxisGQL:
             query_filter["and"].append({"repositories_elemMatch": {"and": repo_matches}})
 
         ds = self.dsl_schema
-        page_num = 0
         # Pyxis is having an issue of returning images for such query criteria (ISV-3642),
         # so we use a much smaller page size in this particular query
         page_size = 20
 
-        while True:
-            query_dsl = ds.Query.find_images(
-                page=page_num,
-                page_size=page_size,
-                # Sort by image NVR (brew.build), newer image should have higher NVR
-                sort_by=[{"field": "brew.build", "order": "DESC"}],
-                filter=query_filter,
-            ).select(
-                ds.ContainerImagePaginatedResponse.error.select(
-                    ds.ResponseError.status,
-                    ds.ResponseError.detail,
-                ),
-                ds.ContainerImagePaginatedResponse.page,
-                ds.ContainerImagePaginatedResponse.page_size,
-                ds.ContainerImagePaginatedResponse.total,
-                ds.ContainerImagePaginatedResponse.data.select(*self._get_image_projection()),
-            )
+        query_dsl = ds.Query.find_images(
+            page=0,
+            page_size=page_size,
+            # Sort by image NVR (brew.build), newer image should have higher NVR
+            sort_by=[{"field": "repositories.published_date", "order": "DESC"}],
+            filter=query_filter,
+        ).select(
+            ds.ContainerImagePaginatedResponse.error.select(
+                ds.ResponseError.status,
+                ds.ResponseError.detail,
+            ),
+            ds.ContainerImagePaginatedResponse.page,
+            ds.ContainerImagePaginatedResponse.page_size,
+            ds.ContainerImagePaginatedResponse.total,
+            ds.ContainerImagePaginatedResponse.data.select(*self._get_image_projection()),
+        )
 
-            result = self.query(query_dsl)
-            data = result["find_images"]["data"]
-            # Data is empty when there are no more results
-            if not data:
-                break
-            images.extend(data)
+        images = self.query(query_dsl)["find_images"]["data"]
+        latest_nvr = images[0]["brew"]["build"]
 
-            if len(images) >= limit:
-                break
+        for img in images[1:]:
+            parsed_latest_nvr = kobo.rpmlib.parse_nvr(latest_nvr)
 
-            # If page_size >= total, means all results have been fetched in the first page
-            if result["find_images"]["page_size"] >= result["find_images"]["total"]:
-                break
-            page_num += 1
+            current_nvr = img["brew"]["build"]
+            parsed_current_nvr = kobo.rpmlib.parse_nvr(current_nvr)
+            if kobo.rpmlib.compare_nvr(parsed_current_nvr, parsed_latest_nvr) == 1:
+                latest_nvr = current_nvr
 
-        # Note: this can truncate the list with keeping some arches of an image build but
-        # removing other arches, but we don't care about it in our use cases, we just want
-        # the most higher NVR builds, if you're calling this with a much smaller limit
-        # number (e.g.: 1, 2, 3) or for different purpose, you should pay attention to this.
-        return images[:limit]
+        return [img for img in images if img["brew"]["build"] == latest_nvr]
