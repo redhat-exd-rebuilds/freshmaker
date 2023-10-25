@@ -1578,7 +1578,7 @@ class PyxisAPI(object):
         """
         rpm_name_to_nvrs = {kobo.rpmlib.parse_nvr(nvr)["name"]: nvr for nvr in rpm_nvrs}
 
-        images = self.pyxis.find_images_by_name_version(
+        images = self.pyxis.find_latest_images_by_name_version(
             name, version, published=True, content_sets=content_sets
         )
         if not images:

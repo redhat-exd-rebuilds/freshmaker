@@ -646,7 +646,7 @@ class PyxisAsyncGQL:
 
         return images
 
-    async def find_images_by_name_version(
+    async def find_latest_images_by_name_version(
         self,
         name: str,
         version: str,
@@ -654,7 +654,7 @@ class PyxisAsyncGQL:
         content_sets: Optional[list[str]] = None,
     ) -> list[dict[str, Any]]:
         """
-        Find all the images with published repositories that match the specified name, version, and are filtered by the given content sets.
+        Find the latest images with published repositories that match the specified name, version, and are filtered by the given content sets.
 
          all the images for a specific list of names.
         :param str name: name of the images we want
@@ -664,8 +664,6 @@ class PyxisAsyncGQL:
         :return: list of container images matching the requested names.
         :rtype: list of ContainerImages
         """
-        images = []
-
         query_filter: dict = {"and": []}
         query_filter["and"].append({"brew": {"package": {"eq": name}}})
         query_filter["and"].append({"brew": {"build": {"regex": f"{name}-{version}-.*"}}})
@@ -678,35 +676,21 @@ class PyxisAsyncGQL:
             query_filter["and"].append({"repositories_elemMatch": {"and": repo_matches}})
 
         ds = self.dsl_schema
-        page_num = 0
-        page_size = conf.pyxis_default_page_size
 
-        while True:
-            query_dsl = ds.Query.find_images(
-                page=page_num,
-                page_size=page_size,
-                filter=query_filter,
-            ).select(
-                ds.ContainerImagePaginatedResponse.error.select(
-                    ds.ResponseError.status,
-                    ds.ResponseError.detail,
-                ),
-                ds.ContainerImagePaginatedResponse.page,
-                ds.ContainerImagePaginatedResponse.page_size,
-                ds.ContainerImagePaginatedResponse.total,
-                ds.ContainerImagePaginatedResponse.data.select(*self._get_image_projection()),
-            )
-            async with asyncio.timeout(self.timeout):
-                result = await self.query(query_dsl)
-            data = result["find_images"]["data"]  # type: ignore[index]
-            # Data is empty when there are no more results
-            if not data:
-                break
-            images.extend(data)
-
-            # If page_size >= total, means all results have been fetched in the first page
-            if result["find_images"]["page_size"] >= result["find_images"]["total"]:  # type: ignore[index]
-                break
-            page_num += 1
-
-        return images
+        query_dsl = ds.Query.find_images(
+            page=0,
+            page_size=4,
+            filter=query_filter,
+        ).select(
+            ds.ContainerImagePaginatedResponse.error.select(
+                ds.ResponseError.status,
+                ds.ResponseError.detail,
+            ),
+            ds.ContainerImagePaginatedResponse.page,
+            ds.ContainerImagePaginatedResponse.page_size,
+            ds.ContainerImagePaginatedResponse.total,
+            ds.ContainerImagePaginatedResponse.data.select(*self._get_image_projection()),
+        )
+        async with asyncio.timeout(self.timeout):
+            result = await self.query(query_dsl)
+        return result["find_images"]["data"]  # type: ignore[index]

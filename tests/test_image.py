@@ -3004,7 +3004,7 @@ def test_filter_out_already_fixed_published_images(mock_dig, mock_gfpi, mock_exi
 @pytest.mark.usefixtures("pyxis_graphql_schema")
 @patch("freshmaker.pyxis_gql.Client")
 @patch("os.path.exists", return_value=True)
-@patch("freshmaker.pyxis_gql.PyxisGQL.find_images_by_name_version")
+@patch("freshmaker.pyxis_gql.PyxisGQL.find_latest_images_by_name_version")
 @patch("freshmaker.pyxis_gql.PyxisGQL.find_images_by_nvr")
 @patch("freshmaker.image.ContainerImage.resolve")
 def test_get_fixed_published_image(
@@ -3106,7 +3106,7 @@ def test_get_fixed_published_image(
 @pytest.mark.usefixtures("pyxis_graphql_schema")
 @patch("freshmaker.pyxis_gql.Client")
 @patch("os.path.exists", return_value=True)
-@patch("freshmaker.pyxis_gql.PyxisGQL.find_images_by_name_version")
+@patch("freshmaker.pyxis_gql.PyxisGQL.find_latest_images_by_name_version")
 @patch("freshmaker.pyxis_gql.PyxisGQL.find_images_by_nvr")
 def test_get_fixed_published_image_not_found(
     find_images_by_nvr, published_images, mock_exists, gql_client
@@ -3128,7 +3128,7 @@ def test_get_fixed_published_image_not_found(
 @pytest.mark.usefixtures("pyxis_graphql_schema")
 @patch("freshmaker.pyxis_gql.Client")
 @patch("os.path.exists", return_value=True)
-@patch("freshmaker.pyxis_gql.PyxisGQL.find_images_by_name_version")
+@patch("freshmaker.pyxis_gql.PyxisGQL.find_latest_images_by_name_version")
 def test_get_fixed_published_image_diff_repo(published_images, mock_exists, gql_client):
     latest_rhel7_image_pyxis = {
         "brew": {"build": "rhel-server-container-7.9-189"},
@@ -3169,7 +3169,7 @@ def test_get_fixed_published_image_diff_repo(published_images, mock_exists, gql_
 @pytest.mark.usefixtures("pyxis_graphql_schema")
 @patch("freshmaker.pyxis_gql.Client")
 @patch("os.path.exists", return_value=True)
-@patch("freshmaker.pyxis_gql.PyxisGQL.find_images_by_name_version")
+@patch("freshmaker.pyxis_gql.PyxisGQL.find_latest_images_by_name_version")
 def test_get_fixed_published_image_missing_rpm(published_images, mock_exists, gql_client):
     latest_rhel7_image_pyxis = {
         "brew": {"build": "rhel-server-container-7.9-189"},
@@ -3210,7 +3210,7 @@ def test_get_fixed_published_image_missing_rpm(published_images, mock_exists, gq
 @pytest.mark.usefixtures("pyxis_graphql_schema")
 @patch("freshmaker.pyxis_gql.Client")
 @patch("os.path.exists", return_value=True)
-@patch("freshmaker.pyxis_gql.PyxisGQL.find_images_by_name_version")
+@patch("freshmaker.pyxis_gql.PyxisGQL.find_latest_images_by_name_version")
 def test_get_fixed_published_image_modularity_mismatch(published_images, mock_exists, gql_client):
     latest_rhel8_image_pyxis = {
         "brew": {"build": "rhel-server-container-8.2-189"},
@@ -3251,7 +3251,7 @@ def test_get_fixed_published_image_modularity_mismatch(published_images, mock_ex
 @pytest.mark.usefixtures("pyxis_graphql_schema")
 @patch("freshmaker.pyxis_gql.Client")
 @patch("os.path.exists", return_value=True)
-@patch("freshmaker.pyxis_gql.PyxisGQL.find_images_by_name_version")
+@patch("freshmaker.pyxis_gql.PyxisGQL.find_latest_images_by_name_version")
 def test_get_fixed_published_image_rpm_too_old(published_images, mock_exists, gql_client):
     latest_rhel7_image_pyxis = {
         "brew": {"build": "rhel-server-container-7.9-189"},
@@ -3292,7 +3292,7 @@ def test_get_fixed_published_image_rpm_too_old(published_images, mock_exists, gq
 @pytest.mark.usefixtures("pyxis_graphql_schema")
 @patch("freshmaker.pyxis_gql.Client")
 @patch("os.path.exists", return_value=True)
-@patch("freshmaker.pyxis_gql.PyxisGQL.find_images_by_name_version")
+@patch("freshmaker.pyxis_gql.PyxisGQL.find_latest_images_by_name_version")
 @patch("freshmaker.pyxis_gql.PyxisGQL.find_images_by_nvr")
 def test_get_fixed_published_image_not_found_by_nvr(
     find_images_by_nvr, published_images, mock_exists, gql_client

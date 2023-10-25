@@ -58,11 +58,7 @@ class TestPyxisAsyncGQL(TestCase):
 
     def test_query(self, mock_gql_client):
         ds = self.pyxis_gql_async.dsl_schema
-        fake_query = ds.Query.find_repositories(
-            page=0,
-            page_size=2,
-            filter={},
-        ).select(
+        fake_query = ds.Query.find_repositories(page=0, page_size=2, filter={}).select(
             ds.ContainerRepositoryPaginatedResponse.error.select(
                 ds.ResponseError.status,
                 ds.ResponseError.detail,
@@ -512,7 +508,7 @@ class TestPyxisAsyncGQL(TestCase):
         mock_gql_client.return_value.__aenter__.return_value.execute.assert_awaited()
         assert images == result["find_images"]["data"]
 
-    def test_find_images_by_name_version(self, mock_gql_client):
+    def test_find_latest_images_by_name_version(self, mock_gql_client):
         result = {
             "find_images": {
                 "data": [{"foo": "bar"}],
@@ -525,7 +521,7 @@ class TestPyxisAsyncGQL(TestCase):
         mock_gql_client.return_value.__aenter__.return_value.execute.return_value = deepcopy(result)
 
         images = asyncio.run(
-            self.pyxis_gql_async.find_images_by_name_version(name="foo-repo", version="1.23")
+            self.pyxis_gql_async.find_latest_images_by_name_version(name="foo-repo", version="1.23")
         )
         mock_gql_client.return_value.__aenter__.return_value.execute.assert_awaited()
         assert images == result["find_images"]["data"]
@@ -548,7 +544,9 @@ class TestPyxisAsyncGQL(TestCase):
 
         with self.assertRaises(PyxisGQLRequestError) as cm:
             asyncio.run(
-                self.pyxis_gql_async.find_images_by_name_version(name="foo-repo", version="1.23")
+                self.pyxis_gql_async.find_latest_images_by_name_version(
+                    name="foo-repo", version="1.23"
+                )
             )
         exception = cm.exception
         self.assertEqual(exception.error, str(result["find_images"]["error"]))
