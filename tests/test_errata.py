@@ -539,6 +539,46 @@ class TestErrata(helpers.FreshmakerTestCase):
         has_major_incidents = self.errata.has_jira_major_incidents("123")
         self.assertFalse(has_major_incidents)
 
+    @patch.object(Errata, "_get_jira_issues")
+    def test_has_compliance_priority_jira_label(self, get_jira_issues):
+        get_jira_issues.return_value = [
+            {
+                "id_jira": 123456,
+                "key": "RHEL-3321",
+                "summary": "CVE-2023-1234 foopack: Heap buffer overflow in Foo Codec [rhel-1.2.3.z]",
+                "status": "Closed",
+                "is_private": True,
+                "labels": [
+                    "compliance-priority",
+                ],
+            }
+        ]
+        has_compliance_priority = self.errata.has_compliance_priority_jira_label("123")
+        self.assertTrue(has_compliance_priority)
+
+        get_jira_issues.return_value = [
+            {
+                "id_jira": 123456,
+                "key": "RHEL-3322",
+                "summary": "CVE-2023-1235 barpack: Heap buffer overflow in Bar Codec [rhel-1.2.3.z]",
+                "status": "Closed",
+                "is_private": True,
+                "labels": [
+                    "CVE-2023-1235",
+                ],
+            }
+        ]
+        has_compliance_priority = self.errata.has_compliance_priority_jira_label("123")
+        self.assertFalse(has_compliance_priority)
+
+        get_jira_issues.return_value = []
+        has_compliance_priority = self.errata.has_compliance_priority_jira_label("123")
+        self.assertFalse(has_compliance_priority)
+
+        get_jira_issues.return_value = {"error": "Bad errata id given: 123"}
+        has_compliance_priority = self.errata.has_compliance_priority_jira_label("123")
+        self.assertFalse(has_compliance_priority)
+
 
 class TestErrataAuthorizedGet(helpers.FreshmakerTestCase):
     def setUp(self):
