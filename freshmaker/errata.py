@@ -47,6 +47,7 @@ class ErrataAdvisory(object):
         product_short_name=None,
         cve_list=None,
         is_major_incident=None,
+        is_compliance_priority=None,
     ):
         """
         Initializes the ErrataAdvisory instance.
@@ -59,6 +60,7 @@ class ErrataAdvisory(object):
         self.product_short_name = product_short_name or ""
         self.cve_list = cve_list or []
         self.is_major_incident = is_major_incident
+        self.is_compliance_priority = is_compliance_priority
 
         self._affected_rpm_nvrs = None
         self._reporter = ""
@@ -116,13 +118,19 @@ class ErrataAdvisory(object):
         security_impact = erratum_data["security_impact"].lower()
 
         has_hightouch_bug = False
+        has_compliance_priority_bug = False
         bugs = errata._get_bugs(erratum_data["id"]) or []
-        for bug in bugs:
-            if "flags" in bug and "hightouch+" in bug["flags"]:
-                has_hightouch_bug = True
-                break
+
+        has_hightouch_bug = any(["hightouch+" in bug.get("flags", "") for bug in bugs])
+        has_compliance_priority_bug = any(
+            ["compliance_priority+" in bug.get("flags", "") for bug in bugs]
+        )
+
         has_jira_major_incident = errata.has_jira_major_incidents(errata_id)
         is_major_incident = has_hightouch_bug or has_jira_major_incident
+
+        has_jira_compliance_priority = errata.has_compliance_priority_jira_label(errata_id)
+        is_compliance_priority = has_compliance_priority_bug or has_jira_compliance_priority
 
         return ErrataAdvisory(
             erratum_data["id"],
@@ -133,6 +141,7 @@ class ErrataAdvisory(object):
             product_data["product"]["short_name"],
             cve_list,
             is_major_incident,
+            is_compliance_priority,
         )
 
     def is_flatpak_module_advisory_ready(self):
@@ -543,8 +552,33 @@ class Errata(object):
 
         for issue in resp:
             if mi_pattern.search(issue["summary"]):
+                log.info(f"Found 'major incident' issue for advisory {errata_id}: {issue['key']}")
+                return True
+
+        return False
+
+    def has_compliance_priority_jira_label(self, errata_id) -> bool:
+        """
+        Checks if this erratas has an issue in JIRA with 'compliance_priority' label.
+
+        :param errata_id: The ID of the errata advisory
+        :type errata_id: str
+
+        :return: Wether the errata has or not a compliance priority issue in JIRA
+        :rtype: bool
+        """
+        resp = self._get_jira_issues(errata_id=errata_id)
+
+        if isinstance(resp, dict) and resp.get("error", False):
+            log.info(
+                f"Error when querying for Jira issues for advisory {errata_id}: {resp['error']}"
+            )
+            return False
+
+        for issue in resp:
+            if "compliance-priority" in issue["labels"]:
                 log.info(
-                    f"Found 'major incident' issue for advisory {errata_id}: {issue['key']} (errata_id={errata_id})"
+                    f"Found 'compliance-priority' label in issue {issue['key']} for advisory {errata_id}"
                 )
                 return True
 
