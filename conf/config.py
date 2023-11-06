@@ -200,6 +200,8 @@ class BaseConfiguration(object):
     # repositories that should be searched for unpublished images, specifically because of EUS base images
     UNPUBLISHED_EXCEPTIONS: list[dict[str, str]] = []
 
+    COMPLIANCE_PRIORITY_REPOSITORIES_REMOTE_FILE = None
+
 
 class DevConfiguration(BaseConfiguration):
     DEBUG = True

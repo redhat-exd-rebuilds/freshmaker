@@ -450,6 +450,11 @@ class Config(object):
             "default": "-hidden-rpms$",
             "desc": "Pattern for content sets which will be excluded while generating composes",
         },
+        "compliance_priority_repositories_remote_file": {
+            "type": str,
+            "default": "",
+            "desc": "URL to a remote file containing image repositories enabled for rebuilding due to compliance priority CVEs",
+        },
     }
 
     def __init__(self, conf_section_obj):
