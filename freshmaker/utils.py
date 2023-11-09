@@ -21,18 +21,21 @@
 #
 
 import functools
-import requests
-import semver
 import subprocess
 import sys
 import tempfile
 import time
-import koji
-import kobo.rpmlib
 
-from freshmaker import conf, app, log
-from freshmaker.types import ArtifactType
+import backoff
+import kobo.rpmlib
+import koji
+import requests
+import semver
+import yaml
 from flask import has_app_context, url_for
+
+from freshmaker import app, conf, log
+from freshmaker.types import ArtifactType
 
 
 def _cmp(a, b):
@@ -275,3 +278,24 @@ def is_valid_semver(version_string):
         return True
     except ValueError:
         return False
+
+
+@backoff.on_exception(
+    backoff.expo,
+    requests.exceptions.RequestException,
+    factor=30,
+    max_tries=3,
+    jitter=None,
+)
+def load_remote_yaml(url: str | bytes):
+    """Fetches and parses a yaml file located remotely
+
+    :param url: Url to be requested
+    :type url: str or bytes
+    :return: The parsed yaml content
+    :rtype: Any
+    """
+
+    response = requests.get(url=url, timeout=conf.requests_timeout)
+    response.raise_for_status()
+    return yaml.safe_load(response.content)

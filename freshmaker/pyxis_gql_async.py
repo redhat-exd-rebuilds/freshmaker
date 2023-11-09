@@ -176,15 +176,17 @@ class PyxisAsyncGQL:
 
     async def find_repositories(
         self,
-        published: Optional[bool] = None,
-        release_categories: Optional[list[str]] = None,
-        auto_rebuild_tags: Optional[list[str]] = None,
+        published: bool | None = None,
+        release_categories: list[str] | None = None,
+        auto_rebuild_tags: list[str] | None = None,
+        names: list[str] | None = None,
     ) -> list[dict[str, Any]]:
         """Get image repositories
 
         :param bool published: published or unpublished repositories
         :param list release_categories: list of release categories
         :param list auto_rebuild_tags: list of tags enabled for auto rebuild
+        :param names: names of the repos to limit the search to (optional)
         :return: list of image repositories
         :rtype: list
         """
@@ -196,11 +198,13 @@ class PyxisAsyncGQL:
         if isinstance(published, bool):
             query_filter["and"].append({"published": {"eq": published}})
 
-        if release_categories is not None:
+        if release_categories:
             query_filter["and"].append({"release_categories": {"in": release_categories}})
 
-        if auto_rebuild_tags is not None:
+        if auto_rebuild_tags:
             query_filter["and"].append({"auto_rebuild_tags": {"in": auto_rebuild_tags}})
+        if names:
+            query_filter["and"].append({"repository": {"in": names}})
 
         repositories = []
         ds = self.dsl_schema

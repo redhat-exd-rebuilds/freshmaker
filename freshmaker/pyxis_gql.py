@@ -166,16 +166,23 @@ class PyxisGQL:
         return projection
 
     @region.cache_on_arguments()
-    def find_repositories(self, published=None, release_categories=None, auto_rebuild_tags=None):
+    def find_repositories(
+        self,
+        published=None,
+        release_categories=None,
+        auto_rebuild_tags=None,
+        names: list[str] | None = None,
+    ):
         """Get image repositories
 
         :param bool published: published or unpublished repositories
         :param list release_categories: list of release categories
         :param list auto_rebuild_tags: list of tags enabled for auto rebuild
+        :param names: names of the repos to limit the search to (optional)
         :return: list of image repositories
         :rtype: list
         """
-        query_filter = {}
+        query_filter: dict = {}
         query_filter["and"] = []
         # Query Red Hat repositories only
         query_filter["and"].append({"vendor_label": {"eq": "redhat"}})
@@ -183,11 +190,13 @@ class PyxisGQL:
         if isinstance(published, bool):
             query_filter["and"].append({"published": {"eq": published}})
 
-        if release_categories is not None:
+        if release_categories:
             query_filter["and"].append({"release_categories": {"in": release_categories}})
 
-        if auto_rebuild_tags is not None:
+        if auto_rebuild_tags:
             query_filter["and"].append({"auto_rebuild_tags": {"in": auto_rebuild_tags}})
+        if names:
+            query_filter["and"].append({"repository": {"in": names}})
 
         repositories = []
         ds = self.dsl_schema
