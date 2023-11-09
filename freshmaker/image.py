@@ -513,6 +513,7 @@ class PyxisAPI(object):
         published=True,
         release_categories=conf.container_release_categories,
         auto_rebuild=True,
+        names: list[str] | None = None,
     ):
         """
         Returns dict with repository name as key and ContainerRepository as
@@ -524,12 +525,13 @@ class PyxisAPI(object):
             release categories (options: Deprecated, Generally Available, Beta,
             Tech Preview)
         :type release_categories: tuple[str] or list[str]
+        :param names: names of the repos to limit the search to (optional)
         :rtype: dict
         :return: Dict with repository name as key and ContainerRepository as
             value.
         """
         repositories = self.pyxis.find_repositories(
-            published=published, release_categories=release_categories
+            published=published, release_categories=release_categories, names=names
         )
 
         # If the query is for published images, add configurable repos for
@@ -1019,6 +1021,7 @@ class PyxisAPI(object):
         published=True,
         release_categories=conf.container_release_categories,
         leaf_container_images=None,
+        repositories: list[str] | None = None,
     ):
         """Query Pyxis and find containers which contain given
         package from one of content sets
@@ -1040,12 +1043,15 @@ class PyxisAPI(object):
         :param list leaf_container_images: List of NVRs of leaf images to
             consider for the rebuild. If not set, all images found in
             Pyxis will be considered for rebuild.
+        :param repositories: Repos to restrict the search to (Optional)
+        :type repositories: list of str
 
         :return: a list of dictionaries which represents container images
         :rtype: list
         """
 
-        repos = self.find_repositories(published, release_categories)
+        repos = self.find_repositories(published, release_categories, names=repositories)
+
         if not repos:
             return []
         if not leaf_container_images:
@@ -1335,6 +1341,7 @@ class PyxisAPI(object):
         filter_fnc=None,
         leaf_container_images=None,
         skip_nvrs=None,
+        repositories: list[str] | None = None,
     ):
         """
         Find images to rebuild through image build layers
@@ -1363,6 +1370,8 @@ class PyxisAPI(object):
             Pyxis will be considered for rebuild. Note that `published`
             is not respected when `leaf_container_images` are used.
         :param list skip_nvrs: List of NVRs of images to be skipped.
+        :param repositories: Repos to restrict the search to (Optional)
+        :type repositories: list of str
         """
         images = self.find_images_with_packages_from_content_set(
             rpm_nvrs,
@@ -1371,6 +1380,7 @@ class PyxisAPI(object):
             published,
             release_categories,
             leaf_container_images=leaf_container_images,
+            repositories=repositories,
         )
 
         # Remove any hotfix images from list of images

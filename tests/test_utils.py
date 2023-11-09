@@ -20,13 +20,20 @@
 #
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
+from unittest import TestCase
 from unittest.mock import patch
 
+import requests
 import pytest
 
 from freshmaker import conf
 from freshmaker.models import ArtifactType
-from freshmaker.utils import get_rebuilt_nvr, sorted_by_nvr, is_valid_ocp_versions_range
+from freshmaker.utils import (
+    get_rebuilt_nvr,
+    sorted_by_nvr,
+    is_valid_ocp_versions_range,
+    load_remote_yaml,
+)
 from tests import helpers
 
 
@@ -80,3 +87,29 @@ class TestSortedByNVR(helpers.FreshmakerTestCase):
         expected = ["bar-1-2", "foo-1-1", "foo-1-10"]
         ret = sorted_by_nvr(lst, reverse=True)
         self.assertEqual(ret, list(reversed(expected)))
+
+
+class TestLoadRemoteYaml(TestCase):
+    @patch("requests.get")
+    def test_simple_yaml(self, mock_get):
+        mock_response = requests.Response()
+        mock_response.status_code = 200
+        mock_response._content = b"likes_foobar: TRUE\nnames:\n    - foo\n    - bar\n"
+        mock_get.return_value = mock_response
+        expected_dict = {"likes_foobar": True, "names": ["foo", "bar"]}
+
+        r = load_remote_yaml("fake.url.com")
+
+        self.assertEqual(r, expected_dict)
+
+    @patch("requests.get")
+    @patch("time.sleep")
+    def test_raise_on_404(self, mock_sleep, mock_get):
+        mock_response = requests.Response()
+        mock_response.status_code = 404
+        mock_get.return_value = mock_response
+        mock_sleep = (  # noqa: F841
+            lambda x: None
+        )  # this is a workaround so we don't need to wait for backoff's retries
+
+        self.assertRaises(requests.exceptions.HTTPError, load_remote_yaml, "fake.url.com")
