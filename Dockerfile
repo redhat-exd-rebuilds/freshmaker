@@ -1,18 +1,17 @@
-FROM registry.fedoraproject.org/fedora:38-x86_64
+FROM registry.fedoraproject.org/fedora:39-x86_64
 
 LABEL \
     name="Freshmaker application" \
     vendor="Freshmaker developers" \
-    license="GPLv2+" 
-
+    license="GPLv2+"
 
 # Use Copr repo for python3-rhmsg package
-RUN dnf install -y 'dnf-command(copr)' && dnf copr enable -y qwan/python-rhmsg
+RUN dnf install -y 'dnf-command(copr)' && dnf copr enable -y qwan/python-rhmsg && dnf copr enable -y mfoganho/python3-qpid-proton
 
 COPY yum-packages.txt /tmp/yum-packages.txt
 
 RUN \
-    dnf -y install $(cat /tmp/yum-packages.txt) python3-rhmsg findutils && \
+    dnf -y install $(cat /tmp/yum-packages.txt) && \
     dnf clean all
 
 WORKDIR /src
@@ -20,11 +19,10 @@ WORKDIR /src
 COPY . .
 
 RUN \
-    # All dependencies should've been installed from RPMs
-    echo '' > requirements.txt && \
-    pip3 install . --no-deps
+    pip3 install -r requirements.txt && \
+    pip3 install .
 
-RUN pip install jsonformatter==0.3.2 gql[requests]==3.3.0
+ENV REQUESTS_CA_BUNDLE='/etc/pki/tls/certs/ca-bundle.crt'
 
 RUN mkdir /var/log/freshmaker/
 

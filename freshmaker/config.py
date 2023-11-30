@@ -25,7 +25,7 @@
 #            Jan Kaluza <jkaluza@redhat.com>
 
 from collections import defaultdict
-import imp
+import importlib
 import os
 import threading
 
@@ -104,7 +104,13 @@ def get_config_module_from_file(config_file):
     Try loading configuration module from a file
     """
     try:
-        config_module = imp.load_source("freshmaker_runtime_config", config_file)
+        config_spec = importlib.util.spec_from_file_location(
+            "freshmaker_runtime_config", config_file
+        )
+        config_module = importlib.util.module_from_spec(config_spec)
+        sys.modules["freshmaker_runtime_config"] = config_module
+        config_spec.loader.exec_module(config_module)
+
     except IOError:
         raise SystemError("Configuration file {} was not found.".format(config_file))
 

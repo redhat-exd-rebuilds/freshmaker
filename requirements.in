@@ -1,11 +1,13 @@
+aiohttp
 alembic
+backoff
 defusedxml
 dogpile.cache
 fedmsg
-Flask==2.2.*
-Flask-Login==0.6.*
-Flask-Migrate==3.1.*
-Flask-SQLAlchemy==2.5.*
+Flask
+Flask-Login
+Flask-Migrate
+Flask-SQLAlchemy
 gql[requests, aiohttp]
 httplib2
 jsonformatter
@@ -29,7 +31,8 @@ PyYaml
 requests
 requests-kerberos
 rpm
-semver==2.13.*
-sqlalchemy==1.4.*
+semver
+sqlalchemy
 tabulate
 yarl
+werkzeug
