@@ -58,9 +58,9 @@ setup(
         ],
     },
     data_files=[
-        ("/etc/freshmaker/", ["conf/config.py"]),
+        ("//etc/freshmaker/", ["conf/config.py"]),
         (
-            "/etc/fedmsg.d/",
+            "//etc/fedmsg.d/",
             [
                 "fedmsg.d/freshmaker-logging.py",
                 "fedmsg.d/freshmaker-scheduler.py",

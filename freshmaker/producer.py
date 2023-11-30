@@ -31,7 +31,6 @@ from freshmaker.kojiservice import koji_service
 from freshmaker.events import BrewContainerTaskStateChangeEvent
 from freshmaker.consumer import work_queue_put
 
-
 try:
     # SQLAlchemy 1.4
     from sqlalchemy.exc import StatementError, PendingRollbackError
