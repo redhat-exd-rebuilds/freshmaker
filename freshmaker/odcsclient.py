@@ -311,9 +311,7 @@ class FreshmakerODCSClient(object):
                 " ".join(content_sets), "pulp", flags=["use_only_compatible_arch"]
             )
         else:
-            new_compose = self._fake_odcs_new_compose(
-                content_sets, "pulp", flags=["use_only_compatible_arch"]
-            )
+            new_compose = self._fake_odcs_new_compose(content_sets, "pulp")
 
         return new_compose
 
