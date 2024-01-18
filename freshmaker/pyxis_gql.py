@@ -679,6 +679,9 @@ class PyxisGQL:
         )
 
         images = self.query(query_dsl)["find_images"]["data"]
+        if not images:
+            return []
+
         latest_nvr = images[0]["brew"]["build"]
 
         for img in images[1:]:
