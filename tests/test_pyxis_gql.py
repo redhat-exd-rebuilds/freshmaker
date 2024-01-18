@@ -537,6 +537,39 @@ def test_pyxis_graphql_find_latest_images_by_name_version():
     assert images == result["find_images"]["data"]
 
 
+def test_pyxis_graphql_find_latest_images_by_name_version_empty():
+    pyxis_schema_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "fixtures",
+        "pyxis.graphql",
+    )
+    with open(pyxis_schema_path) as source:
+        document = parse(source.read())
+    schema = build_ast_schema(document)
+
+    flexmock(PyxisGQL).should_receive("dsl_schema").and_return(DSLSchema(schema))
+
+    result = {
+        "find_images": {
+            "data": [],
+            "error": None,
+            "page": 0,
+            "page_size": 250,
+            "total": 0,
+        }
+    }
+    pyxis_gql = PyxisGQL(url="graphql.pyxis.local", cert="/path/to/cert")
+    flexmock(Client).should_receive("execute").and_return(copy.deepcopy(result))
+
+    images = pyxis_gql.find_latest_images_by_name_version(
+        "foobar-container",
+        "v0.13.0",
+        published=True,
+        content_sets=["rhel-8-for-x86_64-baseos-rpms"],
+    )
+    assert not images
+
+
 @patch("freshmaker.pyxis_gql.RequestsHTTPTransport", autospec=True)
 @patch("freshmaker.pyxis_gql.Client", autospec=True)
 def test_log_trace_id(mock_client, mock_transport):
