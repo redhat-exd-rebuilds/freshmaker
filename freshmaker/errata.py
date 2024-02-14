@@ -472,7 +472,7 @@ class Errata(object):
                                 # Remove '.arch.....' part from rpm's name
                                 # and make a list from them
                                 if arch != "SRPMS":
-                                    just_nvrs = [rpm.rsplit(".", 2)[0] for rpm in rpms]
+                                    just_nvrs = [rpm["filename"].rsplit(".", 2)[0] for rpm in rpms]
                                     nvrs.update(just_nvrs)
 
         return list(nvrs)
