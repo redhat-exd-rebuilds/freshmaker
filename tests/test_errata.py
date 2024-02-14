@@ -152,18 +152,68 @@ class MockedErrataAPI(object):
                                 "is_module": False,
                                 "variant_arch": {
                                     "PRODUCT1": {
-                                        "x86_64": ["libntirpc-1.4.3-4.el6rhs.x86_64.rpm"],
-                                        "ppc64le": ["libntirpc-1.4.3-4.el6rhs.ppc64le.rpm"],
-                                        "s390x": ["libntirpc-1.4.3-4.el6rhs.s390x.rpm"],
-                                        "aarch64": ["libntirpc-1.4.3-4.el6rhs.aarch64.rpm"],
-                                        "SRPMS": ["libntirpc-1.4.3-4.el6rhs.src.rpm"],
+                                        "x86_64": [
+                                            {
+                                                "filename": "libntirpc-1.4.3-4.el6rhs.x86_64.rpm",
+                                                "is_signed": True,
+                                            }
+                                        ],
+                                        "ppc64le": [
+                                            {
+                                                "filename": "libntirpc-1.4.3-4.el6rhs.ppc64le.rpm",
+                                                "is_signed": True,
+                                            }
+                                        ],
+                                        "s390x": [
+                                            {
+                                                "filename": "libntirpc-1.4.3-4.el6rhs.s390x.rpm",
+                                                "is_signed": True,
+                                            }
+                                        ],
+                                        "aarch64": [
+                                            {
+                                                "filename": "libntirpc-1.4.3-4.el6rhs.aarch64.rpm",
+                                                "is_signed": True,
+                                            }
+                                        ],
+                                        "SRPMS": [
+                                            {
+                                                "filename": "libntirpc-1.4.3-4.el6rhs.src.rpm",
+                                                "is_signed": True,
+                                            }
+                                        ],
                                     },
                                     "PRODUCT2": {
-                                        "x86_64": ["libntirpc-1.4.3-4.el6rhs.x86_64.rpm"],
-                                        "ppc64le": ["libntirpc-1.4.3-4.el6rhs.ppc64le.rpm"],
-                                        "s390x": ["libntirpc-1.4.3-4.el6rhs.s390x.rpm"],
-                                        "aarch64": ["libntirpc-1.4.3-4.el6rhs.aarch64.rpm"],
-                                        "SRPMS": ["libntirpc-1.4.3-4.el6rhs.src.rpm"],
+                                        "x86_64": [
+                                            {
+                                                "filename": "libntirpc-1.4.3-4.el6rhs.x86_64.rpm",
+                                                "is_signed": True,
+                                            }
+                                        ],
+                                        "ppc64le": [
+                                            {
+                                                "filename": "libntirpc-1.4.3-4.el6rhs.ppc64le.rpm",
+                                                "is_signed": True,
+                                            }
+                                        ],
+                                        "s390x": [
+                                            {
+                                                "filename": "libntirpc-1.4.3-4.el6rhs.s390x.rpm",
+                                                "is_signed": True,
+                                            }
+                                        ],
+                                        "aarch64": [
+                                            {
+                                                "filename": "libntirpc-1.4.3-4.el6rhs.aarch64.rpm",
+                                                "is_signed": True,
+                                            }
+                                        ],
+                                        "SRPMS": [
+                                            {
+                                                "filename": "libntirpc-1.4.3-4.el6rhs.src.rpm",
+                                                "is_signed": True,
+                                            }
+                                        ],
                                     },
                                 },
                             }
