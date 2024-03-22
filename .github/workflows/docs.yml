@@ -9,11 +9,11 @@ on:
 
 jobs:
   docs:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     env:
       RPM_PY_SYS: true
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Disable Jekyll
         if: github.ref == 'refs/heads/main'
@@ -27,7 +27,7 @@ jobs:
           echo ::set-output name=packages::$(sed 's/#.*//' yum-packages-devel.txt)
 
       - name: Build docs
-        uses: fedora-python/tox-github-action
+        uses: fedora-python/tox-github-action@v38.0
         with:
           dnf_install: ${{ steps.packages.outputs.packages }}
           tox_env: docs
