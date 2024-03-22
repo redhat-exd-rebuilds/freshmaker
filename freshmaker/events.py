@@ -83,9 +83,11 @@ class BaseEvent(object):
         init_sig = signature(self.__init__)
 
         args_strs = (
-            "{}={!r}".format(name, getattr(self, name))
-            if param.default != param.empty
-            else repr(getattr(self, name, {}))
+            (
+                "{}={!r}".format(name, getattr(self, name))
+                if param.default != param.empty
+                else repr(getattr(self, name, {}))
+            )
             for name, param in init_sig.parameters.items()
         )
 

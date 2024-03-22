@@ -257,6 +257,9 @@ class TestRebuildImagesOnAsyncManualBuild(helpers.ModelsTestCase):
             }
         )
 
+    def tearDown(self):
+        self.patcher.unpatch_all()
+
     def test_can_handle_event(self):
         event = FreshmakerAsyncManualBuildEvent("msg-id-01", "repo-branch", ["image1", "image2"])
         handler = RebuildImagesOnAsyncManualBuild()
@@ -353,6 +356,9 @@ class TestRebuildImagesOnAsyncManualBuild(helpers.ModelsTestCase):
                 [self.image_b, self.image_a, self.image_0],
                 [self.image_d, self.image_a, self.image_0],
             ],
+        )
+        self.mock_generate_batches = self.patcher.patch(
+            "generate_batches", return_value=[[self.image_a], [self.image_b]]
         )
         event = FreshmakerAsyncManualBuildEvent(
             "msg-id-123", "test_branch", ["image-b-container", "image-d-container"]
