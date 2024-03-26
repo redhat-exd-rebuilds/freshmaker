@@ -20,13 +20,9 @@
 # SOFTWARE.
 
 import json
-from unittest import TestCase
 from unittest.mock import patch, PropertyMock, Mock, call
 
-from requests.exceptions import HTTPError
-
 import freshmaker
-
 from freshmaker.config import all_
 from freshmaker import db, events
 from freshmaker.events import (
@@ -538,7 +534,6 @@ class TestFindImagesToRebuild(helpers.ModelsTestCase):
             release_categories=conf.container_release_categories,
             leaf_container_images=None,
             skip_nvrs=None,
-            repositories=None,
         )
 
     @patch.object(
@@ -560,7 +555,6 @@ class TestFindImagesToRebuild(helpers.ModelsTestCase):
             release_categories=conf.container_release_categories,
             leaf_container_images=None,
             skip_nvrs=None,
-            repositories=None,
         )
 
     @patch.object(
@@ -596,7 +590,6 @@ class TestFindImagesToRebuild(helpers.ModelsTestCase):
             release_categories=None,
             leaf_container_images=None,
             skip_nvrs=None,
-            repositories=None,
         )
 
     @patch.object(
@@ -621,7 +614,6 @@ class TestFindImagesToRebuild(helpers.ModelsTestCase):
             release_categories=conf.container_release_categories,
             leaf_container_images=None,
             skip_nvrs=None,
-            repositories=None,
         )
 
     @patch.object(
@@ -647,7 +639,6 @@ class TestFindImagesToRebuild(helpers.ModelsTestCase):
             release_categories=conf.container_release_categories,
             leaf_container_images=["foo", "bar"],
             skip_nvrs=None,
-            repositories=None,
         )
 
     @patch.object(
@@ -672,55 +663,7 @@ class TestFindImagesToRebuild(helpers.ModelsTestCase):
             release_categories=conf.container_release_categories,
             leaf_container_images=None,
             skip_nvrs=None,
-            repositories=None,
         )
-
-    @patch(
-        "freshmaker.handlers.koji.RebuildImagesOnRPMAdvisoryChange._lookup_external_repos",
-        return_value=["foo/bar/repo"],
-    )
-    def test_moderate_cve_external_repo(self, mock_lookup):
-        self.event.advisory.security_impact = "moderate"
-        self.event.advisory.is_compliance_priority = True
-
-        self.handler._find_images_to_rebuild(123456)
-
-        self.find_images_to_rebuild.assert_called_once_with(
-            ["httpd-2.4-11.el7"],
-            ["content-set-1", "pulp_repo_x86_64"],
-            filter_fnc=self.handler._filter_out_not_allowed_builds,
-            published=None,
-            release_categories=None,
-            leaf_container_images=None,
-            skip_nvrs=None,
-            repositories=["foo/bar/repo"],
-        )
-
-    @patch(
-        "freshmaker.handlers.koji.RebuildImagesOnRPMAdvisoryChange._lookup_external_repos",
-        side_effect=HTTPError("404 Client Error: not found for url: foo.bar/baz"),
-    )
-    def test_moderate_cve_external_repo_http_error(self, mock_lookup):
-        self.event.advisory.security_impact = "moderate"
-        self.event.advisory.is_compliance_priority = True
-
-        result = self.handler._find_images_to_rebuild(123456)
-
-        db_event = Event.get_or_create_from_event(db.session, self.event)
-        self.assertEqual(db_event.state, 3)
-        self.assertEqual(result, [])
-
-    @patch(
-        "freshmaker.handlers.koji.RebuildImagesOnRPMAdvisoryChange._lookup_external_repos",
-        return_value=[],
-    )
-    def test_moderate_cve_external_repo_empty(self, mock_lookup):
-        self.event.advisory.security_impact = "moderate"
-        self.event.advisory.is_compliance_priority = True
-
-        result = self.handler._find_images_to_rebuild(123456)
-
-        self.assertEqual(result, [])
 
 
 class TestAllowBuild(helpers.ModelsTestCase):
@@ -1869,21 +1812,3 @@ class TestRecordBatchesImages(helpers.ModelsTestCase):
         ).first()
         self.assertNotEqual(None, child_image)
         self.assertEqual(child_image.dep_on, None)
-
-
-class TestLookupExternalRepos(TestCase):
-    """Test RebuildImagesOnRPMAdvisoryChange._lookup_external_repos"""
-
-    @patch.object(
-        freshmaker.conf, "compliance_priority_repositories_remote_file", "foo.net/bar", create=True
-    )
-    @patch(
-        "freshmaker.handlers.koji.rebuild_images_on_rpm_advisory_change.load_remote_yaml",
-        return_value={"repositories": ["foo", "bar"]},
-    )
-    def test_retrieve_some_repos(self, mock_load):
-        handler = RebuildImagesOnRPMAdvisoryChange()
-
-        result = handler._lookup_external_repos()
-
-        self.assertEqual(result, ["foo", "bar"])

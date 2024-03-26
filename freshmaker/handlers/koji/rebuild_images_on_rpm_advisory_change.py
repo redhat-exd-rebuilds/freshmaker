@@ -34,7 +34,6 @@ from freshmaker.pulp import Pulp
 from freshmaker.errata import Errata
 from freshmaker.types import ArtifactType, ArtifactBuildState, EventState, RebuildReason
 from freshmaker.models import Event, Compose, ArtifactBuild
-from freshmaker.utils import load_remote_yaml
 
 
 class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
@@ -453,30 +452,6 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
             affected_nvrs,
         )
 
-        adv_is_compliance_priority = getattr(self.event.advisory, "is_compliance_priority", False)
-        # We should only use a restriction for external repos for advisories that are not critical
-        # or important; we should not apply the restriction for critical/important advisories when
-        # they have the 'compliance-priority' label
-        compliance_priority_repos = None
-        if adv_is_compliance_priority and self.event.advisory.security_impact not in [
-            "critical",
-            "important",
-        ]:
-            try:
-                compliance_priority_repos = self._lookup_external_repos()
-            except Exception as e:
-                msg = f"Unable to fetch external repos: {str(e)}"
-                self.log_error(msg)
-                db_event = Event.get_or_create_from_event(db.session, self.event)
-                db_event.transition(EventState.FAILED, msg)
-                db.session.commit()
-                return []
-
-            if not compliance_priority_repos:
-                msg = "No external repositories are specified in the remote yaml, skipping this event."
-                self.log_info(msg)
-                return []
-
         batches = pyxis.find_images_to_rebuild(
             affected_nvrs,
             content_sets,
@@ -485,16 +460,5 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
             release_categories=release_categories,
             leaf_container_images=leaf_container_images,
             skip_nvrs=skip_nvrs,
-            repositories=compliance_priority_repos,
         )
         return batches
-
-    def _lookup_external_repos(self) -> list[str]:
-        """Fetches the external repositories to be used for lower criticality CVEs
-
-        :return: Names of the external repositories
-        :rtype: list of str
-        """
-
-        url = conf.compliance_priority_repositories_remote_file
-        return load_remote_yaml(url).get("repositories", [])
