@@ -1,21 +1,23 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="./">
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Async Pyxis GQL Usage &mdash; Freshmaker  documentation</title>
-      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="_static/jquery.js"></script>
-        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
-        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-        <script src="_static/doctools.js"></script>
-        <script src="_static/sphinx_highlight.js"></script>
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="_static/doctools.js?v=888ff710"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="author" title="About these documents" href="about.html" />
     <link rel="index" title="Index" href="genindex.html" />
@@ -93,11 +95,11 @@
            <div itemprop="articleBody">
              
   <section id="async-pyxis-gql-usage">
-<h1>Async Pyxis GQL Usage<a class="headerlink" href="#async-pyxis-gql-usage" title="Permalink to this heading"></a></h1>
+<h1>Async Pyxis GQL Usage<a class="headerlink" href="#async-pyxis-gql-usage" title="Link to this heading"></a></h1>
 <p>In this page we will give some examples on how to use the asynchronous Pyxis GQL module
 (<code class="docutils literal notranslate"><span class="pre">pyxis_gql_async.py</span></code>).</p>
 <section id="general-remarks-about-asynchronous-code">
-<h2>General remarks about asynchronous code<a class="headerlink" href="#general-remarks-about-asynchronous-code" title="Permalink to this heading"></a></h2>
+<h2>General remarks about asynchronous code<a class="headerlink" href="#general-remarks-about-asynchronous-code" title="Link to this heading"></a></h2>
 <p>To start, let’s take a good analogy from Miguel Grinberg’s 2017 PyCon talk about how asynchronous
 code works:</p>
 <blockquote>
@@ -141,9 +143,9 @@ organizing an exhibition with just one board for Polgár – it is a standard ma
 good sources.</p>
 </section>
 <section id="usage-examples">
-<h2>Usage examples<a class="headerlink" href="#usage-examples" title="Permalink to this heading"></a></h2>
+<h2>Usage examples<a class="headerlink" href="#usage-examples" title="Link to this heading"></a></h2>
 <section id="basic-calls">
-<h3>Basic calls<a class="headerlink" href="#basic-calls" title="Permalink to this heading"></a></h3>
+<h3>Basic calls<a class="headerlink" href="#basic-calls" title="Link to this heading"></a></h3>
 <p>Usually, when we write async code, we will rely on other async libraries that implement lower-level
 functionality. Our code will then have to <code class="docutils literal notranslate"><span class="pre">await</span></code> the async functions of those libraries. For
 example, we could await a <code class="docutils literal notranslate"><span class="pre">get</span></code> request made with <code class="docutils literal notranslate"><span class="pre">aiohttp</span></code>:</p>
@@ -167,7 +169,7 @@ example, we could await a <code class="docutils literal notranslate"><span class
 </div>
 </section>
 <section id="scheduling-tasks-and-collecting-results-with-gather">
-<h3>Scheduling tasks and collecting results with <code class="docutils literal notranslate"><span class="pre">gather</span></code><a class="headerlink" href="#scheduling-tasks-and-collecting-results-with-gather" title="Permalink to this heading"></a></h3>
+<h3>Scheduling tasks and collecting results with <code class="docutils literal notranslate"><span class="pre">gather</span></code><a class="headerlink" href="#scheduling-tasks-and-collecting-results-with-gather" title="Link to this heading"></a></h3>
 <p>We can shedule a batch of tasks to run “together” (in the async sense) and then gather their results
 with <code class="docutils literal notranslate"><span class="pre">asyncio.create_task</span></code> and <code class="docutils literal notranslate"><span class="pre">asyncio.gather</span></code>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">task1</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">async_function1</span><span class="p">(</span><span class="o">...</span><span class="p">))</span>
@@ -188,7 +190,7 @@ of them separately.</p>
 <p>The discussions in <a class="reference internal" href="#asyncfor" id="id5"><span>[AsyncFor]</span></a> are very good to check.</p>
 </section>
 <section id="chaining-results">
-<h3>Chaining results<a class="headerlink" href="#chaining-results" title="Permalink to this heading"></a></h3>
+<h3>Chaining results<a class="headerlink" href="#chaining-results" title="Link to this heading"></a></h3>
 <p>If, on the other hand, you want to process each result as they become available, you can use
 <code class="docutils literal notranslate"><span class="pre">asyncio.as_completed</span></code>. In this example, there are a few results that we want to ignore, so we
 make a conditional aggregation after awaiting each execution:</p>
@@ -207,7 +209,7 @@ make a conditional aggregation after awaiting each execution:</p>
 <p>Again, the discussions in <a class="reference internal" href="#asyncfor" id="id6"><span>[AsyncFor]</span></a> are very good to check.</p>
 </section>
 <section id="usual-structure-of-async-code">
-<h3>Usual structure of async code<a class="headerlink" href="#usual-structure-of-async-code" title="Permalink to this heading"></a></h3>
+<h3>Usual structure of async code<a class="headerlink" href="#usual-structure-of-async-code" title="Link to this heading"></a></h3>
 <p>We will usually have the following elements when we use async code:</p>
 <ul class="simple">
 <li><p>lower level async functions that implement a given task</p></li>
@@ -223,7 +225,7 @@ class with several async functions; it is up to the other modules that will use 
 to build the async loop and aggregate those functions in them as needed.</p>
 </section>
 <section id="concrete-example-for-using-pyxisasyncgql">
-<h3>Concrete example for using PyxisAsyncGQL<a class="headerlink" href="#concrete-example-for-using-pyxisasyncgql" title="Permalink to this heading"></a></h3>
+<h3>Concrete example for using PyxisAsyncGQL<a class="headerlink" href="#concrete-example-for-using-pyxisasyncgql" title="Link to this heading"></a></h3>
 <p>In this next example, we will call <code class="docutils literal notranslate"><span class="pre">PyxisAsyncGQL.get_repository_by_path</span></code> several times, each for
 a given path and registry, and aggregate each result conditionally.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">async</span> <span class="k">def</span> <span class="nf">aggregate_paths</span><span class="p">():</span>
@@ -246,7 +248,7 @@ a given path and registry, and aggregate each result conditionally.</p>
 </section>
 </section>
 <section id="references">
-<h2>References<a class="headerlink" href="#references" title="Permalink to this heading"></a></h2>
+<h2>References<a class="headerlink" href="#references" title="Link to this heading"></a></h2>
 <div role="list" class="citation-list">
 <div class="citation" id="realpython" role="doc-biblioentry">
 <span class="label"><span class="fn-bracket">[</span>RealPython<span class="fn-bracket">]</span></span>

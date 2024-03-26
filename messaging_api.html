@@ -1,21 +1,23 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="./">
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Messaging API &mdash; Freshmaker  documentation</title>
-      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="_static/jquery.js"></script>
-        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
-        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-        <script src="_static/doctools.js"></script>
-        <script src="_static/sphinx_highlight.js"></script>
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="_static/doctools.js?v=888ff710"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="author" title="About these documents" href="about.html" />
     <link rel="index" title="Index" href="genindex.html" />
@@ -87,18 +89,18 @@
            <div itemprop="articleBody">
              
   <section id="messaging-api">
-<h1>Messaging API<a class="headerlink" href="#messaging-api" title="Permalink to this heading"></a></h1>
+<h1>Messaging API<a class="headerlink" href="#messaging-api" title="Link to this heading"></a></h1>
 <p>Freshmaker also sends AMQP or Fedmsg messages when events or builds change its state.</p>
 <section id="event-state-changed">
-<h2><code class="docutils literal notranslate"><span class="pre">event.state.changed</span></code><a class="headerlink" href="#event-state-changed" title="Permalink to this heading"></a></h2>
+<h2><code class="docutils literal notranslate"><span class="pre">event.state.changed</span></code><a class="headerlink" href="#event-state-changed" title="Link to this heading"></a></h2>
 <p>This message is sent on every <a class="reference internal" href="api_v1.html#event-json-api-1"><span class="std std-ref">Freshmaker Event</span></a>’s <a class="reference internal" href="api_v1.html#event-state"><span class="std std-ref">state</span></a> change. The message contains <a class="reference internal" href="api_v1.html#event-json-api-1"><span class="std std-ref">Event JSON representation as defined in API version 1</span></a>.</p>
 </section>
 <section id="event-state-changed-min">
-<h2><code class="docutils literal notranslate"><span class="pre">event.state.changed.min</span></code><a class="headerlink" href="#event-state-changed-min" title="Permalink to this heading"></a></h2>
+<h2><code class="docutils literal notranslate"><span class="pre">event.state.changed.min</span></code><a class="headerlink" href="#event-state-changed-min" title="Link to this heading"></a></h2>
 <p>This message is sent on every <a class="reference internal" href="api_v2.html#event-json-api-2"><span class="std std-ref">Freshmaker Event</span></a>’s <a class="reference internal" href="api_v1.html#event-state"><span class="std std-ref">state</span></a> change. The message contains <a class="reference internal" href="api_v2.html#event-json-api-2"><span class="std std-ref">Event JSON representation as defined in API version 2</span></a>.</p>
 </section>
 <section id="build-state-changed">
-<h2><code class="docutils literal notranslate"><span class="pre">build.state.changed</span></code><a class="headerlink" href="#build-state-changed" title="Permalink to this heading"></a></h2>
+<h2><code class="docutils literal notranslate"><span class="pre">build.state.changed</span></code><a class="headerlink" href="#build-state-changed" title="Link to this heading"></a></h2>
 <p>This message is sent on every <a class="reference internal" href="api_v1.html#build-json-api-1"><span class="std std-ref">Artifact Build</span></a>’s <a class="reference internal" href="api_v1.html#build-state"><span class="std std-ref">state</span></a> change. The message contains <a class="reference internal" href="api_v1.html#build-json-api-1"><span class="std std-ref">Artifact Build</span></a>.</p>
 </section>
 </section>

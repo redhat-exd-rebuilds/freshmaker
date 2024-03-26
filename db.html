@@ -1,21 +1,23 @@
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="./">
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Freshmaker database &mdash; Freshmaker  documentation</title>
-      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="_static/jquery.js"></script>
-        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
-        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-        <script src="_static/doctools.js"></script>
-        <script src="_static/sphinx_highlight.js"></script>
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="_static/doctools.js?v=888ff710"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="author" title="About these documents" href="about.html" />
     <link rel="index" title="Index" href="genindex.html" />
@@ -88,12 +90,12 @@
            <div itemprop="articleBody">
              
   <section id="freshmaker-database">
-<h1>Freshmaker database<a class="headerlink" href="#freshmaker-database" title="Permalink to this heading"></a></h1>
+<h1>Freshmaker database<a class="headerlink" href="#freshmaker-database" title="Link to this heading"></a></h1>
 <p>Freshmaker as an SQL toolkit uses SQLAlchemy extension for <a class="reference external" href="https://flask-sqlalchemy.palletsprojects.com/en/2.x/">Flask</a>. So whenever you want to add some columns or tables you should at least check <code class="docutils literal notranslate"><span class="pre">models.py</span></code> file. Every class that has a <strong>FreshmakerBase</strong> as a parent is actually a table with its own columns, relationships etc.</p>
 <p>As for database management system, we are using <a class="reference external" href="https://www.postgresql.org/">PostgreSQL</a> in deployments and <a class="reference external" href="https://www.sqlite.org/index.html">SQLite</a> in local environment.
 And besides that for testing we are using <em>in-memory</em> database, so whenever you are running tests from <code class="docutils literal notranslate"><span class="pre">tests/</span></code> folder, new database is created and live while tests are running.</p>
 <section id="setting-up-database">
-<h2>Setting up Database<a class="headerlink" href="#setting-up-database" title="Permalink to this heading"></a></h2>
+<h2>Setting up Database<a class="headerlink" href="#setting-up-database" title="Link to this heading"></a></h2>
 <p>When you for the first time want to create freshmaker database, you are supposed to run:</p>
 <div class="highlight-none notranslate"><div class="highlight"><pre><span></span>./manager createdb
 </pre></div>
@@ -101,7 +103,7 @@ And besides that for testing we are using <em>in-memory</em> database, so whenev
 <p>This command will create new <code class="docutils literal notranslate"><span class="pre">freshmaker.db</span></code> file for local use for you.</p>
 </section>
 <section id="database-update">
-<h2>Database update<a class="headerlink" href="#database-update" title="Permalink to this heading"></a></h2>
+<h2>Database update<a class="headerlink" href="#database-update" title="Link to this heading"></a></h2>
 <p>When some changes are applied to database scheme, like changing <code class="docutils literal notranslate"><span class="pre">models.py</span></code>, you should generate  migration file for a new database scheme by running:</p>
 <div class="highlight-none notranslate"><div class="highlight"><pre><span></span>./manager db migrate
 </pre></div>
@@ -113,14 +115,14 @@ And besides that for testing we are using <em>in-memory</em> database, so whenev
 <p>After that all changes should be already applied to your local database.</p>
 </section>
 <section id="querying-database">
-<h2>Querying database<a class="headerlink" href="#querying-database" title="Permalink to this heading"></a></h2>
+<h2>Querying database<a class="headerlink" href="#querying-database" title="Link to this heading"></a></h2>
 <p>You can query your locally created database by running something like this in the directory with database file:</p>
 <div class="highlight-none notranslate"><div class="highlight"><pre><span></span>sqlite3 freshmaker.db &#39;SELECT id FROM artifact_builds;&#39;
 </pre></div>
 </div>
 </section>
 <section id="database-migrations">
-<h2>Database Migrations<a class="headerlink" href="#database-migrations" title="Permalink to this heading"></a></h2>
+<h2>Database Migrations<a class="headerlink" href="#database-migrations" title="Link to this heading"></a></h2>
 <p>Migration is similar to <a class="reference external" href="https://github.com/release-engineering/cachito">Cachito</a>.
 Follow the steps below for database data and/or schema migrations:</p>
 <ul>
