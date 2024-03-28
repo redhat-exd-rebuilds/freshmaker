@@ -39,7 +39,7 @@ click==8.1.7
     # via flask
 constantly==23.10.4
     # via twisted
-cryptography==41.0.7
+cryptography==42.0.4
     # via
     #   pyopenssl
     #   pyspnego
