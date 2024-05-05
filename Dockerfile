@@ -1,4 +1,4 @@
-FROM registry.fedoraproject.org/fedora:39-x86_64
+FROM registry.fedoraproject.org/fedora:41-x86_64
 
 LABEL \
     name="Freshmaker application" \
