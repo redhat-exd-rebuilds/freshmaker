@@ -389,6 +389,7 @@ class RebuildImagesOnRPMAdvisoryChange(ContainerBuildHandler):
             image_name=parsed_nvr["name"],
             image_version=parsed_nvr["version"],
             image_release=parsed_nvr["release"],
+            image_published_repo=image.get("published_repo"),
         ):
             self.log_info("Skipping rebuild of image %s, not allowed by configuration", image.nvr)
             return True

@@ -763,6 +763,11 @@ class PyxisAPI(object):
                 for auto_rebuild_tag in published_repo["auto_rebuild_tags"]:
                     if auto_rebuild_tag in tag_names:
                         image["release_categories"] = published_repo["release_categories"]
+                        # There can potentially be multiple published
+                        # repositories but we only store the first one we
+                        # encounter. This adds uncertainty, but it's good
+                        # enough for our current use case.
+                        image["published_repo"] = repository["repository"]
                         image_nvr_to_image[nvr] = image
                         break
                 else:
