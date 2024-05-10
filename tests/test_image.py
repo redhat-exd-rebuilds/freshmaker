@@ -1178,6 +1178,9 @@ class TestQueryFromPyxis(helpers.FreshmakerTestCase):
         )
         self.assertEqual(len(ret), 2)
         self.assertEqual(["parent-1-2", "parent-1-3"], sorted([x.nvr for x in ret]))
+        self.assertEqual(
+            ["product/repo1", "product2/repo2"], sorted([x.get("published_repo") for x in ret])
+        )
 
     @patch("freshmaker.pyxis_gql.Client")
     @patch("os.path.exists")

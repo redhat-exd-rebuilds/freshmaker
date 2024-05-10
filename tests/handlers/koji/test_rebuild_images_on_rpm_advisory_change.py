@@ -922,6 +922,85 @@ class TestAllowBuild(helpers.ModelsTestCase):
         ret = handler._filter_out_not_allowed_builds(image)
         self.assertEqual(ret, True)
 
+    @patch(
+        "freshmaker.config.Config.handler_build_allowlist",
+        new_callable=PropertyMock,
+        return_value={
+            "RebuildImagesOnRPMAdvisoryChange": {
+                "image": {"advisory_security_impact": ["moderate", "important"]}
+            }
+        },
+    )
+    @patch(
+        "freshmaker.config.Config.handler_build_blocklist",
+        new_callable=PropertyMock,
+        return_value={
+            "RebuildImagesOnRPMAdvisoryChange": {
+                "image": all_(
+                    {
+                        "image_published_repo": ["^foo-.*", "^bar/.*"],
+                        "advisory_security_impact": ["low", "moderate"],
+                        "advisory_is_major_incident": False,
+                    }
+                )
+            }
+        },
+    )
+    def test_filter_out_not_allowed_builds_combined_repo_impact(
+        self, handler_build_blocklist, handler_build_allowlist
+    ):
+        """
+        Tests that allow_build filters on combined published_repo,
+        security_impact and major_incident criteria.
+        """
+        image_block_a = ContainerImage(
+            {
+                "published_repo": "foo-bar1/image-a",
+                "brew": {"build": "image-a-1.0-2"},
+            }
+        )
+        image_block_b = ContainerImage(
+            {
+                "published_repo": "bar/image-b",
+                "brew": {"build": "image-b-1.0-2"},
+            }
+        )
+        image_allow_c = ContainerImage(
+            {
+                "published_repo": "notfoo-bar/image-c",
+                "brew": {"build": "image-c-0.2-9"},
+            }
+        )
+
+        for severity in ["moderate", "important"]:
+            for is_major_incident in [False, True]:
+                handler = RebuildImagesOnRPMAdvisoryChange()
+                handler.event = ErrataRPMAdvisoryShippedEvent(
+                    "123",
+                    ErrataAdvisory(
+                        123,
+                        "RHSA-2017",
+                        "SHIPPED_LIVE",
+                        [],
+                        security_impact=severity,
+                        is_major_incident=is_major_incident,
+                        product_short_name="product",
+                    ),
+                )
+
+                # Not in blocklist, always rebuilt
+                ret = handler._filter_out_not_allowed_builds(image_allow_c)
+                self.assertEqual(ret, False)
+
+                for image in image_block_a, image_block_b:
+                    ret = handler._filter_out_not_allowed_builds(image)
+                    if is_major_incident:
+                        # Never blocked for Major Incidents
+                        self.assertEqual(ret, False)
+                    else:
+                        # Blocked for Moderates
+                        self.assertEqual(ret, severity == "moderate")
+
 
 class TestBatches(helpers.ModelsTestCase):
     """Test handling of batches"""
