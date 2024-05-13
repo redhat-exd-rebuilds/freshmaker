@@ -45,6 +45,7 @@ class ErrataAdvisory(object):
         content_types,
         security_impact=None,
         product_short_name=None,
+        release_name=None,
         cve_list=None,
         is_major_incident=None,
         is_compliance_priority=None,
@@ -58,6 +59,7 @@ class ErrataAdvisory(object):
         self.content_types = content_types
         self.security_impact = security_impact or ""
         self.product_short_name = product_short_name or ""
+        self.release_name = release_name or ""
         self.cve_list = cve_list or []
         self.is_major_incident = is_major_incident
         self.is_compliance_priority = is_compliance_priority
@@ -104,6 +106,7 @@ class ErrataAdvisory(object):
             return None
         erratum_data = erratum_data[0]
 
+        release_data = errata._get_release(errata_id)
         product_data = errata._get_product(erratum_data["product_id"])
         cve = data["content"]["content"]["cve"].strip()
         if cve:
@@ -139,6 +142,7 @@ class ErrataAdvisory(object):
             erratum_data["content_types"],
             security_impact,
             product_data["product"]["short_name"],
+            release_data["data"]["attributes"]["name"],
             cve_list,
             is_major_incident,
             is_compliance_priority,

@@ -791,6 +791,39 @@ class TestAllowBuild(helpers.ModelsTestCase):
         record_images.assert_not_called()
 
     @patch(
+        "freshmaker.handlers.koji.RebuildImagesOnRPMAdvisoryChange." "_find_images_to_rebuild",
+        return_value=[],
+    )
+    @patch(
+        "freshmaker.config.Config.handler_build_blocklist",
+        new_callable=PropertyMock,
+        return_value={
+            "RebuildImagesOnRPMAdvisoryChange": {"image": {"advisory_release_name": "RHEL-7"}}
+        },
+    )
+    def test_not_allow_by_advisory_release(self, handler_build_allowlist, record_images):
+        """
+        Tests that allow_build does filter out advisories based on
+        advisory_release_name.
+        """
+        event = ErrataRPMAdvisoryShippedEvent(
+            "123",
+            ErrataAdvisory(
+                123,
+                "RHSA-2017",
+                "REL_PREP",
+                [],
+                security_impact="None",
+                product_short_name="product",
+                release_name="RHEL7",
+            ),
+        )
+        handler = RebuildImagesOnRPMAdvisoryChange()
+        handler.handle(event)
+
+        record_images.assert_not_called()
+
+    @patch(
         "freshmaker.config.Config.handler_build_allowlist",
         new_callable=PropertyMock,
         return_value={

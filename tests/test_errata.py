@@ -86,6 +86,10 @@ class MockedErrataAPI(object):
                 "id": 89,
                 "short_name": "product",
             },
+            "release": {
+                "id": 652,
+                "name": "RHEL-7.4.0",
+            },
             "people": {"reporter": "botas/dev-jenkins.some.strange.letters.redhat.com@REDHAT.COM"},
         }
 
@@ -137,6 +141,14 @@ class MockedErrataAPI(object):
         self.product_versions = {}
         self.product_versions[3] = {"rhel_release": {"name": "RHEL-6-foobar"}}
         self.product_versions[4] = {"rhel_release": {"name": "RHEL-7-foobar"}}
+
+        self.release_rest_json = {
+            "data": {
+                "id": 652,
+                "type": "releases",
+                "attributes": {"name": "RHEL-7.4.0", "description": "RHEL-7.4.0"},
+            }
+        }
 
         self.builds_by_cve = {
             "CVE-2020-12345": {
@@ -262,6 +274,8 @@ class MockedErrataAPI(object):
             return self.builds_list_with_sig_key
         elif endpoint.find("erratum/") != -1:
             return self.advisory_rest_json
+        elif endpoint.find("releases/") != -1:
+            return self.release_rest_json
 
     def errata_http_get(self, endpoint):
         if endpoint.endswith("builds.json"):
