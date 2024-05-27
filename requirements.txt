@@ -10,7 +10,7 @@ aiohttp==3.9.1
     #   gql
 aiosignal==1.3.1
     # via aiohttp
-alembic==1.13.0
+alembic==1.13.1
     # via
     #   -r requirements.in
     #   flask-migrate
@@ -27,7 +27,7 @@ backoff==2.2.1
     # via
     #   -r requirements.in
     #   gql
-beautifulsoup4==4.12.2
+beautifulsoup4==4.12.3
     # via python-fedora
 certifi==2023.11.17
     # via requests
@@ -61,23 +61,23 @@ flask==2.2.5
     #   flask-login
     #   flask-migrate
     #   flask-sqlalchemy
-flask-login==0.6.2
+flask-login==0.6.3
     # via -r requirements.in
-flask-migrate==4.0.5
+flask-migrate==4.0.7
     # via -r requirements.in
 flask-sqlalchemy==2.5.1
     # via
     #   -r requirements.in
     #   flask-migrate
-frozenlist==1.4.0
+frozenlist==1.4.1
     # via
     #   aiohttp
     #   aiosignal
-gql[aiohttp,requests]==3.5.0b8
+gql[aiohttp,requests]==3.5.0
     # via -r requirements.in
-graphql-core==3.3.0a3
+graphql-core==3.3.0a5
     # via gql
-greenlet==3.0.2
+greenlet==3.0.3
     # via sqlalchemy
 gssapi==1.8.3
     # via
@@ -113,9 +113,9 @@ krb5==0.5.1
     # via pyspnego
 lockfile==0.12.2
     # via python-fedora
-mako==1.3.0
+mako==1.3.3
     # via alembic
-markupsafe==2.1.3
+markupsafe==2.1.5
     # via
     #   jinja2
     #   mako
@@ -126,7 +126,7 @@ moksha-common==1.2.5
     # via moksha-hub
 moksha-hub==1.5.17
     # via -r requirements.in
-multidict==6.0.4
+multidict==6.0.5
     # via
     #   aiohttp
     #   yarl
@@ -146,7 +146,7 @@ pbr==6.0.0
     # via stevedore
 prometheus-client==0.19.0
     # via -r requirements.in
-psutil==5.9.6
+psutil==5.9.8
     # via -r requirements.in
 pyasn1==0.5.1
     # via
@@ -166,7 +166,7 @@ pyldap==3.0.0.post1
     # via -r requirements.in
 pyopenssl==23.3.0
     # via -r requirements.in
-pyparsing==3.1.1
+pyparsing==3.1.2
     # via httplib2
 pyspnego[kerberos]==0.10.2
     # via requests-kerberos
