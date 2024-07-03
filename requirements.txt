@@ -249,7 +249,7 @@ typing-extensions==4.9.0
     # via
     #   alembic
     #   twisted
-urllib3==2.1.0
+urllib3==2.2.2
     # via
     #   python-fedora
     #   requests
