@@ -191,7 +191,7 @@ pyzmq==25.1.2
     #   fedmsg
     #   moksha-hub
     #   txzmq
-requests==2.31.0
+requests==2.32.2
     # via
     #   -r requirements.in
     #   fedmsg
