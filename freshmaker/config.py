@@ -371,6 +371,12 @@ class Config(object):
             'the keys "groups" and "users" which have values that are lists. Any roles not '
             "provided as keys, will contain defaut empty values.",
         },
+        "update_base_image": {
+            "type": bool,
+            "default": False,
+            "desc": "When True, replace base images that are not the latest and are used as "
+            "dependency, the latest published image with the same name and version will be used.",
+        },
         "rebuilt_nvr_release_suffix": {
             "type": str,
             "default": "",
