@@ -126,7 +126,7 @@ moksha-common==1.2.5
     # via moksha-hub
 moksha-hub==1.5.17
     # via -r requirements.in
-multidict==6.0.4
+multidict==6.0.5
     # via
     #   aiohttp
     #   yarl

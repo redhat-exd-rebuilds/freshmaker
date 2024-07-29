@@ -3335,3 +3335,57 @@ def test_get_fixed_published_image_not_found_by_nvr(
     )
 
     assert image is None
+
+
+@patch("freshmaker.pyxis_gql.PyxisGQL.find_latest_images_by_name_version")
+@patch("freshmaker.pyxis_gql.PyxisGQL.find_images_by_nvr")
+@patch("freshmaker.image.ContainerImage.resolve")
+def test_replace_base_images(
+    mocked_resolve, mocked_find_images_by_nvr, mocked_find_images_by_name_version
+):
+    vulnerable_bash_rpm_manifest = {
+        "rpms": [
+            {
+                "name": "bash",
+                "nvra": "bash-6.1.8-9.el9.x86_64",
+                "srpm_name": "bash",
+                "srpm_nevra": "bash-0:6.1.8-9.el9.src",
+                "version": "6.1.8",
+            }
+        ]
+    }
+    base_image = ContainerImage.create(
+        {
+            "brew": {"build": "ubi9-container-9.4-1123"},
+            "content_sets": ["rhel-9-for-x86_64-baseos-rpms"],
+            "rpm_manifest": vulnerable_bash_rpm_manifest,
+            "filesystem_koji_task_id": 12345,
+        }
+    )
+    child_image = ContainerImage.create(
+        {
+            "brew": {"build": "dpdk-base-container-v4.13.8-4"},
+            "content_sets": ["rhel-9-for-x86_64-baseos-rpms"],
+            "directly_affected": True,
+            "parent": base_image,
+            "rpm_manifest": vulnerable_bash_rpm_manifest,
+        }
+    )
+    latest_base_image = ContainerImage.create(
+        {
+            "brew": {"build": "ubi9-container-9.4-1200"},
+            "content_sets": ["rhel-9-for-x86_64-baseos-rpms"],
+            "edges": {"rpm_manifest": {"data": {"rpms": vulnerable_bash_rpm_manifest["rpms"]}}},
+        }
+    )
+
+    mocked_find_images_by_name_version.return_value = [latest_base_image]
+    mocked_find_images_by_nvr.return_value = [latest_base_image]
+
+    to_rebuild = [[child_image, base_image]]
+    rpm_nvrs = ["bash-6.1.8-10.el9"]
+
+    pyxis = PyxisAPI("pyxis.domain.local")
+    pyxis._replace_base_images(to_rebuild, rpm_nvrs)
+    assert to_rebuild[0][0]["parent"]["brew"]["build"] == "ubi9-container-9.4-1200"
+    assert to_rebuild[0][1]["brew"]["build"] == "ubi9-container-9.4-1200"

@@ -111,6 +111,10 @@ class ContainerImage(dict):
     def nvr(self):
         return self["brew"]["build"]
 
+    @property
+    def is_base_image(self):
+        return self["filesystem_koji_task_id"] is not None
+
     def log_error(self, err):
         """
         Logs the error associated with this image and sets self["error"].
@@ -153,6 +157,7 @@ class ContainerImage(dict):
             "arches": None,
             "odcs_compose_ids": None,
             "parent_image_builds": None,
+            "filesystem_koji_task_id": None,
         }
 
     @classmethod
@@ -187,6 +192,7 @@ class ContainerImage(dict):
 
             fs_koji_task_id = build.get("extra", {}).get("filesystem_koji_task_id")
             if fs_koji_task_id:
+                data["filesystem_koji_task_id"] = fs_koji_task_id
                 parsed_nvr = koji.parse_NVR(nvr)
                 name_version = f'{parsed_nvr["name"]}-{parsed_nvr["version"]}'
                 if name_version not in conf.image_extra_repo:
@@ -1467,6 +1473,10 @@ class PyxisAPI(object):
             to_rebuild, directly_affected_nvrs, rpm_nvrs, content_sets
         )
 
+        # Replace base images that are not the latest and are used as dependency images
+        if conf.update_base_image:
+            self._replace_base_images(to_rebuild, rpm_nvrs)
+
         # Now generate batches from deduplicated list and return it.
         return self._images_to_rebuild_to_batches(to_rebuild, directly_affected_nvrs)
 
@@ -1553,6 +1563,66 @@ class PyxisAPI(object):
             # and then remove the remaining images after it in `to_rebuild`
             child_image["parent"] = fixed_published_image
             del image_group[not_directly_affected_index:]
+
+    def _replace_base_images(self, to_rebuild, rpm_nvrs):
+        """
+        Replace base images that are not the latest and are used as dependency images.
+
+        :param Iterable to_rebuild: the list of images to rebuild; each element is
+            an iterable with the first element being the child image and each subsequent
+            image being the parent of the previous image
+        :param Iterable rpm_nvrs: the list of RPM NVRs with the fixes in the advisory
+        """
+        rpm_name_to_nvrs = {kobo.rpmlib.parse_nvr(nvr)["name"]: nvr for nvr in rpm_nvrs}
+
+        replacements = {}
+        for image_group in to_rebuild:
+            # Base image can only be present as the last image in list
+            image = image_group[-1]
+
+            # Skip non-base images
+            if not image.is_base_image:
+                continue
+            # Skip directly affected images
+            if image.get("directly_affected", False):
+                continue
+
+            if image.nvr in replacements:
+                new_image = replacements[image.nvr]
+                if not new_image:
+                    continue
+                image_group[-1] = new_image
+                image_group[-2]["parent"] = new_image
+                continue
+
+            parsed_image_nvr = kobo.rpmlib.parse_nvr(image.nvr)
+            images = self.pyxis.find_latest_images_by_name_version(
+                parsed_image_nvr["name"], parsed_image_nvr["version"], published=True
+            )
+            if not images:
+                continue
+
+            candidate_nvr = images[0]["brew"]["build"]
+            parsed_candidate_nvr = kobo.rpmlib.parse_nvr(candidate_nvr)
+            # Skip if the latest published NVR <= current NVR
+            if kobo.rpmlib.compare_nvr(parsed_candidate_nvr, parsed_image_nvr) < 1:
+                replacements[image.nvr] = None
+                continue
+
+            # Now that the latest base image to be used as replacement is determined,
+            # get it from pyxis with all the metadata required by Freshmaker
+            images = self.pyxis.find_images_by_nvr(candidate_nvr)
+            if not images:
+                log.error("Image not found: %s", candidate_nvr)
+                continue
+
+            images = self.postprocess_images(images, rpm_name_to_nvrs)
+            new_image = images[0]
+            new_image.resolve(self)
+
+            image_group[-1] = new_image
+            image_group[-2]["parent"] = new_image
+            replacements[image.nvr] = new_image
 
     def postprocess_images(self, images, rpm_name_to_nvrs):
         # Avoid manipulating the images directly, uses a copy instead.
