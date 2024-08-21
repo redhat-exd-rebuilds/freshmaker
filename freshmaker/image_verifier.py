@@ -44,7 +44,7 @@ class ImageVerifier(object):
             pyxis
             if pyxis
             else PyxisGQL(
-                url=conf.pyxis_server_url, cert=(conf.pyxis_certificate, conf.pyxis_private_key)
+                url=conf.pyxis_graphql_url, cert=(conf.pyxis_certificate, conf.pyxis_private_key)
             )
         )
 
