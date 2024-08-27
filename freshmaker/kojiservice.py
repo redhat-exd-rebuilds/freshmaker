@@ -66,7 +66,7 @@ class KojiService(object):
     As a wrapper of Koji API, new APIs could be added as well.
     """
 
-    region = dogpile.cache.make_region().configure(conf.dogpile_cache_backend)
+    region = dogpile.cache.make_region().configure(conf.dogpile_cache_backend, expiration_time=1200)
 
     # Used to generate incremental task id in dry run mode.
     _FAKE_TASK_ID = 0
