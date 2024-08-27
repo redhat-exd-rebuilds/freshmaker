@@ -52,7 +52,7 @@ class PyxisGQLRequestTimeout(PyxisGQLRequestError):
 
 
 class PyxisGQL:
-    region = dogpile.cache.make_region().configure(conf.dogpile_cache_backend)
+    region = dogpile.cache.make_region().configure(conf.dogpile_cache_backend, expiration_time=1200)
 
     def __init__(self, url, cert):
         """Create authenticated Pyxis GraphQL session"""

@@ -43,7 +43,7 @@ class PyxisRequestError(Exception):
 class Pyxis(object):
     """Interface for querying Pyxis"""
 
-    region = dogpile.cache.make_region().configure(conf.dogpile_cache_backend)
+    region = dogpile.cache.make_region().configure(conf.dogpile_cache_backend, expiration_time=1200)
 
     def __init__(self, server_url):
         self._server_url = server_url
