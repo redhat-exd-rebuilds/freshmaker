@@ -726,6 +726,10 @@ class PyxisAPI(object):
         if not images:
             return []
 
+        # Skip images without Brew metadata. Images built and released by Konflux
+        # lack Brew metadata. We don't support rebuilding such images.
+        images = [x for x in images if x["brew"]]
+
         # Avoid manipulating the images directly, use a copy instead
         image_dicts = copy.deepcopy(images)
         del images
