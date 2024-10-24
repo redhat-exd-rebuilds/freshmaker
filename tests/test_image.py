@@ -1427,6 +1427,56 @@ class TestQueryFromPyxis(helpers.FreshmakerTestCase):
         )
         self.assertEqual([image.nvr for image in ret], ["parent-1-3", "parent-1-2"])
 
+    @patch("freshmaker.pyxis_gql.Client")
+    def test_images_with_missing_nvr_data(self, mock_pyxis_client):
+        mock_pyxis_client.return_value.execute.return_value = {
+            "find_images": {
+                "data": [
+                    {
+                        "architecture": "amd64",
+                        "brew": None,
+                        "content_sets": ["dummy-content-set-1"],
+                        "edges": {
+                            "rpm_manifest": {
+                                "data": {
+                                    "rpms": [
+                                        {
+                                            "name": "openssl",
+                                            "nvra": "openssl-1.2.3-2.amd64",
+                                            "srpm_name": "openssl",
+                                            "srpm_nevra": "openssl-1.2.3-2.amd64",
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "parent_brew_build": "ubi8-minimal-container-8.6-100.1582220001",
+                        "parsed_data": {},
+                        "repositories": [
+                            {
+                                "published": True,
+                                "registry": "registry.example.com",
+                                "repository": "product/repo1",
+                                "tags": [{"name": "latest"}],
+                            }
+                        ],
+                    }
+                ],
+                "error": None,
+                "page": 0,
+                "page_size": 250,
+                "total": 2,
+            }
+        }
+        pyxis = PyxisAPI(server_url=self.fake_server_url)
+        repositories = {
+            repo["repository"]: repo for repo in self.fake_repositories_with_content_sets
+        }
+        ret = pyxis.find_images_with_included_rpms(
+            ["dummy-content-set-1"], ["openssl-1.2.4-2"], repositories
+        )
+        self.assertEqual([], ret)
+
     def _filter_fnc(self, image):
         return image.nvr.startswith("filtered_")
 
