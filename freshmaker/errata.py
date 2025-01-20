@@ -25,7 +25,7 @@ import os
 import requests
 import dogpile.cache
 from requests_kerberos import HTTPKerberosAuth, OPTIONAL
-from jira import JIRA
+from jira import JIRA, JIRAError
 
 from freshmaker.events import BrewSignRPMEvent, ErrataBaseEvent, FreshmakerManualRebuildEvent
 from freshmaker import conf, log
@@ -176,6 +176,11 @@ class Errata(object):
     # should not change.
     product_region = dogpile.cache.make_region().configure(
         conf.dogpile_cache_backend, expiration_time=24 * 3600
+    )
+
+    # Cache for Jira issue data
+    jira_region = dogpile.cache.make_region().configure(
+        conf.dogpile_cache_backend, expiration_time=60 * 60
     )
 
     def __init__(self, server_url=None):
@@ -526,21 +531,41 @@ class Errata(object):
         release = self._get_release(errata_id)
         return release["data"]["attributes"]["type"] == "Zstream"
 
+    @jira_region.cache_on_arguments()
+    def _get_jira_vulnerability_special_handling(self, issue_key: str) -> None | list[str]:
+        """
+        Get "Special Handling" values from a Jira issue, return None if Jira issue
+        is not a "Vulnerability" issue
+        """
+        jira_server = JIRA(server=conf.jira_server_url, token_auth=conf.jira_token)
+        try:
+            try:
+                issue = jira_server.issue(issue_key)
+            except JIRAError as e:
+                log.error("unable to check jira issue %s: %s", issue_key, e.text)
+                return None
+
+            issue_type = issue.fields.issuetype.name.lower()
+            if issue_type != "vulnerability":
+                return None
+
+            special_handling = getattr(issue.fields, "customfield_12324753", [])
+            if not special_handling:
+                return None
+            return [x.value for x in special_handling]
+        finally:
+            jira_server.close()
+
     @retry(wait_on=Exception, logger=log)
     def _check_jira_special_handling(self, issue_keys: list[str], handling_value: str) -> bool:
         """Check if any vulnerability issue has the specified special handling value."""
-        jira_server = JIRA(server=conf.jira_server_url, token_auth=conf.jira_token)
-        try:
-            for issue in issue_keys:
-                jira_issue = jira_server.issue(issue)
-                if jira_issue.fields.issuetype.name.lower() != "vulnerability":
-                    continue
-                special_handling = getattr(jira_issue.fields, "customfield_12324753", []) or []
-                if handling_value in [x.value for x in special_handling]:
-                    return True
-            return False
-        finally:
-            jira_server.close()
+        for issue in issue_keys:
+            special_handling = self._get_jira_vulnerability_special_handling(issue)
+            if not special_handling:
+                continue
+            if handling_value in special_handling:
+                return True
+        return False
 
     def is_major_incident_advisory(self, errata_id) -> bool:
         """Check if this advisory is a major incident advisory."""
