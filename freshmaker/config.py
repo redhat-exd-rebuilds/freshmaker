@@ -467,6 +467,16 @@ class Config(object):
             "default": "",
             "desc": "URL to a remote file containing image repositories enabled for rebuilding due to compliance priority CVEs",
         },
+        "jira_server_url": {
+            "type": str,
+            "default": "https://issues.redhat.com",
+            "desc": "The JIRA server url",
+        },
+        "jira_token": {
+            "type": str,
+            "default": "",
+            "desc": "A string of the token necessary for JIRA PAT bearer token authorization",
+        },
     }
 
     def __init__(self, conf_section_obj):

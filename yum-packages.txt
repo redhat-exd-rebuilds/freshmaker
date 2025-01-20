@@ -10,6 +10,7 @@ mod_auth_gssapi
 mod_ssl
 python3-devel
 python3-fedmsg
+python3-jira
 python3-kerberos
 python3-kobo-rpmlib
 python3-ldap
