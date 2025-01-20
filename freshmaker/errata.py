@@ -22,10 +22,10 @@
 # Written by Jan Kaluza <jkaluza@redhat.com>
 
 import os
-import re
 import requests
 import dogpile.cache
 from requests_kerberos import HTTPKerberosAuth, OPTIONAL
+from jira import JIRA
 
 from freshmaker.events import BrewSignRPMEvent, ErrataBaseEvent, FreshmakerManualRebuildEvent
 from freshmaker import conf, log
@@ -47,8 +47,9 @@ class ErrataAdvisory(object):
         product_short_name=None,
         release_name=None,
         cve_list=None,
-        is_major_incident=None,
-        is_compliance_priority=None,
+        is_major_incident=False,
+        is_compliance_priority=False,
+        is_contract_priority=False,
     ):
         """
         Initializes the ErrataAdvisory instance.
@@ -63,6 +64,7 @@ class ErrataAdvisory(object):
         self.cve_list = cve_list or []
         self.is_major_incident = is_major_incident
         self.is_compliance_priority = is_compliance_priority
+        self.is_contract_priority = is_contract_priority
 
         self._affected_rpm_nvrs = None
         self._reporter = ""
@@ -120,20 +122,9 @@ class ErrataAdvisory(object):
         # rebuilds for artifacts.
         security_impact = erratum_data["security_impact"].lower()
 
-        has_hightouch_bug = False
-        has_compliance_priority_bug = False
-        bugs = errata._get_bugs(erratum_data["id"]) or []
-
-        has_hightouch_bug = any(["hightouch+" in bug.get("flags", "") for bug in bugs])
-        has_compliance_priority_bug = any(
-            ["compliance_priority+" in bug.get("flags", "") for bug in bugs]
-        )
-
-        has_jira_major_incident = errata.has_jira_major_incidents(errata_id)
-        is_major_incident = has_hightouch_bug or has_jira_major_incident
-
-        has_jira_compliance_priority = errata.has_compliance_priority_jira_label(errata_id)
-        is_compliance_priority = has_compliance_priority_bug or has_jira_compliance_priority
+        is_major_incident = errata.is_major_incident_advisory(errata_id)
+        is_compliance_priority = errata.is_compliance_priority_advisory(errata_id)
+        is_contract_priority = errata.is_contract_priority_advisory(errata_id)
 
         return ErrataAdvisory(
             erratum_data["id"],
@@ -146,6 +137,7 @@ class ErrataAdvisory(object):
             cve_list,
             is_major_incident,
             is_compliance_priority,
+            is_contract_priority,
         )
 
     def is_flatpak_module_advisory_ready(self):
@@ -534,56 +526,49 @@ class Errata(object):
         release = self._get_release(errata_id)
         return release["data"]["attributes"]["type"] == "Zstream"
 
-    def has_jira_major_incidents(self, errata_id: str) -> bool:
-        """
-        Checks if this errata has a 'major incident' issue in JIRA
-
-        :param errata_id: The ID of the errata advisory
-        :type errata_id: str
-
-        :return: Wether the errata has or not a major incident issue in JIRA
-        :rtype: bool
-        """
-        resp = self._get_jira_issues(errata_id=errata_id)
-
-        if isinstance(resp, dict) and resp.get("error", False):
-            log.info(
-                f"Error when querying for Jira issues for advisory {errata_id}: {resp['error']}"
-            )
+    @retry(wait_on=Exception, logger=log)
+    def _check_jira_special_handling(self, issue_keys: list[str], handling_value: str) -> bool:
+        """Check if any vulnerability issue has the specified special handling value."""
+        jira_server = JIRA(server=conf.jira_server_url, token_auth=conf.jira_token)
+        try:
+            for issue in issue_keys:
+                jira_issue = jira_server.issue(issue)
+                if jira_issue.fields.issuetype.name.lower() != "vulnerability":
+                    continue
+                special_handling = getattr(jira_issue.fields, "customfield_12324753", []) or []
+                if handling_value in [x.value for x in special_handling]:
+                    return True
             return False
+        finally:
+            jira_server.close()
 
-        mi_pattern = re.compile(r"major\s*incident", re.IGNORECASE)
+    def is_major_incident_advisory(self, errata_id) -> bool:
+        """Check if this advisory is a major incident advisory."""
+        # check if there is any "hightouch+" bug attached
+        bugs = self._get_bugs(errata_id)
+        if bugs and any(["hightouch+" in bug.get("flags", "") for bug in bugs]):
+            return True
 
-        for issue in resp:
-            if mi_pattern.search(issue["summary"]):
-                log.info(f"Found 'major incident' issue for advisory {errata_id}: {issue['key']}")
-                return True
+        # check if there is any "Major Incident" Jira Vulnerability issue attached
+        issues = self._get_jira_issues(errata_id)
+        issue_keys = [x["key"] for x in issues]
+        return self._check_jira_special_handling(issue_keys, "Major Incident")
 
-        return False
+    def is_compliance_priority_advisory(self, errata_id) -> bool:
+        """Check if this advisory is a compliance priority advisory."""
+        # check if there is any "compliance_priority+" bug attached
+        bugs = self._get_bugs(errata_id)
+        if bugs and any(["compliance_priority+" in bug.get("flags", "") for bug in bugs]):
+            return True
 
-    def has_compliance_priority_jira_label(self, errata_id) -> bool:
-        """
-        Checks if this erratas has an issue in JIRA with 'compliance_priority' label.
+        # check if there is any "compliance-priority" Jira Vulnerability issue attached
+        issues = self._get_jira_issues(errata_id)
+        issue_keys = [x["key"] for x in issues]
+        return self._check_jira_special_handling(issue_keys, "compliance-priority")
 
-        :param errata_id: The ID of the errata advisory
-        :type errata_id: str
-
-        :return: Wether the errata has or not a compliance priority issue in JIRA
-        :rtype: bool
-        """
-        resp = self._get_jira_issues(errata_id=errata_id)
-
-        if isinstance(resp, dict) and resp.get("error", False):
-            log.info(
-                f"Error when querying for Jira issues for advisory {errata_id}: {resp['error']}"
-            )
-            return False
-
-        for issue in resp:
-            if "compliance-priority" in issue["labels"]:
-                log.info(
-                    f"Found 'compliance-priority' label in issue {issue['key']} for advisory {errata_id}"
-                )
-                return True
-
-        return False
+    def is_contract_priority_advisory(self, errata_id) -> bool:
+        """Check if this advisory is a contract priority advisory."""
+        # check if there is any "contract-priority" Jira Vulnerability issue attached
+        issues = self._get_jira_issues(errata_id)
+        issue_keys = [x["key"] for x in issues]
+        return self._check_jira_special_handling(issue_keys, "contract-priority")

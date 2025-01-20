@@ -50,7 +50,9 @@ decorator==5.1.1
     #   gssapi
     #   moksha-common
 defusedxml==0.7.1
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   jira
 dogpile-cache==1.2.2
     # via -r requirements.in
 fedmsg==1.1.7
@@ -98,6 +100,8 @@ itsdangerous==2.1.2
     # via flask
 jinja2==3.1.2
     # via flask
+jira==3.8.0
+    # via -r requirements.in
 jsonformatter==0.3.2
     # via -r requirements.in
 kitchen==1.2.6
@@ -136,14 +140,20 @@ munch==4.0.0
     #   python-fedora
 mypy-extensions==1.0.0
     # via -r requirements.in
+oauthlib==3.2.2
+    # via requests-oauthlib
 odcs[client]==0.7.0
     # via -r requirements.in
 openidc-client==0.6.0
     # via
     #   odcs
     #   python-fedora
+packaging==24.2
+    # via jira
 pbr==6.0.0
     # via stevedore
+pillow==11.1.0
+    # via jira
 prometheus-client==0.19.0
     # via -r requirements.in
 psutil==5.9.6
@@ -196,12 +206,14 @@ requests==2.31.0
     #   -r requirements.in
     #   fedmsg
     #   gql
+    #   jira
     #   koji
     #   odcs
     #   openidc-client
     #   python-fedora
     #   requests-gssapi
     #   requests-kerberos
+    #   requests-oauthlib
     #   requests-toolbelt
 requests-gssapi==1.2.3
     # via
@@ -209,8 +221,12 @@ requests-gssapi==1.2.3
     #   odcs
 requests-kerberos==0.14.0
     # via -r requirements.in
+requests-oauthlib==2.0.0
+    # via jira
 requests-toolbelt==1.0.0
-    # via gql
+    # via
+    #   gql
+    #   jira
 rpm==0.1.0
     # via -r requirements.in
 semver==2.13.0
@@ -248,6 +264,7 @@ types-python-dateutil==2.8.19.14
 typing-extensions==4.9.0
     # via
     #   alembic
+    #   jira
     #   twisted
 urllib3==2.1.0
     # via

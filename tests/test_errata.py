@@ -307,9 +307,10 @@ class TestErrata(helpers.FreshmakerTestCase):
     def tearDown(self):
         super(TestErrata, self).tearDown()
 
+    @patch("freshmaker.errata.JIRA")
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
-    def test_advisories_from_event(self, errata_http_get, errata_rest_get):
+    def test_advisories_from_event_x(self, errata_http_get, errata_rest_get, mocked_jira):
         MockedErrataAPI(errata_rest_get, errata_http_get)
         event = BrewSignRPMEvent("msgid", "libntirpc-1.4.3-4.el7rhgs")
         advisories = self.errata.advisories_from_event(event)
@@ -323,9 +324,10 @@ class TestErrata(helpers.FreshmakerTestCase):
         self.assertEqual(advisories[0].cve_list, ["CVE-2015-3253", "CVE-2016-6814"])
         self.assertEqual(advisories[0].is_major_incident, True)
 
+    @patch("freshmaker.errata.JIRA")
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
-    def test_advisories_from_event_empty_cve(self, errata_http_get, errata_rest_get):
+    def test_advisories_from_event_empty_cve(self, errata_http_get, errata_rest_get, mocked_jira):
         mocked_errata = MockedErrataAPI(errata_rest_get, errata_http_get)
         mocked_errata.advisory_rest_json["content"]["content"]["cve"] = ""
         event = BrewSignRPMEvent("msgid", "libntirpc-1.4.3-4.el7rhgs")
@@ -333,9 +335,11 @@ class TestErrata(helpers.FreshmakerTestCase):
         self.assertEqual(len(advisories), 1)
         self.assertEqual(advisories[0].cve_list, [])
 
+    @patch("freshmaker.errata.JIRA")
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
-    def test_advisories_from_event_no_bugs(self, errata_http_get, errata_rest_get):
+    def test_advisories_from_event_no_bugs(self, errata_http_get, errata_rest_get, mocked_jira):
+        mocked_jira.return_value.issue.return_value.fields.issuetype.name = "something"
         mocked_errata = MockedErrataAPI(errata_rest_get, errata_http_get)
         mocked_errata.bugs = []
         event = BrewSignRPMEvent("msgid", "libntirpc-1.4.3-4.el7rhgs")
@@ -343,9 +347,12 @@ class TestErrata(helpers.FreshmakerTestCase):
         self.assertEqual(len(advisories), 1)
         self.assertEqual(advisories[0].is_major_incident, False)
 
+    @patch("freshmaker.errata.JIRA")
     @patch.object(Errata, "_errata_rest_get")
     @patch.object(Errata, "_errata_http_get")
-    def test_advisories_from_event_empty_bug_flags(self, errata_http_get, errata_rest_get):
+    def test_advisories_from_event_empty_bug_flags(
+        self, errata_http_get, errata_rest_get, mocked_jira
+    ):
         mocked_errata = MockedErrataAPI(errata_rest_get, errata_http_get)
         for bug in mocked_errata.bugs:
             bug["flags"] = ""
@@ -555,8 +562,32 @@ class TestErrata(helpers.FreshmakerTestCase):
         self.assertSetEqual(builds, {"nvr1", "nvr2", "nvr3", "nvr4", "nvr5"})
         self.assertEqual(get_blocks.call_count, 3)
 
+    @patch("freshmaker.errata.JIRA")
     @patch.object(Errata, "_get_jira_issues")
-    def test_has_jira_major_incidents(self, get_jira_issues):
+    @patch.object(Errata, "_errata_rest_get")
+    @patch.object(Errata, "_errata_http_get")
+    def test_is_major_incident_advisory_with_hightouch_bug(
+        self, errata_http_get, errata_rest_get, get_jira_issues, mocked_jira
+    ):
+        mocked_errata = MockedErrataAPI(errata_rest_get, errata_http_get)
+        mocked_errata.advisory_rest_json["content"]["content"]["cve"] = ""
+        event = BrewSignRPMEvent("msgid", "libntirpc-1.4.3-4.el7rhgs")
+        advisories = self.errata.advisories_from_event(event)
+        self.assertEqual(len(advisories), 1)
+        self.assertTrue(advisories[0].is_major_incident)
+
+    @patch("freshmaker.errata.JIRA")
+    @patch.object(Errata, "_get_jira_issues")
+    @patch.object(Errata, "_errata_rest_get")
+    @patch.object(Errata, "_errata_http_get")
+    def test_is_major_incident_advisory_with_major_incident_jira(
+        self, errata_http_get, errata_rest_get, get_jira_issues, mocked_jira
+    ):
+        mocked_errata = MockedErrataAPI(errata_rest_get, errata_http_get)
+        mocked_errata.bugs = []
+        mocked_errata.advisory_rest_json["content"]["content"]["cve"] = ""
+        event = BrewSignRPMEvent("msgid", "libntirpc-1.4.3-4.el7rhgs")
+
         get_jira_issues.return_value = [
             {
                 "id_jira": 123456,
@@ -573,38 +604,48 @@ class TestErrata(helpers.FreshmakerTestCase):
                 ],
             }
         ]
-        has_major_incidents = self.errata.has_jira_major_incidents("123")
-        self.assertTrue(has_major_incidents)
+        mocked_jira.return_value.issue.return_value.fields.issuetype.name = "Vulnerability"
+        mocked_jira.return_value.issue.return_value.fields.customfield_12324753 = [
+            MagicMock(value="Major Incident")
+        ]
 
-        get_jira_issues.return_value = [
+        advisories = self.errata.advisories_from_event(event)
+        self.assertEqual(len(advisories), 1)
+        self.assertTrue(advisories[0].is_major_incident)
+
+    @patch("freshmaker.errata.JIRA")
+    @patch.object(Errata, "_get_jira_issues")
+    @patch.object(Errata, "_errata_rest_get")
+    @patch.object(Errata, "_errata_http_get")
+    def test_is_compliance_priority_advisory_with_compliance_priority_bug(
+        self, errata_http_get, errata_rest_get, get_jira_issues, mocked_jira
+    ):
+        mocked_errata = MockedErrataAPI(errata_rest_get, errata_http_get)
+        mocked_errata.advisory_rest_json["content"]["content"]["cve"] = ""
+        mocked_errata.bugs = [
             {
-                "id_jira": 123456,
-                "key": "RHEL-3322",
-                "summary": "[Minor Incident] CVE-2023-1235 barpack: Heap buffer overflow in Bar Codec [rhel-1.2.3.z]",
-                "status": "Closed",
-                "is_private": True,
-                "labels": [
-                    "CVE-2023-1235",
-                    "Security",
-                    "SecurityTracking",
-                    "flaw:bz#653422",
-                    "pscomponent:barpack",
-                ],
+                "id": 1519778,
+                "is_security": True,
+                "alias": "CVE-2017-5753",
+                "flags": "compliance_priority+,requires_doc_text+,rhsa_sla+",
             }
         ]
-        has_major_incidents = self.errata.has_jira_major_incidents("123")
-        self.assertFalse(has_major_incidents)
+        event = BrewSignRPMEvent("msgid", "libntirpc-1.4.3-4.el7rhgs")
+        advisories = self.errata.advisories_from_event(event)
+        self.assertEqual(len(advisories), 1)
+        self.assertTrue(advisories[0].is_compliance_priority)
 
-        get_jira_issues.return_value = []
-        has_major_incidents = self.errata.has_jira_major_incidents("123")
-        self.assertFalse(has_major_incidents)
-
-        get_jira_issues.return_value = {"error": "Bad errata id given: 123"}
-        has_major_incidents = self.errata.has_jira_major_incidents("123")
-        self.assertFalse(has_major_incidents)
-
+    @patch("freshmaker.errata.JIRA")
     @patch.object(Errata, "_get_jira_issues")
-    def test_has_compliance_priority_jira_label(self, get_jira_issues):
+    @patch.object(Errata, "_errata_rest_get")
+    @patch.object(Errata, "_errata_http_get")
+    def test_is_compliance_priority_advisory_with_compliance_priority_jira(
+        self, errata_http_get, errata_rest_get, get_jira_issues, mocked_jira
+    ):
+        mocked_errata = MockedErrataAPI(errata_rest_get, errata_http_get)
+        mocked_errata.advisory_rest_json["content"]["content"]["cve"] = ""
+        event = BrewSignRPMEvent("msgid", "libntirpc-1.4.3-4.el7rhgs")
+
         get_jira_issues.return_value = [
             {
                 "id_jira": 123456,
@@ -613,35 +654,58 @@ class TestErrata(helpers.FreshmakerTestCase):
                 "status": "Closed",
                 "is_private": True,
                 "labels": [
-                    "compliance-priority",
+                    "CVE-2023-1234",
+                    "Security",
+                    "SecurityTracking",
+                    "flaw:bz#653421",
+                    "pscomponent:foopack",
                 ],
             }
         ]
-        has_compliance_priority = self.errata.has_compliance_priority_jira_label("123")
-        self.assertTrue(has_compliance_priority)
+        mocked_jira.return_value.issue.return_value.fields.issuetype.name = "Vulnerability"
+        mocked_jira.return_value.issue.return_value.fields.customfield_12324753 = [
+            MagicMock(value="compliance-priority")
+        ]
+
+        advisories = self.errata.advisories_from_event(event)
+        self.assertEqual(len(advisories), 1)
+        self.assertTrue(advisories[0].is_compliance_priority)
+
+    @patch("freshmaker.errata.JIRA")
+    @patch.object(Errata, "_get_jira_issues")
+    @patch.object(Errata, "_errata_rest_get")
+    @patch.object(Errata, "_errata_http_get")
+    def test_is_contract_priority_advisory_with_compliance_priority_jira(
+        self, errata_http_get, errata_rest_get, get_jira_issues, mocked_jira
+    ):
+        mocked_errata = MockedErrataAPI(errata_rest_get, errata_http_get)
+        mocked_errata.advisory_rest_json["content"]["content"]["cve"] = ""
+        event = BrewSignRPMEvent("msgid", "libntirpc-1.4.3-4.el7rhgs")
 
         get_jira_issues.return_value = [
             {
                 "id_jira": 123456,
-                "key": "RHEL-3322",
-                "summary": "CVE-2023-1235 barpack: Heap buffer overflow in Bar Codec [rhel-1.2.3.z]",
+                "key": "RHEL-3321",
+                "summary": "CVE-2023-1234 foopack: Heap buffer overflow in Foo Codec [rhel-1.2.3.z]",
                 "status": "Closed",
                 "is_private": True,
                 "labels": [
-                    "CVE-2023-1235",
+                    "CVE-2023-1234",
+                    "Security",
+                    "SecurityTracking",
+                    "flaw:bz#653421",
+                    "pscomponent:foopack",
                 ],
             }
         ]
-        has_compliance_priority = self.errata.has_compliance_priority_jira_label("123")
-        self.assertFalse(has_compliance_priority)
+        mocked_jira.return_value.issue.return_value.fields.issuetype.name = "Vulnerability"
+        mocked_jira.return_value.issue.return_value.fields.customfield_12324753 = [
+            MagicMock(value="contract-priority")
+        ]
 
-        get_jira_issues.return_value = []
-        has_compliance_priority = self.errata.has_compliance_priority_jira_label("123")
-        self.assertFalse(has_compliance_priority)
-
-        get_jira_issues.return_value = {"error": "Bad errata id given: 123"}
-        has_compliance_priority = self.errata.has_compliance_priority_jira_label("123")
-        self.assertFalse(has_compliance_priority)
+        advisories = self.errata.advisories_from_event(event)
+        self.assertEqual(len(advisories), 1)
+        self.assertTrue(advisories[0].is_contract_priority)
 
 
 class TestErrataAuthorizedGet(helpers.FreshmakerTestCase):
