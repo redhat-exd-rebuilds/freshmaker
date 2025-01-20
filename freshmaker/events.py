@@ -302,6 +302,7 @@ class ErrataBaseEvent(BaseEvent):
             advisory_release_name=self.advisory.release_name,
             advisory_is_major_incident=self.advisory.is_major_incident,
             advisory_is_compliance_priority=self.advisory.is_compliance_priority,
+            advisory_is_contract_priority=self.advisory.is_contract_priority,
             advisory_content_types=" ".join(self.advisory.content_types),
             **kwargs
         )
