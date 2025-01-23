@@ -29,7 +29,7 @@ backoff==2.2.1
     #   gql
 beautifulsoup4==4.12.2
     # via python-fedora
-certifi==2023.11.17
+certifi==2024.7.4
     # via requests
 cffi==1.16.0
     # via cryptography
