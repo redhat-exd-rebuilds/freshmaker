@@ -266,7 +266,7 @@ typing-extensions==4.9.0
     #   alembic
     #   jira
     #   twisted
-urllib3==2.1.0
+urllib3==2.6.0
     # via
     #   python-fedora
     #   requests
