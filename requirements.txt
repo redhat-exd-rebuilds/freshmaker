@@ -188,7 +188,7 @@ python-fedora==1.1.1
     # via -r requirements.in
 python-json-logger==2.0.7
     # via -r requirements.in
-python-ldap==3.4.4
+python-ldap==3.4.5
     # via
     #   -r requirements.in
     #   pyldap
