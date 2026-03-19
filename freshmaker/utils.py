@@ -41,7 +41,6 @@ from urllib.parse import urlparse
 from freshmaker import app, conf, log
 from freshmaker.types import ArtifactType
 
-
 # Global authenticated session for Product Pages API
 _product_pages_session = None
 
@@ -226,7 +225,7 @@ def _run_command(
         env=env,
         close_fds=True,
     )
-    (out, err) = p1.communicate()
+    out, err = p1.communicate()
 
     if out and logger and log_output:
         logger.debug(out)

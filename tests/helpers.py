@@ -33,7 +33,6 @@ from freshmaker import events
 from freshmaker import db
 from freshmaker.models import User
 
-
 BUILD_STATES = {
     "init": 0,
     "wait": 1,

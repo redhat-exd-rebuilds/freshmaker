@@ -50,7 +50,7 @@ class BrewTaskStateChangeParser(BaseParser):
 
         if task_method == "buildContainer":
             request = task_info.get("request")
-            (git_url, target, opts) = request
+            git_url, target, opts = request
             branch = opts.get("git_branch", None)
             m = re.match(r".*/(?P<container>[^#]*)", git_url)
             container = m.group("container")
