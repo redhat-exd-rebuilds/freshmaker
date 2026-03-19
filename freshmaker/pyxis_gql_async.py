@@ -89,13 +89,11 @@ class PyxisAsyncGQL:
 
     @cached_property
     def dsl_schema(self) -> DSLSchema:
-        query = gql(
-            """
+        query = gql("""
                 query {
                     get_ping
                 }
-            """
-        )
+            """)
         client = self._client()
         client.execute(query)  # first execution for caching is synchronous
         return DSLSchema(client.schema)  # type: ignore[arg-type]

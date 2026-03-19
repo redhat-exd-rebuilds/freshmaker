@@ -16,7 +16,6 @@ from lightblue.service import LightBlueService
 from lightblue.entity import LightBlueEntity
 from lightblue.query import LightBlueQuery
 
-
 LB_DATA_URL = "https://datasvc.periwinkle.corp.redhat.com/rest/data"
 LB_META_URL = "https://datasvc.periwinkle.corp.redhat.com/rest/metadata"
 ERRATA_URL = "https://errata.devel.redhat.com/api/v1/"

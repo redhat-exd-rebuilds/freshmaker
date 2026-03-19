@@ -69,13 +69,11 @@ class PyxisGQL:
 
     @region.cache_on_arguments()
     def _get_graphql_schema(self):
-        query = gql(
-            """
+        query = gql("""
                 query {
                     get_ping
                 }
-            """
-        )
+            """)
         self._client.execute(query)
         return DSLSchema(self._client.schema)
 
