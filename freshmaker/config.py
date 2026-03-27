@@ -472,6 +472,11 @@ class Config(object):
             "default": "https://issues.redhat.com",
             "desc": "The JIRA server url",
         },
+        "jira_email": {
+            "type": str,
+            "default": "",
+            "desc": "The email address for JIRA Cloud basic auth",
+        },
         "jira_token": {
             "type": str,
             "default": "",
