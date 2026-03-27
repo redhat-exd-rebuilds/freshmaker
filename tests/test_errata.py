@@ -605,7 +605,7 @@ class TestErrata(helpers.FreshmakerTestCase):
             }
         ]
         mocked_jira.return_value.issue.return_value.fields.issuetype.name = "Vulnerability"
-        mocked_jira.return_value.issue.return_value.fields.customfield_12324753 = [
+        mocked_jira.return_value.issue.return_value.fields.customfield_10670 = [
             MagicMock(value="Major Incident")
         ]
 
@@ -663,7 +663,7 @@ class TestErrata(helpers.FreshmakerTestCase):
             }
         ]
         mocked_jira.return_value.issue.return_value.fields.issuetype.name = "Vulnerability"
-        mocked_jira.return_value.issue.return_value.fields.customfield_12324753 = [
+        mocked_jira.return_value.issue.return_value.fields.customfield_10670 = [
             MagicMock(value="compliance-priority")
         ]
 
@@ -699,7 +699,7 @@ class TestErrata(helpers.FreshmakerTestCase):
             }
         ]
         mocked_jira.return_value.issue.return_value.fields.issuetype.name = "Vulnerability"
-        mocked_jira.return_value.issue.return_value.fields.customfield_12324753 = [
+        mocked_jira.return_value.issue.return_value.fields.customfield_10670 = [
             MagicMock(value="contract-priority")
         ]
 

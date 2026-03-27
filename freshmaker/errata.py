@@ -537,19 +537,25 @@ class Errata(object):
         Get "Special Handling" values from a Jira issue, return None if Jira issue
         is not a "Vulnerability" issue
         """
-        jira_server = JIRA(server=conf.jira_server_url, token_auth=conf.jira_token)
+        jira_server = JIRA(
+            server=conf.jira_server_url,
+            basic_auth=(conf.jira_email, conf.jira_token),
+            options={"rest_api_version": "3"},
+        )
         try:
             try:
                 issue = jira_server.issue(issue_key)
             except JIRAError as e:
                 log.error("unable to check jira issue %s: %s", issue_key, e.text)
-                return None
+                if e.status_code is not None and 400 <= e.status_code < 500:
+                    return None
+                raise
 
             issue_type = issue.fields.issuetype.name.lower()
             if issue_type != "vulnerability":
                 return None
 
-            special_handling = getattr(issue.fields, "customfield_12324753", [])
+            special_handling = getattr(issue.fields, "customfield_10670", [])
             if not special_handling:
                 return None
             return [x.value for x in special_handling]
