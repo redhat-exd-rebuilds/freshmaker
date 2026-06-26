@@ -23,7 +23,7 @@
 #            Matt Prahl <mprahl@redhat.com>
 #            Jan Kaluza <jkaluza@redhat.com>
 
-import pkg_resources  # type: ignore
+import importlib.metadata
 
 from logging import getLogger
 from typing import Any  # noqa
@@ -37,8 +37,8 @@ from freshmaker.config import init_config
 from freshmaker.proxy import ReverseProxy
 
 try:
-    version = pkg_resources.get_distribution("freshmaker").version
-except pkg_resources.DistributionNotFound:
+    version = importlib.metadata.version("freshmaker")
+except importlib.metadata.PackageNotFoundError:
     version = "unknown"
 
 app = Flask(__name__)  # type: Any
