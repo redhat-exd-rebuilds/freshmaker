@@ -365,10 +365,12 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             for bundle in bundles:
                 bundle_images = self._pyxis.get_images_by_digest(bundle["bundle_path_digest"])
                 if not bundle_images:
-                    log.error(
-                        "Image not found with bundle path digest: %s, ignore it.",
+                    log.info(
+                        "No brew image found for bundle path digest: %s, "
+                        "skipping (likely a Konflux-built bundle).",
                         bundle["bundle_path_digest"],
                     )
+                    continue
                 bundle_nvr = bundle_images[0]["brew"]["build"]
                 log.debug("Found impacted bundle: %s", bundle_nvr)
                 impacted_bundles.add(bundle_nvr)
