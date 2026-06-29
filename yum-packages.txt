@@ -14,7 +14,6 @@ python3-libmodulemd
 python3-mod_wsgi
 python3-pip
 python3-psycopg2
-python-rhmsg
 python3-rpm
 python3-setuptools
 python3-systemd

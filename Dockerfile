@@ -24,8 +24,16 @@ RUN \
     pip3 --python /usr/bin/python3.12 install -r requirements.txt && \
     # backward compatibility with rpm version
     ln -s /usr/local/bin/fedmsg-hub /usr/bin/fedmsg-hub-3 && \
+    mkdir /tmp/python-rhmsg && \
+    pushd /tmp/python-rhmsg && \
+    dnf download --srpm python3-rhmsg && \
+    rpm2archive python-rhmsg-0.12*.*.src.rpm | tar -xvzf - && \
+    pip --python /usr/bin/python3.12 install 'python-qpid-proton==0.37.0' ./rhmsg-0.12.0.tar.gz && \
+    popd && \
     pip3 --python /usr/bin/python3.12 install . && \
     # cleanup
+    dnf clean all && \
+    rm -rf /tmp/python-rhmsg && \
     rm -rf /root/.cache/pip/
 
 ENV REQUESTS_CA_BUNDLE='/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem'
