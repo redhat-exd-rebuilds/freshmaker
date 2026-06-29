@@ -5,7 +5,7 @@ project_root="$(dirname "$(realpath $0)")"
 export PYTHONPATH="${project_root}"
 export FRESHMAKER_DEVELOPER_ENV=1
 
-manage_py="python "${project_root}/freshmaker/manage.py""
+manage_py="${PYTHON:-python} "${project_root}/freshmaker/manage.py""
 
 function usage
 {
@@ -33,7 +33,7 @@ case $1 in
         ;;
 
     runfreshmaker)
-        "${project_root}/start_backend_from_here" &
+        ${PYTHON:-python} "${project_root}/start_backend_from_here" &
         PIDS[0]=$!
 
         trap "kill ${PIDS[*]}" SIGINT
