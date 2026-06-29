@@ -288,9 +288,10 @@ class Pyxis(object):
         :rtype: list
         """
         q_filter = (
-            f"repositories.manifest_list_digest=={digest}"
+            f"(repositories.manifest_list_digest=={digest}"
             + " or "
-            + f"repositories.manifest_schema2_digest=={digest}"
+            + f"repositories.manifest_schema2_digest=={digest})"
+            + " and brew != null"
         )
         request_params = {"include": "data.brew,data.repositories", "filter": q_filter}
         return self._pagination("images", request_params)
