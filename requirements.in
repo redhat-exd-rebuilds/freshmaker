@@ -35,6 +35,7 @@ requests-kerberos
 rpm
 semver
 sqlalchemy
+stomper
 tabulate
 yarl
 werkzeug
