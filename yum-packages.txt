@@ -6,6 +6,7 @@ git-core
 gobject-introspection-devel
 httpd
 krb5-devel
+libpq-devel
 openldap-devel
 mod_auth_gssapi
 mod_ssl
@@ -13,7 +14,6 @@ python3.12-devel
 python3-libmodulemd
 python3-mod_wsgi
 python3-pip
-python3-psycopg2
 python3-rpm
 python3-setuptools
 python3-systemd

@@ -1,6 +1,7 @@
 fedora-packager
 gcc
 krb5-devel
+libpq-devel
 openldap-devel
 python-devel
 
