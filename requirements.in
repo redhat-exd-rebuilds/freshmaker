@@ -21,6 +21,7 @@ mypy-extensions
 odcs[client]
 prometheus_client
 psutil
+psycopg2
 pygments
 pygobject
 pyldap
