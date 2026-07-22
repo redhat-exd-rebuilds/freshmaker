@@ -31,6 +31,9 @@ RUN \
     pip --python /usr/bin/python3.12 install 'python-qpid-proton==0.37.0' ./rhmsg-0.12.0.tar.gz && \
     popd && \
     pip3 --python /usr/bin/python3.12 install . && \
+    # use python3.12 version from pypi instead on default from rpm
+    pip3 --python /usr/bin/python3.12 install 'mod-wsgi==5.0.2' && \
+    sed -e "/LoadModule.wsgi_module/s:wsgi_module.*:wsgi_module $(mod_wsgi-express module-location):" -i /etc/httpd/conf.modules.d/10-wsgi-python3.conf && \
     # cleanup
     dnf clean all && \
     rm -rf /tmp/python-rhmsg && \
