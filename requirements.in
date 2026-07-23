@@ -37,5 +37,6 @@ semver
 sqlalchemy
 stomper
 tabulate
+twisted[tls]
 yarl
 werkzeug

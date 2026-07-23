@@ -20,6 +20,7 @@ attrs==23.1.0
     # via
     #   aiohttp
     #   automat
+    #   service-identity
     #   twisted
 automat==22.10.0
     # via twisted
@@ -44,6 +45,7 @@ cryptography==41.0.7
     #   pyopenssl
     #   pyspnego
     #   requests-kerberos
+    #   service-identity
 decorator==5.1.1
     # via
     #   dogpile-cache
@@ -95,6 +97,7 @@ idna==3.6
     # via
     #   hyperlink
     #   requests
+    #   twisted
     #   yarl
 incremental==22.10.0
     # via twisted
@@ -166,8 +169,11 @@ pyasn1==0.5.1
     # via
     #   pyasn1-modules
     #   python-ldap
+    #   service-identity
 pyasn1-modules==0.3.0
-    # via python-ldap
+    # via
+    #   python-ldap
+    #   service-identity
 pycairo==1.25.1
     # via pygobject
 pycparser==2.21
@@ -179,7 +185,9 @@ pygobject==3.46.0
 pyldap==3.0.0.post1
     # via -r requirements.in
 pyopenssl==23.3.0
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   twisted
 pyparsing==3.1.1
     # via httplib2
 pyspnego[kerberos]==0.10.2
@@ -235,6 +243,8 @@ rpm==0.1.0
     # via -r requirements.in
 semver==2.13.0
     # via -r requirements.in
+service-identity==23.1.0
+    # via twisted
 six==1.16.0
     # via
     #   automat
@@ -257,8 +267,9 @@ stomper==0.4.3
     # via -r requirements.in
 tabulate==0.9.0
     # via -r requirements.in
-twisted==23.10.0
+twisted[tls]==23.10.0
     # via
+    #   -r requirements.in
     #   moksha-hub
     #   txzmq
 txws==0.9.1
