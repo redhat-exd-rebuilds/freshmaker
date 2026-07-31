@@ -1430,6 +1430,22 @@ class PyxisAPI(object):
                 rebuild_list[rpm_name] = self.find_parent_images_with_package(
                     image, rpm_name, images=[], pyxis_api_instance=pyxis_api_instance
                 )
+                # Filter out parent images not allowed by configuration.
+                # Truncate the parent chain at the first blocked parent so
+                # ancestors above it are also excluded from the rebuild.
+                if filter_fnc and rebuild_list[rpm_name]:
+                    filtered_parents = []
+                    for parent_image in rebuild_list[rpm_name]:
+                        if filter_fnc(parent_image):
+                            log.info(
+                                "Excluding parent image %s (and its ancestors) from rebuild "
+                                "chain of %s (not allowed by configuration)",
+                                parent_image.nvr,
+                                image.nvr,
+                            )
+                            break
+                        filtered_parents.append(parent_image)
+                    rebuild_list[rpm_name] = filtered_parents
                 if rebuild_list[rpm_name]:
                     image["parent"] = rebuild_list[rpm_name][0]
                 else:
