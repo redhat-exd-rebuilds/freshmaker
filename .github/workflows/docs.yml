@@ -24,7 +24,7 @@ jobs:
         id: packages
         shell: bash
         run: |
-          echo ::set-output name=packages::$(sed 's/#.*//' yum-packages-devel.txt)
+          echo "packages=$(sed 's/#.*//' yum-packages-devel.txt | xargs)" >> "$GITHUB_OUTPUT"
 
       - name: Build docs
         uses: fedora-python/tox-github-action@v43.0
