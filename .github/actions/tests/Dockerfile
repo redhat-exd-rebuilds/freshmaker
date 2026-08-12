@@ -1,4 +1,4 @@
-FROM quay.io/factory2/freshmaker:fc43
+FROM quay.io/factory2/freshmaker:latest
 
 LABEL \
     name="Freshmaker's tests on github actions" \
