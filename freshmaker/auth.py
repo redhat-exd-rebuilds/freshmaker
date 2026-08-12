@@ -133,6 +133,7 @@ def query_ldap_groups(uid):
     :rtype: set
     """
     client = ldap.initialize(conf.auth_ldap_server)
+    client.sasl_gssapi_bind_s()
     users = client.search_s(
         conf.auth_ldap_user_base,
         ldap.SCOPE_ONELEVEL,
