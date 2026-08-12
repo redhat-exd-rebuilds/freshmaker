@@ -25,6 +25,7 @@
 from functools import wraps
 import requests
 import ldap
+import ldap.filter
 import flask
 
 from flask import g
@@ -139,7 +140,7 @@ def query_ldap_groups(uid):
             conf.auth_ldap_user_base,
             ldap.SCOPE_ONELEVEL,
             attrlist=["memberOf"],
-            filterstr=f"(&(uid={uid})(objectClass=posixAccount))",
+            filterstr=ldap.filter.filter_format("(&(uid=%s)(objectClass=posixAccount))", [uid]),
         )
 
         group_distinguished_names = set()
