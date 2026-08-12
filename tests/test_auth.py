@@ -307,10 +307,12 @@ class TestQueryLdapGroups(FreshmakerTestCase):
         self.assertEqual(expected, groups)
         client = initialize.return_value
         client.sasl_gssapi_bind_s.assert_called_once()
+        client.unbind_s.assert_called_once()
         client.assert_has_calls(
             [
                 call.sasl_gssapi_bind_s(),
                 call.search_s(mock.ANY, mock.ANY, attrlist=mock.ANY, filterstr=mock.ANY),
+                call.unbind_s(),
             ]
         )
 
