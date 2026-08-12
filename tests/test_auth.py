@@ -24,7 +24,8 @@
 
 import flask
 
-from unittest.mock import patch, Mock
+from unittest import mock
+from unittest.mock import call, patch, Mock
 from werkzeug.exceptions import Unauthorized
 
 import freshmaker.auth
@@ -304,6 +305,14 @@ class TestQueryLdapGroups(FreshmakerTestCase):
             "cn=Forrest Gump,ou=groups,dc=example,dc=com",
         }
         self.assertEqual(expected, groups)
+        client = initialize.return_value
+        client.sasl_gssapi_bind_s.assert_called_once()
+        client.assert_has_calls(
+            [
+                call.sasl_gssapi_bind_s(),
+                call.search_s(mock.ANY, mock.ANY, attrlist=mock.ANY, filterstr=mock.ANY),
+            ]
+        )
 
 
 class TestInitAuth(FreshmakerTestCase):
