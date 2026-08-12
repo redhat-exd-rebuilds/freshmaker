@@ -133,26 +133,29 @@ def query_ldap_groups(uid):
     :rtype: set
     """
     client = ldap.initialize(conf.auth_ldap_server)
-    client.sasl_gssapi_bind_s()
-    users = client.search_s(
-        conf.auth_ldap_user_base,
-        ldap.SCOPE_ONELEVEL,
-        attrlist=["memberOf"],
-        filterstr=f"(&(uid={uid})(objectClass=posixAccount))",
-    )
+    try:
+        client.sasl_gssapi_bind_s()
+        users = client.search_s(
+            conf.auth_ldap_user_base,
+            ldap.SCOPE_ONELEVEL,
+            attrlist=["memberOf"],
+            filterstr=f"(&(uid={uid})(objectClass=posixAccount))",
+        )
 
-    group_distinguished_names = set()
-    if users:
-        # users will only contain one entry if the user exists in the LDAP directory
-        # since the LDAP filter is limited to a single user.
-        _, user_attributes = users[0]
-        group_distinguished_names = {
-            # The value of group is the entire distinguished name of the group
-            group.decode("utf-8")
-            for group in user_attributes.get("memberOf", [])
-        }
+        group_distinguished_names = set()
+        if users:
+            # users will only contain one entry if the user exists in the LDAP directory
+            # since the LDAP filter is limited to a single user.
+            _, user_attributes = users[0]
+            group_distinguished_names = {
+                # The value of group is the entire distinguished name of the group
+                group.decode("utf-8")
+                for group in user_attributes.get("memberOf", [])
+            }
 
-    return group_distinguished_names
+        return group_distinguished_names
+    finally:
+        client.unbind_s()
 
 
 @commit_on_success
