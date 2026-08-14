@@ -1844,6 +1844,133 @@ class TestQueryFromPyxis(helpers.FreshmakerTestCase):
 
     @patch("freshmaker.image.PyxisAPI.find_images_with_packages_from_content_set")
     @patch("freshmaker.image.PyxisAPI.find_parent_images_with_package")
+    @patch("freshmaker.image.PyxisAPI.find_parent_brew_build_nvr_from_child")
+    @patch("freshmaker.image.PyxisAPI.get_images_by_nvrs")
+    @patch("freshmaker.image.PyxisAPI._filter_out_already_fixed_published_images")
+    @patch("os.path.exists")
+    def test_images_to_rebuild_direct_parent_blocked(
+        self,
+        exists,
+        _filter_out_already_fixed_published_images,
+        get_images_by_nvrs,
+        find_parent_brew_build_nvr_from_child,
+        find_parent_images_with_package,
+        find_images_with_packages_from_content_set,
+    ):
+        """When the direct parent is blocklisted, the child should rebuild
+        independently against its existing (non-rebuilt) parent."""
+        exists.return_value = True
+
+        parent_a = ContainerImage.create(
+            {
+                "brew": {"package": "blocked-parent", "build": "blocked-parent-v-r1"},
+                "parsed_data": {"labels": [{"name": "not_com.redhat.hotfix", "value": "v4.6"}]},
+                "repositories": [{"repository": "foo/bar"}],
+                "repository": "repo-1",
+                "commit": "blocked-parent-commit",
+                "parent": None,
+            }
+        )
+        leaf_image = ContainerImage.create(
+            {
+                "brew": {"build": "leaf-image-v-r1"},
+                "parsed_data": {
+                    "labels": [{"name": "not_com.redhat.hotfix", "value": "v4.6"}],
+                    "layers": ["fake layer"],
+                },
+                "repositories": [{"repository": "foo/bar"}],
+                "repository": "repo-1",
+                "commit": "leaf-image-commit",
+            }
+        )
+        leaf_image["rpm_manifest"] = [{"rpms": [{"name": "dummy"}]}]
+        leaf_image["directly_affected"] = True
+
+        find_images_with_packages_from_content_set.return_value = [leaf_image]
+        find_parent_images_with_package.return_value = [parent_a]
+        find_parent_brew_build_nvr_from_child.return_value = "blocked-parent-v-r1"
+        get_images_by_nvrs.return_value = [parent_a]
+
+        def filter_fnc(image):
+            return image.nvr.startswith("blocked-parent")
+
+        pyxis = PyxisAPI(server_url=self.fake_server_url)
+        batches = pyxis.find_images_to_rebuild(["dummy-1-1"], ["dummy"], filter_fnc=filter_fnc)
+
+        returned_batches_nvrs = [{image.nvr for image in batch} for batch in batches]
+        expected_batches_nvrs = [{"leaf-image-v-r1"}]
+        self.assertEqual(expected_batches_nvrs, returned_batches_nvrs)
+        # The leaf should still have a parent reference for the Koji build
+        self.assertEqual(leaf_image["parent"].nvr, "blocked-parent-v-r1")
+
+    @patch("freshmaker.image.PyxisAPI.find_images_with_packages_from_content_set")
+    @patch("freshmaker.image.PyxisAPI.find_parent_images_with_package")
+    @patch("freshmaker.image.PyxisAPI._filter_out_already_fixed_published_images")
+    @patch("os.path.exists")
+    def test_images_to_rebuild_grandparent_blocked(
+        self,
+        exists,
+        _filter_out_already_fixed_published_images,
+        find_parent_images_with_package,
+        find_images_with_packages_from_content_set,
+    ):
+        """When a grandparent is blocklisted, the child and direct parent should
+        still rebuild, but the grandparent and ancestors above it are excluded."""
+        exists.return_value = True
+
+        grandparent = ContainerImage.create(
+            {
+                "brew": {"package": "grandparent", "build": "grandparent-v-r1"},
+                "parsed_data": {"labels": [{"name": "not_com.redhat.hotfix", "value": "v4.6"}]},
+                "repositories": [{"repository": "foo/bar"}],
+                "repository": "repo-1",
+                "commit": "grandparent-commit",
+                "parent": None,
+            }
+        )
+        parent_a = ContainerImage.create(
+            {
+                "brew": {"package": "parent-a", "build": "parent-a-v-r1"},
+                "parsed_data": {"labels": [{"name": "not_com.redhat.hotfix", "value": "v4.6"}]},
+                "repositories": [{"repository": "foo/bar"}],
+                "repository": "repo-1",
+                "commit": "parent-a-commit",
+                "parent": grandparent,
+            }
+        )
+        leaf_image = ContainerImage.create(
+            {
+                "brew": {"build": "leaf-image-v-r1"},
+                "parsed_data": {
+                    "labels": [{"name": "not_com.redhat.hotfix", "value": "v4.6"}],
+                    "layers": ["fake layer"],
+                },
+                "repositories": [{"repository": "foo/bar"}],
+                "repository": "repo-1",
+                "commit": "leaf-image-commit",
+            }
+        )
+        leaf_image["rpm_manifest"] = [{"rpms": [{"name": "dummy"}]}]
+        leaf_image["directly_affected"] = True
+
+        find_images_with_packages_from_content_set.return_value = [leaf_image]
+        find_parent_images_with_package.return_value = [parent_a, grandparent]
+
+        def filter_fnc(image):
+            return image.nvr.startswith("grandparent")
+
+        pyxis = PyxisAPI(server_url=self.fake_server_url)
+        batches = pyxis.find_images_to_rebuild(["dummy-1-1"], ["dummy"], filter_fnc=filter_fnc)
+
+        returned_batches_nvrs = [{image.nvr for image in batch} for batch in batches]
+        expected_batches_nvrs = [
+            {"parent-a-v-r1"},
+            {"leaf-image-v-r1"},
+        ]
+        self.assertEqual(expected_batches_nvrs, returned_batches_nvrs)
+
+    @patch("freshmaker.image.PyxisAPI.find_images_with_packages_from_content_set")
+    @patch("freshmaker.image.PyxisAPI.find_parent_images_with_package")
     @patch("freshmaker.image.PyxisAPI._filter_out_already_fixed_published_images")
     @patch("os.path.exists")
     def test_skip_nvrs_when_find_rebuild_images(
